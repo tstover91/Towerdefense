@@ -3,16 +3,19 @@ extends Node2D
 @export var loop_path: bool = true  
 @onready var spawntimer = $SpawnTimer
 @onready var path_follow_template: PathFollow2D = $path/spawn
+@onready var tower_list = $MainUI/ItemList
 var tower_scene := preload("res://tower.tscn")
 var place_mode := false
 var build_mode = false
 var tower_to_place : Node2D = null
 var tower_confirm : bool = false
+var money : int = 100
 
 func _ready():
 	spawntimer.timeout.connect(_spawn_mob)
 
 func _process(_delta):
+	$moneydisplay.text = str(money)
 	if place_mode and tower_to_place:
 		var snap := get_global_mouse_position().snapped(Vector2(32, 32))
 		var sprite = tower_to_place.get_node("Rotator")
@@ -60,9 +63,11 @@ func finalize_tower_placement():
 	place_mode = false
 	tower_to_place.position = pos.snapped(Vector2(32, 32))
 	tower_to_place.get_node("towerconfirm").visible = true
+	tower_list.deselect_all()
 
 @warning_ignore("unused_parameter")
 func _on_tower_confirmed(tower):
+	money -= 51
 	build_mode = false
 	tower_to_place = null
 
@@ -72,20 +77,24 @@ func _on_tower_cancelled(tower):
 	tower_to_place = null
 
 func start_build_tower():
-	place_mode = true
-	build_mode = true
-	tower_to_place = tower_scene.instantiate()
-	tower_to_place.main = self
-	tower_to_place.get_node("clickarea").set_process_input(false)
-	tower_to_place.get_node("clickarea").set_physics_process(false)
-	tower_to_place.get_node("clickarea").monitoring = false
-	tower_to_place.get_node("clickarea").input_pickable = false
-	tower_to_place.get_node("clickarea/CollisionShape2D").disabled = true
-	tower_to_place.get_node("Tower/CollisionShape2D").disabled = true
-	tower_to_place.connect("tower_confirmed", Callable(self, "_on_tower_confirmed"))
-	tower_to_place.connect("tower_cancelled", Callable(self, "_on_tower_cancelled"))
-	add_child(tower_to_place)
+	if build_mode == false:
+		place_mode = true
+		build_mode = true
+		tower_to_place = tower_scene.instantiate()
+		tower_to_place.main = self
+		tower_to_place.get_node("clickarea").set_process_input(false)
+		tower_to_place.get_node("clickarea").set_physics_process(false)
+		tower_to_place.get_node("clickarea").monitoring = false
+		tower_to_place.get_node("clickarea").input_pickable = false
+		tower_to_place.get_node("clickarea/CollisionShape2D").disabled = true
+		tower_to_place.get_node("Tower/CollisionShape2D").disabled = true
+		tower_to_place.connect("tower_confirmed", Callable(self, "_on_tower_confirmed"))
+		tower_to_place.connect("tower_cancelled", Callable(self, "_on_tower_cancelled"))
+		add_child(tower_to_place)
 
 @warning_ignore("unused_parameter")
-func _on_item_list_item_clicked(index: int, at_position: Vector2, mouse_button_index: int) -> void:
-	start_build_tower()
+func _on_item_list_item_selected(index: int) -> void:
+	if (money - 51) >= 0 and build_mode == false:
+		start_build_tower()
+	else:
+		tower_list.deselect_all()
