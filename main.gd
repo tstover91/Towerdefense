@@ -43,10 +43,14 @@ func spend_money(amount: int) -> bool:
 
 func _spawn_mob():
 	var mob = preload("res://mob.tscn").instantiate()
+	mob.mob_killed.connect(_on_mob_killed)
 	add_child(mob)
 	var pf = path_follow_template.duplicate()
 	$path.add_child(pf)
 	mob.set_path_follow(pf)
+
+func _on_mob_killed(reward):
+	add_money(reward)
 
 func _input(event):
 	if place_mode and event is InputEventMouseButton and event.pressed:
