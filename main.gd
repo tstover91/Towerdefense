@@ -10,12 +10,14 @@ var build_mode = false
 var tower_to_place : Node2D = null
 var tower_confirm : bool = false
 var money : int = 100
+var pending_tower_type := ""
+var pending_tower_cost := 0
 
 func _ready():
 	spawntimer.timeout.connect(_spawn_mob)
+	update_money()
 
 func _process(_delta):
-	$moneydisplay.text = str(money)
 	if place_mode and tower_to_place:
 		var snap := get_global_mouse_position().snapped(Vector2(32, 32))
 		var sprite = tower_to_place.get_node("Rotator")
@@ -24,6 +26,20 @@ func _process(_delta):
 			sprite.modulate = Color(1, 1, 1, 0.5)
 		else:
 			sprite.modulate = Color(1, 0, 0, 0.5)
+
+func update_money():
+	$MainUI/moneydisplay.text = str(money)
+
+func add_money(amount: int):
+	money += amount
+	update_money()
+
+func spend_money(amount: int) -> bool:
+	if money >= amount:
+		money -= amount
+		update_money()
+		return true
+	return false
 
 func _spawn_mob():
 	var mob = preload("res://mob.tscn").instantiate()
@@ -67,12 +83,17 @@ func finalize_tower_placement():
 
 @warning_ignore("unused_parameter")
 func _on_tower_confirmed(tower):
-	money -= 51
+	money -= pending_tower_cost
+	update_money()
+	pending_tower_type = ""
+	pending_tower_cost = 0
 	build_mode = false
 	tower_to_place = null
 
 @warning_ignore("unused_parameter")
 func _on_tower_cancelled(tower):
+	pending_tower_type = ""
+	pending_tower_cost = 0
 	build_mode = false
 	tower_to_place = null
 
@@ -94,7 +115,11 @@ func start_build_tower():
 
 @warning_ignore("unused_parameter")
 func _on_item_list_item_selected(index: int) -> void:
-	if (money - 51) >= 0 and build_mode == false:
+	var cost := 50  # or based on index later
+	
+	if money >= cost and build_mode == false:
+		pending_tower_type = "arrow_tower"  # or based on index
+		pending_tower_cost = cost
 		start_build_tower()
 	else:
 		tower_list.deselect_all()
