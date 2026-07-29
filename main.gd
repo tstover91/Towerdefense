@@ -4,6 +4,7 @@ extends Node2D
 @onready var spawntimer = $SpawnTimer
 @onready var path_follow_template: PathFollow2D = $path/spawn
 @onready var tower_list = $MainUI/ItemList
+var lives : int = 25
 var tower_scene := preload("res://tower.tscn")
 var place_mode := false
 var build_mode = false
@@ -16,6 +17,7 @@ var pending_tower_cost := 0
 func _ready():
 	spawntimer.timeout.connect(_spawn_mob)
 	update_money()
+	update_lives()
 
 func _process(_delta):
 	if place_mode and tower_to_place:
@@ -26,6 +28,9 @@ func _process(_delta):
 			sprite.modulate = Color(1, 1, 1, 0.5)
 		else:
 			sprite.modulate = Color(1, 0, 0, 0.5)
+
+func update_lives():
+	$MainUI/livesdisplay.text = str(lives)
 
 func update_money():
 	$MainUI/moneydisplay.text = str(money)
@@ -48,9 +53,14 @@ func _spawn_mob():
 	var pf = path_follow_template.duplicate()
 	$path.add_child(pf)
 	mob.set_path_follow(pf)
+	mob.reached_end.connect(_on_reached_end)
 
 func _on_mob_killed(reward):
 	add_money(reward)
+
+func _on_reached_end():
+	lives -= 1
+	update_lives()
 
 func _input(event):
 	if place_mode and event is InputEventMouseButton and event.pressed:
