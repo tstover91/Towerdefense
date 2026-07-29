@@ -53,7 +53,7 @@ func _spawn_mob():
 	var pf = path_follow_template.duplicate()
 	$path.add_child(pf)
 	mob.set_path_follow(pf)
-	mob.reached_end.connect(_on_reached_end)
+	#mob.reached_end.connect(_on_reached_end)
 
 func _on_mob_killed(reward):
 	add_money(reward)

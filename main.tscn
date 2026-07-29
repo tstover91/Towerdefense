@@ -34,6 +34,8 @@ point_count = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d42bq"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fakjx"]
+
 [node name="Main" type="Node2D" unique_id=625228475]
 script = ExtResource("1_h2yge")
 
@@ -77,5 +79,11 @@ theme_override_colors/font_color = Color(0.03529412, 0.09411765, 1, 1)
 theme_override_font_sizes/font_size = 32
 theme_override_styles/normal = SubResource("StyleBoxFlat_d42bq")
 horizontal_alignment = 1
+
+[node name="livesdisplay" type="Label" parent="MainUI" unique_id=854572826]
+offset_right = 40.0
+offset_bottom = 23.0
+theme_override_colors/font_color = Color(1, 0.0627451, 0.050980393, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_fakjx")
 
 [connection signal="item_selected" from="MainUI/ItemList" to="." method="_on_item_list_item_selected"]

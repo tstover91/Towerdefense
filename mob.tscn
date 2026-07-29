@@ -20,9 +20,7 @@ script = ExtResource("1_dy6sc")
 position = Vector2(0, 0.5)
 shape = SubResource("RectangleShape2D_g7b7a")
 
-[node name="Sprite" type="Node2D" parent="." unique_id=1284306938]
-
-[node name="ColorRect" type="Sprite2D" parent="Sprite" unique_id=1137460088]
+[node name="sprite" type="Sprite2D" parent="." unique_id=1137460088]
 rotation = -1.5707964
 scale = Vector2(2, 2)
 texture = ExtResource("2_nokgg")

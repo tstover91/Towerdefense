@@ -15,7 +15,7 @@ func _process(delta):
 	if path_follow:
 		path_follow.progress += speed * delta
 		global_position = path_follow.global_position
-		$Sprite.rotation = path_follow.rotation
+		$sprite.rotation = path_follow.rotation
 		
 func _ready():
 	health_bar.value = health
