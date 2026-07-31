@@ -47,12 +47,8 @@ collision_enabled = false
 [node name="path" type="Path2D" parent="." unique_id=20647985]
 curve = SubResource("Curve2D_0xm2m")
 
-[node name="spawn" type="PathFollow2D" parent="path" unique_id=503696051]
-position = Vector2(512, 0)
-rotation = 1.5707964
-
 [node name="SpawnTimer" type="Timer" parent="." unique_id=125378956]
-autostart = true
+wait_time = 3.0
 
 [node name="MainUI" type="CanvasLayer" parent="." unique_id=1125369134]
 
@@ -86,4 +82,12 @@ offset_bottom = 23.0
 theme_override_colors/font_color = Color(1, 0.0627451, 0.050980393, 1)
 theme_override_styles/normal = SubResource("StyleBoxFlat_fakjx")
 
+[node name="startbutton" type="Button" parent="MainUI" unique_id=1497233030]
+offset_left = 256.0
+offset_top = 8.0
+offset_right = 302.0
+offset_bottom = 39.0
+text = "Start"
+
 [connection signal="item_selected" from="MainUI/ItemList" to="." method="_on_item_list_item_selected"]
+[connection signal="pressed" from="MainUI/startbutton" to="." method="_on_startbutton_pressed"]

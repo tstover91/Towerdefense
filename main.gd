@@ -2,7 +2,6 @@ extends Node2D
  
 @export var loop_path: bool = true  
 @onready var spawntimer = $SpawnTimer
-@onready var path_follow_template: PathFollow2D = $path/spawn
 @onready var tower_list = $MainUI/ItemList
 var lives : int = 25
 var tower_scene := preload("res://tower.tscn")
@@ -15,7 +14,6 @@ var pending_tower_type := ""
 var pending_tower_cost := 0
 
 func _ready():
-	spawntimer.timeout.connect(_spawn_mob)
 	update_money()
 	update_lives()
 
@@ -46,21 +44,39 @@ func spend_money(amount: int) -> bool:
 		return true
 	return false
 
+func _on_startbutton_pressed() -> void:
+	if spawntimer.paused == true :
+		start_round()
+
+
+func start_round() -> void:
+	spawntimer.start()
+	spawntimer.timeout.connect(_spawn_mob)
+	
 func _spawn_mob():
 	var mob = preload("res://mob.tscn").instantiate()
 	mob.mob_killed.connect(_on_mob_killed)
-	add_child(mob)
-	var pf = path_follow_template.duplicate()
+	mob.reached_end.connect(_on_mob_reached_end)
+	var pf := PathFollow2D.new()
 	$path.add_child(pf)
+	pf.add_child(mob)
+	pf.loop = false
 	mob.set_path_follow(pf)
-	#mob.reached_end.connect(_on_reached_end)
+
+func _on_mob_reached_end(damage: int) -> void:
+	lives -= damage
+	lives = max(lives, 0)
+	update_lives()
+	
+	if lives == 0:
+		game_over()
+
+func game_over():
+	@warning_ignore("standalone_expression")
+	null
 
 func _on_mob_killed(reward):
 	add_money(reward)
-
-func _on_reached_end():
-	lives -= 1
-	update_lives()
 
 func _input(event):
 	if place_mode and event is InputEventMouseButton and event.pressed:
