@@ -3,7 +3,7 @@ extends Node2D
 @export var loop_path: bool = true  
 @onready var spawntimer = $SpawnTimer
 @onready var tower_list = $MainUI/ItemList
-var lives : int = 25
+var lives : int = 5
 var tower_scene := preload("res://tower.tscn")
 var place_mode := false
 var build_mode = false
@@ -12,10 +12,17 @@ var tower_confirm : bool = false
 var money : int = 100
 var pending_tower_type := ""
 var pending_tower_cost := 0
+var round_number := 0
+var mobs_left_to_spawn := 0
+var mobs_alive := 0
+var round_active := false
+var game_ended := false
+const MAX_ROUNDS := 5
 
 func _ready():
 	update_money()
 	update_lives()
+	spawntimer.timeout.connect(_spawn_mob)
 
 func _process(_delta):
 	if place_mode and tower_to_place:
@@ -45,15 +52,37 @@ func spend_money(amount: int) -> bool:
 	return false
 
 func _on_startbutton_pressed() -> void:
-	if spawntimer.paused == true :
+	if not game_ended and not round_active:
 		start_round()
 
-
 func start_round() -> void:
+	if round_active or round_number >= MAX_ROUNDS:
+		return
+	round_number += 1
+	update_round_count()
+	mobs_left_to_spawn = 5 + round_number * 2
+	round_active = true
+	$MainUI/startbutton.disabled = true
 	spawntimer.start()
-	spawntimer.timeout.connect(_spawn_mob)
+	
+func update_round_count() -> void:
+	$MainUI/roundcount.text = "Round %d/20" % round_number
+	
+func end_round() -> void:
+	if game_ended:
+		return
+	
+	round_active = false
+
+	if round_number >= MAX_ROUNDS:
+		victory()
+	else:
+		$MainUI/startbutton.disabled = false
 	
 func _spawn_mob():
+	if mobs_left_to_spawn <= 0:
+		spawntimer.stop()
+		return
 	var mob = preload("res://mob.tscn").instantiate()
 	mob.mob_killed.connect(_on_mob_killed)
 	mob.reached_end.connect(_on_mob_reached_end)
@@ -62,21 +91,53 @@ func _spawn_mob():
 	pf.add_child(mob)
 	pf.loop = false
 	mob.set_path_follow(pf)
+	mobs_left_to_spawn -= 1
+	mobs_alive += 1
+
+	if mobs_left_to_spawn <= 0:
+		spawntimer.stop()
 
 func _on_mob_reached_end(damage: int) -> void:
 	lives -= damage
 	lives = max(lives, 0)
 	update_lives()
+	mob_finished()
 	
 	if lives == 0:
-		game_over()
+		defeat()
 
-func game_over():
-	@warning_ignore("standalone_expression")
-	null
+func defeat():
+	finish_game("Defeat!\nYou reached round %d." % round_number)
+
+func victory():
+	finish_game("Victory!\nYou completed all %d rounds." % MAX_ROUNDS)
+
+func finish_game(message: String):
+	if game_ended:
+		return
+	game_ended = true
+	round_active = false
+	spawntimer.stop()
+	place_mode = false
+	build_mode = false
+	
+	$MainUI/startbutton.disabled = true
+	$MainUI/ItemList.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$MainUI/endscreen/VBoxContainer/resultlabel.text = message
+	$MainUI/endscreen.visible = true
+	
+	for pf in $path.get_children():
+		pf.queue_free()
 
 func _on_mob_killed(reward):
 	add_money(reward)
+	mob_finished()
+
+func mob_finished() -> void:
+	mobs_alive -= 1
+
+	if mobs_left_to_spawn == 0 and mobs_alive == 0:
+		end_round()
 
 func _input(event):
 	if place_mode and event is InputEventMouseButton and event.pressed:
@@ -145,6 +206,10 @@ func start_build_tower():
 
 @warning_ignore("unused_parameter")
 func _on_item_list_item_selected(index: int) -> void:
+	if game_ended:
+		tower_list.deselect_all()
+		return
+	
 	var cost := 50  # or based on index later
 	
 	if money >= cost and build_mode == false:
@@ -153,3 +218,10 @@ func _on_item_list_item_selected(index: int) -> void:
 		start_build_tower()
 	else:
 		tower_list.deselect_all()
+
+
+func _on_restartbutton_pressed() -> void:
+	get_tree().reload_current_scene()
+	
+func _on_quitbutton_pressed() -> void:
+	get_tree().quit()

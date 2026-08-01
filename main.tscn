@@ -48,7 +48,6 @@ collision_enabled = false
 curve = SubResource("Curve2D_0xm2m")
 
 [node name="SpawnTimer" type="Timer" parent="." unique_id=125378956]
-wait_time = 3.0
 
 [node name="MainUI" type="CanvasLayer" parent="." unique_id=1125369134]
 
@@ -89,5 +88,37 @@ offset_right = 302.0
 offset_bottom = 39.0
 text = "Start"
 
+[node name="roundcount" type="Label" parent="MainUI" unique_id=1111336532]
+offset_left = 136.0
+offset_top = 8.0
+offset_right = 176.0
+offset_bottom = 31.0
+
+[node name="endscreen" type="PanelContainer" parent="MainUI" unique_id=168830448]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MainUI/endscreen" unique_id=695765716]
+layout_mode = 2
+
+[node name="resultlabel" type="Label" parent="MainUI/endscreen/VBoxContainer" unique_id=90758210]
+layout_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="restartbutton" type="Button" parent="MainUI/endscreen/VBoxContainer" unique_id=1104464151]
+layout_mode = 2
+text = "Restart"
+
+[node name="quitbutton" type="Button" parent="MainUI/endscreen/VBoxContainer" unique_id=887233883]
+layout_mode = 2
+text = "Quit"
+
 [connection signal="item_selected" from="MainUI/ItemList" to="." method="_on_item_list_item_selected"]
 [connection signal="pressed" from="MainUI/startbutton" to="." method="_on_startbutton_pressed"]
+[connection signal="pressed" from="MainUI/endscreen/VBoxContainer/restartbutton" to="." method="_on_restartbutton_pressed"]
+[connection signal="pressed" from="MainUI/endscreen/VBoxContainer/quitbutton" to="." method="_on_quitbutton_pressed"]
