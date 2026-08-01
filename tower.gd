@@ -78,7 +78,7 @@ func update_upgrade_button() -> void:
 	else:
 		upgrade_button.text = "Upgrade\n$%d" % upgrade_cost
 
-	upgrade_button.disabled = false
+	upgrade_button.disabled = main == null or main.money < upgrade_cost
 
 
 func update_menu_buttons() -> void:
@@ -114,12 +114,18 @@ func confirm_menu(value: bool):
 func _ready() -> void:
 	load_level_stats()
 	update_menu_buttons()
+	if main != null:
+		main.connect("money_changed", Callable(self, "_on_main_money_changed"))
 	tower_area.connect("body_entered", Callable(self, "_on_body_entered"))
 	tower_area.connect("body_exited", Callable(self, "_on_body_exited"))
 	damage_timer.timeout.connect(_apply_damage)
 	damage_timer.start()
 	$Tower.input_event.connect(_on_clickarea_input_event)
 	add_to_group("towers")
+
+
+func _on_main_money_changed(_new_amount: int) -> void:
+	update_menu_buttons()
 
 
 func load_level_stats() -> void:
@@ -131,7 +137,7 @@ func load_level_stats() -> void:
 	$Tower/CollisionShape2D.shape = range_shape
 
 func _apply_damage():
-	if target != null :
+	if is_instance_valid(target):
 		target.apply_damage(damage)
 
 func _process(delta: float) -> void:

@@ -59,11 +59,10 @@ offset_bottom = 240.0
 allow_reselect = true
 allow_search = false
 auto_height = true
-item_count = 2
+item_count = 1
 fixed_icon_size = Vector2i(20, 20)
-item_0/text = "Tower"
+item_0/text = "Scout"
 item_0/icon = ExtResource("3_1bvp3")
-item_1/text = "Tower2"
 
 [node name="moneydisplay" type="Label" parent="MainUI" unique_id=1926460251]
 top_level = true

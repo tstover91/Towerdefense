@@ -1,18 +1,23 @@
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
+const TOWER_SCENES := {
+	&"scout": preload("res://tower.tscn"),
+}
+const ITEM_TOWER_IDS := [&"scout"]
+
+signal money_changed(new_amount: int)
  
 @export var loop_path: bool = true  
 @onready var spawntimer = $SpawnTimer
 @onready var tower_list = $MainUI/ItemList
 var lives: int
-var tower_scene := preload("res://tower.tscn")
 var place_mode := false
 var build_mode = false
 var tower_to_place : Node2D = null
 var tower_confirm : bool = false
 var money: int
-var pending_tower_type := ""
+var pending_tower_type: StringName = &""
 var pending_tower_cost := 0
 var round_number := 0
 var mobs_left_to_spawn := 0
@@ -47,6 +52,7 @@ func update_lives():
 
 func update_money():
 	$MainUI/moneydisplay.text = str(money)
+	money_changed.emit(money)
 
 func add_money(amount: int):
 	money += amount
@@ -60,8 +66,14 @@ func spend_money(amount: int) -> bool:
 	return false
 
 func _on_startbutton_pressed() -> void:
-	if not game_ended and not round_active:
+	if not game_ended and not round_active and not build_mode:
+		close_all_tower_menus()
 		start_round()
+
+
+func close_all_tower_menus() -> void:
+	for tower in get_tree().get_nodes_in_group("towers"):
+		tower.set_selected(false)
 
 func start_round() -> void:
 	if round_active or round_number >= max_rounds:
@@ -75,7 +87,7 @@ func start_round() -> void:
 	spawntimer.start()
 	
 func update_round_count() -> void:
-	$MainUI/roundcount.text = "Round %d/20" % round_number
+	$MainUI/roundcount.text = "Round %d/%d" % [round_number, max_rounds]
 	
 func end_round() -> void:
 	if game_ended:
@@ -146,6 +158,10 @@ func finish_game(message: String):
 	spawntimer.stop()
 	place_mode = false
 	build_mode = false
+
+	if is_instance_valid(tower_to_place):
+		tower_to_place.queue_free()
+		tower_to_place = null
 	
 	$MainUI/startbutton.disabled = true
 	$MainUI/ItemList.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -160,13 +176,18 @@ func _on_mob_killed(reward):
 	mob_finished()
 
 func mob_finished() -> void:
-	mobs_alive -= 1
+	mobs_alive = max(mobs_alive - 1, 0)
 
 	if mobs_left_to_spawn == 0 and mobs_alive == 0:
 		end_round()
 
-func _input(event):
-	if place_mode and event is InputEventMouseButton and event.pressed:
+func _unhandled_input(event: InputEvent) -> void:
+	if (
+		place_mode
+		and event is InputEventMouseButton
+		and event.button_index == MOUSE_BUTTON_LEFT
+		and event.pressed
+	):
 		finalize_tower_placement()
 
 func get_tower_shape(tower: Node) -> Shape2D:
@@ -202,27 +223,31 @@ func finalize_tower_placement():
 func _on_tower_confirmed(tower):
 	money -= pending_tower_cost
 	update_money()
-	pending_tower_type = ""
+	pending_tower_type = &""
 	pending_tower_cost = 0
 	build_mode = false
 	tower_to_place = null
+	$MainUI/startbutton.disabled = round_active or game_ended
 
 @warning_ignore("unused_parameter")
 func _on_tower_cancelled(tower):
-	pending_tower_type = ""
+	pending_tower_type = &""
 	pending_tower_cost = 0
 	build_mode = false
 	tower_to_place = null
+	$MainUI/startbutton.disabled = round_active or game_ended
 
 func start_build_tower():
 	if build_mode == false:
-		for tower in get_tree().get_nodes_in_group("towers"):
-			tower.set_selected(false)
+		close_all_tower_menus()
 
 		place_mode = true
 		build_mode = true
-		tower_to_place = tower_scene.instantiate()
+		$MainUI/startbutton.disabled = true
+		var selected_scene: PackedScene = TOWER_SCENES[pending_tower_type]
+		tower_to_place = selected_scene.instantiate()
 		tower_to_place.main = self
+		tower_to_place.tower_id = pending_tower_type
 		tower_to_place.get_node("clickarea").set_process_input(false)
 		tower_to_place.get_node("clickarea").set_physics_process(false)
 		tower_to_place.get_node("clickarea").monitoring = false
@@ -239,10 +264,15 @@ func _on_item_list_item_selected(index: int) -> void:
 		tower_list.deselect_all()
 		return
 	
-	var cost: int = GameStats.get_tower("scout")["placement_cost"]
+	if index < 0 or index >= ITEM_TOWER_IDS.size():
+		tower_list.deselect_all()
+		return
+
+	var selected_tower_id: StringName = ITEM_TOWER_IDS[index]
+	var cost: int = GameStats.get_tower(selected_tower_id)["placement_cost"]
 	
 	if money >= cost and build_mode == false:
-		pending_tower_type = "arrow_tower"  # or based on index
+		pending_tower_type = selected_tower_id
 		pending_tower_cost = cost
 		start_build_tower()
 	else:

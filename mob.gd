@@ -43,6 +43,10 @@ func load_stats() -> void:
 	health_bar.value = health
 
 func die():
+	if finished:
+		return
+
+	finished = true
 	mob_killed.emit(cash_reward)
 
 	if is_instance_valid(path_follow):
@@ -51,6 +55,9 @@ func die():
 		queue_free()
 
 func apply_damage(amount: int) -> void:
+	if finished:
+		return
+
 	health -= amount
 	health_bar.value = health
 
