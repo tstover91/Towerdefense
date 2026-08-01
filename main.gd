@@ -7,8 +7,7 @@ const TOWER_SCENES := {
 const ITEM_TOWER_IDS := [&"scout"]
 
 signal money_changed(new_amount: int)
- 
-@export var loop_path: bool = true  
+
 @onready var spawntimer = $SpawnTimer
 @onready var tower_list = $MainUI/ItemList
 var lives: int
@@ -190,12 +189,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		and event.pressed
 	):
 		finalize_tower_placement()
-
-func get_tower_shape(tower: Node) -> Shape2D:
-	var shape_node := tower.get_node_or_null("clickarea/CollisionShape2D")
-	if shape_node:
-		return shape_node.shape
-	return null
 
 func can_place_tower(pos: Vector2) -> bool:
 	var space_state = get_world_2d().direct_space_state

@@ -310,7 +310,12 @@ func _sort_by_health(a, b):
 
 func _select_target():
 	mobs_in_range = mobs_in_range.filter(
-		func(mob): return is_instance_valid(mob)
+		func(mob):
+			return (
+				is_instance_valid(mob)
+				and not mob.is_queued_for_deletion()
+				and not mob.finished
+			)
 	)
 	
 	if mobs_in_range.is_empty():
