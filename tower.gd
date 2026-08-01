@@ -10,9 +10,14 @@ enum TargetMode {
 	HIGHEST_HEALTH
 	}
 
+enum MenuAction {
+	NONE,
+	UPGRADE,
+	SELL
+	}
+
 signal tower_confirmed()
 signal tower_cancelled()
-signal sell_tower
 
 @export var target_mode: TargetMode = TargetMode.FIRST
 @export var tower_id: StringName = GameStats.DEFAULT_TOWER_ID
@@ -26,6 +31,7 @@ var target: Node2D = null
 var mobs_in_range: Array = []
 var selected := false
 var tower_confirm := false
+var pending_action: MenuAction = MenuAction.NONE
 var main : Node
 
 func set_selected(value: bool):
@@ -38,13 +44,22 @@ func set_selected(value: bool):
 		close_menus()
 
 func show_main_menu() -> void:
+	pending_action = MenuAction.NONE
 	$HBoxContainer.visible = true
 	$targetui.visible = false
-	update_upgrade_button()
+	update_menu_buttons()
 
 func show_target_menu() -> void:
 	$HBoxContainer.visible = false
 	$targetui.visible = true
+
+func update_sell_button() -> void:
+	var sell_price := get_sell_price()
+
+	if pending_action == MenuAction.SELL:
+		$HBoxContainer/selltower.text = "Confirm\n$%d" % sell_price
+	else:
+		$HBoxContainer/selltower.text = "Sell\n$%d" % sell_price
 
 func update_upgrade_button() -> void:
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
@@ -57,16 +72,40 @@ func update_upgrade_button() -> void:
 		return
 
 	var upgrade_cost: int = levels[next_level]["upgrade_cost"]
-	upgrade_button.text = "Upgrade\n$%d" % upgrade_cost
+
+	if pending_action == MenuAction.UPGRADE:
+		upgrade_button.text = "Confirm\n$%d" % upgrade_cost
+	else:
+		upgrade_button.text = "Upgrade\n$%d" % upgrade_cost
+
 	upgrade_button.disabled = false
+
+
+func update_menu_buttons() -> void:
+	update_upgrade_button()
+	update_sell_button()
 
 func show_upgrade_menu() -> void:
 	$HBoxContainer.visible = false
 
 func close_menus() -> void:
+	pending_action = MenuAction.NONE
 	selected = false
 	$HBoxContainer.visible = false
 	$targetui.visible = false
+
+func get_total_invested() -> int:
+	var tower_data: Dictionary = GameStats.get_tower(tower_id)
+	var levels: Array = tower_data["levels"]
+	var total: int = tower_data["placement_cost"]
+
+	for level in range(1, tower_level + 1):
+		total += levels[level]["upgrade_cost"]
+
+	return total
+
+func get_sell_price() -> int:
+	return floori(get_total_invested() / 3.0)
 
 func confirm_menu(value: bool):
 	tower_confirm = value
@@ -74,7 +113,7 @@ func confirm_menu(value: bool):
 	
 func _ready() -> void:
 	load_level_stats()
-	update_upgrade_button()
+	update_menu_buttons()
 	tower_area.connect("body_entered", Callable(self, "_on_body_entered"))
 	tower_area.connect("body_exited", Callable(self, "_on_body_exited"))
 	damage_timer.timeout.connect(_apply_damage)
@@ -195,7 +234,12 @@ func _on_cancel_pressed() -> void:
 func _on_targetmode_pressed() -> void:
 	show_target_menu()
 
-func _on_upgradetower_pressed() -> void:	
+func _on_upgradetower_pressed() -> void:
+	if pending_action != MenuAction.UPGRADE:
+		pending_action = MenuAction.UPGRADE
+		update_menu_buttons()
+		return
+
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
 	var levels: Array = tower_data["levels"]
 	var next_level := tower_level + 1
@@ -208,7 +252,16 @@ func _on_upgradetower_pressed() -> void:
 	if main.spend_money(upgrade_cost):
 		tower_level = next_level
 		load_level_stats()
-		update_upgrade_button()
+
+	pending_action = MenuAction.NONE
+	update_menu_buttons()
 
 func _on_selltower_pressed() -> void:
-	pass # Replace with function body.
+	if pending_action != MenuAction.SELL:
+		pending_action = MenuAction.SELL
+		update_menu_buttons()
+		return
+
+	main.add_money(get_sell_price())
+	close_menus()
+	queue_free()

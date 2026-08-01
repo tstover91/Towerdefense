@@ -69,6 +69,9 @@ const MODES := {
 		"starting_cash": 500,
 		"starting_lives": 100,
 		"max_rounds": 20,
+		"wave_bonus_base": 180,
+		"wave_bonus_growth": 144,
+		"clear_bonus_multiplier": 0.35,
 		"waves": {
 			1: [
 				{"enemy_id": "normal", "amount": 4, "spawn_delay": 3.0},

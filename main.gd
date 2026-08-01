@@ -18,11 +18,13 @@ var round_number := 0
 var mobs_left_to_spawn := 0
 var mobs_alive := 0
 var round_active := false
+var round_was_perfect := true
 var game_ended := false
 var max_rounds: int
+var mode_id: StringName = "easy"
 
 func _ready():
-	var mode: Dictionary = GameStats.get_mode("easy")
+	var mode: Dictionary = GameStats.get_mode(mode_id)
 	money = mode["starting_cash"]
 	lives = mode["starting_lives"]
 	max_rounds = mode["max_rounds"]
@@ -67,6 +69,7 @@ func start_round() -> void:
 	round_number += 1
 	update_round_count()
 	mobs_left_to_spawn = 5 + round_number * 2
+	round_was_perfect = true
 	round_active = true
 	$MainUI/startbutton.disabled = true
 	spawntimer.start()
@@ -79,11 +82,25 @@ func end_round() -> void:
 		return
 	
 	round_active = false
+	add_money(calculate_end_round_reward())
 
 	if round_number >= max_rounds:
 		victory()
 	else:
 		$MainUI/startbutton.disabled = false
+
+
+func calculate_end_round_reward() -> int:
+	var mode: Dictionary = GameStats.get_mode(mode_id)
+	var base_reward: int = mode["wave_bonus_base"] + (
+		(round_number - 1) * mode["wave_bonus_growth"]
+	)
+	var clear_reward := 0
+
+	if round_was_perfect:
+		clear_reward = floori(base_reward * mode["clear_bonus_multiplier"])
+
+	return base_reward + clear_reward
 	
 func _spawn_mob():
 	if mobs_left_to_spawn <= 0:
@@ -104,13 +121,16 @@ func _spawn_mob():
 		spawntimer.stop()
 
 func _on_mob_reached_end(damage: int) -> void:
+	round_was_perfect = false
 	lives -= damage
 	lives = max(lives, 0)
 	update_lives()
-	mob_finished()
 	
 	if lives == 0:
 		defeat()
+		return
+
+	mob_finished()
 
 func defeat():
 	finish_game("Defeat!\nYou reached round %d." % round_number)
@@ -196,6 +216,9 @@ func _on_tower_cancelled(tower):
 
 func start_build_tower():
 	if build_mode == false:
+		for tower in get_tree().get_nodes_in_group("towers"):
+			tower.set_selected(false)
+
 		place_mode = true
 		build_mode = true
 		tower_to_place = tower_scene.instantiate()
