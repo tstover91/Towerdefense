@@ -68,6 +68,10 @@ func _sort_by_health(a, b):
 	return a.health < b.health
 
 func _select_target():
+	mobs_in_range = mobs_in_range.filter(
+		func(mob): return is_instance_valid(mob)
+	)
+	
 	if mobs_in_range.is_empty():
 		target = null
 		return

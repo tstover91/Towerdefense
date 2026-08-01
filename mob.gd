@@ -30,6 +30,13 @@ func _process(delta):
 func _ready():
 	health_bar.value = health
 
+func setup_for_round(current_round: int) -> void:
+	health = 100 + ((current_round - 1) * 20)
+	speed = 100.0 + ((current_round - 1) * 2.0)
+
+	health_bar.max_value = health
+	health_bar.value = health
+
 func die():
 	mob_killed.emit(10)
 

@@ -91,6 +91,7 @@ func _spawn_mob():
 	pf.add_child(mob)
 	pf.loop = false
 	mob.set_path_follow(pf)
+	mob.setup_for_round(round_number)
 	mobs_left_to_spawn -= 1
 	mobs_alive += 1
 
