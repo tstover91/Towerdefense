@@ -1,7 +1,10 @@
 extends Node2D 
 
 const GameStats = preload("res://stat_database.gd")
+const DEFAULT_PROJECTILE_SCENE = preload("res://projectile.tscn")
 const RANGE_PIXELS_PER_UNIT := 12.9
+const MENU_HALF_WIDTH := 106.0
+const MENU_EDGE_MARGIN := 8.0
 
 enum TargetMode {
 	FIRST,
@@ -21,8 +24,10 @@ signal tower_cancelled()
 
 @export var target_mode: TargetMode = TargetMode.FIRST
 @export var tower_id: StringName = GameStats.DEFAULT_TOWER_ID
+@export var projectile_scene: PackedScene = DEFAULT_PROJECTILE_SCENE
 @onready var tower_area: Area2D = $Tower  
 @onready var rotator: Node2D = $Rotator
+@onready var muzzle: Marker2D = $Rotator/Muzzle
 @onready var damage_timer: Timer = $Timer
 @onready var upgrade_button: Button = $HBoxContainer/upgradetower
 @onready var tower_info: VBoxContainer = $towerinfo
@@ -33,6 +38,7 @@ signal tower_cancelled()
 var tower_level := 0
 var damage: int
 var damage_type: StringName = &"physical"
+var projectile_speed := 600.0
 var target: Node2D = null
 var mobs_in_range: Array = []
 var selected := false
@@ -266,6 +272,7 @@ func load_level_stats() -> void:
 	var stats: Dictionary = GameStats.get_tower_level(tower_id, tower_level)
 	damage = stats["damage"]
 	damage_type = stats.get("damage_type", &"physical")
+	projectile_speed = stats.get("projectile_speed", 600.0)
 	damage_timer.wait_time = stats["firerate"]
 	var range_shape := $Tower/CollisionShape2D.shape.duplicate() as CircleShape2D
 	range_radius_pixels = stats["range"] * RANGE_PIXELS_PER_UNIT
@@ -274,98 +281,134 @@ func load_level_stats() -> void:
 	queue_redraw()
 
 func _apply_damage():
-	if is_placed and is_instance_valid(target):
+	if not is_placed:
+		return
+
+	_select_target()
+	if is_valid_target(target):
 		attack(target)
 
 
 func attack(current_target: Node2D) -> void:
+	if not is_instance_valid(current_target):
+		return
+
+	var target_position := current_target.global_position
 	current_target.apply_damage(damage, damage_type)
 
+	if projectile_scene == null:
+		return
+
+	var projectile := projectile_scene.instantiate() as TowerProjectile
+	get_tree().current_scene.add_child(projectile)
+	projectile.global_position = muzzle.global_position
+	projectile.rotation = rotator.global_rotation
+	projectile.setup(target_position, projectile_speed)
+
 func _process(delta: float) -> void:
-	var screen_top_limit := 100  # adjust as needed
-	var global_y := global_position.y
-	if global_y < screen_top_limit:
-		$towerconfirm.position.y = 60  # move menu below tower
+	update_menu_layout()
 	if not is_placed:
 		return
-	_select_target()
-	if target and is_instance_valid(target):
+	if not is_valid_target(target):
+		_select_target()
+	if is_valid_target(target):
 		var desired_angle = (target.global_position - rotator.global_position).angle()
 		rotator.rotation = lerp_angle(rotator.rotation, desired_angle, 5.0 * delta)
 
+
+func update_menu_layout() -> void:
+	if (
+		not $towerconfirm.visible
+		and not $HBoxContainer.visible
+		and not $targetui.visible
+		and not tower_info.visible
+	):
+		return
+
+	var viewport_size := get_viewport_rect().size
+	var screen_position := get_global_transform_with_canvas().origin
+	var menu_center_x := clampf(
+		screen_position.x,
+		MENU_HALF_WIDTH + MENU_EDGE_MARGIN,
+		viewport_size.x - MENU_HALF_WIDTH - MENU_EDGE_MARGIN
+	)
+	var x_offset := menu_center_x - screen_position.x
+	var place_below := screen_position.y < 240.0
+
+	$towerconfirm.position = Vector2(-40.0 + x_offset, 50.0 if place_below else -106.0)
+	$HBoxContainer.position = Vector2(-106.0 + x_offset, 50.0 if place_below else -90.0)
+	tower_info.position = Vector2(-106.0 + x_offset, 95.0 if place_below else -230.0)
+	$targetui.position = Vector2(-60.0 + x_offset, 50.0 if place_below else -68.0)
+
 func _on_body_entered(body: Node2D) -> void:
-	if body.is_in_group("mobs"):
+	if body.is_in_group("mobs") and not mobs_in_range.has(body):
 		mobs_in_range.append(body)
+		if not is_valid_target(target):
+			_select_target()
 
 func _on_body_exited(body: Node2D) -> void:
 	mobs_in_range.erase(body)
 	if body == target:
 		target = null
 
-func _sort_by_progress(a, b):
-	return a.path_follow.progress < b.path_follow.progress
+func is_valid_target(candidate) -> bool:
+	return (
+		candidate != null
+		and is_instance_valid(candidate)
+		and not candidate.is_queued_for_deletion()
+		and not candidate.finished
+	)
 
-func _sort_by_health(a, b):
-	return a.health < b.health
 
-func _select_target():
+func _select_target() -> void:
 	mobs_in_range = mobs_in_range.filter(
 		func(mob):
-			return (
-				is_instance_valid(mob)
-				and not mob.is_queued_for_deletion()
-				and not mob.finished
-			)
+			return is_valid_target(mob)
 	)
 	
 	if mobs_in_range.is_empty():
 		target = null
 		return
 
-	match target_mode:
-		TargetMode.FIRST:
-			mobs_in_range.sort_custom(Callable(self, "_sort_by_progress"))
-			target = mobs_in_range.back()
-
-		TargetMode.LAST:
-			mobs_in_range.sort_custom(Callable(self, "_sort_by_progress"))
-			target = mobs_in_range.front()
-
-		TargetMode.LOWEST_HEALTH:
-			mobs_in_range.sort_custom(Callable(self, "_sort_by_health"))
-			target = mobs_in_range.front()
-
-		TargetMode.HIGHEST_HEALTH:
-			mobs_in_range.sort_custom(Callable(self, "_sort_by_health"))
-			target = mobs_in_range.back()
-
-func _unhandled_input(event):
-	if event is InputEventMouseButton and event.pressed:
-		for tower in get_tree().get_nodes_in_group("towers"):
-			tower.set_selected(false)
+	target = mobs_in_range[0]
+	for candidate in mobs_in_range:
+		match target_mode:
+			TargetMode.FIRST:
+				if candidate.path_follow.progress > target.path_follow.progress:
+					target = candidate
+			TargetMode.LAST:
+				if candidate.path_follow.progress < target.path_follow.progress:
+					target = candidate
+			TargetMode.LOWEST_HEALTH:
+				if candidate.health < target.health:
+					target = candidate
+			TargetMode.HIGHEST_HEALTH:
+				if candidate.health > target.health:
+					target = candidate
 
 func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 	if event is InputEventMouseButton and event.pressed and not main.build_mode:
-		for tower in get_tree().get_nodes_in_group("towers"):
-			if tower != self:
-				tower.set_selected(false)
-
+		main.close_all_tower_menus()
 		set_selected(true)
 
 func _on_button_first_pressed() -> void:
 	target_mode = TargetMode.FIRST
+	_select_target()
 	close_menus()
 
 func _on_button_last_pressed() -> void:
 	target_mode = TargetMode.LAST
+	_select_target()
 	close_menus()
 	
 func _on_button_low_pressed() -> void:
 	target_mode = TargetMode.LOWEST_HEALTH
+	_select_target()
 	close_menus()
 
 func _on_button_high_pressed() -> void:
 	target_mode = TargetMode.HIGHEST_HEALTH
+	_select_target()
 	close_menus()
 
 func _on_confirm_pressed() -> void:

@@ -11,8 +11,6 @@ size = Vector2(131.45946, 129.72974)
 
 [node name="TowerRoot" type="Node2D" unique_id=2095459932]
 script = ExtResource("1_vedim")
-target_mode = null
-tower_id = null
 
 [node name="Tower" type="Area2D" parent="." unique_id=1681050470]
 position = Vector2(-6, -9)
@@ -27,6 +25,9 @@ shape = SubResource("CircleShape2D_gyc6d")
 rotation = 1.5707964
 scale = Vector2(0.578125, 0.578125)
 texture = ExtResource("1_k1sas")
+
+[node name="Muzzle" type="Marker2D" parent="Rotator"]
+position = Vector2(42, 0)
 
 [node name="Timer" type="Timer" parent="." unique_id=1713124659]
 
@@ -110,9 +111,11 @@ text = "Aim Mode"
 
 [node name="targetui" type="VBoxContainer" parent="." unique_id=625041560]
 visible = false
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
 offset_left = -60.0
 offset_top = -68.0
 offset_right = 60.0

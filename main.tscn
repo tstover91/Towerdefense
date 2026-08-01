@@ -52,10 +52,14 @@ curve = SubResource("Curve2D_0xm2m")
 [node name="MainUI" type="CanvasLayer" parent="." unique_id=1125369134]
 
 [node name="ItemList" type="ItemList" parent="MainUI" unique_id=1801193003]
-offset_left = 1056.0
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -96.0
 offset_top = 168.0
-offset_right = 1152.0
+offset_right = 0.0
 offset_bottom = 240.0
+grow_horizontal = 0
 allow_reselect = true
 allow_search = false
 auto_height = true

@@ -16,7 +16,7 @@ width = 16
 [node name="Mob" type="CharacterBody2D" unique_id=1467063432 groups=["mobs"]]
 script = ExtResource("1_dy6sc")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1000266203 groups=["mobs"]]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1000266203]
 position = Vector2(0, 0.5)
 shape = SubResource("RectangleShape2D_g7b7a")
 
