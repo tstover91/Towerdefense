@@ -25,14 +25,92 @@ signal tower_cancelled()
 @onready var rotator: Node2D = $Rotator
 @onready var damage_timer: Timer = $Timer
 @onready var upgrade_button: Button = $HBoxContainer/upgradetower
+@onready var tower_info: VBoxContainer = $towerinfo
+@onready var tower_name_label: Label = $towerinfo/namelabel
+@onready var tower_level_label: Label = $towerinfo/levellabel
+@onready var tower_stats_label: Label = $towerinfo/statslabel
+@onready var upgrade_preview_label: Label = $towerinfo/upgradepreview
 var tower_level := 0
 var damage: int
+var damage_type: StringName = &"physical"
 var target: Node2D = null
 var mobs_in_range: Array = []
 var selected := false
-var tower_confirm := false
+var is_placed := false
 var pending_action: MenuAction = MenuAction.NONE
+var range_radius_pixels := 0.0
+var upgrade_range_radius_pixels := -1.0
+var range_preview_visible := false
+var range_preview_valid := true
 var main : Node
+
+
+func _draw() -> void:
+	if not range_preview_visible:
+		return
+
+	if upgrade_range_radius_pixels >= 0.0:
+		draw_circle(
+			Vector2.ZERO,
+			upgrade_range_radius_pixels,
+			Color(1.0, 0.75, 0.15, 0.12)
+		)
+		draw_arc(
+			Vector2.ZERO,
+			upgrade_range_radius_pixels,
+			0.0,
+			TAU,
+			96,
+			Color(1.0, 0.8, 0.2, 0.9),
+			2.0,
+			true
+		)
+
+	var fill_color := Color(0.2, 0.85, 0.3, 0.16)
+	var border_color := Color(0.25, 1.0, 0.35, 0.8)
+
+	if not range_preview_valid:
+		fill_color = Color(1.0, 0.15, 0.15, 0.16)
+		border_color = Color(1.0, 0.2, 0.2, 0.8)
+
+	draw_circle(Vector2.ZERO, range_radius_pixels, fill_color)
+	draw_arc(Vector2.ZERO, range_radius_pixels, 0.0, TAU, 96, border_color, 2.0, true)
+
+
+func set_range_preview(value: bool, placement_is_valid := true) -> void:
+	if (
+		range_preview_visible == value
+		and range_preview_valid == placement_is_valid
+		and upgrade_range_radius_pixels < 0.0
+	):
+		return
+
+	range_preview_visible = value
+	range_preview_valid = placement_is_valid
+	upgrade_range_radius_pixels = -1.0
+	queue_redraw()
+
+
+func show_current_range_preview() -> void:
+	range_preview_visible = true
+	range_preview_valid = true
+	upgrade_range_radius_pixels = -1.0
+	queue_redraw()
+
+
+func show_upgrade_range_preview() -> void:
+	var tower_data: Dictionary = GameStats.get_tower(tower_id)
+	var levels: Array = tower_data["levels"]
+	var next_level := tower_level + 1
+
+	if next_level >= levels.size():
+		show_current_range_preview()
+		return
+
+	range_preview_visible = true
+	range_preview_valid = true
+	upgrade_range_radius_pixels = levels[next_level]["range"] * RANGE_PIXELS_PER_UNIT
+	queue_redraw()
 
 func set_selected(value: bool):
 	selected = value
@@ -40,6 +118,7 @@ func set_selected(value: bool):
 	
 	if value:
 		show_main_menu()
+		show_current_range_preview()
 	else:
 		close_menus()
 
@@ -47,11 +126,16 @@ func show_main_menu() -> void:
 	pending_action = MenuAction.NONE
 	$HBoxContainer.visible = true
 	$targetui.visible = false
+	tower_info.visible = true
 	update_menu_buttons()
 
 func show_target_menu() -> void:
+	pending_action = MenuAction.NONE
+	show_current_range_preview()
 	$HBoxContainer.visible = false
 	$targetui.visible = true
+	tower_info.visible = true
+	update_tower_info()
 
 func update_sell_button() -> void:
 	var sell_price := get_sell_price()
@@ -84,15 +168,50 @@ func update_upgrade_button() -> void:
 func update_menu_buttons() -> void:
 	update_upgrade_button()
 	update_sell_button()
-
-func show_upgrade_menu() -> void:
-	$HBoxContainer.visible = false
+	update_tower_info()
+	$HBoxContainer/targetmode.text = "Target\n%s" % get_target_mode_name()
 
 func close_menus() -> void:
 	pending_action = MenuAction.NONE
 	selected = false
 	$HBoxContainer.visible = false
 	$targetui.visible = false
+	tower_info.visible = false
+	set_range_preview(false)
+
+
+func get_target_mode_name() -> String:
+	match target_mode:
+		TargetMode.FIRST:
+			return "First"
+		TargetMode.LAST:
+			return "Last"
+		TargetMode.LOWEST_HEALTH:
+			return "Lowest HP"
+		TargetMode.HIGHEST_HEALTH:
+			return "Highest HP"
+	return "Unknown"
+
+
+func update_tower_info() -> void:
+	var tower_data: Dictionary = GameStats.get_tower(tower_id)
+	var levels: Array = tower_data["levels"]
+	var stats: Dictionary = levels[tower_level]
+	var current_dps: float = float(stats["damage"]) / float(stats["firerate"])
+	tower_name_label.text = tower_data["display_name"]
+	tower_level_label.text = "Level %d/%d" % [tower_level, levels.size() - 1]
+	tower_stats_label.text = "DPS: %.2f" % current_dps
+
+	var next_level := tower_level + 1
+	upgrade_preview_label.visible = pending_action == MenuAction.UPGRADE and next_level < levels.size()
+
+	if upgrade_preview_label.visible:
+		var next_stats: Dictionary = levels[next_level]
+		var next_dps: float = float(next_stats["damage"]) / float(next_stats["firerate"])
+		upgrade_preview_label.text = (
+			"Next upgrade\nDPS: %.2f -> %.2f"
+			% [current_dps, next_dps]
+		)
 
 func get_total_invested() -> int:
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
@@ -107,10 +226,6 @@ func get_total_invested() -> int:
 func get_sell_price() -> int:
 	return floori(get_total_invested() / 3.0)
 
-func confirm_menu(value: bool):
-	tower_confirm = value
-	$towerconfirm.visible = value
-	
 func _ready() -> void:
 	load_level_stats()
 	update_menu_buttons()
@@ -119,8 +234,7 @@ func _ready() -> void:
 	tower_area.connect("body_entered", Callable(self, "_on_body_entered"))
 	tower_area.connect("body_exited", Callable(self, "_on_body_exited"))
 	damage_timer.timeout.connect(_apply_damage)
-	damage_timer.start()
-	$Tower.input_event.connect(_on_clickarea_input_event)
+	begin_placement()
 	add_to_group("towers")
 
 
@@ -128,23 +242,52 @@ func _on_main_money_changed(_new_amount: int) -> void:
 	update_menu_buttons()
 
 
+func begin_placement() -> void:
+	is_placed = false
+	damage_timer.stop()
+	tower_area.monitoring = false
+	$Tower/CollisionShape2D.disabled = true
+	$clickarea.monitoring = false
+	$clickarea.input_pickable = false
+	$clickarea/CollisionShape2D.disabled = true
+
+
+func confirm_placement() -> void:
+	is_placed = true
+	tower_area.monitoring = true
+	$Tower/CollisionShape2D.disabled = false
+	$clickarea.monitoring = true
+	$clickarea.input_pickable = true
+	$clickarea/CollisionShape2D.disabled = false
+	damage_timer.start()
+
+
 func load_level_stats() -> void:
 	var stats: Dictionary = GameStats.get_tower_level(tower_id, tower_level)
 	damage = stats["damage"]
+	damage_type = stats.get("damage_type", &"physical")
 	damage_timer.wait_time = stats["firerate"]
 	var range_shape := $Tower/CollisionShape2D.shape.duplicate() as CircleShape2D
-	range_shape.radius = stats["range"] * RANGE_PIXELS_PER_UNIT
+	range_radius_pixels = stats["range"] * RANGE_PIXELS_PER_UNIT
+	range_shape.radius = range_radius_pixels
 	$Tower/CollisionShape2D.shape = range_shape
+	queue_redraw()
 
 func _apply_damage():
-	if is_instance_valid(target):
-		target.apply_damage(damage)
+	if is_placed and is_instance_valid(target):
+		attack(target)
+
+
+func attack(current_target: Node2D) -> void:
+	current_target.apply_damage(damage, damage_type)
 
 func _process(delta: float) -> void:
 	var screen_top_limit := 100  # adjust as needed
 	var global_y := global_position.y
 	if global_y < screen_top_limit:
 		$towerconfirm.position.y = 60  # move menu below tower
+	if not is_placed:
+		return
 	_select_target()
 	if target and is_instance_valid(target):
 		var desired_angle = (target.global_position - rotator.global_position).angle()
@@ -222,13 +365,9 @@ func _on_button_high_pressed() -> void:
 
 func _on_confirm_pressed() -> void:
 	var sprite = $Rotator
+	set_range_preview(false)
 	sprite.modulate = Color(1, 1, 1, 1)
-	$clickarea/CollisionShape2D.disabled = false
-	$Tower/CollisionShape2D.disabled = false
-	$clickarea.set_process_input(true)
-	$clickarea.set_physics_process(true)
-	$clickarea.monitoring = true
-	$clickarea.input_pickable = true
+	confirm_placement()
 	$towerconfirm.visible = false
 	emit_signal("tower_confirmed", self)
 	
@@ -243,6 +382,7 @@ func _on_targetmode_pressed() -> void:
 func _on_upgradetower_pressed() -> void:
 	if pending_action != MenuAction.UPGRADE:
 		pending_action = MenuAction.UPGRADE
+		show_upgrade_range_preview()
 		update_menu_buttons()
 		return
 
@@ -260,11 +400,13 @@ func _on_upgradetower_pressed() -> void:
 		load_level_stats()
 
 	pending_action = MenuAction.NONE
+	show_current_range_preview()
 	update_menu_buttons()
 
 func _on_selltower_pressed() -> void:
 	if pending_action != MenuAction.SELL:
 		pending_action = MenuAction.SELL
+		show_current_range_preview()
 		update_menu_buttons()
 		return
 

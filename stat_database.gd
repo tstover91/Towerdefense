@@ -27,6 +27,7 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 1,
+				"damage_type": &"physical",
 				"firerate": 1.0,
 				"range": 12.0,
 				"hidden_detection": false,
@@ -34,6 +35,7 @@ const TOWERS := {
 			{
 				"upgrade_cost": 50,
 				"damage": 1,
+				"damage_type": &"physical",
 				"firerate": 0.75,
 				"range": 12.0,
 				"hidden_detection": false,
@@ -41,6 +43,7 @@ const TOWERS := {
 			{
 				"upgrade_cost": 375,
 				"damage": 3,
+				"damage_type": &"physical",
 				"firerate": 0.75,
 				"range": 14.0,
 				"hidden_detection": true,
@@ -48,6 +51,7 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1350,
 				"damage": 8,
+				"damage_type": &"physical",
 				"firerate": 0.65,
 				"range": 16.0,
 				"hidden_detection": true,
@@ -55,6 +59,7 @@ const TOWERS := {
 			{
 				"upgrade_cost": 2200,
 				"damage": 8,
+				"damage_type": &"physical",
 				"firerate": 0.325,
 				"range": 16.0,
 				"hidden_detection": true,

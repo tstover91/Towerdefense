@@ -54,7 +54,7 @@ func die():
 	else:
 		queue_free()
 
-func apply_damage(amount: int) -> void:
+func apply_damage(amount: int, _damage_type: StringName = &"physical") -> void:
 	if finished:
 		return
 

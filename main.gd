@@ -15,7 +15,6 @@ var lives: int
 var place_mode := false
 var build_mode = false
 var tower_to_place : Node2D = null
-var tower_confirm : bool = false
 var money: int
 var pending_tower_type: StringName = &""
 var pending_tower_cost := 0
@@ -42,7 +41,9 @@ func _process(_delta):
 		var snap := get_global_mouse_position().snapped(Vector2(32, 32))
 		var sprite = tower_to_place.get_node("Rotator")
 		tower_to_place.position = snap
-		if can_place_tower(snap):
+		var placement_is_valid := can_place_tower(snap)
+		tower_to_place.set_range_preview(true, placement_is_valid)
+		if placement_is_valid:
 			sprite.modulate = Color(1, 1, 1, 0.5)
 		else:
 			sprite.modulate = Color(1, 0, 0, 0.5)
@@ -248,12 +249,6 @@ func start_build_tower():
 		tower_to_place = selected_scene.instantiate()
 		tower_to_place.main = self
 		tower_to_place.tower_id = pending_tower_type
-		tower_to_place.get_node("clickarea").set_process_input(false)
-		tower_to_place.get_node("clickarea").set_physics_process(false)
-		tower_to_place.get_node("clickarea").monitoring = false
-		tower_to_place.get_node("clickarea").input_pickable = false
-		tower_to_place.get_node("clickarea/CollisionShape2D").disabled = true
-		tower_to_place.get_node("Tower/CollisionShape2D").disabled = true
 		tower_to_place.connect("tower_confirmed", Callable(self, "_on_tower_confirmed"))
 		tower_to_place.connect("tower_cancelled", Callable(self, "_on_tower_cancelled"))
 		add_child(tower_to_place)
