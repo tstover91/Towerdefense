@@ -9,6 +9,7 @@ signal spawn_requested(enemy_id: StringName, path_progress: float)
 
 @export var enemy_id: StringName = GameStats.DEFAULT_ENEMY_ID
 var wave_number := 1
+var health_multiplier := 1.0
 var health: int
 var max_health: int
 @onready var health_bar: TextureProgressBar = $HealthBar
@@ -59,10 +60,8 @@ func load_stats() -> void:
 	var stats: Dictionary = GameStats.get_enemy(enemy_id)
 	var base_health: int = stats["health"]
 	var health_per_wave: float = stats.get("health_per_wave", 0.0)
-	health = maxi(
-		1,
-		roundi(base_health + health_per_wave * maxi(wave_number - 1, 0))
-	)
+	var scaled_health := base_health + health_per_wave * maxi(wave_number - 1, 0)
+	health = maxi(1, roundi(scaled_health * health_multiplier))
 	max_health = health
 	speed = stats["move_speed"]
 	cash_reward = stats["cash_reward"]
