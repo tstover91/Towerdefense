@@ -1,5 +1,8 @@
 extends Node2D 
 
+const GameStats = preload("res://stat_database.gd")
+const RANGE_PIXELS_PER_UNIT := 12.9
+
 enum TargetMode {
 	FIRST,
 	LAST,
@@ -9,12 +12,16 @@ enum TargetMode {
 
 signal tower_confirmed()
 signal tower_cancelled()
+signal sell_tower
 
 @export var target_mode: TargetMode = TargetMode.FIRST
+@export var tower_id: StringName = GameStats.DEFAULT_TOWER_ID
 @onready var tower_area: Area2D = $Tower  
 @onready var rotator: Node2D = $Rotator
 @onready var damage_timer: Timer = $Timer
-var damage: int = 20
+@onready var upgrade_button: Button = $HBoxContainer/upgradetower
+var tower_level := 0
+var damage: int
 var target: Node2D = null
 var mobs_in_range: Array = []
 var selected := false
@@ -23,20 +30,66 @@ var main : Node
 
 func set_selected(value: bool):
 	selected = value
-	$targetui.visible = value
+	$HBoxContainer.visible = value
+	
+	if value:
+		show_main_menu()
+	else:
+		close_menus()
+
+func show_main_menu() -> void:
+	$HBoxContainer.visible = true
+	$targetui.visible = false
+	update_upgrade_button()
+
+func show_target_menu() -> void:
+	$HBoxContainer.visible = false
+	$targetui.visible = true
+
+func update_upgrade_button() -> void:
+	var tower_data: Dictionary = GameStats.get_tower(tower_id)
+	var levels: Array = tower_data["levels"]
+	var next_level := tower_level + 1
+
+	if next_level >= levels.size():
+		upgrade_button.text = "MAX LEVEL"
+		upgrade_button.disabled = true
+		return
+
+	var upgrade_cost: int = levels[next_level]["upgrade_cost"]
+	upgrade_button.text = "Upgrade\n$%d" % upgrade_cost
+	upgrade_button.disabled = false
+
+func show_upgrade_menu() -> void:
+	$HBoxContainer.visible = false
+
+func close_menus() -> void:
+	selected = false
+	$HBoxContainer.visible = false
+	$targetui.visible = false
 
 func confirm_menu(value: bool):
 	tower_confirm = value
 	$towerconfirm.visible = value
 	
 func _ready() -> void:
+	load_level_stats()
+	update_upgrade_button()
 	tower_area.connect("body_entered", Callable(self, "_on_body_entered"))
 	tower_area.connect("body_exited", Callable(self, "_on_body_exited"))
-	damage_timer.wait_time = .5  
 	damage_timer.timeout.connect(_apply_damage)
 	damage_timer.start()
 	$Tower.input_event.connect(_on_clickarea_input_event)
 	add_to_group("towers")
+
+
+func load_level_stats() -> void:
+	var stats: Dictionary = GameStats.get_tower_level(tower_id, tower_level)
+	damage = stats["damage"]
+	damage_timer.wait_time = stats["firerate"]
+	var range_shape := $Tower/CollisionShape2D.shape.duplicate() as CircleShape2D
+	range_shape.radius = stats["range"] * RANGE_PIXELS_PER_UNIT
+	$Tower/CollisionShape2D.shape = range_shape
 
 func _apply_damage():
 	if target != null :
@@ -99,24 +152,28 @@ func _unhandled_input(event):
 			tower.set_selected(false)
 
 func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
-	if event is InputEventMouseButton and event.pressed and main.build_mode == false:
+	if event is InputEventMouseButton and event.pressed and not main.build_mode:
+		for tower in get_tree().get_nodes_in_group("towers"):
+			if tower != self:
+				tower.set_selected(false)
+
 		set_selected(true)
 
 func _on_button_first_pressed() -> void:
 	target_mode = TargetMode.FIRST
-	set_selected(false)
+	close_menus()
 
 func _on_button_last_pressed() -> void:
 	target_mode = TargetMode.LAST
-	set_selected(false)
-
+	close_menus()
+	
 func _on_button_low_pressed() -> void:
 	target_mode = TargetMode.LOWEST_HEALTH
-	set_selected(false)
+	close_menus()
 
 func _on_button_high_pressed() -> void:
 	target_mode = TargetMode.HIGHEST_HEALTH
-	set_selected(false)
+	close_menus()
 
 func _on_confirm_pressed() -> void:
 	var sprite = $Rotator
@@ -134,3 +191,24 @@ func _on_cancel_pressed() -> void:
 	$towerconfirm.visible = false
 	emit_signal("tower_cancelled", self)
 	queue_free()
+
+func _on_targetmode_pressed() -> void:
+	show_target_menu()
+
+func _on_upgradetower_pressed() -> void:	
+	var tower_data: Dictionary = GameStats.get_tower(tower_id)
+	var levels: Array = tower_data["levels"]
+	var next_level := tower_level + 1
+
+	if next_level >= levels.size():
+		return
+
+	var upgrade_cost: int = levels[next_level]["upgrade_cost"]
+
+	if main.spend_money(upgrade_cost):
+		tower_level = next_level
+		load_level_stats()
+		update_upgrade_button()
+
+func _on_selltower_pressed() -> void:
+	pass # Replace with function body.

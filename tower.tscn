@@ -11,6 +11,8 @@ size = Vector2(131.45946, 129.72974)
 
 [node name="TowerRoot" type="Node2D" unique_id=2095459932]
 script = ExtResource("1_vedim")
+target_mode = null
+tower_id = null
 
 [node name="Tower" type="Area2D" parent="." unique_id=1681050470]
 position = Vector2(-6, -9)
@@ -27,35 +29,6 @@ scale = Vector2(0.578125, 0.578125)
 texture = ExtResource("1_k1sas")
 
 [node name="Timer" type="Timer" parent="." unique_id=1713124659]
-
-[node name="targetui" type="VBoxContainer" parent="." unique_id=625041560]
-visible = false
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-alignment = 1
-
-[node name="button_first" type="Button" parent="targetui" unique_id=2081262102]
-custom_minimum_size = Vector2(120, 30)
-layout_mode = 2
-text = "First"
-
-[node name="button_last" type="Button" parent="targetui" unique_id=886726470]
-custom_minimum_size = Vector2(120, 30)
-layout_mode = 2
-text = "Last"
-
-[node name="button_low" type="Button" parent="targetui" unique_id=381852348]
-custom_minimum_size = Vector2(120, 30)
-layout_mode = 2
-text = "Lowest HP"
-
-[node name="button_high" type="Button" parent="targetui" unique_id=718005269]
-custom_minimum_size = Vector2(120, 30)
-layout_mode = 2
-text = "Highest HP"
 
 [node name="clickarea" type="Area2D" parent="." unique_id=172749921]
 collision_layer = 2
@@ -92,10 +65,64 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Cancel"
 
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=170430979]
+visible = false
+offset_left = -106.0
+offset_top = -90.0
+offset_right = 106.0
+offset_bottom = -50.0
+
+[node name="upgradetower" type="Button" parent="HBoxContainer" unique_id=671795592]
+layout_mode = 2
+
+[node name="selltower" type="Button" parent="HBoxContainer" unique_id=1015975688]
+layout_mode = 2
+text = "Sell"
+
+[node name="targetmode" type="Button" parent="HBoxContainer" unique_id=860517118]
+layout_mode = 2
+text = "Aim Mode"
+
+[node name="targetui" type="VBoxContainer" parent="." unique_id=625041560]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -60.0
+offset_top = -68.0
+offset_right = 60.0
+offset_bottom = 68.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="button_first" type="Button" parent="targetui" unique_id=2081262102]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+text = "First"
+
+[node name="button_last" type="Button" parent="targetui" unique_id=886726470]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+text = "Last"
+
+[node name="button_low" type="Button" parent="targetui" unique_id=381852348]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+text = "Lowest HP"
+
+[node name="button_high" type="Button" parent="targetui" unique_id=718005269]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+text = "Highest HP"
+
+[connection signal="input_event" from="clickarea" to="." method="_on_clickarea_input_event"]
+[connection signal="pressed" from="towerconfirm/Confirm" to="." method="_on_confirm_pressed"]
+[connection signal="pressed" from="towerconfirm/Cancel" to="." method="_on_cancel_pressed"]
+[connection signal="pressed" from="HBoxContainer/upgradetower" to="." method="_on_upgradetower_pressed"]
+[connection signal="pressed" from="HBoxContainer/selltower" to="." method="_on_selltower_pressed"]
+[connection signal="pressed" from="HBoxContainer/targetmode" to="." method="_on_targetmode_pressed"]
 [connection signal="pressed" from="targetui/button_first" to="." method="_on_button_first_pressed"]
 [connection signal="pressed" from="targetui/button_last" to="." method="_on_button_last_pressed"]
 [connection signal="pressed" from="targetui/button_low" to="." method="_on_button_low_pressed"]
 [connection signal="pressed" from="targetui/button_high" to="." method="_on_button_high_pressed"]
-[connection signal="input_event" from="clickarea" to="." method="_on_clickarea_input_event"]
-[connection signal="pressed" from="towerconfirm/Confirm" to="." method="_on_confirm_pressed"]
-[connection signal="pressed" from="towerconfirm/Cancel" to="." method="_on_cancel_pressed"]

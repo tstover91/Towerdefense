@@ -1,15 +1,17 @@
 extends Node2D
+
+const GameStats = preload("res://stat_database.gd")
  
 @export var loop_path: bool = true  
 @onready var spawntimer = $SpawnTimer
 @onready var tower_list = $MainUI/ItemList
-var lives : int = 5
+var lives: int
 var tower_scene := preload("res://tower.tscn")
 var place_mode := false
 var build_mode = false
 var tower_to_place : Node2D = null
 var tower_confirm : bool = false
-var money : int = 100
+var money: int
 var pending_tower_type := ""
 var pending_tower_cost := 0
 var round_number := 0
@@ -17,9 +19,13 @@ var mobs_left_to_spawn := 0
 var mobs_alive := 0
 var round_active := false
 var game_ended := false
-const MAX_ROUNDS := 5
+var max_rounds: int
 
 func _ready():
+	var mode: Dictionary = GameStats.get_mode("easy")
+	money = mode["starting_cash"]
+	lives = mode["starting_lives"]
+	max_rounds = mode["max_rounds"]
 	update_money()
 	update_lives()
 	spawntimer.timeout.connect(_spawn_mob)
@@ -56,7 +62,7 @@ func _on_startbutton_pressed() -> void:
 		start_round()
 
 func start_round() -> void:
-	if round_active or round_number >= MAX_ROUNDS:
+	if round_active or round_number >= max_rounds:
 		return
 	round_number += 1
 	update_round_count()
@@ -74,7 +80,7 @@ func end_round() -> void:
 	
 	round_active = false
 
-	if round_number >= MAX_ROUNDS:
+	if round_number >= max_rounds:
 		victory()
 	else:
 		$MainUI/startbutton.disabled = false
@@ -91,7 +97,6 @@ func _spawn_mob():
 	pf.add_child(mob)
 	pf.loop = false
 	mob.set_path_follow(pf)
-	mob.setup_for_round(round_number)
 	mobs_left_to_spawn -= 1
 	mobs_alive += 1
 
@@ -111,7 +116,7 @@ func defeat():
 	finish_game("Defeat!\nYou reached round %d." % round_number)
 
 func victory():
-	finish_game("Victory!\nYou completed all %d rounds." % MAX_ROUNDS)
+	finish_game("Victory!\nYou completed all %d rounds." % max_rounds)
 
 func finish_game(message: String):
 	if game_ended:
@@ -211,7 +216,7 @@ func _on_item_list_item_selected(index: int) -> void:
 		tower_list.deselect_all()
 		return
 	
-	var cost := 50  # or based on index later
+	var cost: int = GameStats.get_tower("scout")["placement_cost"]
 	
 	if money >= cost and build_mode == false:
 		pending_tower_type = "arrow_tower"  # or based on index

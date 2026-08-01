@@ -1,12 +1,16 @@
 extends CharacterBody2D
 
+const GameStats = preload("res://stat_database.gd")
+
 signal mob_killed(reward: int)
 signal reached_end(damage: int)
 
 
-@export var health: int = 100
+@export var enemy_id: StringName = GameStats.DEFAULT_ENEMY_ID
+var health: int
 @onready var health_bar: TextureProgressBar = $HealthBar
-@export var speed := 100.0
+var speed: float
+var cash_reward: int
 var path_follow: PathFollow2D
 var finished := false
 
@@ -24,21 +28,22 @@ func _process(delta):
 
 	if path_follow.progress_ratio >= 1.0:
 		finished = true
-		reached_end.emit(1)
+		reached_end.emit(health)
 		path_follow.queue_free()
 
 func _ready():
-	health_bar.value = health
+	load_stats()
 
-func setup_for_round(current_round: int) -> void:
-	health = 100 + ((current_round - 1) * 20)
-	speed = 100.0 + ((current_round - 1) * 2.0)
-
+func load_stats() -> void:
+	var stats: Dictionary = GameStats.get_enemy(enemy_id)
+	health = stats["health"]
+	speed = stats["move_speed"]
+	cash_reward = stats["cash_reward"]
 	health_bar.max_value = health
 	health_bar.value = health
 
 func die():
-	mob_killed.emit(10)
+	mob_killed.emit(cash_reward)
 
 	if is_instance_valid(path_follow):
 		path_follow.queue_free()
