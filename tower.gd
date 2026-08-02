@@ -30,11 +30,6 @@ signal tower_cancelled(tower: Node2D)
 @onready var muzzle: Marker2D = $Rotator/Muzzle
 @onready var damage_timer: Timer = $Timer
 @onready var upgrade_button: Button = $HBoxContainer/upgradetower
-@onready var tower_info: VBoxContainer = $towerinfo
-@onready var tower_name_label: Label = $towerinfo/namelabel
-@onready var tower_level_label: Label = $towerinfo/levellabel
-@onready var tower_stats_label: Label = $towerinfo/statslabel
-@onready var upgrade_preview_label: Label = $towerinfo/upgradepreview
 var tower_level := 0
 var damage: int
 var damage_type: StringName = &"physical"
@@ -116,8 +111,7 @@ func show_upgrade_range_preview() -> void:
 	range_preview_visible = true
 	range_preview_valid = true
 	upgrade_range_radius_pixels = (
-		levels[next_level]["range"]
-		* get_main_multiplier(&"tower_range")
+		get_effective_stats_for_level(next_level)["range"]
 		* RANGE_PIXELS_PER_UNIT
 	)
 	queue_redraw()
@@ -129,6 +123,8 @@ func set_selected(value: bool) -> void:
 	if value:
 		show_main_menu()
 		show_current_range_preview()
+		if main != null:
+			main.show_tower_details(self)
 	else:
 		close_menus()
 
@@ -136,7 +132,6 @@ func show_main_menu() -> void:
 	pending_action = MenuAction.NONE
 	$HBoxContainer.visible = true
 	$targetui.visible = false
-	tower_info.visible = true
 	update_menu_buttons()
 
 func show_target_menu() -> void:
@@ -144,8 +139,6 @@ func show_target_menu() -> void:
 	show_current_range_preview()
 	$HBoxContainer.visible = false
 	$targetui.visible = true
-	tower_info.visible = true
-	update_tower_info()
 
 func update_sell_button() -> void:
 	var sell_price := get_sell_price()
@@ -178,7 +171,6 @@ func update_upgrade_button() -> void:
 func update_menu_buttons() -> void:
 	update_upgrade_button()
 	update_sell_button()
-	update_tower_info()
 	$HBoxContainer/targetmode.text = "Target\n%s" % get_target_mode_name()
 
 func close_menus() -> void:
@@ -186,8 +178,9 @@ func close_menus() -> void:
 	selected = false
 	$HBoxContainer.visible = false
 	$targetui.visible = false
-	tower_info.visible = false
 	set_range_preview(false)
+	if main != null:
+		main.clear_tower_details(self)
 
 
 func get_target_mode_name() -> String:
@@ -202,29 +195,6 @@ func get_target_mode_name() -> String:
 			return "Highest HP"
 	return "Unknown"
 
-
-func update_tower_info() -> void:
-	var tower_data: Dictionary = GameStats.get_tower(tower_id)
-	var levels: Array = tower_data["levels"]
-	var current_dps: float = float(damage) / damage_timer.wait_time
-	tower_name_label.text = tower_data["display_name"]
-	tower_level_label.text = "Level %d/%d" % [tower_level, levels.size() - 1]
-	tower_stats_label.text = "DPS: %.2f" % current_dps
-
-	var next_level := tower_level + 1
-	upgrade_preview_label.visible = pending_action == MenuAction.UPGRADE and next_level < levels.size()
-
-	if upgrade_preview_label.visible:
-		var next_stats: Dictionary = levels[next_level]
-		var next_damage := float(next_stats["damage"]) + get_main_bonus(&"tower_damage_flat")
-		var next_fire_rate := float(next_stats["firerate"]) / get_main_multiplier(
-			&"tower_attack_speed"
-		)
-		var next_dps: float = next_damage / next_fire_rate
-		upgrade_preview_label.text = (
-			"Next upgrade\nDPS: %.2f -> %.2f"
-			% [current_dps, next_dps]
-		)
 
 func get_total_invested() -> int:
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
@@ -276,23 +246,52 @@ func confirm_placement() -> void:
 
 
 func load_level_stats() -> void:
-	var stats: Dictionary = GameStats.get_tower_level(tower_id, tower_level)
-	damage = roundi(float(stats["damage"]) + get_main_bonus(&"tower_damage_flat"))
+	var stats := get_effective_stats_for_level(tower_level)
+	damage = stats["damage"]
 	damage_type = stats.get("damage_type", &"physical")
 	projectile_speed = stats.get("projectile_speed", 600.0)
-	damage_timer.wait_time = maxf(
-		float(stats["firerate"]) / get_main_multiplier(&"tower_attack_speed"),
-		0.01
-	)
+	damage_timer.wait_time = stats["firerate"]
 	var range_shape := $Tower/CollisionShape2D.shape.duplicate() as CircleShape2D
-	range_radius_pixels = (
-		float(stats["range"])
-		* get_main_multiplier(&"tower_range")
-		* RANGE_PIXELS_PER_UNIT
-	)
+	range_radius_pixels = stats["range"] * RANGE_PIXELS_PER_UNIT
 	range_shape.radius = range_radius_pixels
 	$Tower/CollisionShape2D.shape = range_shape
 	queue_redraw()
+
+
+func get_effective_stats_for_level(level: int) -> Dictionary:
+	var stats := GameStats.get_tower_level(tower_id, level)
+	stats["damage"] = roundi(
+		float(stats["damage"]) + get_main_bonus(&"tower_damage_flat")
+	)
+	stats["firerate"] = maxf(
+		float(stats["firerate"]) / get_main_multiplier(&"tower_attack_speed"),
+		0.01
+	)
+	stats["range"] = float(stats["range"]) * get_main_multiplier(&"tower_range")
+	stats["dps"] = float(stats["damage"]) / float(stats["firerate"])
+	return stats
+
+
+func get_sidebar_stats() -> Dictionary:
+	var tower_data := GameStats.get_tower(tower_id)
+	var levels: Array = tower_data["levels"]
+	var current_stats := get_effective_stats_for_level(tower_level)
+	var next_level := tower_level + 1
+	var result := {
+		"display_name": tower_data["display_name"],
+		"is_placed": is_placed,
+		"level": tower_level,
+		"maximum_level": levels.size() - 1,
+		"dps": current_stats["dps"],
+		"has_next_level": next_level < levels.size(),
+		"show_upgrade_info": is_placed and pending_action == MenuAction.UPGRADE,
+	}
+
+	if next_level < levels.size():
+		var next_stats := get_effective_stats_for_level(next_level)
+		result["next_level"] = next_level
+		result["next_dps"] = next_stats["dps"]
+	return result
 
 
 func get_main_bonus(effect: StringName) -> float:
@@ -344,7 +343,6 @@ func update_menu_layout() -> void:
 		not $towerconfirm.visible
 		and not $HBoxContainer.visible
 		and not $targetui.visible
-		and not tower_info.visible
 	):
 		return
 
@@ -360,7 +358,6 @@ func update_menu_layout() -> void:
 
 	$towerconfirm.position = Vector2(-40.0 + x_offset, 50.0 if place_below else -106.0)
 	$HBoxContainer.position = Vector2(-106.0 + x_offset, 50.0 if place_below else -90.0)
-	tower_info.position = Vector2(-106.0 + x_offset, 95.0 if place_below else -230.0)
 	$targetui.position = Vector2(-60.0 + x_offset, 50.0 if place_below else -68.0)
 
 func _on_body_entered(body: Node2D) -> void:
@@ -455,12 +452,16 @@ func _on_cancel_pressed() -> void:
 
 func _on_targetmode_pressed() -> void:
 	show_target_menu()
+	if main != null and selected:
+		main.show_tower_details(self)
 
 func _on_upgradetower_pressed() -> void:
 	if pending_action != MenuAction.UPGRADE:
 		pending_action = MenuAction.UPGRADE
 		show_upgrade_range_preview()
 		update_menu_buttons()
+		if main != null and selected:
+			main.show_tower_details(self)
 		return
 
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
@@ -479,12 +480,16 @@ func _on_upgradetower_pressed() -> void:
 	pending_action = MenuAction.NONE
 	show_current_range_preview()
 	update_menu_buttons()
+	if main != null and selected:
+		main.show_tower_details(self)
 
 func _on_selltower_pressed() -> void:
 	if pending_action != MenuAction.SELL:
 		pending_action = MenuAction.SELL
 		show_current_range_preview()
 		update_menu_buttons()
+		if main != null and selected:
+			main.show_tower_details(self)
 		return
 
 	main.add_money(get_sell_price())

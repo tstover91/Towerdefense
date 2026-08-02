@@ -191,6 +191,10 @@ fixed_icon_size = Vector2i(40, 40)
 max_columns = 1
 same_column_width = true
 
+[node name="DetailsSpacer" type="Control" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+
 [node name="SidebarSeparator" type="HSeparator" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout"]
 layout_mode = 2
 
@@ -201,9 +205,8 @@ text = "Tower Details"
 horizontal_alignment = 1
 
 [node name="TowerDetailsPanel" type="PanelContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout"]
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 155)
 layout_mode = 2
-size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_d42bq")
 
 [node name="DetailsMargin" type="MarginContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel"]
@@ -213,11 +216,53 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="TowerDetailsPlaceholder" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin"]
+[node name="DetailsLayout" type="VBoxContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin"]
 layout_mode = 2
-text = "Select a placed tower to view its stats and upgrades."
+
+[node name="TowerDetailsPlaceholder" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+size_flags_vertical = 3
+text = "Select a tower to build or tap a placed tower to view its stats."
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="TowerStatsLayout" type="VBoxContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TowerNameLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Scout"
+horizontal_alignment = 1
+
+[node name="TowerLevelLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Level 0/4"
+horizontal_alignment = 1
+
+[node name="TowerDpsLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "DPS: 1.00"
+horizontal_alignment = 1
+
+[node name="UpgradeHeaderLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Next Upgrade"
+horizontal_alignment = 1
+
+[node name="UpgradeStatsLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Level 1/4\nDPS: 1.00 -> 1.33"
+horizontal_alignment = 1
 autowrap_mode = 2
 
 [node name="BetweenRoundShop" parent="MainUI" instance=ExtResource("4_shop")]

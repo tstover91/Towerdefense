@@ -147,6 +147,8 @@ const TOWER_ICONS := {
 }
 const ITEM_TOWER_IDS := [&"scout"]
 const TOWER_SLOT_COUNT := 5
+const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
+const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
 
 signal money_changed(new_amount: int)
 
@@ -158,6 +160,13 @@ signal money_changed(new_amount: int)
 @onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
 @onready var round_timer_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundtimer
 @onready var start_button: Button = $MainUI/HUDRoot/startbutton
+@onready var tower_details_placeholder: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerDetailsPlaceholder
+@onready var tower_stats_layout: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout
+@onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerNameLabel
+@onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerLevelLabel
+@onready var tower_dps_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerDpsLabel
+@onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/UpgradeHeaderLabel
+@onready var tower_upgrade_stats_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/UpgradeStatsLabel
 var lives: int
 var max_lives: int
 var place_mode := false
@@ -191,6 +200,7 @@ var mode_id: StringName = &"easy"
 var shop_open := false
 var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
+var displayed_tower: Node = null
 
 func _ready() -> void:
 	enemy_rng.randomize()
@@ -201,6 +211,7 @@ func _ready() -> void:
 	max_lives = lives
 	max_rounds = mode["max_rounds"]
 	populate_tower_list()
+	clear_tower_details()
 	update_money()
 	update_lives()
 	update_round_count()
@@ -217,7 +228,7 @@ func populate_tower_list() -> void:
 			var tower_id: StringName = ITEM_TOWER_IDS[slot_index]
 			var tower_stats := GameStats.get_tower(tower_id)
 			tower_list.add_item(
-				tower_stats["display_name"],
+				"$%d" % int(tower_stats["placement_cost"]),
 				TOWER_ICONS.get(tower_id)
 			)
 			continue
@@ -227,6 +238,60 @@ func populate_tower_list() -> void:
 		tower_list.set_item_icon_modulate(slot_index, Color.TRANSPARENT)
 		tower_list.set_item_disabled(slot_index, true)
 		tower_list.set_item_selectable(slot_index, false)
+
+
+func show_tower_details(tower: Node) -> void:
+	if not is_instance_valid(tower) or not tower.has_method("get_sidebar_stats"):
+		clear_tower_details()
+		return
+
+	displayed_tower = tower
+	var stats: Dictionary = tower.get_sidebar_stats()
+	var is_placed: bool = stats["is_placed"]
+	var current_level: int = stats["level"]
+	var maximum_level: int = stats["maximum_level"]
+	var current_dps: float = stats["dps"]
+
+	tower_details_placeholder.hide()
+	tower_stats_layout.show()
+	tower_name_label.text = stats["display_name"]
+	var show_upgrade_info: bool = stats["show_upgrade_info"] and stats["has_next_level"]
+	tower_level_label.visible = is_placed and not show_upgrade_info
+	if tower_level_label.visible:
+		tower_level_label.text = "Level %d/%d" % [current_level, maximum_level]
+	tower_dps_label.visible = not show_upgrade_info
+	tower_dps_label.text = "DPS: %.2f" % current_dps
+
+	tower_upgrade_header.visible = show_upgrade_info
+	tower_upgrade_stats_label.visible = show_upgrade_info
+	if show_upgrade_info:
+		var next_level: int = stats["next_level"]
+		var next_dps: float = stats["next_dps"]
+		tower_upgrade_header.text = "Next Upgrade"
+		tower_upgrade_stats_label.text = (
+			"Level %d/%d\nDPS: %.2f -> %.2f"
+			% [
+				next_level,
+				maximum_level,
+				current_dps,
+				next_dps,
+			]
+		)
+
+
+func clear_tower_details(tower: Node = null) -> void:
+	if tower != null and displayed_tower != tower:
+		return
+	displayed_tower = null
+	tower_details_placeholder.show()
+	tower_stats_layout.hide()
+
+
+func refresh_tower_details() -> void:
+	if is_instance_valid(displayed_tower):
+		show_tower_details(displayed_tower)
+	else:
+		clear_tower_details()
 
 func _process(delta: float) -> void:
 	if place_mode and tower_to_place:
@@ -247,7 +312,20 @@ func update_lives() -> void:
 
 func update_money() -> void:
 	money_display.text = "Money: $%d" % money
+	update_tower_affordability()
 	money_changed.emit(money)
+
+
+func update_tower_affordability() -> void:
+	for slot_index in ITEM_TOWER_IDS.size():
+		var tower_id: StringName = ITEM_TOWER_IDS[slot_index]
+		var placement_cost: int = GameStats.get_tower(tower_id)["placement_cost"]
+		var price_color := (
+			AFFORDABLE_TOWER_COLOR
+			if money >= placement_cost
+			else UNAFFORDABLE_TOWER_COLOR
+		)
+		tower_list.set_item_custom_fg_color(slot_index, price_color)
 
 func add_money(amount: int) -> void:
 	money += amount
@@ -408,6 +486,7 @@ func refresh_placed_tower_stats() -> void:
 		if is_instance_valid(tower) and tower.is_placed:
 			tower.load_level_stats()
 			tower.update_menu_buttons()
+	refresh_tower_details()
 
 
 func get_run_bonus(effect: StringName) -> float:
@@ -416,6 +495,7 @@ func get_run_bonus(effect: StringName) -> float:
 
 func cancel_pending_tower_placement() -> void:
 	if is_instance_valid(tower_to_place):
+		clear_tower_details(tower_to_place)
 		tower_to_place.queue_free()
 	tower_to_place = null
 	place_mode = false
@@ -1074,6 +1154,7 @@ func finish_game(message: String) -> void:
 	place_mode = false
 	build_mode = false
 	close_all_tower_menus()
+	clear_tower_details()
 
 	if is_instance_valid(tower_to_place):
 		tower_to_place.queue_free()
@@ -1143,7 +1224,6 @@ func finalize_tower_placement() -> void:
 	tower_to_place.get_node("towerconfirm").visible = true
 	tower_list.deselect_all()
 
-@warning_ignore("unused_parameter")
 func _on_tower_confirmed(tower: Node2D) -> void:
 	money -= pending_tower_cost
 	update_money()
@@ -1152,9 +1232,10 @@ func _on_tower_confirmed(tower: Node2D) -> void:
 	build_mode = false
 	tower_to_place = null
 	start_button.disabled = round_active or game_ended
+	show_tower_details(tower)
 
-@warning_ignore("unused_parameter")
 func _on_tower_cancelled(tower: Node2D) -> void:
+	clear_tower_details(tower)
 	pending_tower_type = &""
 	pending_tower_cost = 0
 	build_mode = false
@@ -1176,6 +1257,7 @@ func start_build_tower() -> void:
 	tower_to_place.tower_confirmed.connect(_on_tower_confirmed)
 	tower_to_place.tower_cancelled.connect(_on_tower_cancelled)
 	add_child(tower_to_place)
+	show_tower_details(tower_to_place)
 
 
 func can_select_tower() -> bool:

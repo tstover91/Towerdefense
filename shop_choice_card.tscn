@@ -31,6 +31,7 @@ text = "General"
 horizontal_alignment = 1
 
 [node name="DescriptionLabel" type="Label" parent="MarginContainer/CardLayout"]
+custom_minimum_size = Vector2(134, 0)
 layout_mode = 2
 size_flags_vertical = 3
 text = "Item description"
