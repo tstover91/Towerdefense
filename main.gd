@@ -141,11 +141,17 @@ const FORMATION_ROLE_WEIGHTS := {
 }
 const TOWER_SCENES := {
 	&"scout": preload("res://tower.tscn"),
+	&"cannon": preload("res://cannon.tscn"),
 }
 const TOWER_ICONS := {
 	&"scout": preload("res://icon.svg"),
+	&"cannon": preload("res://icon.svg"),
 }
-const ITEM_TOWER_IDS := [&"scout"]
+const TOWER_ICON_COLORS := {
+	&"scout": Color.WHITE,
+	&"cannon": Color(0.45, 0.55, 0.62),
+}
+const ITEM_TOWER_IDS := [&"scout", &"cannon"]
 const TOWER_SLOT_COUNT := 5
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
@@ -230,6 +236,10 @@ func populate_tower_list() -> void:
 			tower_list.add_item(
 				"$%d" % int(tower_stats["placement_cost"]),
 				TOWER_ICONS.get(tower_id)
+			)
+			tower_list.set_item_icon_modulate(
+				slot_index,
+				TOWER_ICON_COLORS.get(tower_id, Color.WHITE)
 			)
 			continue
 
