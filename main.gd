@@ -4,27 +4,28 @@ const GameStats = preload("res://stat_database.gd")
 const MOB_SCENE = preload("res://mob.tscn")
 const SPAWN_STYLES := {
 	&"steady": {
-		"minimum_group_size": 3,
-		"maximum_group_size": 5,
-		"interval": 0.8,
-		"gap_after_group": 1.2,
+		"minimum_group_size": 6,
+		"maximum_group_size": 10,
+		"interval": 0.5,
+		"gap_after_group": 0.8,
 	},
 	&"stream": {
-		"minimum_group_size": 5,
-		"maximum_group_size": 8,
-		"gap_after_group": 1.5,
+		"minimum_group_size": 10,
+		"maximum_group_size": 16,
+		"interval": 0.15,
+		"gap_after_group": 0.8,
 	},
 	&"burst": {
-		"minimum_group_size": 3,
-		"maximum_group_size": 5,
-		"interval": 0.1,
-		"gap_after_group": 2.0,
+		"minimum_group_size": 7,
+		"maximum_group_size": 11,
+		"interval": 0.08,
+		"gap_after_group": 1.1,
 	},
 	&"spaced": {
-		"minimum_group_size": 2,
-		"maximum_group_size": 3,
-		"interval": 1.4,
-		"gap_after_group": 1.0,
+		"minimum_group_size": 5,
+		"maximum_group_size": 8,
+		"interval": 0.8,
+		"gap_after_group": 0.8,
 	},
 }
 const WAVE_STYLE_UNLOCKS := {
@@ -34,19 +35,134 @@ const WAVE_STYLE_UNLOCKS := {
 	&"sandwich": 7,
 	&"escorted_elite": 9,
 }
+const ROLE_FODDER := &"fodder"
+const ROLE_PRESSURE := &"pressure"
+const ROLE_TANK := &"tank"
+const ROLE_SUPPORT := &"support"
+const SHOP_CHOICE_COUNT := 3
+const TOWER_STAT_EFFECTS: Array[StringName] = [
+	&"tower_damage_flat",
+	&"tower_attack_speed",
+	&"tower_range",
+]
+const WAVE_ROLE_WEIGHTS := [
+	{
+		"maximum_wave": 3,
+		"weights": {
+			ROLE_FODDER: 80.0,
+			ROLE_PRESSURE: 20.0,
+			ROLE_TANK: 0.0,
+			ROLE_SUPPORT: 0.0,
+		},
+	},
+	{
+		"maximum_wave": 8,
+		"weights": {
+			ROLE_FODDER: 60.0,
+			ROLE_PRESSURE: 25.0,
+			ROLE_TANK: 15.0,
+			ROLE_SUPPORT: 0.0,
+		},
+	},
+	{
+		"maximum_wave": 13,
+		"weights": {
+			ROLE_FODDER: 50.0,
+			ROLE_PRESSURE: 20.0,
+			ROLE_TANK: 20.0,
+			ROLE_SUPPORT: 10.0,
+		},
+	},
+	{
+		"maximum_wave": 999,
+		"weights": {
+			ROLE_FODDER: 45.0,
+			ROLE_PRESSURE: 25.0,
+			ROLE_TANK: 20.0,
+			ROLE_SUPPORT: 10.0,
+		},
+	},
+]
+const FORMATION_ROLE_WEIGHTS := {
+	&"steady": {
+		ROLE_FODDER: 60.0,
+		ROLE_PRESSURE: 20.0,
+		ROLE_TANK: 15.0,
+		ROLE_SUPPORT: 5.0,
+	},
+	&"stream": {
+		ROLE_FODDER: 75.0,
+		ROLE_PRESSURE: 20.0,
+		ROLE_TANK: 0.0,
+		ROLE_SUPPORT: 5.0,
+	},
+	&"burst": {
+		ROLE_FODDER: 40.0,
+		ROLE_PRESSURE: 50.0,
+		ROLE_TANK: 10.0,
+		ROLE_SUPPORT: 0.0,
+	},
+	&"spaced": {
+		ROLE_FODDER: 25.0,
+		ROLE_PRESSURE: 20.0,
+		ROLE_TANK: 45.0,
+		ROLE_SUPPORT: 10.0,
+	},
+	&"pulses": {
+		ROLE_FODDER: 65.0,
+		ROLE_PRESSURE: 25.0,
+		ROLE_TANK: 10.0,
+		ROLE_SUPPORT: 0.0,
+	},
+	&"simultaneous_batch": {
+		ROLE_FODDER: 70.0,
+		ROLE_PRESSURE: 20.0,
+		ROLE_TANK: 10.0,
+		ROLE_SUPPORT: 0.0,
+	},
+	&"convoy": {
+		ROLE_FODDER: 50.0,
+		ROLE_PRESSURE: 30.0,
+		ROLE_TANK: 15.0,
+		ROLE_SUPPORT: 5.0,
+	},
+	&"escorted_elite": {
+		ROLE_FODDER: 45.0,
+		ROLE_PRESSURE: 30.0,
+		ROLE_TANK: 20.0,
+		ROLE_SUPPORT: 5.0,
+	},
+	&"sandwich": {
+		ROLE_FODDER: 45.0,
+		ROLE_PRESSURE: 30.0,
+		ROLE_TANK: 20.0,
+		ROLE_SUPPORT: 5.0,
+	},
+}
 const TOWER_SCENES := {
 	&"scout": preload("res://tower.tscn"),
 }
+const TOWER_ICONS := {
+	&"scout": preload("res://icon.svg"),
+}
 const ITEM_TOWER_IDS := [&"scout"]
+const TOWER_SLOT_COUNT := 5
 
 signal money_changed(new_amount: int)
 
-@onready var spawntimer = $SpawnTimer
-@onready var tower_list = $MainUI/ItemList
+@onready var spawntimer: Timer = $SpawnTimer
+@onready var tower_list: ItemList = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerSelectionArea/ItemList
+@onready var between_round_shop: Control = $MainUI/BetweenRoundShop
+@onready var money_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/moneydisplay
+@onready var lives_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/livesdisplay
+@onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
+@onready var round_timer_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundtimer
+@onready var start_button: Button = $MainUI/HUDRoot/startbutton
 var lives: int
+var max_lives: int
 var place_mode := false
-var build_mode = false
-var tower_to_place : Node2D = null
+var build_mode := false
+var tower_to_place: Node2D = null
 var money: int
 var pending_tower_type: StringName = &""
 var pending_tower_cost := 0
@@ -55,25 +171,64 @@ var mobs_left_to_spawn := 0
 var mobs_alive := 0
 var spawn_schedule: Array[Dictionary] = []
 var enemy_rng := RandomNumberGenerator.new()
+var shop_rng := RandomNumberGenerator.new()
 var current_wave_spawn_style: StringName = &"standard"
+var round_time_remaining := 0.0
+var spawn_threat := 0.0
+var threat_per_second := 0.0
+var threat_chunk_elapsed := 0.0
+var threat_continuous_ratio := 1.0
+var threat_chunk_ratio := 0.0
+var threat_chunk_interval := 4.0
+var active_enemy_cap := 120
+var spawning_active := false
+var director_cooldown := 0.0
 var round_active := false
 var round_was_perfect := true
 var game_ended := false
 var max_rounds: int
-var mode_id: StringName = "easy"
+var mode_id: StringName = &"easy"
+var shop_open := false
+var owned_shop_items: Dictionary = {}
+var run_bonuses: Dictionary = {}
 
-func _ready():
+func _ready() -> void:
 	enemy_rng.randomize()
+	shop_rng.randomize()
 	var mode: Dictionary = GameStats.get_mode(mode_id)
 	money = mode["starting_cash"]
 	lives = mode["starting_lives"]
+	max_lives = lives
 	max_rounds = mode["max_rounds"]
+	populate_tower_list()
 	update_money()
 	update_lives()
 	update_round_count()
 	spawntimer.timeout.connect(_spawn_mob)
+	between_round_shop.reward_chosen.connect(_on_shop_reward_chosen)
+	between_round_shop.next_round_requested.connect(_on_shop_next_round_requested)
+	start_button.text = "Start Run"
 
-func _process(_delta):
+
+func populate_tower_list() -> void:
+	tower_list.clear()
+	for slot_index in TOWER_SLOT_COUNT:
+		if slot_index < ITEM_TOWER_IDS.size():
+			var tower_id: StringName = ITEM_TOWER_IDS[slot_index]
+			var tower_stats := GameStats.get_tower(tower_id)
+			tower_list.add_item(
+				tower_stats["display_name"],
+				TOWER_ICONS.get(tower_id)
+			)
+			continue
+
+		var placeholder_icon: Texture2D = TOWER_ICONS[ITEM_TOWER_IDS[0]]
+		tower_list.add_item("Empty Slot", placeholder_icon)
+		tower_list.set_item_icon_modulate(slot_index, Color.TRANSPARENT)
+		tower_list.set_item_disabled(slot_index, true)
+		tower_list.set_item_selectable(slot_index, false)
+
+func _process(delta: float) -> void:
 	if place_mode and tower_to_place:
 		var snap := get_global_mouse_position().snapped(Vector2(32, 32))
 		var sprite = tower_to_place.get_node("Rotator")
@@ -85,14 +240,16 @@ func _process(_delta):
 		else:
 			sprite.modulate = Color(1, 0, 0, 0.5)
 
-func update_lives():
-	$MainUI/livesdisplay.text = str(lives)
+	_process_round_director(delta)
 
-func update_money():
-	$MainUI/moneydisplay.text = str(money)
+func update_lives() -> void:
+	lives_display.text = "Health: %d/%d" % [lives, max_lives]
+
+func update_money() -> void:
+	money_display.text = "Money: $%d" % money
 	money_changed.emit(money)
 
-func add_money(amount: int):
+func add_money(amount: int) -> void:
 	money += amount
 	update_money()
 
@@ -104,8 +261,9 @@ func spend_money(amount: int) -> bool:
 	return false
 
 func _on_startbutton_pressed() -> void:
-	if not game_ended and not round_active and not build_mode:
+	if not game_ended and not round_active and not build_mode and not shop_open:
 		close_all_tower_menus()
+		start_button.hide()
 		start_round()
 
 
@@ -114,33 +272,59 @@ func close_all_tower_menus() -> void:
 		tower.set_selected(false)
 
 func start_round() -> void:
-	if round_active or round_number >= max_rounds:
+	if round_active or round_number >= max_rounds or shop_open:
 		return
 	round_number += 1
-	update_round_count()
-	var wave_queue := build_wave_queue(round_number)
-	spawn_schedule = build_spawn_schedule(wave_queue, round_number)
+	spawn_schedule.clear()
+	round_time_remaining = get_wave_duration(round_number)
+	threat_per_second = get_wave_threat_rate(round_number)
+	var mode: Dictionary = GameStats.get_mode(mode_id)
+	spawn_threat = mode.get("starting_spawn_threat", 1.0)
+	threat_chunk_elapsed = 0.0
+	threat_continuous_ratio = mode.get("threat_continuous_ratio", 1.0)
+	threat_chunk_ratio = mode.get("threat_chunk_ratio", 0.0)
+	threat_chunk_interval = mode.get("threat_chunk_interval", 4.0)
+	active_enemy_cap = mode.get("active_enemy_cap", 120)
+	director_cooldown = 0.0
+	spawning_active = true
+	current_wave_spawn_style = choose_wave_spawn_style(round_number)
+	if round_number == max_rounds:
+		current_wave_spawn_style = &"boss_escort"
+		spawn_schedule = build_timed_boss_opening()
 	mobs_left_to_spawn = spawn_schedule.size()
 	round_was_perfect = true
 	round_active = true
-	$MainUI/startbutton.disabled = true
+	start_button.disabled = true
 	spawntimer.one_shot = true
-	spawntimer.start(0.5)
+	update_round_count()
 	
 func update_round_count() -> void:
-	$MainUI/roundcount.text = "Round %d/%d" % [round_number, max_rounds]
+	round_count_display.text = "Round: %d/%d" % [round_number, max_rounds]
+	if round_active and spawning_active:
+		round_timer_display.text = "Spawning: %ds" % ceili(round_time_remaining)
+	elif round_active:
+		round_timer_display.text = "Clear remaining enemies"
+	elif round_number == 0:
+		round_timer_display.text = "Ready"
+	else:
+		round_timer_display.text = "Between rounds"
 	
 func end_round() -> void:
-	if game_ended:
+	if game_ended or not round_active:
 		return
 	
 	round_active = false
+	spawning_active = false
+	spawn_schedule.clear()
+	mobs_left_to_spawn = 0
+	spawntimer.stop()
 	add_money(calculate_end_round_reward())
+	update_round_count()
 
 	if round_number >= max_rounds:
 		victory()
 	else:
-		$MainUI/startbutton.disabled = false
+		open_between_round_shop()
 
 
 func calculate_end_round_reward() -> int:
@@ -153,21 +337,118 @@ func calculate_end_round_reward() -> int:
 	if round_was_perfect:
 		clear_reward = floori(base_reward * mode["clear_bonus_multiplier"])
 
-	return base_reward + clear_reward
+	var reward_multiplier := 1.0 + get_run_bonus(&"round_reward")
+	return roundi(float(base_reward + clear_reward) * reward_multiplier)
+
+
+func open_between_round_shop() -> void:
+	if shop_open or game_ended:
+		return
+	cancel_pending_tower_placement()
+	close_all_tower_menus()
+	shop_open = true
+	start_button.disabled = true
+	between_round_shop.open_shop(
+		round_number,
+		max_rounds,
+		roll_shop_offers(),
+		owned_shop_items
+	)
+
+
+func roll_shop_offers() -> Array[StringName]:
+	var available: Array[StringName] = []
+	for item_key in GameStats.SHOP_ITEMS:
+		available.append(StringName(item_key))
+	assert(
+		available.size() >= SHOP_CHOICE_COUNT,
+		"The shop needs at least %d items." % SHOP_CHOICE_COUNT
+	)
+
+	var offers: Array[StringName] = []
+	while offers.size() < SHOP_CHOICE_COUNT:
+		var index := shop_rng.randi_range(0, available.size() - 1)
+		offers.append(available.pop_at(index))
+	return offers
+
+
+func _on_shop_reward_chosen(item_id: StringName) -> void:
+	if not shop_open:
+		return
+	apply_shop_item(item_id)
+	between_round_shop.confirm_reward_choice(item_id, owned_shop_items)
+
+
+func _on_shop_next_round_requested() -> void:
+	if not shop_open:
+		return
+	shop_open = false
+	between_round_shop.hide()
+	start_round()
+
+
+func apply_shop_item(item_id: StringName) -> void:
+	var item := GameStats.get_shop_item(item_id)
+	var effect: StringName = item["effect"]
+	var value: float = item["value"]
+	owned_shop_items[item_id] = int(owned_shop_items.get(item_id, 0)) + 1
+	run_bonuses[effect] = float(run_bonuses.get(effect, 0.0)) + value
+
+	if effect == &"maximum_health":
+		max_lives += roundi(value)
+		lives = mini(lives + roundi(value), max_lives)
+		update_lives()
+
+	if effect in TOWER_STAT_EFFECTS:
+		refresh_placed_tower_stats()
+
+
+func refresh_placed_tower_stats() -> void:
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if is_instance_valid(tower) and tower.is_placed:
+			tower.load_level_stats()
+			tower.update_menu_buttons()
+
+
+func get_run_bonus(effect: StringName) -> float:
+	return float(run_bonuses.get(effect, 0.0))
+
+
+func cancel_pending_tower_placement() -> void:
+	if is_instance_valid(tower_to_place):
+		tower_to_place.queue_free()
+	tower_to_place = null
+	place_mode = false
+	build_mode = false
+	pending_tower_type = &""
+	pending_tower_cost = 0
+	tower_list.deselect_all()
+	start_button.disabled = round_active or game_ended or shop_open
 	
 func _spawn_mob():
-	if spawn_schedule.is_empty():
+	if not spawning_active or spawn_schedule.is_empty():
 		mobs_left_to_spawn = 0
 		spawntimer.stop()
 		return
+	if mobs_alive >= active_enemy_cap:
+		spawntimer.start(0.2)
+		return
 
-	var spawn_event: Dictionary = spawn_schedule.pop_front()
+	var spawn_event: Dictionary = spawn_schedule.front()
 	var enemy_id: StringName = spawn_event["enemy_id"]
+	var spawn_cost := get_enemy_spawn_cost(enemy_id)
+	if spawn_threat < spawn_cost:
+		spawntimer.start(0.1)
+		return
+
+	spawn_schedule.pop_front()
+	spawn_threat -= spawn_cost
 	_create_mob(enemy_id, 0.0)
 	mobs_left_to_spawn = spawn_schedule.size()
 
 	if spawn_schedule.is_empty():
 		spawntimer.stop()
+		director_cooldown = spawn_event["delay_after"]
 	else:
 		var delay_after: float = spawn_event["delay_after"]
 		spawntimer.start(delay_after)
@@ -180,6 +461,7 @@ func _create_mob(enemy_id: StringName, start_progress: float) -> void:
 	var mob = MOB_SCENE.instantiate()
 	mob.enemy_id = enemy_id
 	mob.wave_number = round_number
+	mob.health_multiplier = get_enemy_health_multiplier(round_number)
 	mob.mob_killed.connect(_on_mob_killed)
 	mob.reached_end.connect(_on_mob_reached_end)
 	mob.spawn_requested.connect(_on_mob_spawn_requested)
@@ -192,71 +474,115 @@ func _create_mob(enemy_id: StringName, start_progress: float) -> void:
 
 
 func _on_mob_spawn_requested(enemy_id: StringName, path_progress: float) -> void:
+	if mobs_alive >= active_enemy_cap:
+		return
 	_create_mob(enemy_id, path_progress)
 
 
-func build_wave_queue(wave: int) -> Array[StringName]:
-	var queue: Array[StringName] = []
-	var available: Array[StringName] = []
-	var mode: Dictionary = GameStats.get_mode(mode_id)
-	var threat_budget_base: int = mode.get("threat_budget_base", 5)
-	var threat_budget_growth: int = mode.get("threat_budget_growth", 2)
-	var threat_budget_curve: float = mode.get("threat_budget_curve", 0.0)
-	var remaining_budget := (
-		threat_budget_base
-		+ wave * threat_budget_growth
-		+ floori(float(wave * wave) * threat_budget_curve)
-	)
-
-	for enemy_key in GameStats.ENEMIES:
-		var enemy_id := StringName(enemy_key)
-		var stats: Dictionary = GameStats.get_enemy(enemy_id)
-		if stats.get("boss", false):
-			continue
-		if stats.get("first_wave", 1) <= wave:
-			available.append(enemy_id)
-
-	while remaining_budget > 0:
-		var affordable: Array[StringName] = []
-		for enemy_id in available:
-			var stats: Dictionary = GameStats.get_enemy(enemy_id)
-			if stats.get("threat_cost", 1) <= remaining_budget:
-				affordable.append(enemy_id)
-
-		if affordable.is_empty():
-			break
-
-		var chosen := choose_weighted_enemy(affordable)
-		queue.append(chosen)
-		remaining_budget -= GameStats.get_enemy(chosen).get("threat_cost", 1)
-
-	shuffle_enemy_queue(queue)
-
-	if wave == max_rounds:
-		queue.append(&"brute")
-
-	return queue
-
-
-func build_spawn_schedule(
-	enemy_queue: Array[StringName],
-	wave: int
-) -> Array[Dictionary]:
-	var has_boss: bool = not enemy_queue.is_empty() and enemy_queue.back() == &"brute"
-
-	if has_boss:
-		enemy_queue.pop_back()
-		current_wave_spawn_style = &"boss_escort"
-		return build_boss_escort_schedule(enemy_queue)
-
+func choose_wave_spawn_style(wave: int) -> StringName:
 	var available_styles: Array[StringName] = [&"standard"]
 	for style_name in WAVE_STYLE_UNLOCKS:
 		if wave >= WAVE_STYLE_UNLOCKS[style_name]:
 			available_styles.append(style_name)
 
-	current_wave_spawn_style = available_styles[
+	return available_styles[
 		enemy_rng.randi_range(0, available_styles.size() - 1)
 	]
+
+
+func get_wave_duration(wave: int) -> float:
+	var mode: Dictionary = GameStats.get_mode(mode_id)
+	if wave >= max_rounds:
+		return mode.get("final_wave_duration", 90.0)
+	return minf(
+		mode.get("wave_duration_start", 20.0)
+		+ float(wave - 1) * mode.get("wave_duration_growth", 5.0),
+		mode.get("wave_duration_max", 60.0)
+	)
+
+
+func get_wave_threat_rate(wave: int) -> float:
+	var mode: Dictionary = GameStats.get_mode(mode_id)
+	return (
+		mode.get("threat_rate_base", 0.35)
+		+ float(wave) * mode.get("threat_rate_growth", 0.04)
+		+ float(wave * wave) * mode.get("threat_rate_curve", 0.003)
+	)
+
+
+func get_enemy_health_multiplier(wave: int) -> float:
+	var mode: Dictionary = GameStats.get_mode(mode_id)
+	return (
+		mode.get("enemy_health_multiplier_base", 1.0)
+		+ float(maxi(wave - 1, 0))
+		* mode.get("enemy_health_multiplier_growth", 0.0)
+	)
+
+
+func _process_round_director(delta: float) -> void:
+	if not round_active or not spawning_active:
+		return
+
+	round_time_remaining = maxf(round_time_remaining - delta, 0.0)
+	spawn_threat += threat_per_second * threat_continuous_ratio * delta
+	threat_chunk_elapsed += delta
+	while threat_chunk_interval > 0.0 and threat_chunk_elapsed >= threat_chunk_interval:
+		threat_chunk_elapsed -= threat_chunk_interval
+		spawn_threat += (
+			threat_per_second
+			* threat_chunk_interval
+			* threat_chunk_ratio
+		)
+	director_cooldown = maxf(director_cooldown - delta, 0.0)
+	update_round_count()
+
+	if round_time_remaining <= 0.0:
+		stop_timed_spawning()
+		return
+
+	if not spawntimer.is_stopped():
+		return
+
+	if spawn_schedule.is_empty() and director_cooldown <= 0.0:
+		spawn_schedule = build_director_group()
+		mobs_left_to_spawn = spawn_schedule.size()
+
+	if not spawn_schedule.is_empty():
+		spawntimer.start(0.01)
+
+
+func stop_timed_spawning() -> void:
+	spawning_active = false
+	spawn_schedule.clear()
+	mobs_left_to_spawn = 0
+	spawntimer.stop()
+	update_round_count()
+
+	if mobs_alive == 0:
+		end_round()
+
+
+func get_available_enemies(wave: int) -> Array[StringName]:
+	var available: Array[StringName] = []
+	for enemy_key in GameStats.ENEMIES:
+		var enemy_id := StringName(enemy_key)
+		var stats: Dictionary = GameStats.get_enemy(enemy_id)
+		if not stats.get("boss", false) and stats.get("first_wave", 1) <= wave:
+			available.append(enemy_id)
+	return available
+
+
+func build_director_group() -> Array[Dictionary]:
+	var available := get_available_enemies(round_number)
+	if available.is_empty():
+		return []
+
+	var group_size := get_director_group_size(current_wave_spawn_style)
+	var enemy_queue := build_role_based_enemy_queue(
+		current_wave_spawn_style,
+		group_size,
+		available
+	)
 
 	match current_wave_spawn_style:
 		&"pulses":
@@ -271,6 +597,252 @@ func build_spawn_schedule(
 			return build_escorted_elite_schedule(enemy_queue)
 		_:
 			return build_standard_schedule(enemy_queue)
+
+
+func build_role_based_enemy_queue(
+	style_name: StringName,
+	group_size: int,
+	available: Array[StringName]
+) -> Array[StringName]:
+	var group: Array[StringName] = []
+	var recipe_style := style_name
+	if recipe_style == &"standard" or recipe_style == &"boss_escort":
+		recipe_style = &"steady"
+
+	var forced_roles: Array[StringName] = []
+	match style_name:
+		&"convoy", &"escorted_elite":
+			forced_roles = [ROLE_TANK]
+		&"sandwich":
+			forced_roles = [ROLE_TANK, ROLE_TANK]
+
+	for forced_role in forced_roles:
+		var forced_enemy := choose_enemy_for_role(
+			forced_role,
+			available,
+			group,
+			group_size
+		)
+		if not forced_enemy.is_empty():
+			group.append(forced_enemy)
+
+	if style_name == &"standard" or style_name == &"boss_escort":
+		var leader_role := choose_formation_role(
+			recipe_style,
+			available,
+			group,
+			group_size
+		)
+		var leader := choose_enemy_for_role(
+			leader_role,
+			available,
+			group,
+			group_size
+		)
+		if not leader.is_empty():
+			group.push_front(leader)
+			recipe_style = GameStats.get_enemy(leader).get("spawn_style", &"steady")
+
+	while group.size() < group_size:
+		var role := choose_formation_role(
+			recipe_style,
+			available,
+			group,
+			group_size
+		)
+		var enemy_id := choose_enemy_for_role(
+			role,
+			available,
+			group,
+			group_size
+		)
+		if enemy_id.is_empty():
+			break
+		group.append(enemy_id)
+
+	return group
+
+
+func choose_formation_role(
+	style_name: StringName,
+	available: Array[StringName],
+	current_group: Array[StringName],
+	group_size: int
+) -> StringName:
+	var wave_weights := get_wave_role_weights(round_number)
+	var formation_weights: Dictionary = FORMATION_ROLE_WEIGHTS.get(
+		style_name,
+		FORMATION_ROLE_WEIGHTS[&"steady"]
+	)
+	var roles: Array[StringName] = [
+		ROLE_FODDER,
+		ROLE_PRESSURE,
+		ROLE_TANK,
+		ROLE_SUPPORT,
+	]
+	var candidates: Array[StringName] = []
+	var candidate_weights: Array[float] = []
+	var total_weight := 0.0
+
+	for role in roles:
+		if role == ROLE_SUPPORT and count_role_in_group(current_group, ROLE_SUPPORT) >= 1:
+			continue
+		if get_valid_enemies_for_role(
+			role,
+			available,
+			current_group,
+			group_size
+		).is_empty():
+			continue
+
+		var weight: float = (
+			float(wave_weights.get(role, 0.0))
+			+ float(formation_weights.get(role, 0.0))
+		) * 0.5
+		if weight <= 0.0:
+			continue
+		candidates.append(role)
+		candidate_weights.append(weight)
+		total_weight += weight
+
+	if candidates.is_empty():
+		return ROLE_FODDER
+
+	var roll := enemy_rng.randf_range(0.0, total_weight)
+	for index in candidates.size():
+		roll -= candidate_weights[index]
+		if roll <= 0.0:
+			return candidates[index]
+	return candidates.back()
+
+
+func get_wave_role_weights(wave: int) -> Dictionary:
+	for entry in WAVE_ROLE_WEIGHTS:
+		if wave <= entry["maximum_wave"]:
+			return entry["weights"]
+	return WAVE_ROLE_WEIGHTS.back()["weights"]
+
+
+func choose_enemy_for_role(
+	role: StringName,
+	available: Array[StringName],
+	current_group: Array[StringName],
+	group_size: int
+) -> StringName:
+	var candidates := get_valid_enemies_for_role(
+		role,
+		available,
+		current_group,
+		group_size
+	)
+	if candidates.is_empty():
+		for fallback_role in [ROLE_FODDER, ROLE_PRESSURE, ROLE_TANK, ROLE_SUPPORT]:
+			candidates = get_valid_enemies_for_role(
+				fallback_role,
+				available,
+				current_group,
+				group_size
+			)
+			if not candidates.is_empty():
+				break
+	if candidates.is_empty():
+		return &""
+	return choose_weighted_enemy(candidates)
+
+
+func get_valid_enemies_for_role(
+	role: StringName,
+	available: Array[StringName],
+	current_group: Array[StringName],
+	group_size: int
+) -> Array[StringName]:
+	var candidates: Array[StringName] = []
+	for enemy_id in available:
+		var stats: Dictionary = GameStats.get_enemy(enemy_id)
+		if stats.get("role", ROLE_FODDER) != role:
+			continue
+		if role == ROLE_SUPPORT and count_role_in_group(current_group, ROLE_SUPPORT) >= 1:
+			continue
+		if enemy_id in [&"buffer", &"summoner"]:
+			if get_active_enemy_count(enemy_id) + current_group.count(enemy_id) >= 2:
+				continue
+		if enemy_id == &"rusher":
+			var rusher_limit := maxi(1, floori(float(group_size) * 0.3))
+			if current_group.count(&"rusher") >= rusher_limit:
+				continue
+		candidates.append(enemy_id)
+	return candidates
+
+
+func count_role_in_group(group: Array[StringName], role: StringName) -> int:
+	var count := 0
+	for enemy_id in group:
+		if GameStats.get_enemy(enemy_id).get("role", ROLE_FODDER) == role:
+			count += 1
+	return count
+
+
+func get_active_enemy_count(enemy_id: StringName) -> int:
+	var count := 0
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if (
+			is_instance_valid(mob)
+			and not mob.finished
+			and mob.enemy_id == enemy_id
+		):
+			count += 1
+	return count
+
+
+func get_director_group_size(style_name: StringName) -> int:
+	match style_name:
+		&"pulses":
+			return enemy_rng.randi_range(7, 12)
+		&"simultaneous_batch":
+			return enemy_rng.randi_range(8, 14)
+		&"convoy":
+			return 8
+		&"sandwich":
+			return enemy_rng.randi_range(10, 14)
+		&"escorted_elite":
+			return 9
+		_:
+			return enemy_rng.randi_range(6, 10)
+
+
+func build_timed_boss_opening() -> Array[Dictionary]:
+	var available := get_available_enemies(round_number)
+	if available.is_empty():
+		var boss_only_schedule: Array[Dictionary] = []
+		append_enemy_group(
+			boss_only_schedule,
+			[&"brute"],
+			0.2,
+			2.0,
+			&"boss_escort"
+		)
+		return boss_only_schedule
+
+	var cheapest: Array[StringName] = []
+	var cheapest_cost := 2147483647
+	for enemy_id in available:
+		var cost := get_enemy_threat_cost(enemy_id)
+		if cost < cheapest_cost:
+			cheapest_cost = cost
+			cheapest = [enemy_id]
+		elif cost == cheapest_cost:
+			cheapest.append(enemy_id)
+
+	var escorts: Array[StringName] = []
+	for _index in 4:
+		escorts.append(choose_weighted_enemy(cheapest))
+
+	var boss_group: Array[StringName] = [escorts[0], escorts[1], &"brute"]
+	boss_group.append(escorts[2])
+	boss_group.append(escorts[3])
+	var schedule: Array[Dictionary] = []
+	append_enemy_group(schedule, boss_group, 0.2, 2.0, &"boss_escort")
+	return schedule
 
 
 func build_standard_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
@@ -306,9 +878,9 @@ func build_standard_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary
 func build_pulse_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
 	var schedule: Array[Dictionary] = []
 	while not enemy_queue.is_empty():
-		var group_size := mini(enemy_rng.randi_range(3, 5), enemy_queue.size())
+		var group_size := mini(enemy_rng.randi_range(7, 12), enemy_queue.size())
 		var group := take_front_group(enemy_queue, group_size)
-		append_enemy_group(schedule, group, 0.15, 1.6, &"pulses")
+		append_enemy_group(schedule, group, 0.12, 1.2, &"pulses")
 	return schedule
 
 
@@ -317,20 +889,20 @@ func build_simultaneous_batch_schedule(
 ) -> Array[Dictionary]:
 	var schedule: Array[Dictionary] = []
 	while not enemy_queue.is_empty():
-		var group_size := mini(enemy_rng.randi_range(3, 6), enemy_queue.size())
+		var group_size := mini(enemy_rng.randi_range(8, 14), enemy_queue.size())
 		var group := take_front_group(enemy_queue, group_size)
-		append_enemy_group(schedule, group, 0.05, 1.8, &"simultaneous_batch")
+		append_enemy_group(schedule, group, 0.05, 1.2, &"simultaneous_batch")
 	return schedule
 
 
 func build_convoy_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
 	var schedule: Array[Dictionary] = []
 	while not enemy_queue.is_empty():
-		var group: Array[StringName] = [take_strongest_enemy(enemy_queue)]
-		var escort_count := mini(3, enemy_queue.size())
+		var group: Array[StringName] = [take_enemy_by_role(enemy_queue, ROLE_TANK)]
+		var escort_count := mini(7, enemy_queue.size())
 		for _index in escort_count:
 			group.append(take_weakest_enemy(enemy_queue))
-		append_enemy_group(schedule, group, 0.25, 1.7, &"convoy")
+		append_enemy_group(schedule, group, 0.2, 1.2, &"convoy")
 	return schedule
 
 
@@ -339,9 +911,9 @@ func build_escorted_elite_schedule(
 ) -> Array[Dictionary]:
 	var schedule: Array[Dictionary] = []
 	while not enemy_queue.is_empty():
-		var elite := take_strongest_enemy(enemy_queue)
+		var elite := take_enemy_by_role(enemy_queue, ROLE_TANK)
 		var escorts: Array[StringName] = []
-		var escort_count := mini(4, enemy_queue.size())
+		var escort_count := mini(8, enemy_queue.size())
 		for _index in escort_count:
 			escorts.append(take_weakest_enemy(enemy_queue))
 
@@ -351,7 +923,7 @@ func build_escorted_elite_schedule(
 			group.append(escorts.pop_front())
 		group.append(elite)
 		group.append_array(escorts)
-		append_enemy_group(schedule, group, 0.2, 1.8, &"escorted_elite")
+		append_enemy_group(schedule, group, 0.16, 1.3, &"escorted_elite")
 	return schedule
 
 
@@ -359,34 +931,14 @@ func build_sandwich_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary
 	if enemy_queue.size() < 3:
 		return build_standard_schedule(enemy_queue)
 
-	var first_elite := take_strongest_enemy(enemy_queue)
-	var last_elite := take_strongest_enemy(enemy_queue)
+	var first_elite := take_enemy_by_role(enemy_queue, ROLE_TANK)
+	var last_elite := take_enemy_by_role(enemy_queue, ROLE_TANK)
 	var group: Array[StringName] = [first_elite]
 	group.append_array(enemy_queue)
 	group.append(last_elite)
 
 	var schedule: Array[Dictionary] = []
-	append_enemy_group(schedule, group, 0.45, 0.0, &"sandwich")
-	return schedule
-
-
-func build_boss_escort_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
-	var escorts: Array[StringName] = []
-	var escort_count := mini(4, enemy_queue.size())
-	for _index in escort_count:
-		escorts.append(take_weakest_enemy(enemy_queue))
-
-	var schedule := build_standard_schedule(enemy_queue)
-	if not schedule.is_empty():
-		schedule.back()["delay_after"] = 3.0
-
-	var boss_group: Array[StringName] = []
-	var front_count := ceili(escorts.size() / 2.0)
-	for _index in front_count:
-		boss_group.append(escorts.pop_front())
-	boss_group.append(&"brute")
-	boss_group.append_array(escorts)
-	append_enemy_group(schedule, boss_group, 0.2, 0.0, &"boss_escort")
+	append_enemy_group(schedule, group, 0.3, 0.8, &"sandwich")
 	return schedule
 
 
@@ -422,6 +974,18 @@ func take_strongest_enemy(enemy_queue: Array[StringName]) -> StringName:
 	return take_enemy_by_threat(enemy_queue, true)
 
 
+func take_enemy_by_role(
+	enemy_queue: Array[StringName],
+	role: StringName
+) -> StringName:
+	for index in enemy_queue.size():
+		if GameStats.get_enemy(enemy_queue[index]).get("role", ROLE_FODDER) == role:
+			var selected := enemy_queue[index]
+			enemy_queue.remove_at(index)
+			return selected
+	return take_strongest_enemy(enemy_queue)
+
+
 func take_weakest_enemy(enemy_queue: Array[StringName]) -> StringName:
 	return take_enemy_by_threat(enemy_queue, false)
 
@@ -430,6 +994,9 @@ func take_enemy_by_threat(
 	enemy_queue: Array[StringName],
 	take_strongest: bool
 ) -> StringName:
+	if enemy_queue.is_empty():
+		return &""
+
 	var selected_index := 0
 	var selected_cost := get_enemy_threat_cost(enemy_queue[0])
 
@@ -451,10 +1018,20 @@ func get_enemy_threat_cost(enemy_id: StringName) -> int:
 	return GameStats.get_enemy(enemy_id).get("threat_cost", 1)
 
 
+func get_enemy_spawn_cost(enemy_id: StringName) -> int:
+	var stats: Dictionary = GameStats.get_enemy(enemy_id)
+	return stats.get("spawn_cost", stats.get("threat_cost", 1))
+
+
 func choose_weighted_enemy(available: Array[StringName]) -> StringName:
+	if available.is_empty():
+		return &""
+
 	var total_weight := 0
 	for enemy_id in available:
 		total_weight += GameStats.get_enemy(enemy_id).get("spawn_weight", 1)
+	if total_weight <= 0:
+		return available[0]
 
 	var roll := enemy_rng.randi_range(1, total_weight)
 	for enemy_id in available:
@@ -465,17 +1042,10 @@ func choose_weighted_enemy(available: Array[StringName]) -> StringName:
 	return available[0]
 
 
-func shuffle_enemy_queue(queue: Array[StringName]) -> void:
-	for index in range(queue.size() - 1, 0, -1):
-		var swap_index := enemy_rng.randi_range(0, index)
-		var held := queue[index]
-		queue[index] = queue[swap_index]
-		queue[swap_index] = held
-
 func _on_mob_reached_end(damage: int) -> void:
 	round_was_perfect = false
 	lives -= damage
-	lives = max(lives, 0)
+	lives = maxi(lives, 0)
 	update_lives()
 	
 	if lives == 0:
@@ -484,44 +1054,56 @@ func _on_mob_reached_end(damage: int) -> void:
 
 	mob_finished()
 
-func defeat():
+func defeat() -> void:
 	finish_game("Defeat!\nYou reached round %d." % round_number)
 
-func victory():
+func victory() -> void:
 	finish_game("Victory!\nYou completed all %d rounds." % max_rounds)
 
-func finish_game(message: String):
+func finish_game(message: String) -> void:
 	if game_ended:
 		return
 	game_ended = true
 	round_active = false
+	spawning_active = false
+	spawn_schedule.clear()
+	mobs_left_to_spawn = 0
 	spawntimer.stop()
+	shop_open = false
+	between_round_shop.hide()
 	place_mode = false
 	build_mode = false
+	close_all_tower_menus()
 
 	if is_instance_valid(tower_to_place):
 		tower_to_place.queue_free()
 		tower_to_place = null
 	
-	$MainUI/startbutton.disabled = true
-	$MainUI/ItemList.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	start_button.disabled = true
+	tower_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	round_timer_display.text = "Run complete"
 	$MainUI/endscreen/VBoxContainer/resultlabel.text = message
 	$MainUI/endscreen.visible = true
 	
 	for pf in $path.get_children():
 		pf.queue_free()
+	mobs_alive = 0
 
-func _on_mob_killed(reward):
-	add_money(reward)
+func _on_mob_killed(reward: int) -> void:
+	var reward_multiplier := 1.0 + get_run_bonus(&"kill_reward")
+	add_money(roundi(float(reward) * reward_multiplier))
 	mob_finished()
 
 func mob_finished() -> void:
-	mobs_alive = max(mobs_alive - 1, 0)
+	mobs_alive = maxi(mobs_alive - 1, 0)
 
-	if mobs_left_to_spawn == 0 and mobs_alive == 0:
+	if not spawning_active and mobs_left_to_spawn == 0 and mobs_alive == 0:
 		end_round()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if shop_open:
+		return
+
 	if (
 		place_mode
 		and event is InputEventMouseButton
@@ -535,6 +1117,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		close_all_tower_menus()
 
 func can_place_tower(pos: Vector2) -> bool:
+	if not is_instance_valid(tower_to_place):
+		return false
 	var space_state = get_world_2d().direct_space_state
 	var shape_node := tower_to_place.get_node("clickarea/CollisionShape2D")
 	var shape: Shape2D = shape_node.shape
@@ -548,7 +1132,9 @@ func can_place_tower(pos: Vector2) -> bool:
 	var result = space_state.intersect_shape(params)
 	return result.is_empty()
 
-func finalize_tower_placement():
+func finalize_tower_placement() -> void:
+	if not is_instance_valid(tower_to_place):
+		return
 	var pos := tower_to_place.position
 	if not can_place_tower(pos):
 		return
@@ -558,41 +1144,46 @@ func finalize_tower_placement():
 	tower_list.deselect_all()
 
 @warning_ignore("unused_parameter")
-func _on_tower_confirmed(tower):
+func _on_tower_confirmed(tower: Node2D) -> void:
 	money -= pending_tower_cost
 	update_money()
 	pending_tower_type = &""
 	pending_tower_cost = 0
 	build_mode = false
 	tower_to_place = null
-	$MainUI/startbutton.disabled = round_active or game_ended
+	start_button.disabled = round_active or game_ended
 
 @warning_ignore("unused_parameter")
-func _on_tower_cancelled(tower):
+func _on_tower_cancelled(tower: Node2D) -> void:
 	pending_tower_type = &""
 	pending_tower_cost = 0
 	build_mode = false
 	tower_to_place = null
-	$MainUI/startbutton.disabled = round_active or game_ended
+	start_button.disabled = round_active or game_ended
 
-func start_build_tower():
-	if build_mode == false:
-		close_all_tower_menus()
+func start_build_tower() -> void:
+	if game_ended or shop_open or build_mode or pending_tower_type.is_empty():
+		return
+	close_all_tower_menus()
 
-		place_mode = true
-		build_mode = true
-		$MainUI/startbutton.disabled = true
-		var selected_scene: PackedScene = TOWER_SCENES[pending_tower_type]
-		tower_to_place = selected_scene.instantiate()
-		tower_to_place.main = self
-		tower_to_place.tower_id = pending_tower_type
-		tower_to_place.connect("tower_confirmed", Callable(self, "_on_tower_confirmed"))
-		tower_to_place.connect("tower_cancelled", Callable(self, "_on_tower_cancelled"))
-		add_child(tower_to_place)
+	place_mode = true
+	build_mode = true
+	start_button.disabled = true
+	var selected_scene: PackedScene = TOWER_SCENES[pending_tower_type]
+	tower_to_place = selected_scene.instantiate()
+	tower_to_place.main = self
+	tower_to_place.tower_id = pending_tower_type
+	tower_to_place.tower_confirmed.connect(_on_tower_confirmed)
+	tower_to_place.tower_cancelled.connect(_on_tower_cancelled)
+	add_child(tower_to_place)
+
+
+func can_select_tower() -> bool:
+	return not game_ended and not shop_open and not build_mode
 
 @warning_ignore("unused_parameter")
 func _on_item_list_item_selected(index: int) -> void:
-	if game_ended:
+	if game_ended or shop_open:
 		tower_list.deselect_all()
 		return
 	
@@ -601,6 +1192,10 @@ func _on_item_list_item_selected(index: int) -> void:
 		return
 
 	var selected_tower_id: StringName = ITEM_TOWER_IDS[index]
+	if build_mode and selected_tower_id == pending_tower_type:
+		cancel_pending_tower_placement()
+		return
+
 	var cost: int = GameStats.get_tower(selected_tower_id)["placement_cost"]
 	
 	if money >= cost and build_mode == false:

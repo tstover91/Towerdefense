@@ -7,6 +7,57 @@ extends RefCounted
 const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "scout"
 
+const SHOP_ITEMS := {
+	"sharpened_ammunition": {
+		"id": &"sharpened_ammunition",
+		"display_name": "Sharpened Ammunition",
+		"description": "All towers deal +1 damage per attack.",
+		"category": &"general",
+		"effect": &"tower_damage_flat",
+		"value": 1.0,
+	},
+	"quick_load_mechanism": {
+		"id": &"quick_load_mechanism",
+		"display_name": "Quick-Load Mechanism",
+		"description": "All towers attack 10% faster.",
+		"category": &"general",
+		"effect": &"tower_attack_speed",
+		"value": 0.1,
+	},
+	"improved_optics": {
+		"id": &"improved_optics",
+		"display_name": "Improved Optics",
+		"description": "All towers gain 8% range.",
+		"category": &"general",
+		"effect": &"tower_range",
+		"value": 0.08,
+	},
+	"bounty_contract": {
+		"id": &"bounty_contract",
+		"display_name": "Bounty Contract",
+		"description": "Enemies award 15% more money when killed.",
+		"category": &"general",
+		"effect": &"kill_reward",
+		"value": 0.15,
+	},
+	"round_dividend": {
+		"id": &"round_dividend",
+		"display_name": "Round Dividend",
+		"description": "Future round completion rewards are 15% larger.",
+		"category": &"general",
+		"effect": &"round_reward",
+		"value": 0.15,
+	},
+	"fortified_base": {
+		"id": &"fortified_base",
+		"display_name": "Fortified Base",
+		"description": "Gain 10 maximum health and restore 10 health.",
+		"category": &"general",
+		"effect": &"maximum_health",
+		"value": 10.0,
+	},
+}
+
 const ENEMIES := {
 	"normal": {
 		"display_name": "Normal",
@@ -320,3 +371,8 @@ static func get_tower_level(tower_id: StringName, level: int) -> Dictionary:
 static func get_mode(mode_id: StringName) -> Dictionary:
 	assert(MODES.has(mode_id), "Unknown mode ID: %s" % mode_id)
 	return MODES[mode_id].duplicate(true)
+
+
+static func get_shop_item(item_id: StringName) -> Dictionary:
+	assert(SHOP_ITEMS.has(item_id), "Unknown shop item ID: %s" % item_id)
+	return SHOP_ITEMS[item_id].duplicate(true)

@@ -18,7 +18,10 @@ config/icon="uid://n5wurppyeq5"
 
 [display]
 
+window/size/viewport_width=1152
+window/size/viewport_height=648
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [global_group]
 

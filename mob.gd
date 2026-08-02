@@ -12,7 +12,8 @@ var wave_number := 1
 var health_multiplier := 1.0
 var health: int
 var max_health: int
-@onready var health_bar: TextureProgressBar = $HealthBar
+@onready var health_bar: ProgressBar = $HealthBarAnchor/HealthBar
+@onready var health_bar_anchor: Node2D = $HealthBarAnchor
 @onready var sprite: Sprite2D = $sprite
 var speed: float
 var cash_reward: int
@@ -35,26 +36,35 @@ var summons_created := 0
 var summon_elapsed := 0.0
 
 
-func set_path_follow(pf: PathFollow2D, start_progress := 0.0):
+func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
 	path_follow = pf
 	path_follow.progress = maxf(start_progress, 0.0)
 	position = Vector2.ZERO
+	update_health_bar_position()
 	
-func _process(delta):
+func _process(delta: float) -> void:
 	if path_follow == null or finished:
 		return
 
 	_process_regeneration(delta)
 	_process_summoning(delta)
 	path_follow.progress += get_effective_speed() * delta
+	update_health_bar_position()
 
 	if path_follow.progress_ratio >= 1.0:
 		finished = true
 		reached_end.emit(get_leak_damage())
 		path_follow.queue_free()
 
-func _ready():
+func _ready() -> void:
 	load_stats()
+	update_health_bar_position()
+
+
+func update_health_bar_position() -> void:
+	health_bar_anchor.global_position = global_position + Vector2(0.0, -30.0)
+	health_bar_anchor.global_rotation = 0.0
+	health_bar_anchor.global_scale = Vector2.ONE
 
 func load_stats() -> void:
 	var stats: Dictionary = GameStats.get_enemy(enemy_id)
@@ -126,7 +136,11 @@ func _process_regeneration(delta: float) -> void:
 
 
 func _process_summoning(delta: float) -> void:
-	if summon_enemy_id.is_empty() or summons_created >= summon_limit:
+	if (
+		summon_enemy_id.is_empty()
+		or summon_interval <= 0.0
+		or summons_created >= summon_limit
+	):
 		return
 
 	summon_elapsed += delta
@@ -137,7 +151,7 @@ func _process_summoning(delta: float) -> void:
 	summons_created += 1
 	spawn_requested.emit(summon_enemy_id, path_follow.progress)
 
-func die():
+func die() -> void:
 	if finished:
 		return
 

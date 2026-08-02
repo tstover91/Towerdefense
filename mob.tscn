@@ -6,12 +6,18 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_g7b7a"]
 size = Vector2(22, 21)
 
-[sub_resource type="Gradient" id="Gradient_dy6sc"]
-offsets = PackedFloat32Array(0, 0.42418033)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_health_border"]
+bg_color = Color(0.025, 0.025, 0.025, 1)
+corner_radius_top_left = 1
+corner_radius_top_right = 1
+corner_radius_bottom_right = 1
+corner_radius_bottom_left = 1
 
-[sub_resource type="GradientTexture1D" id="GradientTexture1D_dy6sc"]
-gradient = SubResource("Gradient_dy6sc")
-width = 16
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_health_empty"]
+bg_color = Color(0.82, 0.055, 0.035, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_health_fill"]
+bg_color = Color(0.08, 0.82, 0.12, 1)
 
 [node name="Mob" type="CharacterBody2D" unique_id=1467063432 groups=["mobs"]]
 script = ExtResource("1_dy6sc")
@@ -25,18 +31,25 @@ rotation = -1.5707964
 scale = Vector2(2, 2)
 texture = ExtResource("2_nokgg")
 
-[node name="HealthBar" type="TextureProgressBar" parent="." unique_id=672116775]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -8.0
-offset_top = -18.0
-offset_right = 8.0
-offset_bottom = -11.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_vertical = 4
-texture_progress = SubResource("GradientTexture1D_dy6sc")
-tint_progress = Color(0.93333334, 0.05882353, 0, 1)
+[node name="HealthBarAnchor" type="Node2D" parent="."]
+top_level = true
+z_index = 20
+
+[node name="Border" type="Panel" parent="HealthBarAnchor"]
+offset_left = -16.0
+offset_top = -3.0
+offset_right = 16.0
+offset_bottom = 3.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_health_border")
+
+[node name="HealthBar" type="ProgressBar" parent="HealthBarAnchor"]
+unique_id = 672116775
+offset_left = -14.0
+offset_top = -2.0
+offset_right = 14.0
+offset_bottom = 2.0
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_health_empty")
+theme_override_styles/fill = SubResource("StyleBoxFlat_health_fill")
+show_percentage = false

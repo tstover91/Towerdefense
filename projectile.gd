@@ -7,7 +7,7 @@ var speed := 600.0
 
 func setup(target_position: Vector2, move_speed: float) -> void:
 	destination = target_position
-	speed = move_speed
+	speed = maxf(move_speed, 1.0)
 	rotation = (destination - global_position).angle()
 
 

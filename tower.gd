@@ -10,22 +10,22 @@ enum TargetMode {
 	FIRST,
 	LAST,
 	LOWEST_HEALTH,
-	HIGHEST_HEALTH
-	}
+	HIGHEST_HEALTH,
+}
 
 enum MenuAction {
 	NONE,
 	UPGRADE,
-	SELL
-	}
+	SELL,
+}
 
-signal tower_confirmed()
-signal tower_cancelled()
+signal tower_confirmed(tower: Node2D)
+signal tower_cancelled(tower: Node2D)
 
 @export var target_mode: TargetMode = TargetMode.FIRST
 @export var tower_id: StringName = GameStats.DEFAULT_TOWER_ID
 @export var projectile_scene: PackedScene = DEFAULT_PROJECTILE_SCENE
-@onready var tower_area: Area2D = $Tower  
+@onready var tower_area: Area2D = $Tower
 @onready var rotator: Node2D = $Rotator
 @onready var muzzle: Marker2D = $Rotator/Muzzle
 @onready var damage_timer: Timer = $Timer
@@ -48,7 +48,7 @@ var range_radius_pixels := 0.0
 var upgrade_range_radius_pixels := -1.0
 var range_preview_visible := false
 var range_preview_valid := true
-var main : Node
+var main: Node
 
 
 func _draw() -> void:
@@ -115,10 +115,14 @@ func show_upgrade_range_preview() -> void:
 
 	range_preview_visible = true
 	range_preview_valid = true
-	upgrade_range_radius_pixels = levels[next_level]["range"] * RANGE_PIXELS_PER_UNIT
+	upgrade_range_radius_pixels = (
+		levels[next_level]["range"]
+		* get_main_multiplier(&"tower_range")
+		* RANGE_PIXELS_PER_UNIT
+	)
 	queue_redraw()
 
-func set_selected(value: bool):
+func set_selected(value: bool) -> void:
 	selected = value
 	$HBoxContainer.visible = value
 	
@@ -202,8 +206,7 @@ func get_target_mode_name() -> String:
 func update_tower_info() -> void:
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
 	var levels: Array = tower_data["levels"]
-	var stats: Dictionary = levels[tower_level]
-	var current_dps: float = float(stats["damage"]) / float(stats["firerate"])
+	var current_dps: float = float(damage) / damage_timer.wait_time
 	tower_name_label.text = tower_data["display_name"]
 	tower_level_label.text = "Level %d/%d" % [tower_level, levels.size() - 1]
 	tower_stats_label.text = "DPS: %.2f" % current_dps
@@ -213,7 +216,11 @@ func update_tower_info() -> void:
 
 	if upgrade_preview_label.visible:
 		var next_stats: Dictionary = levels[next_level]
-		var next_dps: float = float(next_stats["damage"]) / float(next_stats["firerate"])
+		var next_damage := float(next_stats["damage"]) + get_main_bonus(&"tower_damage_flat")
+		var next_fire_rate := float(next_stats["firerate"]) / get_main_multiplier(
+			&"tower_attack_speed"
+		)
+		var next_dps: float = next_damage / next_fire_rate
 		upgrade_preview_label.text = (
 			"Next upgrade\nDPS: %.2f -> %.2f"
 			% [current_dps, next_dps]
@@ -236,9 +243,9 @@ func _ready() -> void:
 	load_level_stats()
 	update_menu_buttons()
 	if main != null:
-		main.connect("money_changed", Callable(self, "_on_main_money_changed"))
-	tower_area.connect("body_entered", Callable(self, "_on_body_entered"))
-	tower_area.connect("body_exited", Callable(self, "_on_body_exited"))
+		main.money_changed.connect(_on_main_money_changed)
+	tower_area.body_entered.connect(_on_body_entered)
+	tower_area.body_exited.connect(_on_body_exited)
 	damage_timer.timeout.connect(_apply_damage)
 	begin_placement()
 	add_to_group("towers")
@@ -270,17 +277,34 @@ func confirm_placement() -> void:
 
 func load_level_stats() -> void:
 	var stats: Dictionary = GameStats.get_tower_level(tower_id, tower_level)
-	damage = stats["damage"]
+	damage = roundi(float(stats["damage"]) + get_main_bonus(&"tower_damage_flat"))
 	damage_type = stats.get("damage_type", &"physical")
 	projectile_speed = stats.get("projectile_speed", 600.0)
-	damage_timer.wait_time = stats["firerate"]
+	damage_timer.wait_time = maxf(
+		float(stats["firerate"]) / get_main_multiplier(&"tower_attack_speed"),
+		0.01
+	)
 	var range_shape := $Tower/CollisionShape2D.shape.duplicate() as CircleShape2D
-	range_radius_pixels = stats["range"] * RANGE_PIXELS_PER_UNIT
+	range_radius_pixels = (
+		float(stats["range"])
+		* get_main_multiplier(&"tower_range")
+		* RANGE_PIXELS_PER_UNIT
+	)
 	range_shape.radius = range_radius_pixels
 	$Tower/CollisionShape2D.shape = range_shape
 	queue_redraw()
 
-func _apply_damage():
+
+func get_main_bonus(effect: StringName) -> float:
+	if main == null:
+		return 0.0
+	return main.get_run_bonus(effect)
+
+
+func get_main_multiplier(effect: StringName) -> float:
+	return 1.0 + get_main_bonus(effect)
+
+func _apply_damage() -> void:
 	if not is_placed:
 		return
 
@@ -302,7 +326,6 @@ func attack(current_target: Node2D) -> void:
 	var projectile := projectile_scene.instantiate() as TowerProjectile
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = muzzle.global_position
-	projectile.rotation = rotator.global_rotation
 	projectile.setup(target_position, projectile_speed)
 
 func _process(delta: float) -> void:
@@ -351,7 +374,7 @@ func _on_body_exited(body: Node2D) -> void:
 	if body == target:
 		target = null
 
-func is_valid_target(candidate) -> bool:
+func is_valid_target(candidate: Node) -> bool:
 	return (
 		candidate != null
 		and is_instance_valid(candidate)
@@ -387,7 +410,13 @@ func _select_target() -> void:
 					target = candidate
 
 func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
-	if event is InputEventMouseButton and event.pressed and not main.build_mode:
+	if (
+		event is InputEventMouseButton
+		and event.button_index == MOUSE_BUTTON_LEFT
+		and event.pressed
+		and main != null
+		and main.can_select_tower()
+	):
 		main.close_all_tower_menus()
 		set_selected(true)
 
@@ -417,11 +446,11 @@ func _on_confirm_pressed() -> void:
 	sprite.modulate = Color(1, 1, 1, 1)
 	confirm_placement()
 	$towerconfirm.visible = false
-	emit_signal("tower_confirmed", self)
+	tower_confirmed.emit(self)
 	
 func _on_cancel_pressed() -> void:
 	$towerconfirm.visible = false
-	emit_signal("tower_cancelled", self)
+	tower_cancelled.emit(self)
 	queue_free()
 
 func _on_targetmode_pressed() -> void:

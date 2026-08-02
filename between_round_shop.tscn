@@ -1,0 +1,89 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://between_round_shop.gd" id="1_shop"]
+[ext_resource type="PackedScene" path="res://shop_choice_card.tscn" id="2_card"]
+
+[node name="BetweenRoundShop" type="Control"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_shop")
+
+[node name="InputBlocker" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.025, 0.035, 0.055, 0.92)
+
+[node name="ShopPanel" type="PanelContainer" parent="InputBlocker"]
+layout_mode = 1
+anchors_preset = 15
+anchor_left = 0.06
+anchor_top = 0.07
+anchor_right = 0.94
+anchor_bottom = 0.93
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="InputBlocker/ShopPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="ShopLayout" type="VBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Round Complete"
+horizontal_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+layout_mode = 2
+text = "Choose one reward"
+horizontal_alignment = 1
+
+[node name="ShopCards" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="ShopChoiceCard1" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards" instance=ExtResource("2_card")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="ShopChoiceCard2" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards" instance=ExtResource("2_card")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="ShopChoiceCard3" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards" instance=ExtResource("2_card")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="OwnedItemsLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+layout_mode = 2
+text = "Owned rewards: None"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+
+[node name="StartNextRoundButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+disabled = true
+text = "Choose a Reward"
