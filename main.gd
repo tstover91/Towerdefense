@@ -161,6 +161,8 @@ signal money_changed(new_amount: int)
 @onready var spawntimer: Timer = $SpawnTimer
 @onready var tower_list: ItemList = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerSelectionArea/ItemList
 @onready var between_round_shop: Control = $MainUI/BetweenRoundShop
+@onready var pause_menu: Control = $MainUI/PauseMenu
+@onready var pause_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton
 @onready var money_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/moneydisplay
 @onready var lives_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/livesdisplay
 @onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
@@ -1171,6 +1173,7 @@ func finish_game(message: String) -> void:
 		tower_to_place = null
 	
 	start_button.disabled = true
+	pause_button.disabled = true
 	tower_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	round_timer_display.text = "Run complete"
 	$MainUI/endscreen/VBoxContainer/resultlabel.text = message
@@ -1192,6 +1195,11 @@ func mob_finished() -> void:
 		end_round()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and not game_ended:
+		get_viewport().set_input_as_handled()
+		pause_menu.open_menu(owned_shop_items)
+		return
+
 	if shop_open:
 		return
 
@@ -1298,7 +1306,14 @@ func _on_item_list_item_selected(index: int) -> void:
 		tower_list.deselect_all()
 
 func _on_restartbutton_pressed() -> void:
+	get_tree().paused = false
 	get_tree().reload_current_scene()
 	
 func _on_quitbutton_pressed() -> void:
+	get_tree().paused = false
 	get_tree().quit()
+
+
+func _on_pause_button_pressed() -> void:
+	if not game_ended:
+		pause_menu.open_menu(owned_shop_items)
