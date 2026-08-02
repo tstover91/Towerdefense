@@ -6,6 +6,7 @@ extends RefCounted
 
 const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "scout"
+const BUILD_CELL_SIZE := 64.0
 
 const SHOP_ITEMS := {
 	"sharpened_ammunition": {
@@ -274,6 +275,7 @@ const TOWERS := {
 	"scout": {
 		"display_name": "Scout",
 		"placement_cost": 125,
+		"footprint_cells": Vector2i(1, 1),
 		"tags": [&"bullet", &"rapid_fire", &"physical"],
 		"levels": [
 			{
@@ -326,6 +328,7 @@ const TOWERS := {
 	"cannon": {
 		"display_name": "Cannon",
 		"placement_cost": 450,
+		"footprint_cells": Vector2i(1, 1),
 		"tags": [&"projectile", &"area", &"explosive"],
 		"levels": [
 			{

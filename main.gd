@@ -153,6 +153,11 @@ const TOWER_ICON_COLORS := {
 }
 const ITEM_TOWER_IDS := [&"scout", &"cannon"]
 const TOWER_SLOT_COUNT := 5
+const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
+const PLACEMENT_SNAP_SIZE := 16.0
+const MIN_SIDEBAR_WIDTH := 192.0
+const PATH_NO_BUILD_RADIUS := 46.0
+const BUILD_BLOCKER_COLLISION_MASK := 4
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
 
@@ -163,6 +168,7 @@ signal money_changed(new_amount: int)
 @onready var between_round_shop: Control = $MainUI/BetweenRoundShop
 @onready var pause_menu: Control = $MainUI/PauseMenu
 @onready var pause_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton
+@onready var sidebar: Control = $MainUI/HUDRoot/Sidebar
 @onready var money_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/moneydisplay
 @onready var lives_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/livesdisplay
 @onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
@@ -209,10 +215,14 @@ var shop_open := false
 var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
 var displayed_tower: Node = null
+var occupied_build_cells: Dictionary = {}
+var playable_map_width := 0.0
 
 func _ready() -> void:
 	enemy_rng.randomize()
 	shop_rng.randomize()
+	_align_sidebar_to_build_grid()
+	get_viewport().size_changed.connect(_align_sidebar_to_build_grid)
 	var mode: Dictionary = GameStats.get_mode(mode_id)
 	money = mode["starting_cash"]
 	lives = mode["starting_lives"]
@@ -307,7 +317,10 @@ func refresh_tower_details() -> void:
 
 func _process(delta: float) -> void:
 	if place_mode and tower_to_place:
-		var snap := get_global_mouse_position().snapped(Vector2(32, 32))
+		var snap := get_tower_build_position(
+			get_global_mouse_position(),
+			pending_tower_type
+		)
 		var sprite = tower_to_place.get_node("Rotator")
 		tower_to_place.position = snap
 		var placement_is_valid := can_place_tower(snap)
@@ -1218,12 +1231,22 @@ func _unhandled_input(event: InputEvent) -> void:
 func can_place_tower(pos: Vector2) -> bool:
 	if not is_instance_valid(tower_to_place):
 		return false
+
+	var tower_id: StringName = tower_to_place.tower_id
+	for cell in get_tower_build_cells(pos, tower_id):
+		if not is_build_cell_in_playable_area(cell):
+			return false
+		if is_build_cell_blocked_by_path(cell):
+			return false
+		if is_build_cell_occupied(cell):
+			return false
+
 	var space_state = get_world_2d().direct_space_state
 	var shape_node := tower_to_place.get_node("clickarea/CollisionShape2D")
 	var shape: Shape2D = shape_node.shape
 	var params := PhysicsShapeQueryParameters2D.new()
 	params.shape = shape
-	params.collision_mask = 2
+	params.collision_mask = BUILD_BLOCKER_COLLISION_MASK
 	var clickarea := tower_to_place.get_node("clickarea")
 	params.transform = Transform2D(0, pos + clickarea.position)
 	params.collide_with_areas = true
@@ -1238,11 +1261,110 @@ func finalize_tower_placement() -> void:
 	if not can_place_tower(pos):
 		return
 	place_mode = false
-	tower_to_place.position = pos.snapped(Vector2(32, 32))
+	tower_to_place.position = pos
 	tower_to_place.get_node("towerconfirm").visible = true
 	tower_list.deselect_all()
 
+
+func world_to_build_cell(world_position: Vector2) -> Vector2i:
+	return Vector2i(
+		floori(world_position.x / PLACEMENT_SNAP_SIZE),
+		floori(world_position.y / PLACEMENT_SNAP_SIZE)
+	)
+
+
+func get_tower_footprint(tower_id: StringName) -> Vector2i:
+	return GameStats.get_tower(tower_id).get("footprint_cells", Vector2i.ONE)
+
+
+func get_tower_build_position(world_position: Vector2, tower_id: StringName) -> Vector2:
+	var footprint_size := Vector2(get_tower_footprint(tower_id)) * BUILD_CELL_SIZE
+	var snap_step := Vector2.ONE * PLACEMENT_SNAP_SIZE
+	var snapped_origin := (world_position - footprint_size * 0.5).snapped(snap_step)
+	return snapped_origin + footprint_size * 0.5
+
+
+func get_tower_build_cells(tower_position: Vector2, tower_id: StringName) -> Array[Vector2i]:
+	var footprint_size := Vector2(get_tower_footprint(tower_id)) * BUILD_CELL_SIZE
+	var footprint_cells := Vector2i(
+		roundi(footprint_size.x / PLACEMENT_SNAP_SIZE),
+		roundi(footprint_size.y / PLACEMENT_SNAP_SIZE)
+	)
+	var origin_world := tower_position - footprint_size * 0.5
+	var origin_cell := world_to_build_cell(origin_world + Vector2(0.01, 0.01))
+	var cells: Array[Vector2i] = []
+	for y_offset in footprint_cells.y:
+		for x_offset in footprint_cells.x:
+			cells.append(origin_cell + Vector2i(x_offset, y_offset))
+	return cells
+
+
+func get_build_cell_center(cell: Vector2i) -> Vector2:
+	return (
+		Vector2(cell) * PLACEMENT_SNAP_SIZE
+		+ Vector2.ONE * PLACEMENT_SNAP_SIZE * 0.5
+	)
+
+
+func is_build_cell_in_playable_area(cell: Vector2i) -> bool:
+	var cell_top_left := Vector2(cell) * PLACEMENT_SNAP_SIZE
+	var cell_bottom_right := cell_top_left + Vector2.ONE * PLACEMENT_SNAP_SIZE
+	var playable_right := get_playable_right_edge()
+	var viewport_size := get_viewport_rect().size
+	return (
+		cell_top_left.x >= 0.0
+		and cell_top_left.y >= 0.0
+		and cell_bottom_right.x <= playable_right
+		and cell_bottom_right.y <= viewport_size.y
+	)
+
+
+func get_playable_right_edge() -> float:
+	return playable_map_width
+
+
+func _align_sidebar_to_build_grid() -> void:
+	var viewport_width := get_viewport_rect().size.x
+	var available_map_width := maxf(viewport_width - MIN_SIDEBAR_WIDTH, 0.0)
+	playable_map_width = floorf(available_map_width / BUILD_CELL_SIZE) * BUILD_CELL_SIZE
+	sidebar.offset_left = -(viewport_width - playable_map_width)
+
+
+func is_build_cell_blocked_by_path(cell: Vector2i) -> bool:
+	var path_node := $path as Path2D
+	if path_node.curve == null:
+		return false
+	var cell_center := get_build_cell_center(cell)
+	var closest_local := path_node.curve.get_closest_point(path_node.to_local(cell_center))
+	var closest_global := path_node.to_global(closest_local)
+	return cell_center.distance_to(closest_global) <= PATH_NO_BUILD_RADIUS
+
+
+func is_build_cell_occupied(cell: Vector2i) -> bool:
+	if not occupied_build_cells.has(cell):
+		return false
+	var occupying_tower = occupied_build_cells[cell]
+	if is_instance_valid(occupying_tower) and not occupying_tower.is_queued_for_deletion():
+		return true
+	occupied_build_cells.erase(cell)
+	return false
+
+
+func reserve_tower_build_cells(tower: Node2D) -> void:
+	var cells := get_tower_build_cells(tower.position, tower.tower_id)
+	for cell in cells:
+		occupied_build_cells[cell] = tower
+	tower.set_meta("build_cells", cells)
+
+
+func release_tower_build_cells(tower: Node2D) -> void:
+	var cells: Array = tower.get_meta("build_cells", [])
+	for cell in cells:
+		if occupied_build_cells.get(cell) == tower:
+			occupied_build_cells.erase(cell)
+
 func _on_tower_confirmed(tower: Node2D) -> void:
+	reserve_tower_build_cells(tower)
 	money -= pending_tower_cost
 	update_money()
 	pending_tower_type = &""
@@ -1260,6 +1382,10 @@ func _on_tower_cancelled(tower: Node2D) -> void:
 	tower_to_place = null
 	start_button.disabled = round_active or game_ended
 
+
+func _on_tower_sold(tower: Node2D) -> void:
+	release_tower_build_cells(tower)
+
 func start_build_tower() -> void:
 	if game_ended or shop_open or build_mode or pending_tower_type.is_empty():
 		return
@@ -1274,6 +1400,7 @@ func start_build_tower() -> void:
 	tower_to_place.tower_id = pending_tower_type
 	tower_to_place.tower_confirmed.connect(_on_tower_confirmed)
 	tower_to_place.tower_cancelled.connect(_on_tower_cancelled)
+	tower_to_place.tower_sold.connect(_on_tower_sold)
 	add_child(tower_to_place)
 	show_tower_details(tower_to_place)
 
@@ -1292,16 +1419,19 @@ func _on_item_list_item_selected(index: int) -> void:
 		return
 
 	var selected_tower_id: StringName = ITEM_TOWER_IDS[index]
-	if build_mode and selected_tower_id == pending_tower_type:
+	if build_mode:
+		if selected_tower_id == pending_tower_type:
+			cancel_pending_tower_placement()
+			return
 		cancel_pending_tower_placement()
-		return
 
 	var cost: int = GameStats.get_tower(selected_tower_id)["placement_cost"]
 	
-	if money >= cost and build_mode == false:
+	if money >= cost:
 		pending_tower_type = selected_tower_id
 		pending_tower_cost = cost
 		start_build_tower()
+		tower_list.select(index)
 	else:
 		tower_list.deselect_all()
 

@@ -4,6 +4,7 @@ extends Node2D
 const GameStats = preload("res://stat_database.gd")
 const DEFAULT_PROJECTILE_SCENE = preload("res://projectile.tscn")
 const RANGE_PIXELS_PER_UNIT := 12.9
+const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const MENU_HALF_WIDTH := 106.0
 const MENU_EDGE_MARGIN := 8.0
 
@@ -22,6 +23,7 @@ enum MenuAction {
 
 signal tower_confirmed(tower: Node2D)
 signal tower_cancelled(tower: Node2D)
+signal tower_sold(tower: Node2D)
 
 @export var target_mode: TargetMode = TargetMode.FIRST
 @export var tower_id: StringName = GameStats.DEFAULT_TOWER_ID
@@ -36,6 +38,7 @@ var damage: int
 var damage_type: StringName = &"physical"
 var projectile_speed := 600.0
 var splash_radius_pixels := 0.0
+var footprint_size_pixels := Vector2(BUILD_CELL_SIZE, BUILD_CELL_SIZE)
 var target: Node2D = null
 var mobs_in_range: Array = []
 var selected := false
@@ -51,6 +54,16 @@ var main: Node
 func _draw() -> void:
 	if not range_preview_visible:
 		return
+
+	if not is_placed:
+		var footprint_rect := Rect2(-footprint_size_pixels * 0.5, footprint_size_pixels)
+		var footprint_fill := Color(0.2, 0.85, 0.3, 0.2)
+		var footprint_border := Color(0.25, 1.0, 0.35, 0.95)
+		if not range_preview_valid:
+			footprint_fill = Color(1.0, 0.15, 0.15, 0.22)
+			footprint_border = Color(1.0, 0.2, 0.2, 0.95)
+		draw_rect(footprint_rect, footprint_fill, true)
+		draw_rect(footprint_rect, footprint_border, false, 2.0)
 
 	if upgrade_range_radius_pixels >= 0.0:
 		draw_circle(
@@ -249,6 +262,14 @@ func confirm_placement() -> void:
 
 func load_level_stats() -> void:
 	var stats := get_effective_stats_for_level(tower_level)
+	var tower_data := GameStats.get_tower(tower_id)
+	footprint_size_pixels = (
+		Vector2(tower_data.get("footprint_cells", Vector2i.ONE))
+		* BUILD_CELL_SIZE
+	)
+	var click_shape := $clickarea/CollisionShape2D.shape.duplicate() as RectangleShape2D
+	click_shape.size = footprint_size_pixels
+	$clickarea/CollisionShape2D.shape = click_shape
 	damage = stats["damage"]
 	damage_type = stats.get("damage_type", &"physical")
 	projectile_speed = stats.get("projectile_speed", 600.0)
@@ -363,17 +384,26 @@ func update_menu_layout() -> void:
 
 	var viewport_size := get_viewport_rect().size
 	var screen_position := get_global_transform_with_canvas().origin
+	var menu_right_edge := viewport_size.x
+	if main != null and main.has_method("get_playable_right_edge"):
+		menu_right_edge = minf(menu_right_edge, main.get_playable_right_edge())
 	var menu_center_x := clampf(
 		screen_position.x,
 		MENU_HALF_WIDTH + MENU_EDGE_MARGIN,
-		viewport_size.x - MENU_HALF_WIDTH - MENU_EDGE_MARGIN
+		menu_right_edge - MENU_HALF_WIDTH - MENU_EDGE_MARGIN
 	)
 	var x_offset := menu_center_x - screen_position.x
 	var place_below := screen_position.y < 240.0
+	var target_y: float = 50.0 if place_below else -$targetui.size.y - MENU_EDGE_MARGIN
+	target_y = clampf(
+		target_y,
+		MENU_EDGE_MARGIN - screen_position.y,
+		viewport_size.y - MENU_EDGE_MARGIN - $targetui.size.y - screen_position.y
+	)
 
 	$towerconfirm.position = Vector2(-40.0 + x_offset, 50.0 if place_below else -106.0)
 	$HBoxContainer.position = Vector2(-106.0 + x_offset, 50.0 if place_below else -90.0)
-	$targetui.position = Vector2(-60.0 + x_offset, 50.0 if place_below else -68.0)
+	$targetui.position = Vector2(-60.0 + x_offset, target_y)
 
 func _on_body_entered(body: Node2D) -> void:
 	if body.is_in_group("mobs") and not mobs_in_range.has(body):
@@ -508,5 +538,6 @@ func _on_selltower_pressed() -> void:
 		return
 
 	main.add_money(get_sell_price())
+	tower_sold.emit(self)
 	close_menus()
 	queue_free()

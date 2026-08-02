@@ -7,13 +7,12 @@
 radius = 155.00322
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_d42bq"]
-size = Vector2(131.45946, 129.72974)
+size = Vector2(64, 64)
 
 [node name="TowerRoot" type="Node2D" unique_id=2095459932]
 script = ExtResource("1_vedim")
 
 [node name="Tower" type="Area2D" parent="." unique_id=1681050470]
-position = Vector2(-6, -9)
 input_pickable = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Tower" unique_id=856746508]
@@ -23,7 +22,7 @@ shape = SubResource("CircleShape2D_gyc6d")
 
 [node name="Sprite2D" type="Sprite2D" parent="Rotator" unique_id=1735206397]
 rotation = 1.5707964
-scale = Vector2(0.578125, 0.578125)
+scale = Vector2(0.46, 0.46)
 texture = ExtResource("1_k1sas")
 
 [node name="Muzzle" type="Marker2D" parent="Rotator"]
@@ -36,9 +35,6 @@ collision_layer = 2
 collision_mask = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="clickarea" unique_id=1579554834]
-position = Vector2(-0.50000095, 1.9073486e-06)
-rotation = 1.5707964
-scale = Vector2(0.578125, 0.578125)
 shape = SubResource("RectangleShape2D_d42bq")
 
 [node name="towerconfirm" type="VBoxContainer" parent="." unique_id=1575590212]
