@@ -1328,7 +1328,9 @@ func _align_sidebar_to_build_grid() -> void:
 	var available_map_width := maxf(viewport_width - MIN_SIDEBAR_WIDTH, 0.0)
 	playable_map_width = floorf(available_map_width / BUILD_CELL_SIZE) * BUILD_CELL_SIZE
 	sidebar.offset_left = -(viewport_width - playable_map_width)
-
+	print("Viewport:", viewport_width)
+	print("Playable:", playable_map_width)
+	print("Sidebar:", sidebar.offset_left)
 
 func is_build_cell_blocked_by_path(cell: Vector2i) -> bool:
 	var path_node := $path as Path2D
