@@ -6,7 +6,7 @@ extends RefCounted
 
 const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "scout"
-const BUILD_CELL_SIZE := 64.0
+const BUILD_CELL_SIZE := 32.0
 
 const SHOP_ITEMS := {
 	"sharpened_ammunition": {
