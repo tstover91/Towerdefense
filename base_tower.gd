@@ -8,6 +8,22 @@ const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const MENU_HALF_WIDTH := 106.0
 const MENU_EDGE_MARGIN := 8.0
 
+const TYPE_TECHNOLOGY: StringName = &"technology"
+const TYPE_BIOLOGICAL: StringName = &"biological"
+
+const ATTACK_BALLISTIC: StringName = &"ballistic"
+const ATTACK_BEAM: StringName = &"beam"
+const ATTACK_EXPLOSIVE: StringName = &"explosive"
+const ATTACK_MELEE: StringName = &"melee"
+const ATTACK_ELECTRIC: StringName = &"electric"
+
+const BONUS_CRITICAL: StringName = &"critical"
+const BONUS_PSIONIC: StringName = &"psionic"
+const BONUS_REVEAL: StringName = &"reveal"
+const BONUS_PIERCE: StringName = &"pierce"
+const BONUS_STUN: StringName = &"stun"
+const BONUS_SPAWNER: StringName = &"spawner"
+
 enum TargetMode {
 	FIRST,
 	LAST,
@@ -21,10 +37,15 @@ enum MenuAction {
 	SELL,
 }
 
+
+
 signal tower_confirmed(tower: Node2D)
 signal tower_cancelled(tower: Node2D)
 signal tower_sold(tower: Node2D)
 
+var type_tags: Array[StringName] = []
+var attack_tags: Array[StringName] = []
+var bonus_tags: Array[StringName] = []
 @export var target_mode: TargetMode = TargetMode.FIRST
 @export var tower_id: StringName = GameStats.DEFAULT_TOWER_ID
 @export var projectile_scene: PackedScene = DEFAULT_PROJECTILE_SCENE
@@ -225,6 +246,7 @@ func get_sell_price() -> int:
 	return floori(get_total_invested() / 3.0)
 
 func _ready() -> void:
+	load_base_tags()
 	load_level_stats()
 	update_menu_buttons()
 	if main != null:
@@ -541,3 +563,55 @@ func _on_selltower_pressed() -> void:
 	tower_sold.emit(self)
 	close_menus()
 	queue_free()
+
+func has_type_tag(tag: StringName) -> bool:
+	return type_tags.has(tag)
+
+func has_attack_tag(tag: StringName) -> bool:
+	return attack_tags.has(tag)
+
+func has_bonus_tag(tag: StringName) -> bool:
+	return bonus_tags.has(tag)
+
+
+func add_type_tag(tag: StringName) -> void:
+	if not type_tags.has(tag):
+		type_tags.append(tag)
+
+
+func add_attack_tag(tag: StringName) -> void:
+	if not attack_tags.has(tag):
+		attack_tags.append(tag)
+
+
+func add_bonus_tag(tag: StringName) -> void:
+	if not bonus_tags.has(tag):
+		bonus_tags.append(tag)
+
+
+func remove_type_tag(tag: StringName) -> void:
+	type_tags.erase(tag)
+
+
+func remove_attack_tag(tag: StringName) -> void:
+	attack_tags.erase(tag)
+
+
+func remove_bonus_tag(tag: StringName) -> void:
+	bonus_tags.erase(tag)
+	
+func load_base_tags() -> void:
+	var tower_data: Dictionary = GameStats.get_tower(tower_id)
+
+	type_tags.clear()
+	attack_tags.clear()
+	bonus_tags.clear()
+
+	for tag in tower_data.get("type_tags", []):
+		type_tags.append(tag)
+
+	for tag in tower_data.get("attack_tags", []):
+		attack_tags.append(tag)
+
+	for tag in tower_data.get("bonus_tags", []):
+		bonus_tags.append(tag)
