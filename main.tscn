@@ -269,26 +269,11 @@ theme_override_font_sizes/font_size = 14
 text = "Level 0/4"
 horizontal_alignment = 1
 
-[node name="TowerDpsLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout" unique_id=2054110660]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "DPS: 1.00"
-horizontal_alignment = 1
-
 [node name="UpgradeHeaderLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout" unique_id=1926868415]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
 text = "Next Upgrade"
 horizontal_alignment = 1
-
-[node name="UpgradeStatsLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout" unique_id=504619435]
-custom_minimum_size = Vector2(140, 0)
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Level 1/4
-DPS: 1.00 -> 1.33"
-horizontal_alignment = 1
-autowrap_mode = 2
 
 [node name="BetweenRoundShop" parent="MainUI" unique_id=1905356439 instance=ExtResource("4_shop")]
 layout_mode = 3

@@ -15,6 +15,7 @@ const IMPACT_FIRST_CONTACT: StringName = &"first_contact"
 const IMPACT_DESTINATION: StringName = &"destination"
 const DEFAULT_CRITICAL_CHANCE := 0.10
 const DEFAULT_CRITICAL_MULTIPLIER := 2.0
+const SLOW_SPEED_MULTIPLIER := 0.65
 const PIERCE_DAMAGE_LOSS_PER_ENEMY := 0.30
 const PIERCE_MINIMUM_DAMAGE_MULTIPLIER := 0.40
 const EXPLOSION_INNER_RADIUS_RATIO := 0.50
@@ -880,7 +881,6 @@ const TOWERS := {
 				"damage": 3,
 				"firerate": 0.38,
 				"range": 7.5,
-				"slow_speed_multiplier": 0.65,
 				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},
@@ -889,7 +889,6 @@ const TOWERS := {
 				"damage": 4,
 				"firerate": 0.36,
 				"range": 7.75,
-				"slow_speed_multiplier": 0.65,
 				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},
@@ -898,7 +897,6 @@ const TOWERS := {
 				"damage": 5,
 				"firerate": 0.33,
 				"range": 8.25,
-				"slow_speed_multiplier": 0.65,
 				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},
@@ -907,7 +905,6 @@ const TOWERS := {
 				"damage": 7,
 				"firerate": 0.30,
 				"range": 8.75,
-				"slow_speed_multiplier": 0.65,
 				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},
@@ -916,7 +913,6 @@ const TOWERS := {
 				"damage": 10,
 				"firerate": 0.26,
 				"range": 9.5,
-				"slow_speed_multiplier": 0.65,
 				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},

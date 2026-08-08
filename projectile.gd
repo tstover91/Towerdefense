@@ -17,12 +17,13 @@ var damage_type: StringName = &""
 var impact_mode: StringName = GameStats.IMPACT_PRIMARY
 var splash_radius := 0.0
 var pierce_count := 0
-var slow_speed_multiplier := 1.0
 var slow_duration := 0.0
 var stun_duration := 0.0
 var stun_affects_bosses := false
 var bounce_count := 0
 var bounce_range := 0.0
+var bounce_explosions_enabled := false
+var bounce_explosion_radius := 0.0
 var remaining_bounces := 0
 var remaining_pierce_hits := 0
 var pierce_chain_hit_count := 0
@@ -41,12 +42,13 @@ func setup(
 	attack_impact_mode: StringName,
 	attack_splash_radius := 0.0,
 	attack_pierce_count := 0,
-	attack_slow_speed_multiplier := 1.0,
 	attack_slow_duration := 0.0,
 	attack_stun_duration := 0.0,
 	attack_stun_affects_bosses := false,
 	attack_bounce_count := 0,
-	attack_bounce_range := 0.0
+	attack_bounce_range := 0.0,
+	attack_bounce_explosions_enabled := false,
+	attack_bounce_explosion_radius := 0.0
 ) -> void:
 	primary_target = target_node
 	impact_position = target_position
@@ -61,12 +63,13 @@ func setup(
 	impact_mode = attack_impact_mode
 	splash_radius = attack_splash_radius
 	pierce_count = maxi(attack_pierce_count, 0)
-	slow_speed_multiplier = clampf(attack_slow_speed_multiplier, 0.0, 1.0)
 	slow_duration = maxf(attack_slow_duration, 0.0)
 	stun_duration = maxf(attack_stun_duration, 0.0)
 	stun_affects_bosses = attack_stun_affects_bosses
 	bounce_count = maxi(attack_bounce_count, 0)
 	bounce_range = maxf(attack_bounce_range, 0.0)
+	bounce_explosions_enabled = attack_bounce_explosions_enabled
+	bounce_explosion_radius = maxf(attack_bounce_explosion_radius, 0.0)
 	remaining_bounces = bounce_count
 	remaining_pierce_hits = (
 		1 + pierce_count
@@ -138,6 +141,8 @@ func resolve_primary_impact() -> void:
 
 	hit_target_ids[primary_target.get_instance_id()] = true
 	apply_damage_and_effects(primary_target, pierce_count > 0, damage)
+	if bounce_explosions_enabled and remaining_bounces < bounce_count:
+		resolve_bounce_explosion(impact_position)
 	pierce_chain_hit_count = 1
 	if begin_next_bounce():
 		return
@@ -303,44 +308,67 @@ func get_segment_candidates(start: Vector2, end: Vector2) -> Array[Dictionary]:
 
 
 func resolve_explosion(center: Vector2) -> void:
-	spawn_explosion_zone(center)
+	resolve_explosion_with_stats(center, splash_radius, damage, damage_type)
+
+
+func resolve_bounce_explosion(center: Vector2) -> void:
+	resolve_explosion_with_stats(
+		center,
+		bounce_explosion_radius,
+		damage,
+		&"explosive"
+	)
+
+
+func resolve_explosion_with_stats(
+	center: Vector2,
+	explosion_radius: float,
+	explosion_base_damage: int,
+	explosion_damage_type: StringName
+) -> void:
+	spawn_explosion_zone(center, explosion_radius)
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(mob):
 			continue
 		var distance_from_center: float = mob.global_position.distance_to(center)
-		if distance_from_center > splash_radius:
+		if distance_from_center > explosion_radius:
 			continue
 		var explosion_damage: int = GameStats.get_explosion_damage(
-			damage,
+			explosion_base_damage,
 			distance_from_center,
-			splash_radius
+			explosion_radius
 		)
 		apply_damage_and_effects(
 			mob,
 			pierce_count > 0,
-			explosion_damage
+			explosion_damage,
+			explosion_damage_type
 		)
 
 
-func spawn_explosion_zone(center: Vector2) -> void:
+func spawn_explosion_zone(center: Vector2, explosion_radius: float) -> void:
 	if EXPLOSION_ZONE_SCENE == null or get_tree().current_scene == null:
 		return
 	var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
 	get_tree().current_scene.add_child(explosion_zone)
 	explosion_zone.global_position = center
-	explosion_zone.setup(splash_radius)
+	explosion_zone.setup(explosion_radius)
 
 
 func apply_damage_and_effects(
 	mob: Node,
 	ignores_armor: bool,
-	attack_damage: int
+	attack_damage: int,
+	attack_damage_type: StringName = &""
 ) -> void:
 	if slow_duration > 0.0 and mob.has_method("apply_slow"):
-		mob.apply_slow(slow_speed_multiplier, slow_duration)
+		mob.apply_slow(slow_duration)
 	if stun_duration > 0.0 and mob.has_method("apply_stun"):
 		mob.apply_stun(stun_duration, stun_affects_bosses)
-	mob.apply_damage(attack_damage, damage_type, ignores_armor)
+	var resolved_damage_type := (
+		damage_type if attack_damage_type.is_empty() else attack_damage_type
+	)
+	mob.apply_damage(attack_damage, resolved_damage_type, ignores_armor)
 
 
 func get_target_hit_radius(candidate: Node) -> float:

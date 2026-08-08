@@ -43,7 +43,6 @@ var summon_limit := 0
 var summons_created := 0
 var summon_elapsed := 0.0
 var slow_remaining := 0.0
-var slow_speed_multiplier := 1.0
 var stun_remaining := 0.0
 var stun_fatigue_tier := 0
 var stun_fatigue_recovery_elapsed := 0.0
@@ -165,7 +164,7 @@ func get_effective_speed() -> float:
 		strongest_aura = maxf(strongest_aura, candidate.get_speed_buff_for(self))
 
 	if slow_remaining > 0.0:
-		result *= slow_speed_multiplier
+		result *= GameStats.SLOW_SPEED_MULTIPLIER
 	return result * strongest_aura
 
 
@@ -185,17 +184,12 @@ func _process_control_effects(delta: float) -> void:
 	if slow_remaining <= 0.0:
 		return
 	slow_remaining = maxf(slow_remaining - delta, 0.0)
-	if slow_remaining <= 0.0:
-		slow_speed_multiplier = 1.0
 
 
-func apply_slow(speed_multiplier: float, duration: float) -> void:
-	if finished or duration <= 0.0 or speed_multiplier >= 1.0:
+func apply_slow(duration: float) -> void:
+	if finished or duration <= 0.0:
 		return
-	var clamped_multiplier := clampf(speed_multiplier, 0.0, 1.0)
-	if slow_remaining <= 0.0 or clamped_multiplier <= slow_speed_multiplier:
-		slow_speed_multiplier = clamped_multiplier
-		slow_remaining = maxf(slow_remaining, duration)
+	slow_remaining = maxf(slow_remaining, duration)
 
 
 func apply_stun(duration: float, affects_bosses := false) -> void:

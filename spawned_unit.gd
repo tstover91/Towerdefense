@@ -19,7 +19,6 @@ var pierce_count := 0
 var damage := 1
 var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
-var slow_speed_multiplier := 1.0
 var slow_duration := 0.0
 var stun_duration := 0.0
 var stun_affects_bosses := false
@@ -92,11 +91,6 @@ func apply_stats(unit_stats: Dictionary) -> void:
 			"critical_multiplier",
 			GameStats.DEFAULT_CRITICAL_MULTIPLIER
 		)),
-		1.0
-	)
-	slow_speed_multiplier = clampf(
-		float(unit_stats.get("slow_speed_multiplier", 1.0)),
-		0.0,
 		1.0
 	)
 	slow_duration = maxf(float(unit_stats.get("slow_duration", 0.0)), 0.0)
@@ -259,7 +253,6 @@ func perform_attack(current_target: Node2D) -> void:
 			impact_mode,
 			splash_radius_pixels,
 			pierce_count,
-			slow_speed_multiplier,
 			slow_duration,
 			stun_duration,
 			stun_affects_bosses,
@@ -359,7 +352,7 @@ func roll_attack_damage() -> int:
 
 func apply_control_effects(current_target: Node) -> void:
 	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
-		current_target.apply_slow(slow_speed_multiplier, slow_duration)
+		current_target.apply_slow(slow_duration)
 	if stun_duration > 0.0 and current_target.has_method("apply_stun"):
 		current_target.apply_stun(stun_duration, stun_affects_bosses)
 
@@ -380,12 +373,17 @@ func select_target(origin: Vector2, maximum_distance: float) -> Node2D:
 
 
 func is_valid_target(candidate: Variant) -> bool:
-	return (
+	var valid_target: bool = (
 		candidate != null
 		and is_instance_valid(candidate)
 		and not candidate.is_queued_for_deletion()
 		and not candidate.finished
 	)
+	if not valid_target:
+		return false
+	if candidate.traits.has(&"hidden"):
+		return has_bonus_tag(&"reveal") or pierce_count > 0
+	return true
 
 
 func get_damage_type() -> StringName:

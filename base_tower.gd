@@ -13,6 +13,7 @@ const BRAINIAC_TOWER_ID: StringName = &"brainiac"
 const VOID_CALLER_TOWER_ID: StringName = &"voidcaller"
 const REAVER_TOWER_ID: StringName = &"reaver"
 const BEHOLDER_TOWER_ID: StringName = &"beholder"
+const SLINGER_TOWER_ID: StringName = &"slinger"
 const GAUSS_LINE_HALF_WIDTH := 3.0
 const DIRECTION_BUTTON_RADIUS := 72.0
 const AIM_DIRECTIONS: Array[Vector2] = [
@@ -79,12 +80,13 @@ var damage: int
 var damage_type: StringName = &""
 var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
-var slow_speed_multiplier := 1.0
 var slow_duration := 0.0
 var stun_duration := 0.0
 var stun_affects_bosses := false
 var bounce_count := 0
 var bounce_range_pixels := 0.0
+var slinger_bounce_explosions_enabled := false
+var slinger_bounce_explosion_radius_pixels := 0.0
 var projectile_count := 1
 var volley_width_pixels := 0.0
 var volley_stagger := 0.0
@@ -467,11 +469,6 @@ func load_level_stats() -> void:
 		)),
 		1.0
 	)
-	slow_speed_multiplier = clampf(
-		float(stats.get("slow_speed_multiplier", 1.0)),
-		0.0,
-		1.0
-	)
 	slow_duration = maxf(float(stats.get("slow_duration", 0.0)), 0.0)
 	stun_duration = maxf(float(stats.get("stun_duration", 0.0)), 0.0)
 	stun_affects_bosses = bool(stats.get("stun_affects_bosses", false))
@@ -488,6 +485,10 @@ func load_level_stats() -> void:
 	volley_stagger = maxf(float(stats.get("volley_stagger", 0.0)), 0.0)
 	combo_hit_count = maxi(int(stats.get("combo_hit_count", 1)), 1)
 	combo_stagger = maxf(float(stats.get("combo_stagger", 0.0)), 0.0)
+	if tower_id == REAVER_TOWER_ID:
+		var base_level: Dictionary = tower_data["levels"][0]
+		var base_attack_interval := maxf(float(base_level["firerate"]), 0.01)
+		combo_stagger *= float(stats["firerate"]) / base_attack_interval
 	gauss_maximum_spread_degrees = maxf(
 		float(stats.get("maximum_spread_degrees", 0.0)),
 		0.0
@@ -563,11 +564,6 @@ func get_effective_stats_for_level(level: int) -> Dictionary:
 			float(stats["deployment_radius"])
 			* get_main_multiplier(&"tower_range")
 		)
-		stats["dps"] = (
-			float(unit_stats["damage"])
-			/ float(unit_stats["attack_interval"])
-			* float(stats["spawn_limit"])
-		)
 		return stats
 	stats["damage"] = roundi(
 		float(stats["damage"]) + get_main_bonus(&"tower_damage_flat")
@@ -577,29 +573,24 @@ func get_effective_stats_for_level(level: int) -> Dictionary:
 		0.01
 	)
 	stats["range"] = float(stats["range"]) * get_main_multiplier(&"tower_range")
-	stats["dps"] = float(stats["damage"]) / float(stats["firerate"])
 	return stats
 
 
 func get_sidebar_stats() -> Dictionary:
 	var tower_data := GameStats.get_tower(tower_id)
 	var levels: Array = tower_data["levels"]
-	var current_stats := get_effective_stats_for_level(tower_level)
 	var next_level := tower_level + 1
 	var result := {
 		"display_name": tower_data["display_name"],
 		"is_placed": is_placed,
 		"level": tower_level,
 		"maximum_level": levels.size() - 1,
-		"dps": current_stats["dps"],
 		"has_next_level": next_level < levels.size(),
 		"show_upgrade_info": is_placed and pending_action == MenuAction.UPGRADE,
 	}
 
 	if next_level < levels.size():
-		var next_stats := get_effective_stats_for_level(next_level)
 		result["next_level"] = next_level
-		result["next_dps"] = next_stats["dps"]
 	return result
 
 
@@ -951,12 +942,13 @@ func launch_projectile_from_position(
 		impact_mode,
 		impact_radius,
 		pierce_count,
-		slow_speed_multiplier,
 		slow_duration,
 		stun_duration,
 		stun_affects_bosses,
 		bounce_count,
-		bounce_range_pixels
+		bounce_range_pixels,
+		slinger_bounce_explosions_enabled,
+		slinger_bounce_explosion_radius_pixels
 	)
 
 
@@ -990,7 +982,7 @@ func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
 
 func apply_control_effects(current_target: Node) -> void:
 	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
-		current_target.apply_slow(slow_speed_multiplier, slow_duration)
+		current_target.apply_slow(slow_duration)
 	if stun_duration > 0.0 and current_target.has_method("apply_stun"):
 		current_target.apply_stun(stun_duration, stun_affects_bosses)
 
@@ -1103,12 +1095,17 @@ func _on_body_exited(body: Node2D) -> void:
 		target = null
 
 func is_valid_target(candidate: Variant) -> bool:
-	return (
+	var valid_target: bool = (
 		candidate != null
 		and is_instance_valid(candidate)
 		and not candidate.is_queued_for_deletion()
 		and not candidate.finished
 	)
+	if not valid_target:
+		return false
+	if candidate.traits.has(&"hidden"):
+		return has_bonus_tag(BONUS_REVEAL) or pierce_count > 0
+	return true
 
 
 func _select_target() -> void:
@@ -1353,6 +1350,20 @@ func set_pierce_count(value: int) -> void:
 
 func add_pierce(amount := 1) -> void:
 	set_pierce_count(pierce_count + amount)
+
+
+func set_slinger_bounce_explosions(
+	enabled: bool,
+	explosion_radius_units := 2.5
+) -> void:
+	if tower_id != SLINGER_TOWER_ID:
+		return
+	slinger_bounce_explosions_enabled = enabled
+	slinger_bounce_explosion_radius_pixels = (
+		maxf(explosion_radius_units, 0.0) * RANGE_PIXELS_PER_UNIT
+		if enabled
+		else 0.0
+	)
 	
 func load_base_tags() -> void:
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)

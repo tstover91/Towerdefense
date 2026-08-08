@@ -201,9 +201,7 @@ signal round_ended(round_number: int)
 @onready var tower_stats_layout: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout
 @onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerNameLabel
 @onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerLevelLabel
-@onready var tower_dps_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerDpsLabel
 @onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/UpgradeHeaderLabel
-@onready var tower_upgrade_stats_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/UpgradeStatsLabel
 var lives: int
 var max_lives: int
 var place_mode := false
@@ -305,7 +303,6 @@ func show_tower_details(tower: Node) -> void:
 	var is_placed: bool = stats["is_placed"]
 	var current_level: int = stats["level"]
 	var maximum_level: int = stats["maximum_level"]
-	var current_dps: float = stats["dps"]
 
 	tower_details_placeholder.hide()
 	tower_stats_layout.show()
@@ -314,24 +311,13 @@ func show_tower_details(tower: Node) -> void:
 	tower_level_label.visible = is_placed and not show_upgrade_info
 	if tower_level_label.visible:
 		tower_level_label.text = "Level %d/%d" % [current_level, maximum_level]
-	tower_dps_label.visible = not show_upgrade_info
-	tower_dps_label.text = "DPS: %.2f" % current_dps
-
 	tower_upgrade_header.visible = show_upgrade_info
-	tower_upgrade_stats_label.visible = show_upgrade_info
 	if show_upgrade_info:
 		var next_level: int = stats["next_level"]
-		var next_dps: float = stats["next_dps"]
-		tower_upgrade_header.text = "Next Upgrade"
-		tower_upgrade_stats_label.text = (
-			"Level %d/%d\nDPS: %.2f -> %.2f"
-			% [
-				next_level,
-				maximum_level,
-				current_dps,
-				next_dps,
-			]
-		)
+		tower_upgrade_header.text = "Upgrade to Level %d/%d" % [
+			next_level,
+			maximum_level,
+		]
 
 
 func clear_tower_details(tower: Node = null) -> void:
