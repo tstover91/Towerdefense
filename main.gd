@@ -39,6 +39,27 @@ const ROLE_FODDER := &"fodder"
 const ROLE_PRESSURE := &"pressure"
 const ROLE_TANK := &"tank"
 const ROLE_SUPPORT := &"support"
+const ROUND_STANDARD: StringName = &"standard"
+const ROUND_HORDE: StringName = &"horde"
+const ROUND_ELITE: StringName = &"elite"
+const ROUND_GAUNTLET: StringName = &"gauntlet"
+const ROUND_PAYDAY: StringName = &"payday"
+const VARIANT_NORMAL: StringName = &"normal"
+const VARIANT_HORDE: StringName = &"horde"
+const VARIANT_ELITE: StringName = &"elite"
+const VARIANT_PAYDAY: StringName = &"payday"
+const HORDE_THREAT_MULTIPLIER := 2.0
+const HORDE_GROUP_SIZE_MULTIPLIER := 2.0
+const HORDE_SPAWN_DELAY_MULTIPLIER := 0.5
+const HORDE_ACTIVE_CAP_MULTIPLIER := 1.5
+const GAUNTLET_ACTIVE_CAP_MULTIPLIER := 1.75
+const ELITE_EVENT_MIN_INTERVAL := 15.0
+const ELITE_EVENT_MAX_INTERVAL := 25.0
+const GAUNTLET_ELITE_MIN_INTERVAL := 10.0
+const GAUNTLET_ELITE_MAX_INTERVAL := 18.0
+const FINAL_ELITE_PACK_START_RATIO := 0.8
+const ELITE_EVENT_RESERVED_SLOTS := 12
+const GAUNTLET_EVENT_RESERVED_SLOTS := 20
 const SHOP_CHOICE_COUNT := 3
 const GAUNTLET_RELIC_CHOICE_COUNT := 4
 const MINIMUM_APPLICABLE_RELIC_CHOICES := 2
@@ -196,7 +217,16 @@ var spawn_schedule: Array[Dictionary] = []
 var enemy_rng := RandomNumberGenerator.new()
 var shop_rng := RandomNumberGenerator.new()
 var current_wave_spawn_style: StringName = &"standard"
+var current_round_type: StringName = ROUND_STANDARD
+var round_six_type: StringName = ROUND_HORDE
+var round_eleven_type: StringName = ROUND_ELITE
 var round_time_remaining := 0.0
+var round_duration := 0.0
+var round_elapsed := 0.0
+var next_elite_event_time := INF
+var final_elite_pack_spawned := false
+var last_gauntlet_spawn_style: StringName = &""
+var gauntlet_style_repeat_count := 0
 var spawn_threat := 0.0
 var threat_per_second := 0.0
 var threat_chunk_elapsed := 0.0
@@ -227,6 +257,7 @@ func _ready() -> void:
 	update_speed_button()
 	enemy_rng.randomize()
 	shop_rng.randomize()
+	roll_challenge_round_order()
 	_align_sidebar_to_build_grid()
 	get_viewport().size_changed.connect(_align_sidebar_to_build_grid)
 	var mode: Dictionary = GameStats.get_mode(mode_id)
@@ -367,14 +398,43 @@ func close_all_tower_menus() -> void:
 	for tower in get_tree().get_nodes_in_group("towers"):
 		tower.set_selected(false)
 
+
+func roll_challenge_round_order() -> void:
+	if enemy_rng.randf() < 0.5:
+		round_six_type = ROUND_HORDE
+		round_eleven_type = ROUND_ELITE
+	else:
+		round_six_type = ROUND_ELITE
+		round_eleven_type = ROUND_HORDE
+
+
+func get_round_type(wave: int) -> StringName:
+	match wave:
+		6:
+			return round_six_type
+		11:
+			return round_eleven_type
+		16:
+			return ROUND_GAUNTLET
+		17:
+			return ROUND_PAYDAY
+		_:
+			return ROUND_STANDARD
+
+
 func start_round() -> void:
 	if round_active or round_number >= max_rounds or shop_open or build_mode:
 		return
 	close_all_tower_menus()
 	round_number += 1
 	spawn_schedule.clear()
-	round_time_remaining = get_wave_duration(round_number)
+	current_round_type = get_round_type(round_number)
+	round_duration = get_wave_duration(round_number)
+	round_time_remaining = round_duration
+	round_elapsed = 0.0
 	threat_per_second = get_wave_threat_rate(round_number)
+	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
+		threat_per_second *= HORDE_THREAT_MULTIPLIER
 	var mode: Dictionary = GameStats.get_mode(mode_id)
 	spawn_threat = mode.get("starting_spawn_threat", 1.0)
 	threat_chunk_elapsed = 0.0
@@ -382,7 +442,26 @@ func start_round() -> void:
 	threat_chunk_ratio = mode.get("threat_chunk_ratio", 0.0)
 	threat_chunk_interval = mode.get("threat_chunk_interval", 4.0)
 	active_enemy_cap = mode.get("active_enemy_cap", 120)
+	if current_round_type in [ROUND_HORDE, ROUND_PAYDAY]:
+		active_enemy_cap = roundi(active_enemy_cap * HORDE_ACTIVE_CAP_MULTIPLIER)
+	elif current_round_type == ROUND_GAUNTLET:
+		active_enemy_cap = roundi(active_enemy_cap * GAUNTLET_ACTIVE_CAP_MULTIPLIER)
 	director_cooldown = 0.0
+	final_elite_pack_spawned = false
+	last_gauntlet_spawn_style = &""
+	gauntlet_style_repeat_count = 0
+	if current_round_type == ROUND_ELITE:
+		next_elite_event_time = enemy_rng.randf_range(
+			ELITE_EVENT_MIN_INTERVAL,
+			ELITE_EVENT_MAX_INTERVAL
+		)
+	elif current_round_type == ROUND_GAUNTLET:
+		next_elite_event_time = enemy_rng.randf_range(
+			GAUNTLET_ELITE_MIN_INTERVAL,
+			GAUNTLET_ELITE_MAX_INTERVAL
+		)
+	else:
+		next_elite_event_time = INF
 	spawning_active = true
 	current_wave_spawn_style = choose_wave_spawn_style(round_number)
 	if round_number == max_rounds:
@@ -400,14 +479,38 @@ func update_round_count() -> void:
 	if not round_active and round_number < max_rounds:
 		displayed_round += 1
 	round_count_display.text = "Round: %d/%d" % [displayed_round, max_rounds]
+	var round_type_name := get_round_type_display_name(current_round_type)
 	if round_active and spawning_active:
-		round_timer_display.text = "Spawning: %ds" % ceili(round_time_remaining)
+		if current_round_type == ROUND_STANDARD:
+			round_timer_display.text = "Spawning: %ds" % ceili(round_time_remaining)
+		else:
+			round_timer_display.text = "%s: %ds" % [
+				round_type_name,
+				ceili(round_time_remaining),
+			]
 	elif round_active:
-		round_timer_display.text = "Clear remaining enemies"
+		if current_round_type == ROUND_STANDARD:
+			round_timer_display.text = "Clear remaining enemies"
+		else:
+			round_timer_display.text = "%s: Clear remaining enemies" % round_type_name
 	elif shop_open:
 		round_timer_display.text = "Draft"
 	else:
 		round_timer_display.text = "Build Phase"
+
+
+func get_round_type_display_name(round_type: StringName) -> String:
+	match round_type:
+		ROUND_HORDE:
+			return "Horde Round"
+		ROUND_ELITE:
+			return "Elite Round"
+		ROUND_GAUNTLET:
+			return "Gauntlet"
+		ROUND_PAYDAY:
+			return "Payday Round"
+		_:
+			return "Standard Round"
 	
 func end_round() -> void:
 	if game_ended or not round_active:
@@ -729,20 +832,32 @@ func _spawn_mob():
 		mobs_left_to_spawn = 0
 		spawntimer.stop()
 		return
-	if mobs_alive >= active_enemy_cap:
+	var spawn_event: Dictionary = spawn_schedule.front()
+	var event_cap := active_enemy_cap
+	if not spawn_event.get("special_event", false):
+		if current_round_type == ROUND_ELITE:
+			event_cap = maxi(active_enemy_cap - ELITE_EVENT_RESERVED_SLOTS, 1)
+		elif current_round_type == ROUND_GAUNTLET:
+			event_cap = maxi(active_enemy_cap - GAUNTLET_EVENT_RESERVED_SLOTS, 1)
+	if mobs_alive >= event_cap:
 		spawntimer.start(0.2)
 		return
 
-	var spawn_event: Dictionary = spawn_schedule.front()
 	var enemy_id: StringName = spawn_event["enemy_id"]
 	var spawn_cost := get_enemy_spawn_cost(enemy_id)
-	if spawn_threat < spawn_cost:
+	var free_spawn: bool = spawn_event.get("free_spawn", false)
+	if not free_spawn and spawn_threat < spawn_cost:
 		spawntimer.start(0.1)
 		return
 
 	spawn_schedule.pop_front()
-	spawn_threat -= spawn_cost
-	_create_mob(enemy_id, 0.0)
+	if not free_spawn:
+		spawn_threat -= spawn_cost
+	_create_mob(
+		enemy_id,
+		0.0,
+		spawn_event.get("variant", VARIANT_NORMAL)
+	)
 	mobs_left_to_spawn = spawn_schedule.size()
 
 	if spawn_schedule.is_empty():
@@ -753,7 +868,11 @@ func _spawn_mob():
 		spawntimer.start(delay_after)
 
 
-func _create_mob(enemy_id: StringName, start_progress: float) -> void:
+func _create_mob(
+	enemy_id: StringName,
+	start_progress: float,
+	spawn_variant: StringName = VARIANT_NORMAL
+) -> void:
 	if game_ended:
 		return
 
@@ -761,6 +880,7 @@ func _create_mob(enemy_id: StringName, start_progress: float) -> void:
 	mob.enemy_id = enemy_id
 	mob.wave_number = round_number
 	mob.health_multiplier = get_enemy_health_multiplier(round_number)
+	mob.spawn_variant = spawn_variant
 	mob.mob_killed.connect(_on_mob_killed)
 	mob.reached_end.connect(_on_mob_reached_end)
 	mob.spawn_requested.connect(_on_mob_spawn_requested)
@@ -772,10 +892,14 @@ func _create_mob(enemy_id: StringName, start_progress: float) -> void:
 	mobs_alive += 1
 
 
-func _on_mob_spawn_requested(enemy_id: StringName, path_progress: float) -> void:
+func _on_mob_spawn_requested(
+	enemy_id: StringName,
+	path_progress: float,
+	spawn_variant: StringName
+) -> void:
 	if mobs_alive >= active_enemy_cap:
 		return
-	_create_mob(enemy_id, path_progress)
+	_create_mob(enemy_id, path_progress, spawn_variant)
 
 
 func choose_wave_spawn_style(wave: int) -> StringName:
@@ -822,6 +946,7 @@ func _process_round_director(delta: float) -> void:
 	if not round_active or not spawning_active:
 		return
 
+	round_elapsed += delta
 	round_time_remaining = maxf(round_time_remaining - delta, 0.0)
 	spawn_threat += threat_per_second * threat_continuous_ratio * delta
 	threat_chunk_elapsed += delta
@@ -833,6 +958,7 @@ func _process_round_director(delta: float) -> void:
 			* threat_chunk_ratio
 		)
 	director_cooldown = maxf(director_cooldown - delta, 0.0)
+	process_special_round_events()
 	update_round_count()
 
 	if round_time_remaining <= 0.0:
@@ -871,31 +997,243 @@ func get_available_enemies(wave: int) -> Array[StringName]:
 	return available
 
 
+func process_special_round_events() -> void:
+	if current_round_type not in [ROUND_ELITE, ROUND_GAUNTLET]:
+		return
+
+	var final_pack_time := round_duration * FINAL_ELITE_PACK_START_RATIO
+	if not final_elite_pack_spawned and round_elapsed >= final_pack_time:
+		final_elite_pack_spawned = true
+		var final_elite_count := 3 if round_number >= 11 else 2
+		var final_escort_count := (
+			enemy_rng.randi_range(6, 10)
+			if current_round_type == ROUND_GAUNTLET
+			else enemy_rng.randi_range(4, 7)
+		)
+		inject_special_spawn_schedule(build_elite_event_schedule(
+			final_elite_count,
+			final_escort_count,
+			VARIANT_HORDE if current_round_type == ROUND_GAUNTLET else VARIANT_NORMAL
+		))
+
+	if round_elapsed < next_elite_event_time or round_elapsed >= final_pack_time:
+		return
+
+	var elite_count := 1
+	var escort_count := enemy_rng.randi_range(3, 6)
+	var next_interval_min := ELITE_EVENT_MIN_INTERVAL
+	var next_interval_max := ELITE_EVENT_MAX_INTERVAL
+	var escort_variant := VARIANT_NORMAL
+	if current_round_type == ROUND_GAUNTLET:
+		elite_count = enemy_rng.randi_range(1, 3)
+		escort_count = enemy_rng.randi_range(4, 8)
+		next_interval_min = GAUNTLET_ELITE_MIN_INTERVAL
+		next_interval_max = GAUNTLET_ELITE_MAX_INTERVAL
+		escort_variant = VARIANT_HORDE
+	elif round_number == 6:
+		elite_count = 2 if enemy_rng.randf() < 0.25 else 1
+	else:
+		elite_count = enemy_rng.randi_range(1, 2)
+
+	inject_special_spawn_schedule(build_elite_event_schedule(
+		elite_count,
+		escort_count,
+		escort_variant
+	))
+	next_elite_event_time += enemy_rng.randf_range(
+		next_interval_min,
+		next_interval_max
+	)
+
+
+func build_elite_event_schedule(
+	elite_count: int,
+	escort_count: int,
+	escort_variant: StringName
+) -> Array[Dictionary]:
+	var available := get_available_enemies(round_number)
+	var schedule: Array[Dictionary] = []
+	if available.is_empty():
+		return schedule
+
+	var elites: Array[StringName] = []
+	for _index in elite_count:
+		elites.append(choose_elite_enemy(available))
+	var escorts: Array[StringName] = []
+	for _index in escort_count:
+		escorts.append(choose_weighted_enemy(available))
+
+	var front_escort_count := ceili(escorts.size() / 2.0)
+	for _index in front_escort_count:
+		append_special_spawn_event(
+			schedule,
+			escorts.pop_front(),
+			escort_variant,
+			0.12
+		)
+	for elite_id in elites:
+		append_special_spawn_event(
+			schedule,
+			elite_id,
+			VARIANT_ELITE,
+			0.18
+		)
+		if not escorts.is_empty():
+			append_special_spawn_event(
+				schedule,
+				escorts.pop_front(),
+				escort_variant,
+				0.12
+			)
+	while not escorts.is_empty():
+		append_special_spawn_event(
+			schedule,
+			escorts.pop_front(),
+			escort_variant,
+			0.12
+		)
+	if not schedule.is_empty():
+		schedule.back()["delay_after"] = 1.0
+	return schedule
+
+
+func choose_elite_enemy(available: Array[StringName]) -> StringName:
+	var preferred: Array[StringName] = []
+	for enemy_id in available:
+		var role: StringName = GameStats.get_enemy(enemy_id).get("role", ROLE_FODDER)
+		if role in [ROLE_PRESSURE, ROLE_TANK]:
+			preferred.append(enemy_id)
+	if preferred.is_empty():
+		preferred = available.duplicate()
+	return choose_weighted_enemy(preferred)
+
+
+func append_special_spawn_event(
+	schedule: Array[Dictionary],
+	enemy_id: StringName,
+	spawn_variant: StringName,
+	delay_after: float
+) -> void:
+	schedule.append({
+		"enemy_id": enemy_id,
+		"delay_after": delay_after,
+		"style": &"elite_event",
+		"variant": spawn_variant,
+		"free_spawn": true,
+		"special_event": true,
+	})
+
+
+func inject_special_spawn_schedule(schedule: Array[Dictionary]) -> void:
+	if schedule.is_empty():
+		return
+	for index in range(schedule.size() - 1, -1, -1):
+		spawn_schedule.push_front(schedule[index])
+	mobs_left_to_spawn = spawn_schedule.size()
+	spawntimer.stop()
+	spawntimer.start(0.01)
+
+
 func build_director_group() -> Array[Dictionary]:
 	var available := get_available_enemies(round_number)
+	if current_round_type == ROUND_PAYDAY:
+		available = available.filter(
+			func(enemy_id: StringName) -> bool:
+				var role: StringName = GameStats.get_enemy(enemy_id).get(
+					"role",
+					ROLE_FODDER
+				)
+				return role in [ROLE_FODDER, ROLE_PRESSURE]
+		)
 	if available.is_empty():
 		return []
 
-	var group_size := get_director_group_size(current_wave_spawn_style)
+	var group_style := current_wave_spawn_style
+	if current_round_type == ROUND_GAUNTLET:
+		group_style = choose_gauntlet_spawn_style()
+	elif current_round_type == ROUND_PAYDAY:
+		group_style = choose_payday_spawn_style()
+	var group_size := get_director_group_size(group_style)
+	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
+		group_size = maxi(
+			1,
+			roundi(group_size * HORDE_GROUP_SIZE_MULTIPLIER)
+		)
 	var enemy_queue := build_role_based_enemy_queue(
-		current_wave_spawn_style,
+		group_style,
 		group_size,
 		available
 	)
 
-	match current_wave_spawn_style:
+	var schedule: Array[Dictionary]
+	match group_style:
 		&"pulses":
-			return build_pulse_schedule(enemy_queue)
+			schedule = build_pulse_schedule(enemy_queue)
 		&"simultaneous_batch":
-			return build_simultaneous_batch_schedule(enemy_queue)
+			schedule = build_simultaneous_batch_schedule(enemy_queue)
 		&"convoy":
-			return build_convoy_schedule(enemy_queue)
+			schedule = build_convoy_schedule(enemy_queue)
 		&"sandwich":
-			return build_sandwich_schedule(enemy_queue)
+			schedule = build_sandwich_schedule(enemy_queue)
 		&"escorted_elite":
-			return build_escorted_elite_schedule(enemy_queue)
+			schedule = build_escorted_elite_schedule(enemy_queue)
 		_:
-			return build_standard_schedule(enemy_queue)
+			schedule = build_standard_schedule(enemy_queue)
+	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
+		var spawn_variant := (
+			VARIANT_PAYDAY
+			if current_round_type == ROUND_PAYDAY
+			else VARIANT_HORDE
+		)
+		apply_spawn_schedule_variant(
+			schedule,
+			spawn_variant,
+			HORDE_SPAWN_DELAY_MULTIPLIER
+		)
+	return schedule
+
+
+func choose_gauntlet_spawn_style() -> StringName:
+	var styles: Array[StringName] = [
+		&"pulses",
+		&"simultaneous_batch",
+		&"convoy",
+		&"sandwich",
+		&"escorted_elite",
+		&"stream",
+	]
+	if gauntlet_style_repeat_count >= 2:
+		styles.erase(last_gauntlet_spawn_style)
+	var selected := styles[enemy_rng.randi_range(0, styles.size() - 1)]
+	if selected == last_gauntlet_spawn_style:
+		gauntlet_style_repeat_count += 1
+	else:
+		last_gauntlet_spawn_style = selected
+		gauntlet_style_repeat_count = 1
+	return selected
+
+
+func choose_payday_spawn_style() -> StringName:
+	var styles: Array[StringName] = [
+		&"stream",
+		&"pulses",
+		&"simultaneous_batch",
+		&"burst",
+	]
+	return styles[enemy_rng.randi_range(0, styles.size() - 1)]
+
+
+func apply_spawn_schedule_variant(
+	schedule: Array[Dictionary],
+	spawn_variant: StringName,
+	delay_multiplier: float
+) -> void:
+	for spawn_event in schedule:
+		spawn_event["variant"] = spawn_variant
+		spawn_event["delay_after"] = maxf(
+			float(spawn_event.get("delay_after", 0.1)) * delay_multiplier,
+			0.01
+		)
 
 
 func build_role_based_enemy_queue(

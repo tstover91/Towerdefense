@@ -3,6 +3,7 @@ extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
 const DEFAULT_PROJECTILE_SCENE = preload("res://projectile.tscn")
+const SPAWNED_UNIT_SCENE = preload("res://spawned_unit.tscn")
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const MENU_HALF_WIDTH := 106.0
@@ -89,6 +90,11 @@ var range_preview_valid := true
 var aim_direction := Vector2.RIGHT
 var direction_ui: Node2D
 var main: Node
+var spawned_unit_id: StringName = &""
+var spawn_limit := 0
+var deployment_radius_pixels := 0.0
+var active_spawned_units: Array[Node] = []
+var spawn_rng := RandomNumberGenerator.new()
 
 
 func _draw() -> void:
@@ -242,9 +248,14 @@ func update_upgrade_button() -> void:
 func update_menu_buttons() -> void:
 	update_upgrade_button()
 	update_sell_button()
-	if uses_directional_aim():
+	if is_spawner_tower():
+		$HBoxContainer/targetmode.text = "Units\nAuto"
+		$HBoxContainer/targetmode.disabled = true
+	elif uses_directional_aim():
+		$HBoxContainer/targetmode.disabled = false
 		$HBoxContainer/targetmode.text = "Aim\nDirection"
 	else:
+		$HBoxContainer/targetmode.disabled = false
 		$HBoxContainer/targetmode.text = "Target\n%s" % get_target_mode_name()
 
 func close_menus() -> void:
@@ -286,6 +297,7 @@ func get_sell_price() -> int:
 	return floori(get_total_invested() / 3.0)
 
 func _ready() -> void:
+	spawn_rng.randomize()
 	load_base_tags()
 	load_level_stats()
 	create_direction_ui()
@@ -294,7 +306,10 @@ func _ready() -> void:
 		main.money_changed.connect(_on_main_money_changed)
 	tower_area.body_entered.connect(_on_body_entered)
 	tower_area.body_exited.connect(_on_body_exited)
-	damage_timer.timeout.connect(_apply_damage)
+	if is_spawner_tower():
+		damage_timer.timeout.connect(_spawn_unit)
+	else:
+		damage_timer.timeout.connect(_apply_damage)
 	begin_placement()
 	add_to_group("towers")
 
@@ -366,6 +381,8 @@ func confirm_placement() -> void:
 	$clickarea.monitoring = true
 	$clickarea.input_pickable = true
 	$clickarea/CollisionShape2D.disabled = false
+	if is_spawner_tower():
+		_spawn_unit()
 	damage_timer.start()
 
 
@@ -383,7 +400,17 @@ func load_level_stats() -> void:
 	damage_type = get_primary_damage_type()
 	projectile_speed = stats.get("projectile_speed", 600.0)
 	splash_radius_pixels = float(stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT
-	damage_timer.wait_time = stats["firerate"]
+	if is_spawner_tower():
+		spawned_unit_id = tower_data.get("spawned_unit_id", &"")
+		spawn_limit = maxi(int(stats.get("spawn_limit", 1)), 1)
+		deployment_radius_pixels = (
+			float(stats.get("deployment_radius", 1.0))
+			* RANGE_PIXELS_PER_UNIT
+		)
+		damage_timer.wait_time = maxf(float(stats.get("spawn_interval", 1.0)), 0.1)
+		refresh_spawned_unit_stats(stats["unit_stats"])
+	else:
+		damage_timer.wait_time = stats["firerate"]
 	var range_shape := $Tower/CollisionShape2D.shape.duplicate() as CircleShape2D
 	range_radius_pixels = stats["range"] * RANGE_PIXELS_PER_UNIT
 	range_shape.radius = range_radius_pixels
@@ -393,6 +420,33 @@ func load_level_stats() -> void:
 
 func get_effective_stats_for_level(level: int) -> Dictionary:
 	var stats := GameStats.get_tower_level(tower_id, level)
+	if is_spawner_tower():
+		var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
+		unit_stats["damage"] = roundi(
+			float(unit_stats["damage"]) + get_main_bonus(&"tower_damage_flat")
+		)
+		unit_stats["attack_interval"] = maxf(
+			float(unit_stats["attack_interval"])
+			/ get_main_multiplier(&"tower_attack_speed"),
+			0.01
+		)
+		unit_stats["aim_radius"] = (
+			float(unit_stats["aim_radius"])
+			* get_main_multiplier(&"tower_range")
+		)
+		stats["unit_stats"] = unit_stats
+		stats["damage"] = unit_stats["damage"]
+		stats["firerate"] = unit_stats["attack_interval"]
+		stats["range"] = (
+			float(stats["deployment_radius"])
+			* get_main_multiplier(&"tower_range")
+		)
+		stats["dps"] = (
+			float(unit_stats["damage"])
+			/ float(unit_stats["attack_interval"])
+			* float(stats["spawn_limit"])
+		)
+		return stats
 	stats["damage"] = roundi(
 		float(stats["damage"]) + get_main_bonus(&"tower_damage_flat")
 	)
@@ -435,6 +489,79 @@ func get_main_bonus(effect: StringName) -> float:
 
 func get_main_multiplier(effect: StringName) -> float:
 	return 1.0 + get_main_bonus(effect)
+
+
+func _spawn_unit() -> void:
+	if not is_placed or not is_spawner_tower() or spawned_unit_id.is_empty():
+		return
+	prune_spawned_units()
+	if active_spawned_units.size() >= spawn_limit:
+		return
+
+	var spawned_unit: Node = SPAWNED_UNIT_SCENE.instantiate()
+	get_tree().current_scene.add_child(spawned_unit)
+	spawned_unit.global_position = get_spawned_unit_position()
+	var map_path: Path2D
+	if main != null:
+		map_path = main.get_node_or_null("path") as Path2D
+	spawned_unit.setup(
+		spawned_unit_id,
+		get_effective_stats_for_level(tower_level)["unit_stats"],
+		self,
+		map_path
+	)
+	active_spawned_units.append(spawned_unit)
+	spawned_unit.tree_exiting.connect(
+		_on_spawned_unit_exiting.bind(spawned_unit)
+	)
+
+
+func get_spawned_unit_position() -> Vector2:
+	var definition := GameStats.get_spawned_unit(spawned_unit_id)
+	if definition["movement_type"] != GameStats.MOVEMENT_STATIONARY:
+		return global_position
+	var angle := spawn_rng.randf_range(0.0, TAU)
+	var distance := sqrt(spawn_rng.randf()) * deployment_radius_pixels
+	var spawn_position := global_position + Vector2.from_angle(angle) * distance
+	var viewport_size := get_viewport_rect().size
+	var playable_right_edge := viewport_size.x
+	if main != null and main.has_method("get_playable_right_edge"):
+		playable_right_edge = minf(
+			playable_right_edge,
+			float(main.get_playable_right_edge())
+		)
+	spawn_position.x = clampf(spawn_position.x, 8.0, playable_right_edge - 8.0)
+	spawn_position.y = clampf(spawn_position.y, 8.0, viewport_size.y - 8.0)
+	return spawn_position
+
+
+func refresh_spawned_unit_stats(unit_stats: Dictionary) -> void:
+	prune_spawned_units()
+	for spawned_unit in active_spawned_units:
+		if is_instance_valid(spawned_unit):
+			spawned_unit.apply_stats(unit_stats)
+
+
+func prune_spawned_units() -> void:
+	active_spawned_units = active_spawned_units.filter(
+		func(spawned_unit: Node) -> bool:
+			return (
+				is_instance_valid(spawned_unit)
+				and not spawned_unit.is_queued_for_deletion()
+			)
+	)
+
+
+func _on_spawned_unit_exiting(spawned_unit: Node) -> void:
+	active_spawned_units.erase(spawned_unit)
+
+
+func _exit_tree() -> void:
+	for spawned_unit in active_spawned_units:
+		if is_instance_valid(spawned_unit):
+			spawned_unit.queue_free()
+	active_spawned_units.clear()
+
 
 func _apply_damage() -> void:
 	if not is_placed:
@@ -741,6 +868,8 @@ func _on_cancel_pressed() -> void:
 	queue_free()
 
 func _on_targetmode_pressed() -> void:
+	if is_spawner_tower():
+		return
 	show_target_menu()
 	if main != null and selected:
 		main.show_tower_details(self)
@@ -795,6 +924,10 @@ func has_damage_tag(tag: StringName) -> bool:
 
 func has_bonus_tag(tag: StringName) -> bool:
 	return bonus_tags.has(tag)
+
+
+func is_spawner_tower() -> bool:
+	return bonus_tags.has(BONUS_SPAWNER)
 
 
 func add_type_tag(tag: StringName) -> void:

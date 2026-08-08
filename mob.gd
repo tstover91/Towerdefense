@@ -4,12 +4,18 @@ const GameStats = preload("res://stat_database.gd")
 
 signal mob_killed(reward: int)
 signal reached_end(damage: int)
-signal spawn_requested(enemy_id: StringName, path_progress: float)
+signal spawn_requested(
+	enemy_id: StringName,
+	path_progress: float,
+	spawn_variant: StringName
+)
 
 
 @export var enemy_id: StringName = GameStats.DEFAULT_ENEMY_ID
 var wave_number := 1
 var health_multiplier := 1.0
+var spawn_variant: StringName = &"normal"
+var traits: Array[StringName] = []
 var health: int
 var max_health: int
 @onready var health_bar: ProgressBar = $HealthBarAnchor/HealthBar
@@ -68,15 +74,48 @@ func update_health_bar_position() -> void:
 
 func load_stats() -> void:
 	var stats: Dictionary = GameStats.get_enemy(enemy_id)
+	traits.assign(stats.get("traits", []))
+	var variant_health_multiplier := 1.0
+	var speed_multiplier := 1.0
+	var reward_multiplier := 1.0
+	var damage_multiplier := 1.0
+	var defense_bonus := 0.0
+	var visual_multiplier := 1.0
+	match spawn_variant:
+		&"horde":
+			variant_health_multiplier = 0.7
+			reward_multiplier = 0.55
+			damage_multiplier = 0.7
+			visual_multiplier = 0.9
+			traits.append(&"horde")
+		&"elite":
+			variant_health_multiplier = 3.0
+			speed_multiplier = 1.15
+			reward_multiplier = 3.0
+			damage_multiplier = 1.5
+			defense_bonus = 0.15
+			visual_multiplier = 1.25
+			traits.append(&"elite")
+		&"payday":
+			variant_health_multiplier = 0.65
+			damage_multiplier = 0.5
+			visual_multiplier = 0.85
+			traits.append(&"payday")
 	var base_health: int = stats["health"]
 	var health_per_wave: float = stats.get("health_per_wave", 0.0)
 	var scaled_health := base_health + health_per_wave * maxi(wave_number - 1, 0)
-	health = maxi(1, roundi(scaled_health * health_multiplier))
+	health = maxi(
+		1,
+		roundi(scaled_health * health_multiplier * variant_health_multiplier)
+	)
 	max_health = health
-	speed = stats["move_speed"]
-	cash_reward = stats["cash_reward"]
-	base_damage = stats.get("base_damage", health)
-	defense = stats.get("defense", 0.0)
+	speed = float(stats["move_speed"]) * speed_multiplier
+	cash_reward = maxi(1, roundi(float(stats["cash_reward"]) * reward_multiplier))
+	base_damage = maxi(
+		1,
+		roundi(float(stats.get("base_damage", health)) * damage_multiplier)
+	)
+	defense = minf(float(stats.get("defense", 0.0)) + defense_bonus, 0.95)
 	split_enemy_id = stats.get("split_enemy_id", &"")
 	split_count = stats.get("split_count", 0)
 	regeneration_per_second = stats.get("regeneration_per_second", 0)
@@ -89,8 +128,10 @@ func load_stats() -> void:
 	summon_enemy_id = stats.get("summon_enemy_id", &"")
 	summon_interval = stats.get("summon_interval", 0.0)
 	summon_limit = stats.get("summon_limit", 0)
-	var visual_scale: float = stats.get("visual_scale", 1.0)
+	var visual_scale: float = stats.get("visual_scale", 1.0) * visual_multiplier
 	sprite.modulate = stats.get("color", Color.WHITE)
+	if spawn_variant == &"elite":
+		sprite.modulate = sprite.modulate.lerp(Color(1.0, 0.78, 0.2), 0.45)
 	sprite.scale = Vector2.ONE * 2.0 * visual_scale
 	health_bar.max_value = health
 	health_bar.value = health
@@ -149,7 +190,11 @@ func _process_summoning(delta: float) -> void:
 
 	summon_elapsed -= summon_interval
 	summons_created += 1
-	spawn_requested.emit(summon_enemy_id, path_follow.progress)
+	spawn_requested.emit(
+		summon_enemy_id,
+		path_follow.progress,
+		get_inherited_spawn_variant()
+	)
 
 func die() -> void:
 	if finished:
@@ -172,7 +217,17 @@ func spawn_split_children() -> void:
 	var spacing := 6.0
 	for index in split_count:
 		var child_progress := path_follow.progress - spacing * float(index + 1)
-		spawn_requested.emit(split_enemy_id, maxf(child_progress, 0.0))
+		spawn_requested.emit(
+			split_enemy_id,
+			maxf(child_progress, 0.0),
+			get_inherited_spawn_variant()
+		)
+
+
+func get_inherited_spawn_variant() -> StringName:
+	if spawn_variant in [&"horde", &"payday"]:
+		return spawn_variant
+	return &"normal"
 
 func apply_damage(
 	amount: int,
@@ -195,9 +250,10 @@ func apply_damage(
 
 
 func get_projectile_hit_radius() -> float:
+	var variant_radius_multiplier := 1.25 if spawn_variant == &"elite" else 1.0
 	var collision_shape: Shape2D = $CollisionShape2D.shape
 	if collision_shape is CircleShape2D:
-		return collision_shape.radius
+		return collision_shape.radius * variant_radius_multiplier
 	if collision_shape is RectangleShape2D:
-		return collision_shape.size.length() * 0.5
-	return 12.0
+		return collision_shape.size.length() * 0.5 * variant_radius_multiplier
+	return 12.0 * variant_radius_multiplier
