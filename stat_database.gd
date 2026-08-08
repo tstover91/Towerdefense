@@ -333,9 +333,43 @@ const TOWERS := {
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"ballistic"],
+		"primary_damage_type": &"ballistic",
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"critical"],
+		"paths": {
+			"a": {
+				"display_name": "Dual Pistols",
+				"description": "Adds a second gun, doubling Invader's attack rate and granting Reveal.",
+				"cost": 1500,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"reveal"],
+				"conditional_stat_multipliers": [
+					{
+						"unless_path": &"b",
+						"values": {"firerate": 0.5},
+					},
+				],
+				"behavior_flags": {
+					"dual_weapons": true,
+				},
+			},
+			"b": {
+				"display_name": "Continuous Beam",
+				"description": "Replaces Ballistic fire with a continuous Beam that deals damage in ticks while locked to its primary target.",
+				"cost": 1500,
+				"unlock_level": 4,
+				"remove_damage_tags": [&"ballistic"],
+				"add_damage_tags": [&"beam"],
+				"remove_bonus_tags": [&"critical"],
+				"primary_damage_type": &"beam",
+				"delivery_type": DELIVERY_HITSCAN,
+				"impact_mode": IMPACT_PRIMARY,
+				"behavior_flags": {
+					"continuous_beam": true,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -393,9 +427,10 @@ const TOWERS := {
 				"projectile_speed": 900.0,
 				"firerate": 0.075,
 				"range": 14.0,
-				"maximum_spread_degrees": 30.0,
+				"maximum_spread_degrees": 20.0,
+				"minimum_spread_degrees": 5.0,
 				"spread_tighten_duration": 5.0,
-				"spread_recovery_delay": 0.65,
+				"spread_recovery_delay": 1.0,
 				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
@@ -405,9 +440,10 @@ const TOWERS := {
 				"projectile_speed": 950.0,
 				"firerate": 0.065,
 				"range": 14.0,
-				"maximum_spread_degrees": 30.0,
+				"maximum_spread_degrees": 20.0,
+				"minimum_spread_degrees": 5.0,
 				"spread_tighten_duration": 4.25,
-				"spread_recovery_delay": 0.65,
+				"spread_recovery_delay": 1.0,
 				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
@@ -417,9 +453,10 @@ const TOWERS := {
 				"projectile_speed": 1000.0,
 				"firerate": 0.055,
 				"range": 15.0,
-				"maximum_spread_degrees": 30.0,
+				"maximum_spread_degrees": 20.0,
+				"minimum_spread_degrees": 5.0,
 				"spread_tighten_duration": 3.5,
-				"spread_recovery_delay": 0.65,
+				"spread_recovery_delay": 1.0,
 				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
@@ -429,9 +466,10 @@ const TOWERS := {
 				"projectile_speed": 1100.0,
 				"firerate": 0.0475,
 				"range": 16.0,
-				"maximum_spread_degrees": 30.0,
+				"maximum_spread_degrees": 20.0,
+				"minimum_spread_degrees": 5.0,
 				"spread_tighten_duration": 2.75,
-				"spread_recovery_delay": 0.65,
+				"spread_recovery_delay": 1.0,
 				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
@@ -441,9 +479,10 @@ const TOWERS := {
 				"projectile_speed": 1200.0,
 				"firerate": 0.040,
 				"range": 17.0,
-				"maximum_spread_degrees": 30.0,
+				"maximum_spread_degrees": 20.0,
+				"minimum_spread_degrees": 5.0,
 				"spread_tighten_duration": 2.0,
-				"spread_recovery_delay": 0.65,
+				"spread_recovery_delay": 1.0,
 				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
@@ -573,7 +612,7 @@ const TOWERS := {
 				"firerate": 1.40,
 				"range": 9.0,
 				"projectile_count": 5,
-				"volley_width": 4.0,
+				"volley_width": 5.5,
 				"hidden_detection": false,
 			},
 			{
@@ -583,7 +622,7 @@ const TOWERS := {
 				"firerate": 1.30,
 				"range": 9.5,
 				"projectile_count": 5,
-				"volley_width": 4.0,
+				"volley_width": 5.5,
 				"hidden_detection": false,
 			},
 			{
@@ -593,7 +632,7 @@ const TOWERS := {
 				"firerate": 1.20,
 				"range": 10.0,
 				"projectile_count": 5,
-				"volley_width": 4.0,
+				"volley_width": 5.5,
 				"hidden_detection": false,
 			},
 			{
@@ -603,7 +642,7 @@ const TOWERS := {
 				"firerate": 1.10,
 				"range": 10.75,
 				"projectile_count": 5,
-				"volley_width": 4.0,
+				"volley_width": 5.5,
 				"hidden_detection": false,
 			},
 			{
@@ -613,7 +652,7 @@ const TOWERS := {
 				"firerate": 0.95,
 				"range": 11.5,
 				"projectile_count": 5,
-				"volley_width": 4.0,
+				"volley_width": 5.5,
 				"hidden_detection": false,
 			},
 		],
@@ -672,9 +711,38 @@ const TOWERS := {
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"melee"],
+		"primary_damage_type": &"melee",
 		"delivery_type": DELIVERY_PROJECTILE,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [],
+		"paths": {
+			"a": {
+				"display_name": "Explosive Ricochet",
+				"description": "The initial hit and every bounced impact create an Explosive blast.",
+				"cost": 2000,
+				"unlock_level": 4,
+				"add_damage_tags": [&"explosive"],
+				"behavior_flags": {
+					"slinger_contact_explosions": true,
+				},
+				"behavior_values": {
+					"contact_explosion_radius": 2.5,
+				},
+			},
+			"b": {
+				"display_name": "Razor Disc",
+				"description": "The disc hits the first enemy in its line, then pierces every enemy behind it until maximum range.",
+				"cost": 2000,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"pierce"],
+				"pierce_count_add": 1,
+				"impact_mode": IMPACT_FIRST_CONTACT,
+				"stat_overrides": {"bounce_count": 0},
+				"behavior_flags": {
+					"infinite_pierce": true,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -1163,6 +1231,16 @@ static func get_tower(tower_id: StringName) -> Dictionary:
 static func get_spawned_unit(unit_id: StringName) -> Dictionary:
 	assert(SPAWNED_UNITS.has(unit_id), "Unknown spawned unit ID: %s" % unit_id)
 	return SPAWNED_UNITS[unit_id].duplicate(true)
+
+
+static func get_tower_paths(tower_id: StringName) -> Dictionary:
+	return get_tower(tower_id).get("paths", {}).duplicate(true)
+
+
+static func get_tower_path(tower_id: StringName, path_id: StringName) -> Dictionary:
+	var paths := get_tower_paths(tower_id)
+	assert(paths.has(path_id), "Unknown path %s for tower %s" % [path_id, tower_id])
+	return paths[path_id].duplicate(true)
 
 
 static func get_piercing_damage(base_damage: int, hit_number: int) -> int:

@@ -201,6 +201,8 @@ signal round_ended(round_number: int)
 @onready var tower_stats_layout: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout
 @onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerNameLabel
 @onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerLevelLabel
+@onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerPathLabel
+@onready var tower_tags_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerTagsLabel
 @onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/UpgradeHeaderLabel
 var lives: int
 var max_lives: int
@@ -311,6 +313,14 @@ func show_tower_details(tower: Node) -> void:
 	tower_level_label.visible = is_placed and not show_upgrade_info
 	if tower_level_label.visible:
 		tower_level_label.text = "Level %d/%d" % [current_level, maximum_level]
+	var path_status: String = stats.get("path_status", "")
+	tower_path_label.visible = is_placed and not path_status.is_empty()
+	tower_path_label.text = path_status
+	tower_tags_label.text = "Type: %s\nAttack: %s\nBonus: %s" % [
+		format_tower_tags(stats.get("type_tags", [])),
+		format_tower_tags(stats.get("attack_tags", [])),
+		format_tower_tags(stats.get("bonus_tags", [])),
+	]
 	tower_upgrade_header.visible = show_upgrade_info
 	if show_upgrade_info:
 		var next_level: int = stats["next_level"]
@@ -318,6 +328,18 @@ func show_tower_details(tower: Node) -> void:
 			next_level,
 			maximum_level,
 		]
+
+
+func format_tower_tags(tags: Array) -> String:
+	if tags.is_empty():
+		return "None"
+	var display_tags: Array[String] = []
+	for tag in tags:
+		var words := String(tag).replace("_", " ").split(" ")
+		for index in words.size():
+			words[index] = words[index].capitalize()
+		display_tags.append(" ".join(words))
+	return ", ".join(display_tags)
 
 
 func clear_tower_details(tower: Node = null) -> void:
@@ -731,6 +753,14 @@ func get_tower_roster_tags() -> Array[StringName]:
 				var typed_tag := StringName(tag)
 				if not roster_tags.has(typed_tag):
 					roster_tags.append(typed_tag)
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if not is_instance_valid(tower) or not tower.is_placed:
+			continue
+		for tag_group in [tower.type_tags, tower.damage_tags, tower.bonus_tags]:
+			for tag in tag_group:
+				var typed_tag := StringName(tag)
+				if not roster_tags.has(typed_tag):
+					roster_tags.append(typed_tag)
 	return roster_tags
 
 
@@ -775,6 +805,8 @@ func collect_relic(item_id: StringName, quantity := 1) -> void:
 		int(owned_shop_items.get(item_id, 0))
 		+ maxi(quantity, 1)
 	)
+	if item_id in [&"singularity_core", &"perfect_mutation"]:
+		refresh_placed_tower_stats()
 
 
 func collect_tower(tower_id: StringName) -> void:
@@ -803,6 +835,20 @@ func refresh_placed_tower_stats() -> void:
 
 func get_run_bonus(effect: StringName) -> float:
 	return float(run_bonuses.get(effect, 0.0))
+
+
+func can_tower_purchase_both_paths(tower: Node) -> bool:
+	if not is_instance_valid(tower):
+		return false
+	if (
+		tower.has_type_tag(&"technology")
+		and int(owned_shop_items.get(&"singularity_core", 0)) > 0
+	):
+		return true
+	return (
+		tower.has_type_tag(&"biological")
+		and int(owned_shop_items.get(&"perfect_mutation", 0)) > 0
+	)
 
 
 func cancel_pending_tower_placement() -> void:

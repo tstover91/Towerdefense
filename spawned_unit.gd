@@ -257,7 +257,11 @@ func perform_attack(current_target: Node2D) -> void:
 			stun_duration,
 			stun_affects_bosses,
 			bounce_count,
-			bounce_range_pixels
+			bounce_range_pixels,
+			false,
+			0.0,
+			false,
+			has_bonus_tag(&"reveal")
 		)
 	else:
 		perform_hitscan_attack(current_target, attack_damage, damage_type)
@@ -382,7 +386,7 @@ func is_valid_target(candidate: Variant) -> bool:
 	if not valid_target:
 		return false
 	if candidate.traits.has(&"hidden"):
-		return has_bonus_tag(&"reveal") or pierce_count > 0
+		return has_bonus_tag(&"reveal")
 	return true
 
 

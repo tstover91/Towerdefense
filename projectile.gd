@@ -22,8 +22,10 @@ var stun_duration := 0.0
 var stun_affects_bosses := false
 var bounce_count := 0
 var bounce_range := 0.0
-var bounce_explosions_enabled := false
-var bounce_explosion_radius := 0.0
+var contact_explosions_enabled := false
+var contact_explosion_radius := 0.0
+var infinite_pierce := false
+var can_hit_hidden := false
 var remaining_bounces := 0
 var remaining_pierce_hits := 0
 var pierce_chain_hit_count := 0
@@ -47,8 +49,10 @@ func setup(
 	attack_stun_affects_bosses := false,
 	attack_bounce_count := 0,
 	attack_bounce_range := 0.0,
-	attack_bounce_explosions_enabled := false,
-	attack_bounce_explosion_radius := 0.0
+	attack_contact_explosions_enabled := false,
+	attack_contact_explosion_radius := 0.0,
+	attack_infinite_pierce := false,
+	attack_can_hit_hidden := false
 ) -> void:
 	primary_target = target_node
 	impact_position = target_position
@@ -68,8 +72,10 @@ func setup(
 	stun_affects_bosses = attack_stun_affects_bosses
 	bounce_count = maxi(attack_bounce_count, 0)
 	bounce_range = maxf(attack_bounce_range, 0.0)
-	bounce_explosions_enabled = attack_bounce_explosions_enabled
-	bounce_explosion_radius = maxf(attack_bounce_explosion_radius, 0.0)
+	contact_explosions_enabled = attack_contact_explosions_enabled
+	contact_explosion_radius = maxf(attack_contact_explosion_radius, 0.0)
+	infinite_pierce = attack_infinite_pierce
+	can_hit_hidden = attack_can_hit_hidden
 	remaining_bounces = bounce_count
 	remaining_pierce_hits = (
 		1 + pierce_count
@@ -119,7 +125,10 @@ func resolve_first_contact_destination() -> void:
 		resolve_explosion(impact_position)
 		queue_free()
 		return
-	if not first_contact_made or remaining_pierce_hits <= 0:
+	if (
+		not first_contact_made
+		or (remaining_pierce_hits <= 0 and not infinite_pierce)
+	):
 		queue_free()
 		return
 	if continuation_distance <= 0.0:
@@ -140,13 +149,13 @@ func resolve_primary_impact() -> void:
 		return
 
 	hit_target_ids[primary_target.get_instance_id()] = true
-	apply_damage_and_effects(primary_target, pierce_count > 0, damage)
-	if bounce_explosions_enabled and remaining_bounces < bounce_count:
-		resolve_bounce_explosion(impact_position)
+	apply_damage_and_effects(primary_target, pierce_count > 0 or infinite_pierce, damage)
+	if contact_explosions_enabled:
+		resolve_contact_explosion(impact_position, damage)
 	pierce_chain_hit_count = 1
 	if begin_next_bounce():
 		return
-	if pierce_count < 1 or continuation_distance <= 0.0:
+	if (pierce_count < 1 and not infinite_pierce) or continuation_distance <= 0.0:
 		queue_free()
 		return
 
@@ -179,6 +188,8 @@ func get_nearest_bounce_target() -> Node2D:
 	var selected_distance := INF
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(candidate):
+			continue
+		if candidate.traits.has(&"hidden") and not can_hit_hidden:
 			continue
 		if hit_target_ids.has(candidate.get_instance_id()):
 			continue
@@ -236,10 +247,13 @@ func resolve_pierce_segment(start: Vector2, end: Vector2) -> bool:
 			pierce_chain_hit_count
 		)
 		apply_damage_and_effects(mob, true, pierced_damage)
+		if contact_explosions_enabled:
+			resolve_contact_explosion(mob.global_position, pierced_damage)
 		pierce_chain_hit_count += 1
-		remaining_pierce_hits -= 1
-		if remaining_pierce_hits <= 0:
-			return true
+		if not infinite_pierce:
+			remaining_pierce_hits -= 1
+			if remaining_pierce_hits <= 0:
+				return true
 	return false
 
 
@@ -258,14 +272,17 @@ func resolve_first_contact_segment(start: Vector2, end: Vector2) -> bool:
 		)
 		apply_damage_and_effects(
 			mob,
-			pierce_count > 0,
+			pierce_count > 0 or infinite_pierce,
 			contact_damage
 		)
+		if contact_explosions_enabled:
+			resolve_contact_explosion(mob.global_position, contact_damage)
 		pierce_chain_hit_count += 1
 		first_contact_made = true
-		remaining_pierce_hits -= 1
-		if remaining_pierce_hits <= 0:
-			return true
+		if not infinite_pierce:
+			remaining_pierce_hits -= 1
+			if remaining_pierce_hits <= 0:
+				return true
 	return false
 
 
@@ -279,6 +296,8 @@ func get_segment_candidates(start: Vector2, end: Vector2) -> Array[Dictionary]:
 
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(mob) or hit_target_ids.has(mob.get_instance_id()):
+			continue
+		if mob.traits.has(&"hidden") and not can_hit_hidden:
 			continue
 		var distance_along_segment: float = (
 			mob.global_position - start
@@ -311,11 +330,11 @@ func resolve_explosion(center: Vector2) -> void:
 	resolve_explosion_with_stats(center, splash_radius, damage, damage_type)
 
 
-func resolve_bounce_explosion(center: Vector2) -> void:
+func resolve_contact_explosion(center: Vector2, explosion_damage: int) -> void:
 	resolve_explosion_with_stats(
 		center,
-		bounce_explosion_radius,
-		damage,
+		contact_explosion_radius,
+		explosion_damage,
 		&"explosive"
 	)
 

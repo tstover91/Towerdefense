@@ -6,7 +6,7 @@ const DEFAULT_PROJECTILE_SCENE = preload("res://projectile.tscn")
 const SPAWNED_UNIT_SCENE = preload("res://spawned_unit.tscn")
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
-const MENU_HALF_WIDTH := 106.0
+const MENU_HALF_WIDTH := 120.0
 const MENU_EDGE_MARGIN := 8.0
 const GAUSS_TOWER_ID: StringName = &"gauss_repeater"
 const BRAINIAC_TOWER_ID: StringName = &"brainiac"
@@ -75,6 +75,9 @@ var pierce_count := 0
 @onready var muzzle: Marker2D = $Rotator/Muzzle
 @onready var damage_timer: Timer = $Timer
 @onready var upgrade_button: Button = $HBoxContainer/upgradetower
+@onready var path_a_button: Button = $pathui/PathA
+@onready var path_b_button: Button = $pathui/PathB
+@onready var path_confirm_button: Button = $pathui/ConfirmPath
 var tower_level := 0
 var damage: int
 var damage_type: StringName = &""
@@ -85,21 +88,27 @@ var stun_duration := 0.0
 var stun_affects_bosses := false
 var bounce_count := 0
 var bounce_range_pixels := 0.0
-var slinger_bounce_explosions_enabled := false
-var slinger_bounce_explosion_radius_pixels := 0.0
+var infinite_pierce := false
+var continuous_beam_enabled := false
+var dual_weapons_enabled := false
+var slinger_contact_explosions_enabled := false
+var slinger_contact_explosion_radius_pixels := 0.0
 var projectile_count := 1
 var volley_width_pixels := 0.0
 var volley_stagger := 0.0
 var combo_hit_count := 1
 var combo_stagger := 0.0
 var active_combo_sequence := 0
+var purchased_paths: Array[StringName] = []
+var pending_path_choice: StringName = &""
 var gauss_maximum_spread_degrees := 0.0
+var gauss_minimum_spread_degrees := 0.0
 var gauss_current_spread_degrees := 0.0
 var gauss_spread_tighten_per_shot := 0.0
 var gauss_spread_tighten_duration := 0.0
 var gauss_spread_recovery_delay := 0.0
 var gauss_spread_recovery_per_second := 0.0
-var gauss_time_since_last_shot := 0.0
+var gauss_time_without_target := 0.0
 var gauss_spread_initialized := false
 var delivery_type: StringName = GameStats.DELIVERY_HITSCAN
 var impact_mode: StringName = GameStats.IMPACT_PRIMARY
@@ -186,6 +195,21 @@ func draw_active_beam() -> void:
 		return
 	var beam_start := to_local(muzzle.global_position)
 	var beam_end := to_local(target.global_position)
+	var beam_offsets: Array[float] = [0.0]
+	if uses_dual_continuous_beams():
+		beam_offsets.assign([-4.5, 4.5])
+	var beam_direction := beam_end - beam_start
+	var perpendicular := Vector2.UP
+	if not beam_direction.is_zero_approx():
+		perpendicular = beam_direction.normalized().orthogonal()
+	for beam_offset in beam_offsets:
+		draw_beam_segment(
+			beam_start + perpendicular * beam_offset,
+			beam_end
+		)
+
+
+func draw_beam_segment(beam_start: Vector2, beam_end: Vector2) -> void:
 	draw_line(
 		beam_start,
 		beam_end,
@@ -258,17 +282,21 @@ func set_selected(value: bool) -> void:
 
 func show_main_menu() -> void:
 	pending_action = MenuAction.NONE
+	pending_path_choice = &""
 	$HBoxContainer.visible = true
 	$targetui.visible = false
+	$pathui.visible = false
 	if direction_ui != null:
 		direction_ui.visible = false
 	update_menu_buttons()
 
 func show_target_menu() -> void:
 	pending_action = MenuAction.NONE
+	pending_path_choice = &""
 	show_current_range_preview()
 	$HBoxContainer.visible = false
 	$targetui.visible = not uses_directional_aim()
+	$pathui.visible = false
 	if direction_ui != null:
 		direction_ui.visible = uses_directional_aim()
 
@@ -286,8 +314,12 @@ func update_upgrade_button() -> void:
 	var next_level := tower_level + 1
 
 	if next_level >= levels.size():
-		upgrade_button.text = "MAX LEVEL"
-		upgrade_button.disabled = true
+		if has_path_options() and has_available_path_purchase():
+			upgrade_button.text = "Final\nPaths"
+			upgrade_button.disabled = false
+		else:
+			upgrade_button.text = "MAX LEVEL"
+			upgrade_button.disabled = true
 		return
 
 	var upgrade_cost: int = levels[next_level]["upgrade_cost"]
@@ -313,11 +345,152 @@ func update_menu_buttons() -> void:
 		$HBoxContainer/targetmode.disabled = false
 		$HBoxContainer/targetmode.text = "Target\n%s" % get_target_mode_name()
 
+
+func has_path_options() -> bool:
+	return not GameStats.get_tower_paths(tower_id).is_empty()
+
+
+func get_path_unlock_level(path_id: StringName) -> int:
+	var default_level: int = GameStats.get_tower(tower_id)["levels"].size() - 1
+	return int(
+		GameStats.get_tower_path(tower_id, path_id).get(
+			"unlock_level",
+			default_level
+		)
+	)
+
+
+func can_purchase_multiple_paths() -> bool:
+	return (
+		main != null
+		and main.has_method("can_tower_purchase_both_paths")
+		and main.can_tower_purchase_both_paths(self)
+	)
+
+
+func can_purchase_path(path_id: StringName, check_money := true) -> bool:
+	var paths := GameStats.get_tower_paths(tower_id)
+	if not paths.has(path_id) or purchased_paths.has(path_id):
+		return false
+	if tower_level < get_path_unlock_level(path_id):
+		return false
+	if not purchased_paths.is_empty() and not can_purchase_multiple_paths():
+		return false
+	if check_money:
+		var path_cost := int(paths[path_id].get("cost", 0))
+		if main == null or main.money < path_cost:
+			return false
+	return true
+
+
+func has_available_path_purchase() -> bool:
+	for path_key in GameStats.get_tower_paths(tower_id):
+		if can_purchase_path(StringName(path_key), false):
+			return true
+	return false
+
+
+func show_path_menu() -> void:
+	if not has_path_options():
+		return
+	pending_action = MenuAction.NONE
+	pending_path_choice = &""
+	show_current_range_preview()
+	$HBoxContainer.visible = false
+	$targetui.visible = false
+	if direction_ui != null:
+		direction_ui.visible = false
+	$pathui.visible = true
+	update_path_menu()
+	if main != null and selected:
+		main.show_tower_details(self)
+
+
+func update_path_menu() -> void:
+	var path_ids: Array[StringName] = [&"a", &"b"]
+	var buttons: Array[Button] = [path_a_button, path_b_button]
+	var paths := GameStats.get_tower_paths(tower_id)
+	for index in path_ids.size():
+		var path_id := path_ids[index]
+		var button := buttons[index]
+		if not paths.has(path_id):
+			button.hide()
+			continue
+		button.show()
+		var path: Dictionary = paths[path_id]
+		var path_name: String = path.get("display_name", "Path %s" % path_id.to_upper())
+		var path_cost := int(path.get("cost", 0))
+		button.tooltip_text = path.get("description", "")
+		if purchased_paths.has(path_id):
+			button.text = "%s\nOWNED" % path_name
+			button.disabled = true
+		elif not purchased_paths.is_empty() and not can_purchase_multiple_paths():
+			button.text = "%s\nLOCKED" % path_name
+			button.disabled = true
+		else:
+			button.text = "%s\n$%d" % [path_name, path_cost]
+			button.disabled = not can_purchase_path(path_id)
+		button.button_pressed = pending_path_choice == path_id
+	path_confirm_button.disabled = pending_path_choice.is_empty()
+	if pending_path_choice.is_empty():
+		path_confirm_button.text = "Select a Path"
+		$pathui/Description.text = "Select a path to view its effect."
+	else:
+		path_confirm_button.text = "Confirm"
+		$pathui/Description.text = paths[pending_path_choice].get("description", "")
+
+
+func select_path_choice(path_id: StringName) -> void:
+	if not can_purchase_path(path_id):
+		return
+	pending_path_choice = path_id
+	update_path_menu()
+	if main != null and selected:
+		main.show_tower_details(self)
+
+
+func purchase_selected_path() -> void:
+	if pending_path_choice.is_empty() or not can_purchase_path(pending_path_choice):
+		return
+	var path := GameStats.get_tower_path(tower_id, pending_path_choice)
+	if not main.spend_money(int(path.get("cost", 0))):
+		return
+	purchased_paths.append(pending_path_choice)
+	pending_path_choice = &""
+	load_base_tags()
+	load_level_stats()
+	update_menu_buttons()
+	show_main_menu()
+	if main != null and selected:
+		main.show_tower_details(self)
+
+
+func get_path_status_text() -> String:
+	if not has_path_options():
+		return ""
+	if purchased_paths.is_empty():
+		var paths := GameStats.get_tower_paths(tower_id)
+		var earliest_unlock := 999
+		for path_key in paths:
+			earliest_unlock = mini(
+				earliest_unlock,
+				get_path_unlock_level(StringName(path_key))
+			)
+		if tower_level < earliest_unlock:
+			return "Final paths unlock at Level %d" % earliest_unlock
+		return "Final path available"
+	var names: Array[String] = []
+	for path_id in purchased_paths:
+		names.append(GameStats.get_tower_path(tower_id, path_id)["display_name"])
+	return "Path: %s" % " + ".join(names)
+
 func close_menus() -> void:
 	pending_action = MenuAction.NONE
+	pending_path_choice = &""
 	selected = false
 	$HBoxContainer.visible = false
 	$targetui.visible = false
+	$pathui.visible = false
 	if direction_ui != null:
 		direction_ui.visible = false
 	set_range_preview(false)
@@ -345,6 +518,8 @@ func get_total_invested() -> int:
 
 	for level in range(1, tower_level + 1):
 		total += levels[level]["upgrade_cost"]
+	for path_id in purchased_paths:
+		total += int(GameStats.get_tower_path(tower_id, path_id).get("cost", 0))
 
 	return total
 
@@ -419,7 +594,11 @@ func uses_directional_aim() -> bool:
 
 
 func uses_continuous_beam() -> bool:
-	return tower_id == BEHOLDER_TOWER_ID
+	return tower_id == BEHOLDER_TOWER_ID or continuous_beam_enabled
+
+
+func uses_dual_continuous_beams() -> bool:
+	return uses_continuous_beam() and dual_weapons_enabled
 
 
 func _on_main_money_changed(_new_amount: int) -> void:
@@ -493,6 +672,11 @@ func load_level_stats() -> void:
 		float(stats.get("maximum_spread_degrees", 0.0)),
 		0.0
 	)
+	gauss_minimum_spread_degrees = clampf(
+		float(stats.get("minimum_spread_degrees", 0.0)),
+		0.0,
+		gauss_maximum_spread_degrees
+	)
 	gauss_spread_tighten_duration = maxf(
 		float(stats.get("spread_tighten_duration", 0.0)),
 		0.0
@@ -500,7 +684,10 @@ func load_level_stats() -> void:
 	gauss_spread_tighten_per_shot = 0.0
 	if gauss_spread_tighten_duration > 0.0:
 		gauss_spread_tighten_per_shot = (
-			gauss_maximum_spread_degrees
+			(
+				gauss_maximum_spread_degrees
+				- gauss_minimum_spread_degrees
+			)
 			* float(stats.get("firerate", 1.0))
 			/ gauss_spread_tighten_duration
 		)
@@ -517,12 +704,13 @@ func load_level_stats() -> void:
 		gauss_spread_initialized = true
 	else:
 		gauss_current_spread_degrees = minf(
-			gauss_current_spread_degrees,
+			maxf(gauss_current_spread_degrees, gauss_minimum_spread_degrees),
 			gauss_maximum_spread_degrees
 		)
 	damage_type = get_primary_damage_type()
 	projectile_speed = stats.get("projectile_speed", 600.0)
 	splash_radius_pixels = float(stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT
+	load_path_behaviors()
 	if is_spawner_tower():
 		spawned_unit_id = tower_data.get("spawned_unit_id", &"")
 		spawn_limit = maxi(int(stats.get("spawn_limit", 1)), 1)
@@ -543,6 +731,7 @@ func load_level_stats() -> void:
 
 func get_effective_stats_for_level(level: int) -> Dictionary:
 	var stats := GameStats.get_tower_level(tower_id, level)
+	stats = apply_path_stat_modifiers(stats)
 	if is_spawner_tower():
 		var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
 		unit_stats["damage"] = roundi(
@@ -585,13 +774,70 @@ func get_sidebar_stats() -> Dictionary:
 		"is_placed": is_placed,
 		"level": tower_level,
 		"maximum_level": levels.size() - 1,
+		"type_tags": type_tags.duplicate(),
+		"attack_tags": damage_tags.duplicate(),
+		"bonus_tags": bonus_tags.duplicate(),
 		"has_next_level": next_level < levels.size(),
 		"show_upgrade_info": is_placed and pending_action == MenuAction.UPGRADE,
+		"path_status": get_path_status_text(),
 	}
 
 	if next_level < levels.size():
 		result["next_level"] = next_level
 	return result
+
+
+func apply_path_stat_modifiers(base_stats: Dictionary) -> Dictionary:
+	var stats := base_stats.duplicate(true)
+	for path_id in purchased_paths:
+		var path := GameStats.get_tower_path(tower_id, path_id)
+		apply_numeric_modifiers(stats, path.get("stat_multipliers", {}), true)
+		apply_numeric_modifiers(stats, path.get("stat_additions", {}), false)
+		for conditional in path.get("conditional_stat_multipliers", []):
+			var required_absent_path := StringName(conditional.get("unless_path", &""))
+			if not required_absent_path.is_empty() and purchased_paths.has(required_absent_path):
+				continue
+			apply_numeric_modifiers(stats, conditional.get("values", {}), true)
+		for key in path.get("stat_overrides", {}):
+			stats[key] = path["stat_overrides"][key]
+		for conditional in path.get("conditional_stat_overrides", []):
+			var required_absent_path := StringName(conditional.get("unless_path", &""))
+			if not required_absent_path.is_empty() and purchased_paths.has(required_absent_path):
+				continue
+			for key in conditional.get("values", {}):
+				stats[key] = conditional["values"][key]
+
+		if stats.has("unit_stats"):
+			var unit_stats: Dictionary = stats["unit_stats"]
+			apply_numeric_modifiers(unit_stats, path.get("unit_stat_multipliers", {}), true)
+			apply_numeric_modifiers(unit_stats, path.get("unit_stat_additions", {}), false)
+			for key in path.get("unit_stat_overrides", {}):
+				unit_stats[key] = path["unit_stat_overrides"][key]
+			stats["unit_stats"] = unit_stats
+	return stats
+
+
+func apply_numeric_modifiers(
+	stats: Dictionary,
+	modifiers: Dictionary,
+	is_multiplier: bool
+) -> void:
+	for key in modifiers:
+		if not stats.has(key):
+			continue
+		var original: Variant = stats[key]
+		if original is int:
+			stats[key] = (
+				roundi(float(original) * float(modifiers[key]))
+				if is_multiplier
+				else int(original) + roundi(float(modifiers[key]))
+			)
+		elif original is float:
+			stats[key] = (
+				float(original) * float(modifiers[key])
+				if is_multiplier
+				else float(original) + float(modifiers[key])
+			)
 
 
 func get_main_bonus(effect: StringName) -> float:
@@ -712,6 +958,10 @@ func _apply_damage() -> void:
 func attack(current_target: Node2D) -> void:
 	if not is_instance_valid(current_target):
 		return
+	if uses_dual_continuous_beams():
+		for _beam_index in 2:
+			apply_hitscan_damage(current_target, roll_attack_damage())
+		return
 
 	var attack_damage := roll_attack_damage()
 	if tower_id == REAVER_TOWER_ID:
@@ -817,9 +1067,17 @@ func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
 		)
 		gauss_current_spread_degrees = maxf(
 			gauss_current_spread_degrees - gauss_spread_tighten_per_shot,
-			0.0
+			gauss_minimum_spread_degrees
 		)
-		gauss_time_since_last_shot = 0.0
+		gauss_time_without_target = 0.0
+	elif infinite_pierce and impact_mode == GameStats.IMPACT_FIRST_CONTACT:
+		var shot_direction := (
+			current_target.global_position - muzzle.global_position
+		).normalized()
+		projectile_target_position = (
+			muzzle.global_position
+			+ shot_direction * maximum_projectile_distance
+		)
 	launch_projectile_from_position(
 		current_target,
 		muzzle.global_position,
@@ -947,8 +1205,10 @@ func launch_projectile_from_position(
 		stun_affects_bosses,
 		bounce_count,
 		bounce_range_pixels,
-		slinger_bounce_explosions_enabled,
-		slinger_bounce_explosion_radius_pixels
+		slinger_contact_explosions_enabled,
+		slinger_contact_explosion_radius_pixels,
+		infinite_pierce,
+		has_bonus_tag(BONUS_REVEAL)
 	)
 
 
@@ -1056,6 +1316,7 @@ func update_menu_layout() -> void:
 		not $towerconfirm.visible
 		and not $HBoxContainer.visible
 		and not $targetui.visible
+		and not $pathui.visible
 		and (direction_ui == null or not direction_ui.visible)
 	):
 		return
@@ -1082,6 +1343,13 @@ func update_menu_layout() -> void:
 	$towerconfirm.position = Vector2(-40.0 + x_offset, 50.0 if place_below else -106.0)
 	$HBoxContainer.position = Vector2(-106.0 + x_offset, 50.0 if place_below else -90.0)
 	$targetui.position = Vector2(-60.0 + x_offset, target_y)
+	var path_y: float = 50.0 if place_below else -$pathui.size.y - MENU_EDGE_MARGIN
+	path_y = clampf(
+		path_y,
+		MENU_EDGE_MARGIN - screen_position.y,
+		viewport_size.y - MENU_EDGE_MARGIN - $pathui.size.y - screen_position.y
+	)
+	$pathui.position = Vector2(-120.0 + x_offset, path_y)
 
 func _on_body_entered(body: Node2D) -> void:
 	if body.is_in_group("mobs") and not mobs_in_range.has(body):
@@ -1104,7 +1372,7 @@ func is_valid_target(candidate: Variant) -> bool:
 	if not valid_target:
 		return false
 	if candidate.traits.has(&"hidden"):
-		return has_bonus_tag(BONUS_REVEAL) or pierce_count > 0
+		return has_bonus_tag(BONUS_REVEAL)
 	return true
 
 
@@ -1188,19 +1456,27 @@ func get_max_distance_in_direction(direction: Vector2, origin: Vector2) -> float
 func process_gauss_spread(delta: float) -> void:
 	if not uses_directional_aim() or not is_placed:
 		return
-	gauss_time_since_last_shot += delta
-	if gauss_time_since_last_shot <= gauss_spread_recovery_delay:
+	if is_valid_target(target):
+		gauss_time_without_target = 0.0
+		return
+	var previous_time_without_target := gauss_time_without_target
+	gauss_time_without_target += delta
+	var recovery_delta := (
+		maxf(gauss_time_without_target - gauss_spread_recovery_delay, 0.0)
+		- maxf(previous_time_without_target - gauss_spread_recovery_delay, 0.0)
+	)
+	if recovery_delta <= 0.0:
 		return
 	gauss_current_spread_degrees = minf(
 		gauss_current_spread_degrees
-		+ gauss_spread_recovery_per_second * delta,
+		+ gauss_spread_recovery_per_second * recovery_delta,
 		gauss_maximum_spread_degrees
 	)
 
 
 func reset_gauss_spread() -> void:
 	gauss_current_spread_degrees = gauss_maximum_spread_degrees
-	gauss_time_since_last_shot = 0.0
+	gauss_time_without_target = 0.0
 
 func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 	if (
@@ -1253,20 +1529,39 @@ func _on_targetmode_pressed() -> void:
 	if main != null and selected:
 		main.show_tower_details(self)
 
+
+func _on_path_a_pressed() -> void:
+	select_path_choice(&"a")
+
+
+func _on_path_b_pressed() -> void:
+	select_path_choice(&"b")
+
+
+func _on_confirm_path_pressed() -> void:
+	purchase_selected_path()
+
+
+func _on_cancel_path_pressed() -> void:
+	show_main_menu()
+	if main != null and selected:
+		main.show_tower_details(self)
+
 func _on_upgradetower_pressed() -> void:
+	var tower_data: Dictionary = GameStats.get_tower(tower_id)
+	var levels: Array = tower_data["levels"]
+	var next_level := tower_level + 1
+	if next_level >= levels.size():
+		if has_available_path_purchase():
+			show_path_menu()
+		return
+
 	if pending_action != MenuAction.UPGRADE:
 		pending_action = MenuAction.UPGRADE
 		show_upgrade_range_preview()
 		update_menu_buttons()
 		if main != null and selected:
 			main.show_tower_details(self)
-		return
-
-	var tower_data: Dictionary = GameStats.get_tower(tower_id)
-	var levels: Array = tower_data["levels"]
-	var next_level := tower_level + 1
-
-	if next_level >= levels.size():
 		return
 
 	var upgrade_cost: int = levels[next_level]["upgrade_cost"]
@@ -1352,18 +1647,41 @@ func add_pierce(amount := 1) -> void:
 	set_pierce_count(pierce_count + amount)
 
 
-func set_slinger_bounce_explosions(
+func set_slinger_contact_explosions(
 	enabled: bool,
 	explosion_radius_units := 2.5
 ) -> void:
 	if tower_id != SLINGER_TOWER_ID:
 		return
-	slinger_bounce_explosions_enabled = enabled
-	slinger_bounce_explosion_radius_pixels = (
+	slinger_contact_explosions_enabled = enabled
+	slinger_contact_explosion_radius_pixels = (
 		maxf(explosion_radius_units, 0.0) * RANGE_PIXELS_PER_UNIT
 		if enabled
 		else 0.0
 	)
+
+
+func load_path_behaviors() -> void:
+	infinite_pierce = false
+	continuous_beam_enabled = false
+	dual_weapons_enabled = false
+	slinger_contact_explosions_enabled = false
+	slinger_contact_explosion_radius_pixels = 0.0
+	for path_id in purchased_paths:
+		var path := GameStats.get_tower_path(tower_id, path_id)
+		var flags: Dictionary = path.get("behavior_flags", {})
+		var values: Dictionary = path.get("behavior_values", {})
+		if flags.get("infinite_pierce", false):
+			infinite_pierce = true
+		if flags.get("continuous_beam", false):
+			continuous_beam_enabled = true
+		if flags.get("dual_weapons", false):
+			dual_weapons_enabled = true
+		if flags.get("slinger_contact_explosions", false):
+			set_slinger_contact_explosions(
+				true,
+				float(values.get("contact_explosion_radius", 2.5))
+			)
 	
 func load_base_tags() -> void:
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
@@ -1381,16 +1699,39 @@ func load_base_tags() -> void:
 	for tag in tower_data.get("bonus_tags", []):
 		bonus_tags.append(tag)
 
-	set_pierce_count(int(tower_data.get(
+	var loaded_pierce_count := int(tower_data.get(
 		"pierce_count",
 		1 if bonus_tags.has(BONUS_PIERCE) else 0
-	)))
+	))
 	delivery_type = tower_data.get("delivery_type", GameStats.DELIVERY_HITSCAN)
 	impact_mode = tower_data.get("impact_mode", GameStats.IMPACT_PRIMARY)
+	for path_id in purchased_paths:
+		var path := GameStats.get_tower_path(tower_id, path_id)
+		for tag in path.get("add_type_tags", []):
+			if not type_tags.has(tag):
+				type_tags.append(tag)
+		for tag in path.get("add_damage_tags", []):
+			if not damage_tags.has(tag):
+				damage_tags.append(tag)
+		for tag in path.get("add_bonus_tags", []):
+			if not bonus_tags.has(tag):
+				bonus_tags.append(tag)
+		for tag in path.get("remove_type_tags", []):
+			type_tags.erase(tag)
+		for tag in path.get("remove_damage_tags", []):
+			damage_tags.erase(tag)
+		for tag in path.get("remove_bonus_tags", []):
+			bonus_tags.erase(tag)
+		loaded_pierce_count += int(path.get("pierce_count_add", 0))
+		if path.has("delivery_type"):
+			delivery_type = path["delivery_type"]
+		if path.has("impact_mode"):
+			impact_mode = path["impact_mode"]
+	set_pierce_count(loaded_pierce_count)
 
 	assert(
-		damage_tags.size() == 1,
-		"Tower %s must have exactly one base damage tag." % tower_id
+		not damage_tags.is_empty(),
+		"Tower %s must have at least one damage tag." % tower_id
 	)
 	assert(
 		delivery_type in [GameStats.DELIVERY_PROJECTILE, GameStats.DELIVERY_HITSCAN],
@@ -1407,8 +1748,16 @@ func load_base_tags() -> void:
 
 
 func get_primary_damage_type() -> StringName:
-	assert(
-		damage_tags.size() == 1,
-		"Tower %s must have exactly one active damage tag." % tower_id
+	var tower_data := GameStats.get_tower(tower_id)
+	var primary_type := StringName(
+		tower_data.get("primary_damage_type", damage_tags[0])
 	)
-	return damage_tags[0]
+	for path_id in purchased_paths:
+		var path := GameStats.get_tower_path(tower_id, path_id)
+		if path.has("primary_damage_type"):
+			primary_type = StringName(path["primary_damage_type"])
+	assert(
+		damage_tags.has(primary_type),
+		"Tower %s primary damage type must be one of its active tags." % tower_id
+	)
+	return primary_type
