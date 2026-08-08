@@ -76,6 +76,11 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
 
+[node name="ShopChoiceCard4" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards" instance=ExtResource("2_card")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+
 [node name="OwnedItemsLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
 layout_mode = 2
 text = "Owned relics: None"

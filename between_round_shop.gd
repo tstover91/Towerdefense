@@ -1,7 +1,7 @@
 class_name BetweenRoundShop
 extends Control
 
-signal draft_confirmed(item_id: StringName)
+signal draft_confirmed(item_id: StringName, quantity: int)
 
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
@@ -14,9 +14,11 @@ const DRAFT_RELIC: StringName = &"relic"
 	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard1,
 	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard2,
 	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard3,
+	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard4,
 ]
 
 var selected_item_id: StringName = &""
+var selected_quantity := 1
 var active_draft_type: StringName = DRAFT_RELIC
 
 
@@ -31,10 +33,15 @@ func open_draft(
 	maximum_rounds: int,
 	draft_type: StringName,
 	offers: Array[StringName],
-	owned_items: Dictionary
+	owned_items: Dictionary,
+	choice_quantities: Dictionary = {}
 ) -> void:
-	assert(offers.size() == cards.size(), "The draft requires one offer per card.")
+	assert(
+		offers.size() <= cards.size(),
+		"The draft has more offers than available cards."
+	)
 	selected_item_id = &""
+	selected_quantity = 1
 	active_draft_type = draft_type
 	var choice_name := "tower" if draft_type == DRAFT_TOWER else "relic"
 	title_label.text = "%s Draft - Round %d Complete" % [
@@ -47,11 +54,17 @@ func open_draft(
 	]
 
 	for index in cards.size():
+		if index >= offers.size():
+			cards[index].hide()
+			cards[index].set_selected(false)
+			continue
+		cards[index].show()
 		var item_id := offers[index]
 		cards[index].display_item(
 			get_choice_data(item_id),
 			int(owned_items.get(item_id, 0)),
-			draft_type == DRAFT_RELIC
+			draft_type == DRAFT_RELIC,
+			int(choice_quantities.get(item_id, 1))
 		)
 		cards[index].set_selected(false)
 
@@ -86,11 +99,16 @@ func update_owned_items_display(owned_items: Dictionary) -> void:
 	owned_items_label.tooltip_text = owned_text
 
 
-func _on_card_chosen(item_id: StringName) -> void:
+func _on_card_chosen(item_id: StringName, quantity: int) -> void:
 	selected_item_id = item_id
+	selected_quantity = maxi(quantity, 1)
 	for card in cards:
 		card.set_selected(card.item_id == item_id)
-	subtitle_label.text = "%s selected - press Confirm" % get_choice_data(item_id)["display_name"]
+	var quantity_text := " x%d" % selected_quantity if selected_quantity > 1 else ""
+	subtitle_label.text = "%s%s selected - press Confirm" % [
+		get_choice_data(item_id)["display_name"],
+		quantity_text,
+	]
 	continue_button.disabled = false
 
 
@@ -104,4 +122,4 @@ func _on_continue_pressed() -> void:
 	if selected_item_id.is_empty():
 		return
 	continue_button.disabled = true
-	draft_confirmed.emit(selected_item_id)
+	draft_confirmed.emit(selected_item_id, selected_quantity)

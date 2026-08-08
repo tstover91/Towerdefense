@@ -40,8 +40,20 @@ const ROLE_PRESSURE := &"pressure"
 const ROLE_TANK := &"tank"
 const ROLE_SUPPORT := &"support"
 const SHOP_CHOICE_COUNT := 3
+const GAUNTLET_RELIC_CHOICE_COUNT := 4
+const MINIMUM_APPLICABLE_RELIC_CHOICES := 2
 const TOWER_DRAFT_ROUNDS: Array[int] = [4, 9, 14]
 const RELIC_DRAFT_ROUNDS: Array[int] = [6, 11, 16]
+const RELIC_RARITY_WEIGHTS_BY_ROUND := {
+	6: {&"common": 70.0, &"rare": 30.0},
+	11: {&"common": 35.0, &"rare": 55.0, &"legendary": 10.0},
+	16: {&"rare": 70.0, &"legendary": 30.0},
+}
+const RELIC_MINIMUM_RARE_PLUS_BY_ROUND := {
+	6: 1,
+	11: 2,
+}
+const RELIC_ROLL_MAX_ATTEMPTS := 256
 const WAVE_ROLE_WEIGHTS := [
 	{
 		"maximum_wave": 3,
@@ -447,17 +459,23 @@ func open_tower_draft() -> void:
 
 
 func open_relic_draft() -> void:
+	var offers := roll_relic_offers()
+	var choice_quantities: Dictionary = {}
+	if round_number == 16 and offers.size() >= GAUNTLET_RELIC_CHOICE_COUNT:
+		choice_quantities[offers[GAUNTLET_RELIC_CHOICE_COUNT - 1]] = 2
 	open_between_round_draft(
 		DRAFT_RELIC,
-		roll_relic_offers(),
-		owned_shop_items
+		offers,
+		owned_shop_items,
+		choice_quantities
 	)
 
 
 func open_between_round_draft(
 	draft_type: StringName,
 	offers: Array[StringName],
-	owned_items: Dictionary
+	owned_items: Dictionary,
+	choice_quantities: Dictionary = {}
 ) -> void:
 	if shop_open or game_ended:
 		return
@@ -472,24 +490,155 @@ func open_between_round_draft(
 		max_rounds,
 		draft_type,
 		offers,
-		owned_items
+		owned_items,
+		choice_quantities
 	)
 
 
 func roll_relic_offers() -> Array[StringName]:
 	var available: Array[StringName] = []
 	for item_key in GameStats.RELICS:
-		available.append(StringName(item_key))
+		var item_id := StringName(item_key)
+		var item_stats: Dictionary = GameStats.get_relic(item_id)
+		if (
+			not item_stats.get("stackable", false)
+			and int(owned_shop_items.get(item_id, 0)) > 0
+		):
+			continue
+		available.append(item_id)
 	assert(
 		available.size() >= SHOP_CHOICE_COUNT,
 		"The shop needs at least %d items." % SHOP_CHOICE_COUNT
 	)
 
+	var rarity_weights: Dictionary = RELIC_RARITY_WEIGHTS_BY_ROUND.get(
+		round_number,
+		{}
+	)
+	var minimum_rare_plus := int(
+		RELIC_MINIMUM_RARE_PLUS_BY_ROUND.get(round_number, 0)
+	)
 	var offers: Array[StringName] = []
-	while offers.size() < SHOP_CHOICE_COUNT:
-		var index := shop_rng.randi_range(0, available.size() - 1)
-		offers.append(available.pop_at(index))
+	for _attempt in RELIC_ROLL_MAX_ATTEMPTS:
+		offers = roll_weighted_relic_set(
+			available,
+			rarity_weights,
+			SHOP_CHOICE_COUNT
+		)
+		if (
+			count_rare_plus_relics(offers) >= minimum_rare_plus
+			and count_applicable_relics(offers) >= MINIMUM_APPLICABLE_RELIC_CHOICES
+		):
+			if round_number == 16:
+				offers.append(choose_stacked_common_relic(available, offers))
+			return offers
+
+	assert(
+		false,
+		"Unable to satisfy the relic draft guarantees for round %d." % round_number
+	)
 	return offers
+
+
+func roll_weighted_relic_set(
+	available: Array[StringName],
+	rarity_weights: Dictionary,
+	choice_count: int
+) -> Array[StringName]:
+	var remaining: Array[StringName] = available.duplicate()
+	var offers: Array[StringName] = []
+	while offers.size() < choice_count:
+		var item_id := choose_weighted_relic_by_rarity(remaining, rarity_weights)
+		assert(not item_id.is_empty(), "No eligible relic remains for this draft.")
+		offers.append(item_id)
+		remaining.erase(item_id)
+	return offers
+
+
+func choose_weighted_relic_by_rarity(
+	available: Array[StringName],
+	rarity_weights: Dictionary
+) -> StringName:
+	if rarity_weights.is_empty():
+		return available[shop_rng.randi_range(0, available.size() - 1)]
+
+	var eligible_by_rarity: Dictionary = {}
+	var total_weight := 0.0
+	for rarity_key in rarity_weights:
+		var rarity := StringName(rarity_key)
+		var eligible: Array[StringName] = []
+		for item_id in available:
+			if GameStats.get_relic(item_id)["rarity"] == rarity:
+				eligible.append(item_id)
+		if eligible.is_empty():
+			continue
+		eligible_by_rarity[rarity] = eligible
+		total_weight += float(rarity_weights[rarity_key])
+
+	if eligible_by_rarity.is_empty() or total_weight <= 0.0:
+		return &""
+
+	var roll := shop_rng.randf_range(0.0, total_weight)
+	for rarity_key in rarity_weights:
+		var rarity := StringName(rarity_key)
+		if not eligible_by_rarity.has(rarity):
+			continue
+		roll -= float(rarity_weights[rarity_key])
+		if roll <= 0.0:
+			var eligible: Array[StringName] = eligible_by_rarity[rarity]
+			return eligible[shop_rng.randi_range(0, eligible.size() - 1)]
+
+	var fallback_rarity: StringName = eligible_by_rarity.keys().back()
+	var fallback: Array[StringName] = eligible_by_rarity[fallback_rarity]
+	return fallback[shop_rng.randi_range(0, fallback.size() - 1)]
+
+
+func count_rare_plus_relics(offers: Array[StringName]) -> int:
+	var count := 0
+	for item_id in offers:
+		if GameStats.get_relic(item_id)["rarity"] in [&"rare", &"legendary"]:
+			count += 1
+	return count
+
+
+func count_applicable_relics(offers: Array[StringName]) -> int:
+	var roster_tags := get_tower_roster_tags()
+	var count := 0
+	for item_id in offers:
+		var category: StringName = GameStats.get_relic(item_id)["category"]
+		if category == &"global" or roster_tags.has(category):
+			count += 1
+	return count
+
+
+func choose_stacked_common_relic(
+	available: Array[StringName],
+	excluded: Array[StringName]
+) -> StringName:
+	var eligible: Array[StringName] = []
+	for item_id in available:
+		if excluded.has(item_id):
+			continue
+		var item_stats: Dictionary = GameStats.get_relic(item_id)
+		if (
+			item_stats["rarity"] == &"common"
+			and item_stats.get("stackable", false)
+		):
+			eligible.append(item_id)
+	assert(not eligible.is_empty(), "The Gauntlet needs a stackable common relic.")
+	return eligible[shop_rng.randi_range(0, eligible.size() - 1)]
+
+
+func get_tower_roster_tags() -> Array[StringName]:
+	var roster_tags: Array[StringName] = []
+	for tower_id in tower_roster:
+		var tower_stats: Dictionary = GameStats.get_tower(tower_id)
+		for tag_group in ["type_tags", "damage_tags", "bonus_tags"]:
+			for tag in tower_stats.get(tag_group, []):
+				var typed_tag := StringName(tag)
+				if not roster_tags.has(typed_tag):
+					roster_tags.append(typed_tag)
+	return roster_tags
 
 
 func roll_tower_offers() -> Array[StringName]:
@@ -509,22 +658,30 @@ func roll_tower_offers() -> Array[StringName]:
 	return offers
 
 
-func _on_draft_confirmed(item_id: StringName) -> void:
+func _on_draft_confirmed(item_id: StringName, quantity: int) -> void:
 	if not shop_open:
 		return
 	if active_draft_type == DRAFT_TOWER:
 		collect_tower(item_id)
 	else:
-		collect_relic(item_id)
+		collect_relic(item_id, quantity)
 	shop_open = false
 	active_draft_type = &""
 	between_round_shop.hide()
 	enter_build_phase()
 
 
-func collect_relic(item_id: StringName) -> void:
-	GameStats.get_relic(item_id)
-	owned_shop_items[item_id] = int(owned_shop_items.get(item_id, 0)) + 1
+func collect_relic(item_id: StringName, quantity := 1) -> void:
+	var item_stats: Dictionary = GameStats.get_relic(item_id)
+	if (
+		not item_stats.get("stackable", false)
+		and int(owned_shop_items.get(item_id, 0)) > 0
+	):
+		return
+	owned_shop_items[item_id] = (
+		int(owned_shop_items.get(item_id, 0))
+		+ maxi(quantity, 1)
+	)
 
 
 func collect_tower(tower_id: StringName) -> void:
