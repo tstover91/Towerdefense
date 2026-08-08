@@ -1,6 +1,8 @@
 extends CharacterBody2D
 
 const GameStats = preload("res://stat_database.gd")
+const STUN_FATIGUE_MULTIPLIERS := [1.0, 0.65, 0.40, 0.25, 0.10]
+const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
 
 signal mob_killed(reward: int)
 signal reached_end(damage: int)
@@ -40,6 +42,11 @@ var summon_interval := 0.0
 var summon_limit := 0
 var summons_created := 0
 var summon_elapsed := 0.0
+var slow_remaining := 0.0
+var slow_speed_multiplier := 1.0
+var stun_remaining := 0.0
+var stun_fatigue_tier := 0
+var stun_fatigue_recovery_elapsed := 0.0
 
 
 func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
@@ -54,6 +61,7 @@ func _process(delta: float) -> void:
 
 	_process_regeneration(delta)
 	_process_summoning(delta)
+	_process_control_effects(delta)
 	path_follow.progress += get_effective_speed() * delta
 	update_health_bar_position()
 
@@ -143,6 +151,8 @@ func get_leak_damage() -> int:
 
 
 func get_effective_speed() -> float:
+	if stun_remaining > 0.0:
+		return 0.0
 	var result := speed
 
 	if path_follow.progress_ratio >= rush_start_ratio:
@@ -154,7 +164,60 @@ func get_effective_speed() -> float:
 			continue
 		strongest_aura = maxf(strongest_aura, candidate.get_speed_buff_for(self))
 
+	if slow_remaining > 0.0:
+		result *= slow_speed_multiplier
 	return result * strongest_aura
+
+
+func _process_control_effects(delta: float) -> void:
+	stun_remaining = maxf(stun_remaining - delta, 0.0)
+	if stun_fatigue_tier > 0:
+		stun_fatigue_recovery_elapsed += delta
+		while (
+			stun_fatigue_tier > 0
+			and stun_fatigue_recovery_elapsed
+			>= STUN_FATIGUE_RECOVERY_INTERVAL
+		):
+			stun_fatigue_recovery_elapsed -= STUN_FATIGUE_RECOVERY_INTERVAL
+			stun_fatigue_tier -= 1
+	else:
+		stun_fatigue_recovery_elapsed = 0.0
+	if slow_remaining <= 0.0:
+		return
+	slow_remaining = maxf(slow_remaining - delta, 0.0)
+	if slow_remaining <= 0.0:
+		slow_speed_multiplier = 1.0
+
+
+func apply_slow(speed_multiplier: float, duration: float) -> void:
+	if finished or duration <= 0.0 or speed_multiplier >= 1.0:
+		return
+	var clamped_multiplier := clampf(speed_multiplier, 0.0, 1.0)
+	if slow_remaining <= 0.0 or clamped_multiplier <= slow_speed_multiplier:
+		slow_speed_multiplier = clamped_multiplier
+		slow_remaining = maxf(slow_remaining, duration)
+
+
+func apply_stun(duration: float, affects_bosses := false) -> void:
+	if finished or duration <= 0.0:
+		return
+	if traits.has(&"boss") and not affects_bosses:
+		return
+	var multiplier_index := mini(
+		stun_fatigue_tier,
+		STUN_FATIGUE_MULTIPLIERS.size() - 1
+	)
+	var effective_duration: float = (
+		duration * STUN_FATIGUE_MULTIPLIERS[multiplier_index]
+	)
+	if effective_duration <= stun_remaining:
+		return
+	stun_remaining = effective_duration
+	stun_fatigue_tier = mini(
+		stun_fatigue_tier + 1,
+		STUN_FATIGUE_MULTIPLIERS.size() - 1
+	)
+	stun_fatigue_recovery_elapsed = 0.0
 
 
 func get_speed_buff_for(other_mob: Node2D) -> float:

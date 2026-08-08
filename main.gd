@@ -183,6 +183,8 @@ const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
 
 signal money_changed(new_amount: int)
+signal round_started(round_number: int)
+signal round_ended(round_number: int)
 
 @onready var spawntimer: Timer = $SpawnTimer
 @onready var tower_list: ItemList = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerSelectionArea/ItemList
@@ -470,6 +472,7 @@ func start_round() -> void:
 	mobs_left_to_spawn = spawn_schedule.size()
 	round_was_perfect = true
 	round_active = true
+	round_started.emit(round_number)
 	spawntimer.one_shot = true
 	update_round_count()
 	update_play_pause_button()
@@ -521,6 +524,7 @@ func end_round() -> void:
 	spawn_schedule.clear()
 	mobs_left_to_spawn = 0
 	spawntimer.stop()
+	round_ended.emit(round_number)
 	add_money(calculate_end_round_reward())
 	update_round_count()
 

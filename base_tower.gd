@@ -9,6 +9,10 @@ const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const MENU_HALF_WIDTH := 106.0
 const MENU_EDGE_MARGIN := 8.0
 const GAUSS_TOWER_ID: StringName = &"gauss_repeater"
+const BRAINIAC_TOWER_ID: StringName = &"brainiac"
+const VOID_CALLER_TOWER_ID: StringName = &"voidcaller"
+const REAVER_TOWER_ID: StringName = &"reaver"
+const BEHOLDER_TOWER_ID: StringName = &"beholder"
 const GAUSS_LINE_HALF_WIDTH := 3.0
 const DIRECTION_BUTTON_RADIUS := 72.0
 const AIM_DIRECTIONS: Array[Vector2] = [
@@ -73,6 +77,28 @@ var pierce_count := 0
 var tower_level := 0
 var damage: int
 var damage_type: StringName = &""
+var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
+var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
+var slow_speed_multiplier := 1.0
+var slow_duration := 0.0
+var stun_duration := 0.0
+var stun_affects_bosses := false
+var bounce_count := 0
+var bounce_range_pixels := 0.0
+var projectile_count := 1
+var volley_width_pixels := 0.0
+var volley_stagger := 0.0
+var combo_hit_count := 1
+var combo_stagger := 0.0
+var active_combo_sequence := 0
+var gauss_maximum_spread_degrees := 0.0
+var gauss_current_spread_degrees := 0.0
+var gauss_spread_tighten_per_shot := 0.0
+var gauss_spread_tighten_duration := 0.0
+var gauss_spread_recovery_delay := 0.0
+var gauss_spread_recovery_per_second := 0.0
+var gauss_time_since_last_shot := 0.0
+var gauss_spread_initialized := false
 var delivery_type: StringName = GameStats.DELIVERY_HITSCAN
 var impact_mode: StringName = GameStats.IMPACT_PRIMARY
 var projectile_speed := 600.0
@@ -98,6 +124,7 @@ var spawn_rng := RandomNumberGenerator.new()
 
 
 func _draw() -> void:
+	draw_active_beam()
 	if not range_preview_visible:
 		return
 
@@ -146,6 +173,32 @@ func _draw() -> void:
 
 	draw_circle(Vector2.ZERO, range_radius_pixels, fill_color)
 	draw_arc(Vector2.ZERO, range_radius_pixels, 0.0, TAU, 96, border_color, 2.0, true)
+
+
+func draw_active_beam() -> void:
+	if not uses_continuous_beam() or not is_placed:
+		return
+	if main == null or not main.round_active:
+		return
+	if not is_valid_target(target) or not mobs_in_range.has(target):
+		return
+	var beam_start := to_local(muzzle.global_position)
+	var beam_end := to_local(target.global_position)
+	draw_line(
+		beam_start,
+		beam_end,
+		Color(0.55, 0.1, 0.85, 0.35),
+		7.0,
+		true
+	)
+	draw_line(
+		beam_start,
+		beam_end,
+		Color(0.95, 0.55, 1.0, 0.95),
+		2.5,
+		true
+	)
+	draw_circle(beam_end, 4.0, Color(1.0, 0.75, 1.0, 0.9))
 
 
 func set_range_preview(value: bool, placement_is_valid := true) -> void:
@@ -304,6 +357,8 @@ func _ready() -> void:
 	update_menu_buttons()
 	if main != null:
 		main.money_changed.connect(_on_main_money_changed)
+		main.round_started.connect(_on_round_started)
+		main.round_ended.connect(_on_round_ended)
 	tower_area.body_entered.connect(_on_body_entered)
 	tower_area.body_exited.connect(_on_body_exited)
 	if is_spawner_tower():
@@ -342,6 +397,7 @@ func _on_direction_button_pressed(index: int) -> void:
 	if index < 0 or index >= AIM_DIRECTIONS.size():
 		return
 	aim_direction = AIM_DIRECTIONS[index]
+	reset_gauss_spread()
 	target = null
 	rotator.rotation = aim_direction.angle()
 	queue_redraw()
@@ -358,6 +414,10 @@ func get_direction_name(index: int) -> String:
 
 func uses_directional_aim() -> bool:
 	return tower_id == GAUSS_TOWER_ID
+
+
+func uses_continuous_beam() -> bool:
+	return tower_id == BEHOLDER_TOWER_ID
 
 
 func _on_main_money_changed(_new_amount: int) -> void:
@@ -381,8 +441,6 @@ func confirm_placement() -> void:
 	$clickarea.monitoring = true
 	$clickarea.input_pickable = true
 	$clickarea/CollisionShape2D.disabled = false
-	if is_spawner_tower():
-		_spawn_unit()
 	damage_timer.start()
 
 
@@ -397,6 +455,70 @@ func load_level_stats() -> void:
 	click_shape.size = footprint_size_pixels
 	$clickarea/CollisionShape2D.shape = click_shape
 	damage = stats["damage"]
+	critical_chance = clampf(
+		float(stats.get("critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE)),
+		0.0,
+		1.0
+	)
+	critical_multiplier = maxf(
+		float(stats.get(
+			"critical_multiplier",
+			GameStats.DEFAULT_CRITICAL_MULTIPLIER
+		)),
+		1.0
+	)
+	slow_speed_multiplier = clampf(
+		float(stats.get("slow_speed_multiplier", 1.0)),
+		0.0,
+		1.0
+	)
+	slow_duration = maxf(float(stats.get("slow_duration", 0.0)), 0.0)
+	stun_duration = maxf(float(stats.get("stun_duration", 0.0)), 0.0)
+	stun_affects_bosses = bool(stats.get("stun_affects_bosses", false))
+	bounce_count = maxi(int(stats.get("bounce_count", 0)), 0)
+	bounce_range_pixels = (
+		maxf(float(stats.get("bounce_range", 0.0)), 0.0)
+		* RANGE_PIXELS_PER_UNIT
+	)
+	projectile_count = maxi(int(stats.get("projectile_count", 1)), 1)
+	volley_width_pixels = (
+		maxf(float(stats.get("volley_width", 0.0)), 0.0)
+		* RANGE_PIXELS_PER_UNIT
+	)
+	volley_stagger = maxf(float(stats.get("volley_stagger", 0.0)), 0.0)
+	combo_hit_count = maxi(int(stats.get("combo_hit_count", 1)), 1)
+	combo_stagger = maxf(float(stats.get("combo_stagger", 0.0)), 0.0)
+	gauss_maximum_spread_degrees = maxf(
+		float(stats.get("maximum_spread_degrees", 0.0)),
+		0.0
+	)
+	gauss_spread_tighten_duration = maxf(
+		float(stats.get("spread_tighten_duration", 0.0)),
+		0.0
+	)
+	gauss_spread_tighten_per_shot = 0.0
+	if gauss_spread_tighten_duration > 0.0:
+		gauss_spread_tighten_per_shot = (
+			gauss_maximum_spread_degrees
+			* float(stats.get("firerate", 1.0))
+			/ gauss_spread_tighten_duration
+		)
+	gauss_spread_recovery_delay = maxf(
+		float(stats.get("spread_recovery_delay", 0.0)),
+		0.0
+	)
+	gauss_spread_recovery_per_second = maxf(
+		float(stats.get("spread_recovery_per_second", 0.0)),
+		0.0
+	)
+	if uses_directional_aim() and not gauss_spread_initialized:
+		gauss_current_spread_degrees = gauss_maximum_spread_degrees
+		gauss_spread_initialized = true
+	else:
+		gauss_current_spread_degrees = minf(
+			gauss_current_spread_degrees,
+			gauss_maximum_spread_degrees
+		)
 	damage_type = get_primary_damage_type()
 	projectile_speed = stats.get("projectile_speed", 600.0)
 	splash_radius_pixels = float(stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT
@@ -494,6 +616,9 @@ func get_main_multiplier(effect: StringName) -> float:
 func _spawn_unit() -> void:
 	if not is_placed or not is_spawner_tower() or spawned_unit_id.is_empty():
 		return
+	if main == null or not main.round_active:
+		damage_timer.stop()
+		return
 	prune_spawned_units()
 	if active_spawned_units.size() >= spawn_limit:
 		return
@@ -556,18 +681,39 @@ func _on_spawned_unit_exiting(spawned_unit: Node) -> void:
 	active_spawned_units.erase(spawned_unit)
 
 
-func _exit_tree() -> void:
+func clear_spawned_units() -> void:
 	for spawned_unit in active_spawned_units:
 		if is_instance_valid(spawned_unit):
 			spawned_unit.queue_free()
 	active_spawned_units.clear()
 
 
+func _on_round_started(_round_number: int) -> void:
+	if is_placed and is_spawner_tower():
+		damage_timer.start()
+
+
+func _on_round_ended(_round_number: int) -> void:
+	if not is_spawner_tower():
+		return
+	damage_timer.stop()
+	clear_spawned_units()
+
+
+func _exit_tree() -> void:
+	clear_spawned_units()
+
+
 func _apply_damage() -> void:
 	if not is_placed:
 		return
 
-	_select_target()
+	if (
+		not uses_continuous_beam()
+		or not is_valid_target(target)
+		or not mobs_in_range.has(target)
+	):
+		_select_target()
 	if is_valid_target(target):
 		attack(target)
 
@@ -576,50 +722,250 @@ func attack(current_target: Node2D) -> void:
 	if not is_instance_valid(current_target):
 		return
 
+	var attack_damage := roll_attack_damage()
+	if tower_id == REAVER_TOWER_ID:
+		launch_reaver_combo(current_target, attack_damage)
+		return
 	if delivery_type == GameStats.DELIVERY_PROJECTILE:
-		launch_projectile(current_target)
+		match tower_id:
+			BRAINIAC_TOWER_ID:
+				launch_brainiac_volley(current_target, attack_damage)
+			VOID_CALLER_TOWER_ID:
+				launch_void_caller_volley(current_target, attack_damage)
+			_:
+				launch_projectile(current_target, attack_damage)
 	else:
-		apply_hitscan_damage(current_target)
+		apply_hitscan_damage(current_target, attack_damage)
 
 
-func launch_projectile(current_target: Node2D) -> void:
+func roll_attack_damage() -> int:
+	if (
+		has_bonus_tag(BONUS_CRITICAL)
+		and spawn_rng.randf() < critical_chance
+	):
+		return maxi(roundi(float(damage) * critical_multiplier), 1)
+	return damage
+
+
+func launch_reaver_combo(current_target: Node2D, attack_damage: int) -> void:
+	active_combo_sequence += 1
+	var combo_sequence := active_combo_sequence
+	var target_reference: WeakRef = weakref(current_target)
+	for hit_index in combo_hit_count:
+		var hit_damage := get_combo_hit_damage(attack_damage, hit_index)
+		var hit_delay := combo_stagger * float(hit_index)
+		if hit_delay <= 0.0:
+			apply_reaver_combo_hit(
+				target_reference,
+				hit_damage,
+				combo_sequence
+			)
+		else:
+			get_tree().create_timer(hit_delay, false).timeout.connect(
+				apply_reaver_combo_hit.bind(
+					target_reference,
+					hit_damage,
+					combo_sequence
+				)
+			)
+
+
+func get_combo_hit_damage(total_damage: int, hit_index: int) -> int:
+	if combo_hit_count <= 1:
+		return total_damage
+	var light_hit_damage := maxi(roundi(float(total_damage) * 0.25), 1)
+	if hit_index < combo_hit_count - 1:
+		return light_hit_damage
+	return maxi(total_damage - light_hit_damage * (combo_hit_count - 1), 1)
+
+
+func apply_reaver_combo_hit(
+	target_reference: WeakRef,
+	hit_damage: int,
+	combo_sequence: int
+) -> void:
+	if combo_sequence != active_combo_sequence:
+		return
+	if not is_placed or main == null or not main.round_active:
+		active_combo_sequence += 1
+		return
+	var referenced_target: Variant = target_reference.get_ref()
+	if not is_valid_target(referenced_target):
+		active_combo_sequence += 1
+		return
+	var combo_target := referenced_target as Node2D
+	if global_position.distance_to(combo_target.global_position) > range_radius_pixels:
+		active_combo_sequence += 1
+		return
+	apply_hitscan_damage(combo_target, hit_damage)
+
+
+func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
 	if projectile_scene == null:
 		push_error("Projectile tower %s has no projectile scene." % tower_id)
 		return
 
-	var projectile := projectile_scene.instantiate() as TowerProjectile
-	get_tree().current_scene.add_child(projectile)
-	projectile.global_position = muzzle.global_position
 	var impact_radius := splash_radius_pixels if damage_type == DAMAGE_EXPLOSIVE else 0.0
 	var projectile_target_position := current_target.global_position
 	var maximum_projectile_distance := range_radius_pixels
 	if uses_directional_aim():
-		var distance_along_line: float = maxf(
-			(current_target.global_position - muzzle.global_position).dot(aim_direction),
-			1.0
+		var spread_offset_degrees := spawn_rng.randf_range(
+			-gauss_current_spread_degrees,
+			gauss_current_spread_degrees
+		)
+		var projectile_direction := aim_direction.rotated(
+			deg_to_rad(spread_offset_degrees)
+		)
+		maximum_projectile_distance = get_max_distance_in_direction(
+			projectile_direction,
+			muzzle.global_position
 		)
 		projectile_target_position = (
-			muzzle.global_position + aim_direction * distance_along_line
+			muzzle.global_position
+			+ projectile_direction * maximum_projectile_distance
 		)
-		maximum_projectile_distance = get_directional_max_distance()
-	projectile.setup(
+		gauss_current_spread_degrees = maxf(
+			gauss_current_spread_degrees - gauss_spread_tighten_per_shot,
+			0.0
+		)
+		gauss_time_since_last_shot = 0.0
+	launch_projectile_from_position(
 		current_target,
+		muzzle.global_position,
 		projectile_target_position,
-		projectile_speed,
 		maximum_projectile_distance,
-		damage,
-		damage_type,
-		impact_mode,
-		impact_radius,
-		pierce_count
+		attack_damage,
+		impact_radius
 	)
 
 
-func apply_hitscan_damage(current_target: Node2D) -> void:
+func launch_brainiac_volley(
+	current_target: Node2D,
+	attack_damage: int
+) -> void:
+	var aim_offset := current_target.global_position - global_position
+	if aim_offset.is_zero_approx():
+		return
+	var direction := aim_offset.normalized()
+	var perpendicular := direction.orthogonal()
+	var convergence_point := global_position + direction * range_radius_pixels
+	for index in projectile_count:
+		var spread_ratio := 0.0
+		if projectile_count > 1:
+			spread_ratio = (
+				float(index) / float(projectile_count - 1) - 0.5
+			)
+		var launch_position := (
+			muzzle.global_position
+			+ perpendicular * volley_width_pixels * spread_ratio
+		)
+		launch_projectile_from_position(
+			current_target,
+			launch_position,
+			convergence_point,
+			launch_position.distance_to(convergence_point),
+			attack_damage,
+			0.0
+		)
+
+
+func launch_void_caller_volley(
+	current_target: Node2D,
+	attack_damage: int
+) -> void:
+	var volley_center := current_target.global_position
+	var aim_offset := volley_center - muzzle.global_position
+	if aim_offset.is_zero_approx():
+		return
+	var perpendicular := aim_offset.normalized().orthogonal()
+	var target_reference: WeakRef = weakref(current_target)
+	for index in projectile_count:
+		var spread_ratio := 0.0
+		if projectile_count > 1:
+			spread_ratio = (
+				float(index) / float(projectile_count - 1) - 0.5
+			)
+		var destination := (
+			volley_center
+			+ perpendicular * volley_width_pixels * spread_ratio
+		)
+		var release_delay := volley_stagger * float(index)
+		if release_delay <= 0.0:
+			launch_delayed_volley_projectile(
+				target_reference,
+				destination,
+				attack_damage
+			)
+		else:
+			get_tree().create_timer(release_delay, false).timeout.connect(
+				launch_delayed_volley_projectile.bind(
+					target_reference,
+					destination,
+					attack_damage
+				)
+			)
+
+
+func launch_delayed_volley_projectile(
+	target_reference: WeakRef,
+	destination: Vector2,
+	attack_damage: int
+) -> void:
+	if not is_placed or main == null or not main.round_active:
+		return
+	var current_target: Node2D
+	var referenced_target: Variant = target_reference.get_ref()
+	if is_instance_valid(referenced_target):
+		current_target = referenced_target as Node2D
+	var launch_position := muzzle.global_position
+	launch_projectile_from_position(
+		current_target,
+		launch_position,
+		destination,
+		launch_position.distance_to(destination),
+		attack_damage,
+		splash_radius_pixels
+	)
+
+
+func launch_projectile_from_position(
+	current_target: Node2D,
+	launch_position: Vector2,
+	destination: Vector2,
+	maximum_projectile_distance: float,
+	attack_damage: int,
+	impact_radius: float
+) -> void:
+	if projectile_scene == null:
+		return
+	var projectile := projectile_scene.instantiate() as TowerProjectile
+	get_tree().current_scene.add_child(projectile)
+	projectile.global_position = launch_position
+	projectile.setup(
+		current_target,
+		destination,
+		projectile_speed,
+		maximum_projectile_distance,
+		attack_damage,
+		damage_type,
+		impact_mode,
+		impact_radius,
+		pierce_count,
+		slow_speed_multiplier,
+		slow_duration,
+		stun_duration,
+		stun_affects_bosses,
+		bounce_count,
+		bounce_range_pixels
+	)
+
+
+func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
 	var origin := muzzle.global_position
 	var primary_position := current_target.global_position
 	var aim_offset := primary_position - origin
-	current_target.apply_damage(damage, damage_type, pierce_count > 0)
+	apply_control_effects(current_target)
+	current_target.apply_damage(attack_damage, damage_type, pierce_count > 0)
 	if pierce_count < 1:
 		return
 	if aim_offset.is_zero_approx():
@@ -634,7 +980,19 @@ func apply_hitscan_damage(current_target: Node2D) -> void:
 		current_target
 	)
 	for index in mini(targets.size(), pierce_count):
-		targets[index].apply_damage(damage, damage_type, true)
+		apply_control_effects(targets[index])
+		var pierced_damage := GameStats.get_piercing_damage(
+			attack_damage,
+			index + 1
+		)
+		targets[index].apply_damage(pierced_damage, damage_type, true)
+
+
+func apply_control_effects(current_target: Node) -> void:
+	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
+		current_target.apply_slow(slow_speed_multiplier, slow_duration)
+	if stun_duration > 0.0 and current_target.has_method("apply_stun"):
+		current_target.apply_stun(stun_duration, stun_affects_bosses)
 
 
 func get_targets_along_line(
@@ -683,6 +1041,9 @@ func get_targets_along_line(
 
 func _process(delta: float) -> void:
 	update_menu_layout()
+	process_gauss_spread(delta)
+	if uses_continuous_beam():
+		queue_redraw()
 	if not is_placed:
 		if uses_directional_aim():
 			rotator.rotation = aim_direction.angle()
@@ -803,25 +1164,46 @@ func _select_directional_target() -> void:
 
 
 func get_directional_max_distance() -> float:
+	return get_max_distance_in_direction(aim_direction, global_position)
+
+
+func get_max_distance_in_direction(direction: Vector2, origin: Vector2) -> float:
 	var viewport_size := get_viewport_rect().size
 	var right_edge := viewport_size.x
 	if main != null and main.has_method("get_playable_right_edge"):
 		right_edge = main.get_playable_right_edge()
-	var origin := global_position
 	var distances: Array[float] = []
-	if aim_direction.x > 0.0:
-		distances.append((right_edge - origin.x) / aim_direction.x)
-	elif aim_direction.x < 0.0:
-		distances.append((0.0 - origin.x) / aim_direction.x)
-	if aim_direction.y > 0.0:
-		distances.append((viewport_size.y - origin.y) / aim_direction.y)
-	elif aim_direction.y < 0.0:
-		distances.append((0.0 - origin.y) / aim_direction.y)
+	if direction.x > 0.0:
+		distances.append((right_edge - origin.x) / direction.x)
+	elif direction.x < 0.0:
+		distances.append((0.0 - origin.x) / direction.x)
+	if direction.y > 0.0:
+		distances.append((viewport_size.y - origin.y) / direction.y)
+	elif direction.y < 0.0:
+		distances.append((0.0 - origin.y) / direction.y)
 	var result := viewport_size.length()
 	for distance in distances:
 		if distance >= 0.0:
 			result = minf(result, distance)
 	return maxf(result + 32.0, 32.0)
+
+
+func process_gauss_spread(delta: float) -> void:
+	if not uses_directional_aim() or not is_placed:
+		return
+	gauss_time_since_last_shot += delta
+	if gauss_time_since_last_shot <= gauss_spread_recovery_delay:
+		return
+	gauss_current_spread_degrees = minf(
+		gauss_current_spread_degrees
+		+ gauss_spread_recovery_per_second * delta,
+		gauss_maximum_spread_degrees
+	)
+
+
+func reset_gauss_spread() -> void:
+	gauss_current_spread_degrees = gauss_maximum_spread_degrees
+	gauss_time_since_last_shot = 0.0
 
 func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 	if (

@@ -17,6 +17,14 @@ var delivery_type: StringName = GameStats.DELIVERY_HITSCAN
 var impact_mode: StringName = GameStats.IMPACT_PRIMARY
 var pierce_count := 0
 var damage := 1
+var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
+var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
+var slow_speed_multiplier := 1.0
+var slow_duration := 0.0
+var stun_duration := 0.0
+var stun_affects_bosses := false
+var bounce_count := 0
+var bounce_range_pixels := 0.0
 var attack_interval := 1.0
 var aim_radius_pixels := 100.0
 var move_speed := 0.0
@@ -71,6 +79,36 @@ func load_definition() -> void:
 
 func apply_stats(unit_stats: Dictionary) -> void:
 	damage = maxi(int(unit_stats.get("damage", damage)), 1)
+	critical_chance = clampf(
+		float(unit_stats.get(
+			"critical_chance",
+			GameStats.DEFAULT_CRITICAL_CHANCE
+		)),
+		0.0,
+		1.0
+	)
+	critical_multiplier = maxf(
+		float(unit_stats.get(
+			"critical_multiplier",
+			GameStats.DEFAULT_CRITICAL_MULTIPLIER
+		)),
+		1.0
+	)
+	slow_speed_multiplier = clampf(
+		float(unit_stats.get("slow_speed_multiplier", 1.0)),
+		0.0,
+		1.0
+	)
+	slow_duration = maxf(float(unit_stats.get("slow_duration", 0.0)), 0.0)
+	stun_duration = maxf(float(unit_stats.get("stun_duration", 0.0)), 0.0)
+	stun_affects_bosses = bool(
+		unit_stats.get("stun_affects_bosses", false)
+	)
+	bounce_count = maxi(int(unit_stats.get("bounce_count", 0)), 0)
+	bounce_range_pixels = (
+		maxf(float(unit_stats.get("bounce_range", 0.0)), 0.0)
+		* RANGE_PIXELS_PER_UNIT
+	)
 	attack_interval = maxf(
 		float(unit_stats.get("attack_interval", attack_interval)),
 		0.01
@@ -206,6 +244,7 @@ func try_attack_target() -> void:
 
 func perform_attack(current_target: Node2D) -> void:
 	var damage_type := get_damage_type()
+	var attack_damage := roll_attack_damage()
 	if delivery_type == GameStats.DELIVERY_PROJECTILE:
 		var projectile := PROJECTILE_SCENE.instantiate() as TowerProjectile
 		get_tree().current_scene.add_child(projectile)
@@ -215,19 +254,114 @@ func perform_attack(current_target: Node2D) -> void:
 			current_target.global_position,
 			projectile_speed,
 			aim_radius_pixels,
-			damage,
+			attack_damage,
 			damage_type,
 			impact_mode,
 			splash_radius_pixels,
-			pierce_count
+			pierce_count,
+			slow_speed_multiplier,
+			slow_duration,
+			stun_duration,
+			stun_affects_bosses,
+			bounce_count,
+			bounce_range_pixels
 		)
 	else:
-		current_target.apply_damage(damage, damage_type, pierce_count > 0)
+		perform_hitscan_attack(current_target, attack_damage, damage_type)
 
 	if movement_type == GameStats.MOVEMENT_DRONE and damage_budget > 0:
-		damage_spent += damage
+		damage_spent += attack_damage
 		if damage_spent >= damage_budget:
 			returning_to_base = true
+
+
+func perform_hitscan_attack(
+	current_target: Node2D,
+	attack_damage: int,
+	damage_type: StringName
+) -> void:
+	apply_control_effects(current_target)
+	current_target.apply_damage(
+		attack_damage,
+		damage_type,
+		pierce_count > 0
+	)
+	if pierce_count < 1:
+		return
+	var aim_offset := current_target.global_position - global_position
+	if aim_offset.is_zero_approx():
+		return
+	var direction := aim_offset.normalized()
+	var line_origin := current_target.global_position + direction * 0.01
+	var line_end := global_position + direction * aim_radius_pixels
+	var targets := get_hitscan_pierce_targets(
+		line_origin,
+		line_end,
+		current_target
+	)
+	for index in mini(targets.size(), pierce_count):
+		apply_control_effects(targets[index])
+		var pierced_damage := GameStats.get_piercing_damage(
+			attack_damage,
+			index + 1
+		)
+		targets[index].apply_damage(pierced_damage, damage_type, true)
+
+
+func get_hitscan_pierce_targets(
+	line_origin: Vector2,
+	line_end: Vector2,
+	excluded_target: Node
+) -> Array[Node2D]:
+	var candidates: Array[Dictionary] = []
+	var segment := line_end - line_origin
+	var segment_length := segment.length()
+	if segment_length <= 0.0:
+		return []
+	var direction := segment / segment_length
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if mob == excluded_target or not is_valid_target(mob):
+			continue
+		var distance_along_line: float = (
+			mob.global_position - line_origin
+		).dot(direction)
+		if distance_along_line < 0.0 or distance_along_line > segment_length:
+			continue
+		var closest_point := Geometry2D.get_closest_point_to_segment(
+			mob.global_position,
+			line_origin,
+			line_end
+		)
+		var hit_radius := 12.0
+		if mob.has_method("get_projectile_hit_radius"):
+			hit_radius = mob.get_projectile_hit_radius()
+		if mob.global_position.distance_to(closest_point) > hit_radius:
+			continue
+		candidates.append({
+			"mob": mob,
+			"distance": distance_along_line,
+		})
+	candidates.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			return float(a["distance"]) < float(b["distance"])
+	)
+	var result: Array[Node2D] = []
+	for candidate in candidates:
+		result.append(candidate["mob"])
+	return result
+
+
+func roll_attack_damage() -> int:
+	if has_bonus_tag(&"critical") and randf() < critical_chance:
+		return maxi(roundi(float(damage) * critical_multiplier), 1)
+	return damage
+
+
+func apply_control_effects(current_target: Node) -> void:
+	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
+		current_target.apply_slow(slow_speed_multiplier, slow_duration)
+	if stun_duration > 0.0 and current_target.has_method("apply_stun"):
+		current_target.apply_stun(stun_duration, stun_affects_bosses)
 
 
 func select_target(origin: Vector2, maximum_distance: float) -> Node2D:

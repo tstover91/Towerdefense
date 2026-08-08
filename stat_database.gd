@@ -13,6 +13,12 @@ const DELIVERY_HITSCAN: StringName = &"hitscan"
 const IMPACT_PRIMARY: StringName = &"primary"
 const IMPACT_FIRST_CONTACT: StringName = &"first_contact"
 const IMPACT_DESTINATION: StringName = &"destination"
+const DEFAULT_CRITICAL_CHANCE := 0.10
+const DEFAULT_CRITICAL_MULTIPLIER := 2.0
+const PIERCE_DAMAGE_LOSS_PER_ENEMY := 0.30
+const PIERCE_MINIMUM_DAMAGE_MULTIPLIER := 0.40
+const EXPLOSION_INNER_RADIUS_RATIO := 0.50
+const EXPLOSION_OUTER_DAMAGE_MULTIPLIER := 0.50
 
 const MOVEMENT_STATIONARY: StringName = &"stationary"
 const MOVEMENT_DRONE: StringName = &"drone"
@@ -333,36 +339,36 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 3,
-				"firerate": 0.60,
+				"damage": 1,
+				"firerate": 0.16,
 				"range": 11.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 75,
-				"damage": 4,
-				"firerate": 0.55,
+				"damage": 1,
+				"firerate": 0.15,
 				"range": 11.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 180,
-				"damage": 6,
-				"firerate": 0.50,
+				"damage": 2,
+				"firerate": 0.14,
 				"range": 12.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 400,
-				"damage": 9,
-				"firerate": 0.44,
+				"damage": 3,
+				"firerate": 0.12,
 				"range": 13.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 850,
-				"damage": 14,
-				"firerate": 0.36,
+				"damage": 5,
+				"firerate": 0.10,
 				"range": 14.0,
 				"hidden_detection": false,
 			},
@@ -382,42 +388,62 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 5,
+				"damage": 1,
 				"projectile_speed": 900.0,
-				"firerate": 0.80,
+				"firerate": 0.075,
 				"range": 14.0,
+				"maximum_spread_degrees": 30.0,
+				"spread_tighten_duration": 5.0,
+				"spread_recovery_delay": 0.65,
+				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 300,
-				"damage": 7,
+				"damage": 1,
 				"projectile_speed": 950.0,
-				"firerate": 0.72,
+				"firerate": 0.065,
 				"range": 14.0,
+				"maximum_spread_degrees": 30.0,
+				"spread_tighten_duration": 4.25,
+				"spread_recovery_delay": 0.65,
+				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 750,
-				"damage": 10,
+				"damage": 2,
 				"projectile_speed": 1000.0,
-				"firerate": 0.65,
+				"firerate": 0.055,
 				"range": 15.0,
+				"maximum_spread_degrees": 30.0,
+				"spread_tighten_duration": 3.5,
+				"spread_recovery_delay": 0.65,
+				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1600,
-				"damage": 15,
+				"damage": 2,
 				"projectile_speed": 1100.0,
-				"firerate": 0.58,
+				"firerate": 0.0475,
 				"range": 16.0,
+				"maximum_spread_degrees": 30.0,
+				"spread_tighten_duration": 2.75,
+				"spread_recovery_delay": 0.65,
+				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 3200,
-				"damage": 22,
+				"damage": 3,
 				"projectile_speed": 1200.0,
-				"firerate": 0.48,
+				"firerate": 0.040,
 				"range": 17.0,
+				"maximum_spread_degrees": 30.0,
+				"spread_tighten_duration": 2.0,
+				"spread_recovery_delay": 0.65,
+				"spread_recovery_per_second": 10.0,
 				"hidden_detection": false,
 			},
 		],
@@ -486,6 +512,8 @@ const TOWERS := {
 				"damage": 8,
 				"firerate": 1.10,
 				"range": 5.5,
+				"combo_hit_count": 3,
+				"combo_stagger": 0.16,
 				"hidden_detection": false,
 			},
 			{
@@ -493,6 +521,8 @@ const TOWERS := {
 				"damage": 11,
 				"firerate": 1.0,
 				"range": 5.75,
+				"combo_hit_count": 3,
+				"combo_stagger": 0.16,
 				"hidden_detection": false,
 			},
 			{
@@ -500,6 +530,8 @@ const TOWERS := {
 				"damage": 16,
 				"firerate": 0.90,
 				"range": 6.0,
+				"combo_hit_count": 3,
+				"combo_stagger": 0.16,
 				"hidden_detection": false,
 			},
 			{
@@ -507,6 +539,8 @@ const TOWERS := {
 				"damage": 24,
 				"firerate": 0.80,
 				"range": 6.5,
+				"combo_hit_count": 3,
+				"combo_stagger": 0.16,
 				"hidden_detection": false,
 			},
 			{
@@ -514,6 +548,8 @@ const TOWERS := {
 				"damage": 36,
 				"firerate": 0.68,
 				"range": 7.0,
+				"combo_hit_count": 3,
+				"combo_stagger": 0.16,
 				"hidden_detection": false,
 			},
 		],
@@ -531,42 +567,52 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 10,
+				"damage": 2,
 				"projectile_speed": 550.0,
 				"firerate": 1.40,
 				"range": 9.0,
+				"projectile_count": 5,
+				"volley_width": 4.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 220,
-				"damage": 14,
+				"damage": 3,
 				"projectile_speed": 600.0,
 				"firerate": 1.30,
 				"range": 9.5,
+				"projectile_count": 5,
+				"volley_width": 4.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 520,
-				"damage": 20,
+				"damage": 4,
 				"projectile_speed": 660.0,
 				"firerate": 1.20,
 				"range": 10.0,
+				"projectile_count": 5,
+				"volley_width": 4.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1150,
-				"damage": 29,
+				"damage": 6,
 				"projectile_speed": 730.0,
 				"firerate": 1.10,
 				"range": 10.75,
+				"projectile_count": 5,
+				"volley_width": 4.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 2300,
-				"damage": 42,
+				"damage": 9,
 				"projectile_speed": 820.0,
 				"firerate": 0.95,
 				"range": 11.5,
+				"projectile_count": 5,
+				"volley_width": 4.0,
 				"hidden_detection": false,
 			},
 		],
@@ -636,6 +682,8 @@ const TOWERS := {
 				"projectile_speed": 480.0,
 				"firerate": 1.0,
 				"range": 12.5,
+				"bounce_count": 2,
+				"bounce_range": 7.0,
 				"hidden_detection": false,
 			},
 			{
@@ -644,6 +692,8 @@ const TOWERS := {
 				"projectile_speed": 520.0,
 				"firerate": 0.92,
 				"range": 13.0,
+				"bounce_count": 2,
+				"bounce_range": 7.0,
 				"hidden_detection": false,
 			},
 			{
@@ -652,6 +702,8 @@ const TOWERS := {
 				"projectile_speed": 570.0,
 				"firerate": 0.84,
 				"range": 13.5,
+				"bounce_count": 2,
+				"bounce_range": 7.0,
 				"hidden_detection": false,
 			},
 			{
@@ -660,6 +712,8 @@ const TOWERS := {
 				"projectile_speed": 630.0,
 				"firerate": 0.74,
 				"range": 14.25,
+				"bounce_count": 2,
+				"bounce_range": 7.0,
 				"hidden_detection": false,
 			},
 			{
@@ -668,6 +722,8 @@ const TOWERS := {
 				"projectile_speed": 700.0,
 				"firerate": 0.62,
 				"range": 15.0,
+				"bounce_count": 2,
+				"bounce_range": 7.0,
 				"hidden_detection": false,
 			},
 		],
@@ -685,47 +741,62 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 15,
+				"damage": 8,
 				"projectile_speed": 440.0,
 				"firerate": 2.0,
 				"range": 8.0,
 				"splash_radius": 2.5,
+				"projectile_count": 2,
+				"volley_width": 2.0,
+				"volley_stagger": 0.14,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 250,
-				"damage": 22,
+				"damage": 11,
 				"projectile_speed": 470.0,
 				"firerate": 1.90,
 				"range": 8.25,
 				"splash_radius": 2.75,
+				"projectile_count": 2,
+				"volley_width": 2.0,
+				"volley_stagger": 0.14,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 625,
-				"damage": 33,
+				"damage": 17,
 				"projectile_speed": 510.0,
 				"firerate": 1.80,
 				"range": 8.75,
 				"splash_radius": 3.0,
+				"projectile_count": 2,
+				"volley_width": 2.0,
+				"volley_stagger": 0.14,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1400,
-				"damage": 50,
+				"damage": 25,
 				"projectile_speed": 560.0,
 				"firerate": 1.65,
 				"range": 9.25,
 				"splash_radius": 3.5,
+				"projectile_count": 2,
+				"volley_width": 2.0,
+				"volley_stagger": 0.14,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 2800,
-				"damage": 75,
+				"damage": 38,
 				"projectile_speed": 620.0,
 				"firerate": 1.50,
 				"range": 10.0,
 				"splash_radius": 4.0,
+				"projectile_count": 2,
+				"volley_width": 2.0,
+				"volley_stagger": 0.14,
 				"hidden_detection": false,
 			},
 		],
@@ -748,6 +819,7 @@ const TOWERS := {
 				"firerate": 4.0,
 				"range": 24.0,
 				"splash_radius": 3.5,
+				"stun_duration": 1.25,
 				"hidden_detection": false,
 			},
 			{
@@ -757,6 +829,7 @@ const TOWERS := {
 				"firerate": 3.8,
 				"range": 25.0,
 				"splash_radius": 4.0,
+				"stun_duration": 1.40,
 				"hidden_detection": false,
 			},
 			{
@@ -766,6 +839,7 @@ const TOWERS := {
 				"firerate": 3.5,
 				"range": 26.0,
 				"splash_radius": 4.5,
+				"stun_duration": 1.55,
 				"hidden_detection": false,
 			},
 			{
@@ -775,6 +849,7 @@ const TOWERS := {
 				"firerate": 3.1,
 				"range": 28.0,
 				"splash_radius": 5.25,
+				"stun_duration": 1.75,
 				"hidden_detection": false,
 			},
 			{
@@ -784,6 +859,7 @@ const TOWERS := {
 				"firerate": 2.7,
 				"range": 30.0,
 				"splash_radius": 6.0,
+				"stun_duration": 2.0,
 				"hidden_detection": false,
 			},
 		],
@@ -804,6 +880,8 @@ const TOWERS := {
 				"damage": 3,
 				"firerate": 0.38,
 				"range": 7.5,
+				"slow_speed_multiplier": 0.65,
+				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},
 			{
@@ -811,6 +889,8 @@ const TOWERS := {
 				"damage": 4,
 				"firerate": 0.36,
 				"range": 7.75,
+				"slow_speed_multiplier": 0.65,
+				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},
 			{
@@ -818,6 +898,8 @@ const TOWERS := {
 				"damage": 5,
 				"firerate": 0.33,
 				"range": 8.25,
+				"slow_speed_multiplier": 0.65,
+				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},
 			{
@@ -825,6 +907,8 @@ const TOWERS := {
 				"damage": 7,
 				"firerate": 0.30,
 				"range": 8.75,
+				"slow_speed_multiplier": 0.65,
+				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},
 			{
@@ -832,6 +916,8 @@ const TOWERS := {
 				"damage": 10,
 				"firerate": 0.26,
 				"range": 9.5,
+				"slow_speed_multiplier": 0.65,
+				"slow_duration": 0.50,
 				"hidden_detection": false,
 			},
 		],
@@ -1081,6 +1167,27 @@ static func get_tower(tower_id: StringName) -> Dictionary:
 static func get_spawned_unit(unit_id: StringName) -> Dictionary:
 	assert(SPAWNED_UNITS.has(unit_id), "Unknown spawned unit ID: %s" % unit_id)
 	return SPAWNED_UNITS[unit_id].duplicate(true)
+
+
+static func get_piercing_damage(base_damage: int, hit_number: int) -> int:
+	var damage_multiplier := maxf(
+		1.0 - PIERCE_DAMAGE_LOSS_PER_ENEMY * float(maxi(hit_number, 0)),
+		PIERCE_MINIMUM_DAMAGE_MULTIPLIER
+	)
+	return maxi(floori(float(base_damage) * damage_multiplier), 1)
+
+
+static func get_explosion_damage(
+	base_damage: int,
+	distance_from_center: float,
+	explosion_radius: float
+) -> int:
+	if distance_from_center <= explosion_radius * EXPLOSION_INNER_RADIUS_RATIO:
+		return base_damage
+	return maxi(
+		floori(float(base_damage) * EXPLOSION_OUTER_DAMAGE_MULTIPLIER),
+		1
+	)
 
 
 static func get_tower_level(tower_id: StringName, level: int) -> Dictionary:
