@@ -40,11 +40,8 @@ const ROLE_PRESSURE := &"pressure"
 const ROLE_TANK := &"tank"
 const ROLE_SUPPORT := &"support"
 const SHOP_CHOICE_COUNT := 3
-const TOWER_STAT_EFFECTS: Array[StringName] = [
-	&"tower_damage_flat",
-	&"tower_attack_speed",
-	&"tower_range",
-]
+const TOWER_DRAFT_ROUNDS: Array[int] = [4, 9, 14]
+const RELIC_DRAFT_ROUNDS: Array[int] = [6, 11, 16]
 const WAVE_ROLE_WEIGHTS := [
 	{
 		"maximum_wave": 3,
@@ -169,7 +166,6 @@ signal money_changed(new_amount: int)
 @onready var lives_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/livesdisplay
 @onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
 @onready var round_timer_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundtimer
-@onready var start_button: Button = $MainUI/HUDRoot/startbutton
 @onready var tower_details_placeholder: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerDetailsPlaceholder
 @onready var tower_stats_layout: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout
 @onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerNameLabel
@@ -231,8 +227,8 @@ func _ready() -> void:
 	update_round_count()
 	spawntimer.timeout.connect(_spawn_mob)
 	between_round_shop.reward_chosen.connect(_on_shop_reward_chosen)
-	between_round_shop.next_round_requested.connect(_on_shop_next_round_requested)
-	start_button.text = "Start Run"
+	between_round_shop.draft_closed.connect(_on_draft_closed)
+	update_play_pause_button()
 
 
 func populate_tower_list() -> void:
@@ -354,20 +350,14 @@ func spend_money(amount: int) -> bool:
 		return true
 	return false
 
-func _on_startbutton_pressed() -> void:
-	if not game_ended and not round_active and not build_mode and not shop_open:
-		close_all_tower_menus()
-		start_button.hide()
-		start_round()
-
-
 func close_all_tower_menus() -> void:
 	for tower in get_tree().get_nodes_in_group("towers"):
 		tower.set_selected(false)
 
 func start_round() -> void:
-	if round_active or round_number >= max_rounds or shop_open:
+	if round_active or round_number >= max_rounds or shop_open or build_mode:
 		return
+	close_all_tower_menus()
 	round_number += 1
 	spawn_schedule.clear()
 	round_time_remaining = get_wave_duration(round_number)
@@ -388,20 +378,23 @@ func start_round() -> void:
 	mobs_left_to_spawn = spawn_schedule.size()
 	round_was_perfect = true
 	round_active = true
-	start_button.disabled = true
 	spawntimer.one_shot = true
 	update_round_count()
+	update_play_pause_button()
 	
 func update_round_count() -> void:
-	round_count_display.text = "Round: %d/%d" % [round_number, max_rounds]
+	var displayed_round := round_number
+	if not round_active and round_number < max_rounds:
+		displayed_round += 1
+	round_count_display.text = "Round: %d/%d" % [displayed_round, max_rounds]
 	if round_active and spawning_active:
 		round_timer_display.text = "Spawning: %ds" % ceili(round_time_remaining)
 	elif round_active:
 		round_timer_display.text = "Clear remaining enemies"
-	elif round_number == 0:
-		round_timer_display.text = "Ready"
+	elif shop_open:
+		round_timer_display.text = "Draft"
 	else:
-		round_timer_display.text = "Between rounds"
+		round_timer_display.text = "Build Phase"
 	
 func end_round() -> void:
 	if game_ended or not round_active:
@@ -417,8 +410,15 @@ func end_round() -> void:
 
 	if round_number >= max_rounds:
 		victory()
-	else:
+	elif RELIC_DRAFT_ROUNDS.has(round_number):
 		open_between_round_shop()
+	else:
+		enter_build_phase()
+
+
+func enter_build_phase() -> void:
+	update_round_count()
+	update_play_pause_button()
 
 
 func calculate_end_round_reward() -> int:
@@ -441,7 +441,8 @@ func open_between_round_shop() -> void:
 	cancel_pending_tower_placement()
 	close_all_tower_menus()
 	shop_open = true
-	start_button.disabled = true
+	update_round_count()
+	update_play_pause_button()
 	between_round_shop.open_shop(
 		round_number,
 		max_rounds,
@@ -452,7 +453,7 @@ func open_between_round_shop() -> void:
 
 func roll_shop_offers() -> Array[StringName]:
 	var available: Array[StringName] = []
-	for item_key in GameStats.SHOP_ITEMS:
+	for item_key in GameStats.RELICS:
 		available.append(StringName(item_key))
 	assert(
 		available.size() >= SHOP_CHOICE_COUNT,
@@ -469,32 +470,21 @@ func roll_shop_offers() -> Array[StringName]:
 func _on_shop_reward_chosen(item_id: StringName) -> void:
 	if not shop_open:
 		return
-	apply_shop_item(item_id)
+	collect_relic(item_id)
 	between_round_shop.confirm_reward_choice(item_id, owned_shop_items)
 
 
-func _on_shop_next_round_requested() -> void:
+func _on_draft_closed() -> void:
 	if not shop_open:
 		return
 	shop_open = false
 	between_round_shop.hide()
-	start_round()
+	enter_build_phase()
 
 
-func apply_shop_item(item_id: StringName) -> void:
-	var item := GameStats.get_shop_item(item_id)
-	var effect: StringName = item["effect"]
-	var value: float = item["value"]
+func collect_relic(item_id: StringName) -> void:
+	GameStats.get_relic(item_id)
 	owned_shop_items[item_id] = int(owned_shop_items.get(item_id, 0)) + 1
-	run_bonuses[effect] = float(run_bonuses.get(effect, 0.0)) + value
-
-	if effect == &"maximum_health":
-		max_lives += roundi(value)
-		lives = mini(lives + roundi(value), max_lives)
-		update_lives()
-
-	if effect in TOWER_STAT_EFFECTS:
-		refresh_placed_tower_stats()
 
 
 func refresh_placed_tower_stats() -> void:
@@ -519,7 +509,7 @@ func cancel_pending_tower_placement() -> void:
 	pending_tower_type = &""
 	pending_tower_cost = 0
 	tower_list.deselect_all()
-	start_button.disabled = round_active or game_ended or shop_open
+	update_play_pause_button()
 	
 func _spawn_mob():
 	if not spawning_active or spawn_schedule.is_empty():
@@ -1176,7 +1166,6 @@ func finish_game(message: String) -> void:
 		tower_to_place.queue_free()
 		tower_to_place = null
 	
-	start_button.disabled = true
 	pause_button.disabled = true
 	tower_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	round_timer_display.text = "Run complete"
@@ -1364,7 +1353,7 @@ func _on_tower_confirmed(tower: Node2D) -> void:
 	pending_tower_cost = 0
 	build_mode = false
 	tower_to_place = null
-	start_button.disabled = round_active or game_ended
+	update_play_pause_button()
 	show_tower_details(tower)
 
 func _on_tower_cancelled(tower: Node2D) -> void:
@@ -1373,7 +1362,7 @@ func _on_tower_cancelled(tower: Node2D) -> void:
 	pending_tower_cost = 0
 	build_mode = false
 	tower_to_place = null
-	start_button.disabled = round_active or game_ended
+	update_play_pause_button()
 
 
 func _on_tower_sold(tower: Node2D) -> void:
@@ -1386,7 +1375,7 @@ func start_build_tower() -> void:
 
 	place_mode = true
 	build_mode = true
-	start_button.disabled = true
+	update_play_pause_button()
 	tower_to_place = TOWER_SCENE.instantiate()
 	tower_to_place.main = self
 	tower_to_place.tower_id = pending_tower_type
@@ -1437,5 +1426,26 @@ func _on_quitbutton_pressed() -> void:
 
 
 func _on_pause_button_pressed() -> void:
-	if not game_ended:
+	if game_ended or shop_open:
+		return
+	if round_active:
 		pause_menu.open_menu(owned_shop_items)
+	else:
+		start_round()
+
+
+func update_play_pause_button() -> void:
+	if game_ended:
+		pause_button.disabled = true
+		return
+	if round_active:
+		pause_button.text = "II"
+		pause_button.tooltip_text = "Pause"
+		pause_button.disabled = false
+	else:
+		pause_button.text = "▶"
+		pause_button.tooltip_text = "Start Round %d" % mini(
+			round_number + 1,
+			max_rounds
+		)
+		pause_button.disabled = shop_open or build_mode

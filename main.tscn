@@ -161,14 +161,6 @@ theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 18
 text = "Ready"
 
-[node name="startbutton" type="Button" parent="MainUI/HUDRoot" unique_id=1497233030]
-layout_mode = 0
-offset_left = 12.0
-offset_top = 174.0
-offset_right = 156.0
-offset_bottom = 222.0
-text = "Start Run"
-
 [node name="Sidebar" type="PanelContainer" parent="MainUI/HUDRoot" unique_id=1348787309]
 layout_mode = 1
 anchors_preset = 11
@@ -204,8 +196,8 @@ horizontal_alignment = 1
 [node name="PauseButton" type="Button" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader" unique_id=1251669766]
 custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
-tooltip_text = "Pause"
-text = "II"
+tooltip_text = "Start Round 1"
+text = "▶"
 
 [node name="TowerSelectionArea" type="VBoxContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout" unique_id=1269389940]
 layout_mode = 2
@@ -328,7 +320,6 @@ text = "Restart"
 layout_mode = 2
 text = "Quit"
 
-[connection signal="pressed" from="MainUI/HUDRoot/startbutton" to="." method="_on_startbutton_pressed"]
 [connection signal="pressed" from="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton" to="." method="_on_pause_button_pressed"]
 [connection signal="item_selected" from="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerSelectionArea/ItemList" to="." method="_on_item_list_item_selected"]
 [connection signal="pressed" from="MainUI/endscreen/VBoxContainer/restartbutton" to="." method="_on_restartbutton_pressed"]

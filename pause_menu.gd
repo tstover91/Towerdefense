@@ -32,17 +32,18 @@ func populate_owned_items(owned_items: Dictionary) -> void:
 	item_ids.sort()
 
 	for item_id in item_ids:
-		var item_stats: Dictionary = GameStats.get_shop_item(item_id)
+		var item_stats: Dictionary = GameStats.get_relic(item_id)
 		var owned_count := int(owned_items[item_id])
 		var item_tile := Button.new()
 		item_tile.custom_minimum_size = Vector2(145, 56)
 		item_tile.focus_mode = Control.FOCUS_NONE
 		item_tile.text = "%s\nx%d" % [item_stats["display_name"], owned_count]
 		item_tile.tooltip_text = (
-			"%s\n%s\n\n%s\nOwned: %d"
+			"%s\n%s %s\n\n%s\nOwned: %d"
 			% [
 				item_stats["display_name"],
-				String(item_stats.get("category", &"general")).capitalize(),
+				String(item_stats["rarity"]).capitalize(),
+				String(item_stats["category"]).capitalize(),
 				item_stats["description"],
 				owned_count,
 			]

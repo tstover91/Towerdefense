@@ -8,60 +8,66 @@ const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "invader"
 const BUILD_CELL_SIZE := 32.0
 
-const ATTACK_DELIVERY_PROJECTILE: StringName = &"projectile"
-const ATTACK_DELIVERY_HITSCAN: StringName = &"hitscan"
-const PROJECTILE_ATTACK_TAGS: Array[StringName] = [&"ballistic", &"explosive"]
-const HITSCAN_ATTACK_TAGS: Array[StringName] = [&"beam", &"electric", &"melee"]
+const DELIVERY_PROJECTILE: StringName = &"projectile"
+const DELIVERY_HITSCAN: StringName = &"hitscan"
+const IMPACT_PRIMARY: StringName = &"primary"
+const IMPACT_FIRST_CONTACT: StringName = &"first_contact"
+const IMPACT_DESTINATION: StringName = &"destination"
 
-const SHOP_ITEMS := {
-	"sharpened_ammunition": {
-		"id": &"sharpened_ammunition",
-		"display_name": "Sharpened Ammunition",
-		"description": "All towers deal +1 damage per attack.",
-		"category": &"general",
-		"effect": &"tower_damage_flat",
-		"value": 1.0,
-	},
-	"quick_load_mechanism": {
-		"id": &"quick_load_mechanism",
-		"display_name": "Quick-Load Mechanism",
-		"description": "All towers attack 10% faster.",
-		"category": &"general",
-		"effect": &"tower_attack_speed",
-		"value": 0.1,
-	},
-	"improved_optics": {
-		"id": &"improved_optics",
-		"display_name": "Improved Optics",
-		"description": "All towers gain 8% range.",
-		"category": &"general",
-		"effect": &"tower_range",
-		"value": 0.08,
-	},
-	"bounty_contract": {
-		"id": &"bounty_contract",
-		"display_name": "Bounty Contract",
-		"description": "Enemies award 15% more money when killed.",
-		"category": &"general",
-		"effect": &"kill_reward",
-		"value": 0.15,
-	},
-	"round_dividend": {
-		"id": &"round_dividend",
-		"display_name": "Round Dividend",
-		"description": "Future round completion rewards are 15% larger.",
-		"category": &"general",
-		"effect": &"round_reward",
-		"value": 0.15,
-	},
-	"fortified_base": {
-		"id": &"fortified_base",
-		"display_name": "Fortified Base",
-		"description": "Gain 10 maximum health and restore 10 health.",
-		"category": &"general",
-		"effect": &"maximum_health",
-		"value": 10.0,
-	},
+const RELICS := {
+	"long_term_investment": {"display_name": "Long-Term Investment", "description": "A tower gains sell value for every round it remains active.", "rarity": &"common", "category": &"global", "stackable": true},
+	"dividends": {"display_name": "Dividends", "description": "Receive interest at the end of each round.", "rarity": &"rare", "category": &"global", "stackable": false},
+	"holiday_sale": {"display_name": "Holiday Sale", "description": "Each round, one tower's build price is reduced by 35%; all others increase by 15%.", "rarity": &"rare", "category": &"global", "stackable": false},
+	"contraband_blueprint": {"display_name": "Contraband Blueprint", "description": "Immediately place one random tower outside your five-tower roster for free. Additional copies cannot be built.", "rarity": &"legendary", "category": &"global", "stackable": false},
+	"network_upgrade": {"display_name": "Network Upgrade", "description": "Technology towers gain attack speed for each adjacent Technology tower.", "rarity": &"common", "category": &"technology", "stackable": true},
+	"singularity_core": {"display_name": "Singularity Core", "description": "Technology towers can build both final paths.", "rarity": &"legendary", "category": &"technology", "stackable": false},
+	"pack_hunter": {"display_name": "Pack Hunter", "description": "Biological towers deal increased damage to an enemy targeted by another Biological tower.", "rarity": &"common", "category": &"biological", "stackable": true},
+	"predatory_instinct": {"display_name": "Predatory Instinct", "description": "Biological towers deal a powerful bonus hit against enemies below a health threshold.", "rarity": &"common", "category": &"biological", "stackable": true},
+	"perfect_mutation": {"display_name": "Perfect Mutation", "description": "Biological towers can build both final paths.", "rarity": &"legendary", "category": &"biological", "stackable": false},
+	"focused_lens": {"display_name": "Focused Lens", "description": "Beam damage increases up close, but range is reduced.", "rarity": &"common", "category": &"beam", "stackable": true},
+	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases, but damage is reduced.", "rarity": &"common", "category": &"beam", "stackable": true},
+	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal more damage to slowed and stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
+	"microwave": {"display_name": "Microwave", "description": "Enemies damaged by beams explode on death.", "rarity": &"rare", "category": &"beam", "stackable": false},
+	"death_ray": {"display_name": "Death Ray", "description": "Beams gain infinite pierce, but turn speed is greatly reduced.", "rarity": &"legendary", "category": &"beam", "stackable": false},
+	"hollow_point": {"display_name": "Hollow Point", "description": "Ballistic attacks deal more damage to full-health enemies.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"heavy_rounds": {"display_name": "Heavy Rounds", "description": "Ballistic attacks fire slower but deal more damage.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"lightweight_ammo": {"display_name": "Lightweight Ammo", "description": "Ballistic attacks fire faster but deal less damage.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"long_barrel": {"display_name": "Long Barrel", "description": "Ballistic damage increases with distance.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"point_blank": {"display_name": "Point Blank", "description": "Ballistic damage increases at close range.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"armor_piercing": {"display_name": "Armor Piercing", "description": "Ballistic attacks gain Pierce 1.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
+	"suppressive_fire": {"display_name": "Suppressive Fire", "description": "Ballistic attacks slow enemies.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
+	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce one time.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
+	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
+	"frenzy": {"display_name": "Frenzy", "description": "Melee towers attack faster for each enemy in range.", "rarity": &"common", "category": &"melee", "stackable": true},
+	"duelist": {"display_name": "Duelist", "description": "Melee towers deal increased damage when fewer enemies are in range.", "rarity": &"common", "category": &"melee", "stackable": true},
+	"relentless": {"display_name": "Relentless", "description": "Attack speed increases for each hit on the same enemy and resets when the target changes.", "rarity": &"rare", "category": &"melee", "stackable": false},
+	"giant_killer": {"display_name": "Giant Killer", "description": "Deal extra damage to elites and bosses, but less damage to normal enemies.", "rarity": &"rare", "category": &"melee", "stackable": false},
+	"strength_in_numbers": {"display_name": "Strength in Numbers", "description": "Gain increased damage for each adjacent Melee tower.", "rarity": &"rare", "category": &"melee", "stackable": false},
+	"lone_wolf": {"display_name": "Lone Wolf", "description": "Gain greatly increased stats when no other towers are nearby.", "rarity": &"legendary", "category": &"melee", "stackable": false},
+	"high_yield": {"display_name": "High Yield", "description": "Explosions gain a larger area but deal less damage.", "rarity": &"common", "category": &"explosive", "stackable": true},
+	"concentrated_charge": {"display_name": "Concentrated Charge", "description": "Explosions have a smaller area but deal more damage.", "rarity": &"common", "category": &"explosive", "stackable": true},
+	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosion damage increases based on how many enemies are inside the blast radius.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"direct_hit": {"display_name": "Direct Hit", "description": "Explosion damage increases when fewer enemies are inside the blast radius.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"thermite_bombs": {"display_name": "Thermite Bombs", "description": "Explosions deal bonus damage to armored enemies.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"maximum_payload": {"display_name": "Maximum Payload", "description": "Greatly increases explosive power and radius, but greatly increases cooldown.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions remove the Hidden trait.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"conductive": {"display_name": "Conductive", "description": "Armor increases Electric damage instead of reducing it.", "rarity": &"common", "category": &"electric", "stackable": false},
+	"lucky_shot": {"display_name": "Lucky Shot", "description": "Increases critical-hit chance.", "rarity": &"common", "category": &"critical", "stackable": true},
+	"opening_shot": {"display_name": "Opening Shot", "description": "Gain a higher critical-hit chance against full-health enemies.", "rarity": &"common", "category": &"critical", "stackable": true},
+	"glass_cannon": {"display_name": "Glass Cannon", "description": "Increases critical damage but reduces regular damage.", "rarity": &"rare", "category": &"critical", "stackable": false},
+	"pressure_point": {"display_name": "Pressure Point", "description": "Critical hits ignore armor.", "rarity": &"rare", "category": &"critical", "stackable": false},
+	"all_or_nothing": {"display_name": "All or Nothing", "description": "Greatly increases critical damage but reduces critical-hit chance.", "rarity": &"rare", "category": &"critical", "stackable": false},
+	"deadeye": {"display_name": "Deadeye", "description": "Increases the critical-hit multiplier.", "rarity": &"rare", "category": &"critical", "stackable": false},
+	"lingering_thoughts": {"display_name": "Lingering Thoughts", "description": "Psionic abilities last longer.", "rarity": &"common", "category": &"psionic", "stackable": true},
+	"quick_thinking": {"display_name": "Quick Thinking", "description": "Psionic abilities have shorter duration and shorter cooldown.", "rarity": &"common", "category": &"psionic", "stackable": true},
+	"spotter": {"display_name": "Spotter", "description": "Enemies revealed by one tower can be targeted by all towers while revealed.", "rarity": &"common", "category": &"reveal", "stackable": false},
+	"perfect_intelligence": {"display_name": "Perfect Intelligence", "description": "Once revealed by a tower, an enemy permanently loses the Hidden trait.", "rarity": &"rare", "category": &"reveal", "stackable": false},
+	"deep_penetration": {"display_name": "Deep Penetration", "description": "Adds +1 Pierce.", "rarity": &"common", "category": &"pierce", "stackable": true},
+	"follow_through": {"display_name": "Follow Through", "description": "Piercing attacks lose no power after each hit.", "rarity": &"rare", "category": &"pierce", "stackable": false},
+	"big_game_control": {"display_name": "Big Game Control", "description": "Stuns last longer against elites but less time against normal enemies.", "rarity": &"common", "category": &"stun", "stackable": true},
+	"emergency_brake": {"display_name": "Emergency Brake", "description": "Stuns last longer against fast enemies.", "rarity": &"common", "category": &"stun", "stackable": true},
+	"youre_not_special": {"display_name": "You're Not Special", "description": "Bosses can be stunned.", "rarity": &"legendary", "category": &"stun", "stackable": false},
+	"trade_agreement": {"display_name": "Trade Agreement", "description": "Spawn limit is tripled, spawn speed is reduced, and Spawner tower build costs are greatly increased.", "rarity": &"legendary", "category": &"spawner", "stackable": false},
 }
 
 const ENEMIES := {
@@ -282,7 +288,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
-		"attack_tags": [&"ballistic"],
+		"damage_tags": [&"ballistic"],
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"critical"],
 		
 		"levels": [
@@ -338,8 +346,11 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"technology"],
-		"attack_tags": [&"electric"],
+		"damage_tags": [&"electric"],
+		"delivery_type": DELIVERY_PROJECTILE,
+		"impact_mode": IMPACT_FIRST_CONTACT,
 		"bonus_tags": [&"pierce"],
+		"pierce_count": 1,
 		
 		"levels": [
 			{
@@ -394,7 +405,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
-		"attack_tags": [&"beam"],
+		"damage_tags": [&"beam"],
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"reveal"],
 		
 		"levels": [
@@ -450,7 +463,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
-		"attack_tags": [&"melee"],
+		"damage_tags": [&"melee"],
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [],
 		
 		"levels": [
@@ -506,7 +521,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological", &"technology"],
-		"attack_tags": [&"ballistic"],
+		"damage_tags": [&"ballistic"],
+		"delivery_type": DELIVERY_PROJECTILE,
+		"impact_mode": IMPACT_FIRST_CONTACT,
 		"bonus_tags": [],
 		
 		"levels": [
@@ -562,7 +579,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
-		"attack_tags": [&"ballistic"],
+		"damage_tags": [&"ballistic"],
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"critical"],
 		
 		"levels": [
@@ -618,7 +637,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
-		"attack_tags": [&"melee"],
+		"damage_tags": [&"melee"],
+		"delivery_type": DELIVERY_PROJECTILE,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [],
 		
 		"levels": [
@@ -674,7 +695,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
-		"attack_tags": [&"explosive"],
+		"damage_tags": [&"explosive"],
+		"delivery_type": DELIVERY_PROJECTILE,
+		"impact_mode": IMPACT_FIRST_CONTACT,
 		"bonus_tags": [],
 		
 		"levels": [
@@ -730,7 +753,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"technology"],
-		"attack_tags": [&"explosive"],
+		"damage_tags": [&"explosive"],
+		"delivery_type": DELIVERY_PROJECTILE,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"stun"],
 		
 		"levels": [
@@ -786,7 +811,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"technology"],
-		"attack_tags": [&"electric"],
+		"damage_tags": [&"electric"],
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [],
 		
 		"levels": [
@@ -842,7 +869,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"technology"],
-		"attack_tags": [&"explosive"],
+		"damage_tags": [&"explosive"],
+		"delivery_type": DELIVERY_PROJECTILE,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"reveal"],
 		
 		"levels": [
@@ -898,8 +927,11 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
-		"attack_tags": [&"ballistic"],
+		"damage_tags": [&"ballistic"],
+		"delivery_type": DELIVERY_PROJECTILE,
+		"impact_mode": IMPACT_FIRST_CONTACT,
 		"bonus_tags": [&"pierce", &"spawner"],
+		"pierce_count": 1,
 		
 		"levels": [
 			{
@@ -954,7 +986,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"technology"],
-		"attack_tags": [&"ballistic"],
+		"damage_tags": [&"ballistic"],
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"reveal", &"spawner"],
 		
 		"levels": [
@@ -1010,7 +1044,9 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"technology"],
-		"attack_tags": [&"melee"],
+		"damage_tags": [&"melee"],
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"spawner"],
 		
 		"levels": [
@@ -1107,20 +1143,13 @@ static func get_tower_level(tower_id: StringName, level: int) -> Dictionary:
 	return levels[level].duplicate(true)
 
 
-static func get_attack_delivery(attack_tag: StringName) -> StringName:
-	if PROJECTILE_ATTACK_TAGS.has(attack_tag):
-		return ATTACK_DELIVERY_PROJECTILE
-	if HITSCAN_ATTACK_TAGS.has(attack_tag):
-		return ATTACK_DELIVERY_HITSCAN
-	push_error("Unknown tower attack tag: %s" % attack_tag)
-	return ATTACK_DELIVERY_HITSCAN
-
-
 static func get_mode(mode_id: StringName) -> Dictionary:
 	assert(MODES.has(mode_id), "Unknown mode ID: %s" % mode_id)
 	return MODES[mode_id].duplicate(true)
 
 
-static func get_shop_item(item_id: StringName) -> Dictionary:
-	assert(SHOP_ITEMS.has(item_id), "Unknown shop item ID: %s" % item_id)
-	return SHOP_ITEMS[item_id].duplicate(true)
+static func get_relic(relic_id: StringName) -> Dictionary:
+	assert(RELICS.has(relic_id), "Unknown relic ID: %s" % relic_id)
+	var relic: Dictionary = RELICS[relic_id].duplicate(true)
+	relic["id"] = relic_id
+	return relic

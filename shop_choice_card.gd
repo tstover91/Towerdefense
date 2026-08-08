@@ -19,7 +19,10 @@ func _ready() -> void:
 func display_item(item_stats: Dictionary, owned_count: int) -> void:
 	item_id = item_stats["id"]
 	name_label.text = item_stats["display_name"]
-	category_label.text = String(item_stats.get("category", &"general")).capitalize()
+	category_label.text = "%s • %s" % [
+		String(item_stats["rarity"]).capitalize(),
+		String(item_stats["category"]).capitalize(),
+	]
 	description_label.text = item_stats["description"]
 	owned_label.text = "Owned: %d" % owned_count
 	choose_button.disabled = false

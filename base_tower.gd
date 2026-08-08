@@ -11,11 +11,11 @@ const MENU_EDGE_MARGIN := 8.0
 const TYPE_TECHNOLOGY: StringName = &"technology"
 const TYPE_BIOLOGICAL: StringName = &"biological"
 
-const ATTACK_BALLISTIC: StringName = &"ballistic"
-const ATTACK_BEAM: StringName = &"beam"
-const ATTACK_EXPLOSIVE: StringName = &"explosive"
-const ATTACK_MELEE: StringName = &"melee"
-const ATTACK_ELECTRIC: StringName = &"electric"
+const DAMAGE_BALLISTIC: StringName = &"ballistic"
+const DAMAGE_BEAM: StringName = &"beam"
+const DAMAGE_EXPLOSIVE: StringName = &"explosive"
+const DAMAGE_MELEE: StringName = &"melee"
+const DAMAGE_ELECTRIC: StringName = &"electric"
 
 const BONUS_CRITICAL: StringName = &"critical"
 const BONUS_PSIONIC: StringName = &"psionic"
@@ -44,8 +44,9 @@ signal tower_cancelled(tower: Node2D)
 signal tower_sold(tower: Node2D)
 
 var type_tags: Array[StringName] = []
-var attack_tags: Array[StringName] = []
+var damage_tags: Array[StringName] = []
 var bonus_tags: Array[StringName] = []
+var pierce_count := 0
 @export var target_mode: TargetMode = TargetMode.FIRST
 @export var tower_id: StringName = GameStats.DEFAULT_TOWER_ID
 @export var projectile_scene: PackedScene = DEFAULT_PROJECTILE_SCENE
@@ -57,6 +58,8 @@ var bonus_tags: Array[StringName] = []
 var tower_level := 0
 var damage: int
 var damage_type: StringName = &""
+var delivery_type: StringName = GameStats.DELIVERY_HITSCAN
+var impact_mode: StringName = GameStats.IMPACT_PRIMARY
 var projectile_speed := 600.0
 var splash_radius_pixels := 0.0
 var footprint_size_pixels := Vector2(BUILD_CELL_SIZE, BUILD_CELL_SIZE)
@@ -293,7 +296,7 @@ func load_level_stats() -> void:
 	click_shape.size = footprint_size_pixels
 	$clickarea/CollisionShape2D.shape = click_shape
 	damage = stats["damage"]
-	damage_type = get_primary_attack_tag()
+	damage_type = get_primary_damage_type()
 	projectile_speed = stats.get("projectile_speed", 600.0)
 	splash_radius_pixels = float(stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT
 	damage_timer.wait_time = stats["firerate"]
@@ -362,11 +365,10 @@ func attack(current_target: Node2D) -> void:
 	if not is_instance_valid(current_target):
 		return
 
-	var delivery := GameStats.get_attack_delivery(damage_type)
-	if delivery == GameStats.ATTACK_DELIVERY_PROJECTILE:
+	if delivery_type == GameStats.DELIVERY_PROJECTILE:
 		launch_projectile(current_target)
 	else:
-		current_target.apply_damage(damage, damage_type)
+		apply_hitscan_damage(current_target)
 
 
 func launch_projectile(current_target: Node2D) -> void:
@@ -377,14 +379,85 @@ func launch_projectile(current_target: Node2D) -> void:
 	var projectile := projectile_scene.instantiate() as TowerProjectile
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = muzzle.global_position
-	var impact_radius := splash_radius_pixels if damage_type == ATTACK_EXPLOSIVE else 0.0
+	var impact_radius := splash_radius_pixels if damage_type == DAMAGE_EXPLOSIVE else 0.0
 	projectile.setup(
 		current_target,
+		current_target.global_position,
 		projectile_speed,
+		range_radius_pixels,
 		damage,
 		damage_type,
-		impact_radius
+		impact_mode,
+		impact_radius,
+		pierce_count
 	)
+
+
+func apply_hitscan_damage(current_target: Node2D) -> void:
+	var origin := muzzle.global_position
+	var primary_position := current_target.global_position
+	var aim_offset := primary_position - origin
+	current_target.apply_damage(damage, damage_type, pierce_count > 0)
+	if pierce_count < 1:
+		return
+	if aim_offset.is_zero_approx():
+		return
+
+	var direction := aim_offset.normalized()
+	var pierce_origin := primary_position + direction * 0.01
+	var end := origin + direction * range_radius_pixels
+	var targets := get_targets_along_line(
+		pierce_origin,
+		end,
+		current_target
+	)
+	for index in mini(targets.size(), pierce_count):
+		targets[index].apply_damage(damage, damage_type, true)
+
+
+func get_targets_along_line(
+	origin: Vector2,
+	end: Vector2,
+	excluded_target: Node = null
+) -> Array[Node2D]:
+	var candidates: Array[Dictionary] = []
+	var segment := end - origin
+	var segment_length := segment.length()
+	if segment_length <= 0.0:
+		return []
+	var direction := segment / segment_length
+
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if mob == excluded_target or not is_valid_target(mob):
+			continue
+		var distance_along_line: float = (
+			mob.global_position - origin
+		).dot(direction)
+		if distance_along_line < 0.0 or distance_along_line > segment_length:
+			continue
+		var closest_point := Geometry2D.get_closest_point_to_segment(
+			mob.global_position,
+			origin,
+			end
+		)
+		var hit_radius := 12.0
+		if mob.has_method("get_projectile_hit_radius"):
+			hit_radius = mob.get_projectile_hit_radius()
+		if mob.global_position.distance_to(closest_point) > hit_radius:
+			continue
+		candidates.append({
+			"mob": mob,
+			"distance": distance_along_line,
+		})
+
+	candidates.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			return float(a["distance"]) < float(b["distance"])
+	)
+	var result: Array[Node2D] = []
+	for candidate in candidates:
+		result.append(candidate["mob"])
+	return result
 
 func _process(delta: float) -> void:
 	update_menu_layout()
@@ -568,8 +641,8 @@ func _on_selltower_pressed() -> void:
 func has_type_tag(tag: StringName) -> bool:
 	return type_tags.has(tag)
 
-func has_attack_tag(tag: StringName) -> bool:
-	return attack_tags.has(tag)
+func has_damage_tag(tag: StringName) -> bool:
+	return damage_tags.has(tag)
 
 func has_bonus_tag(tag: StringName) -> bool:
 	return bonus_tags.has(tag)
@@ -580,52 +653,87 @@ func add_type_tag(tag: StringName) -> void:
 		type_tags.append(tag)
 
 
-func add_attack_tag(tag: StringName) -> void:
-	if not attack_tags.has(tag):
-		attack_tags.append(tag)
+func add_damage_tag(tag: StringName) -> void:
+	if not damage_tags.has(tag):
+		damage_tags.append(tag)
 
 
 func add_bonus_tag(tag: StringName) -> void:
 	if not bonus_tags.has(tag):
 		bonus_tags.append(tag)
+	if tag == BONUS_PIERCE and pierce_count < 1:
+		pierce_count = 1
 
 
 func remove_type_tag(tag: StringName) -> void:
 	type_tags.erase(tag)
 
 
-func remove_attack_tag(tag: StringName) -> void:
-	attack_tags.erase(tag)
+func remove_damage_tag(tag: StringName) -> void:
+	damage_tags.erase(tag)
 
 
 func remove_bonus_tag(tag: StringName) -> void:
 	bonus_tags.erase(tag)
+	if tag == BONUS_PIERCE:
+		pierce_count = 0
+
+
+func set_pierce_count(value: int) -> void:
+	pierce_count = maxi(value, 0)
+	if pierce_count < 1:
+		bonus_tags.erase(BONUS_PIERCE)
+	elif not bonus_tags.has(BONUS_PIERCE):
+		bonus_tags.append(BONUS_PIERCE)
+
+
+func add_pierce(amount := 1) -> void:
+	set_pierce_count(pierce_count + amount)
 	
 func load_base_tags() -> void:
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
 
 	type_tags.clear()
-	attack_tags.clear()
+	damage_tags.clear()
 	bonus_tags.clear()
 
 	for tag in tower_data.get("type_tags", []):
 		type_tags.append(tag)
 
-	for tag in tower_data.get("attack_tags", []):
-		attack_tags.append(tag)
+	for tag in tower_data.get("damage_tags", []):
+		damage_tags.append(tag)
 
 	for tag in tower_data.get("bonus_tags", []):
 		bonus_tags.append(tag)
 
+	set_pierce_count(int(tower_data.get(
+		"pierce_count",
+		1 if bonus_tags.has(BONUS_PIERCE) else 0
+	)))
+	delivery_type = tower_data.get("delivery_type", GameStats.DELIVERY_HITSCAN)
+	impact_mode = tower_data.get("impact_mode", GameStats.IMPACT_PRIMARY)
+
 	assert(
-		attack_tags.size() == 1,
-		"Tower %s must have exactly one base attack tag." % tower_id
+		damage_tags.size() == 1,
+		"Tower %s must have exactly one base damage tag." % tower_id
+	)
+	assert(
+		delivery_type in [GameStats.DELIVERY_PROJECTILE, GameStats.DELIVERY_HITSCAN],
+		"Tower %s has an invalid delivery type." % tower_id
+	)
+	assert(
+		impact_mode in [
+			GameStats.IMPACT_PRIMARY,
+			GameStats.IMPACT_FIRST_CONTACT,
+			GameStats.IMPACT_DESTINATION,
+		],
+		"Tower %s has an invalid impact mode." % tower_id
 	)
 
 
-func get_primary_attack_tag() -> StringName:
+func get_primary_damage_type() -> StringName:
 	assert(
-		attack_tags.size() == 1,
-		"Tower %s must have exactly one active attack tag." % tower_id
+		damage_tags.size() == 1,
+		"Tower %s must have exactly one active damage tag." % tower_id
 	)
-	return attack_tags[0]
+	return damage_tags[0]

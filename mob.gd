@@ -174,11 +174,15 @@ func spawn_split_children() -> void:
 		var child_progress := path_follow.progress - spacing * float(index + 1)
 		spawn_requested.emit(split_enemy_id, maxf(child_progress, 0.0))
 
-func apply_damage(amount: int, damage_type: StringName) -> void:
+func apply_damage(
+	amount: int,
+	damage_type: StringName,
+	ignores_armor := false
+) -> void:
 	if finished:
 		return
 
-	var effective_defense := defense
+	var effective_defense := 0.0 if ignores_armor else defense
 	if damage_type == &"explosive":
 		effective_defense *= 0.5
 	var final_damage := maxi(1, floori(amount * (1.0 - effective_defense)))
@@ -188,3 +192,12 @@ func apply_damage(amount: int, damage_type: StringName) -> void:
 
 	if health <= 0:
 		die()
+
+
+func get_projectile_hit_radius() -> float:
+	var collision_shape: Shape2D = $CollisionShape2D.shape
+	if collision_shape is CircleShape2D:
+		return collision_shape.radius
+	if collision_shape is RectangleShape2D:
+		return collision_shape.size.length() * 0.5
+	return 12.0
