@@ -285,7 +285,7 @@ const ENEMIES := {
 const TOWERS := {
 	"invader": {
 		"display_name": "Invader",
-		"placement_cost": 450,
+		"placement_cost": 125,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"ballistic"],
@@ -296,54 +296,44 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 6,
-				"projectile_speed": 360.0,
-				"firerate": 2.5,
-				"range": 10.0,
-				"splash_radius": 3.0,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 250,
-				"damage": 8,
-				"projectile_speed": 380.0,
-				"firerate": 2.4,
-				"range": 10.0,
-				"splash_radius": 3.25,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 700,
-				"damage": 14,
-				"projectile_speed": 410.0,
-				"firerate": 2.3,
+				"damage": 2,
+				"firerate": 0.55,
 				"range": 11.0,
-				"splash_radius": 3.5,
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 1600,
-				"damage": 25,
-				"projectile_speed": 450.0,
-				"firerate": 2.1,
+				"upgrade_cost": 90,
+				"damage": 3,
+				"firerate": 0.50,
+				"range": 11.0,
+				"hidden_detection": false,
+			},
+			{
+				"upgrade_cost": 225,
+				"damage": 5,
+				"firerate": 0.45,
 				"range": 12.0,
-				"splash_radius": 4.0,
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 3000,
-				"damage": 42,
-				"projectile_speed": 500.0,
-				"firerate": 1.8,
+				"upgrade_cost": 550,
+				"damage": 8,
+				"firerate": 0.40,
 				"range": 13.0,
-				"splash_radius": 4.5,
+				"hidden_detection": false,
+			},
+			{
+				"upgrade_cost": 1100,
+				"damage": 12,
+				"firerate": 0.32,
+				"range": 14.0,
 				"hidden_detection": false,
 			},
 		],
 	},
 	"gauss_repeater": {
 		"display_name": "Gauss Repeater",
-		"placement_cost": 450,
+		"placement_cost": 400,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"electric"],
@@ -355,47 +345,42 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 6,
-				"projectile_speed": 360.0,
-				"firerate": 2.5,
-				"range": 10.0,
-				"splash_radius": 3.0,
+				"damage": 5,
+				"projectile_speed": 900.0,
+				"firerate": 0.80,
+				"range": 14.0,
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 250,
-				"damage": 8,
-				"projectile_speed": 380.0,
-				"firerate": 2.4,
-				"range": 10.0,
-				"splash_radius": 3.25,
+				"upgrade_cost": 300,
+				"damage": 7,
+				"projectile_speed": 950.0,
+				"firerate": 0.72,
+				"range": 14.0,
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 700,
-				"damage": 14,
-				"projectile_speed": 410.0,
-				"firerate": 2.3,
-				"range": 11.0,
-				"splash_radius": 3.5,
+				"upgrade_cost": 750,
+				"damage": 10,
+				"projectile_speed": 1000.0,
+				"firerate": 0.65,
+				"range": 15.0,
 				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1600,
-				"damage": 25,
-				"projectile_speed": 450.0,
-				"firerate": 2.1,
-				"range": 12.0,
-				"splash_radius": 4.0,
+				"damage": 15,
+				"projectile_speed": 1100.0,
+				"firerate": 0.58,
+				"range": 16.0,
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 3000,
-				"damage": 42,
-				"projectile_speed": 500.0,
-				"firerate": 1.8,
-				"range": 13.0,
-				"splash_radius": 4.5,
+				"upgrade_cost": 3200,
+				"damage": 22,
+				"projectile_speed": 1200.0,
+				"firerate": 0.48,
+				"range": 17.0,
 				"hidden_detection": false,
 			},
 		],
@@ -1141,6 +1126,35 @@ static func get_tower_level(tower_id: StringName, level: int) -> Dictionary:
 	var levels: Array = tower["levels"]
 	assert(level >= 0 and level < levels.size(), "Invalid level %d for %s" % [level, tower_id])
 	return levels[level].duplicate(true)
+
+
+static func get_tower_draft_entry(tower_id: StringName) -> Dictionary:
+	var tower := get_tower(tower_id)
+	var type_names := PackedStringArray()
+	for type_tag in tower.get("type_tags", []):
+		type_names.append(String(type_tag).capitalize())
+	var damage_name := String(tower["damage_tags"][0]).capitalize()
+	var delivery_name := String(tower["delivery_type"]).capitalize()
+	var impact_name := String(tower["impact_mode"]).replace("_", " ").capitalize()
+	var special_names := PackedStringArray()
+	for bonus_tag in tower.get("bonus_tags", []):
+		special_names.append(String(bonus_tag).capitalize())
+	var description := "$%d build cost. %s %s attack with %s impact." % [
+		int(tower["placement_cost"]),
+		damage_name,
+		delivery_name,
+		impact_name,
+	]
+	if not special_names.is_empty():
+		description += " Specials: %s." % ", ".join(special_names)
+	return {
+		"id": tower_id,
+		"display_name": tower["display_name"],
+		"description": description,
+		"rarity": &"tower",
+		"category": " + ".join(type_names),
+		"stackable": false,
+	}
 
 
 static func get_mode(mode_id: StringName) -> Dictionary:

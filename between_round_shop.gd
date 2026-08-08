@@ -1,8 +1,10 @@
 class_name BetweenRoundShop
 extends Control
 
-signal reward_chosen(item_id: StringName)
-signal draft_closed
+signal draft_confirmed(item_id: StringName)
+
+const DRAFT_TOWER: StringName = &"tower"
+const DRAFT_RELIC: StringName = &"relic"
 
 @onready var title_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/TitleLabel
 @onready var subtitle_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/SubtitleLabel
@@ -14,7 +16,8 @@ signal draft_closed
 	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard3,
 ]
 
-var selection_locked := false
+var selected_item_id: StringName = &""
+var active_draft_type: StringName = DRAFT_RELIC
 
 
 func _ready() -> void:
@@ -23,46 +26,49 @@ func _ready() -> void:
 	continue_button.pressed.connect(_on_continue_pressed)
 
 
-func open_shop(
+func open_draft(
 	completed_round: int,
 	maximum_rounds: int,
+	draft_type: StringName,
 	offers: Array[StringName],
 	owned_items: Dictionary
 ) -> void:
-	assert(offers.size() == cards.size(), "The shop requires one offer per card.")
-	selection_locked = false
-	title_label.text = "Round %d Complete" % completed_round
-	subtitle_label.text = "Choose one relic for Round %d" % min(
-		completed_round + 1,
-		maximum_rounds
-	)
+	assert(offers.size() == cards.size(), "The draft requires one offer per card.")
+	selected_item_id = &""
+	active_draft_type = draft_type
+	var choice_name := "tower" if draft_type == DRAFT_TOWER else "relic"
+	title_label.text = "%s Draft - Round %d Complete" % [
+		choice_name.capitalize(),
+		completed_round,
+	]
+	subtitle_label.text = "Choose one %s before Round %d" % [
+		choice_name,
+		min(completed_round + 1, maximum_rounds),
+	]
 
 	for index in cards.size():
 		var item_id := offers[index]
 		cards[index].display_item(
-			StatDatabase.get_relic(item_id),
-			int(owned_items.get(item_id, 0))
+			get_choice_data(item_id),
+			int(owned_items.get(item_id, 0)),
+			draft_type == DRAFT_RELIC
 		)
+		cards[index].set_selected(false)
 
 	update_owned_items_display(owned_items)
-	continue_button.text = "Choose a Relic"
+	continue_button.text = "Confirm"
 	continue_button.disabled = true
 	show()
 
 
-func confirm_reward_choice(item_id: StringName, owned_items: Dictionary) -> void:
-	if not selection_locked:
-		return
-	for card in cards:
-		card.set_choice_locked(card.item_id == item_id)
-		card.update_owned_count(int(owned_items.get(card.item_id, 0)))
-	update_owned_items_display(owned_items)
-	subtitle_label.text = "%s selected" % StatDatabase.get_relic(item_id)["display_name"]
-	continue_button.text = "Return to Build"
-	continue_button.disabled = false
-
-
 func build_owned_items_text(owned_items: Dictionary) -> String:
+	if active_draft_type == DRAFT_TOWER:
+		var tower_names := PackedStringArray()
+		for tower_key in owned_items:
+			tower_names.append(
+				StatDatabase.get_tower(StringName(tower_key))["display_name"]
+			)
+		return "Current roster: " + ", ".join(tower_names)
 	if owned_items.is_empty():
 		return "Owned relics: None"
 
@@ -81,14 +87,21 @@ func update_owned_items_display(owned_items: Dictionary) -> void:
 
 
 func _on_card_chosen(item_id: StringName) -> void:
-	if selection_locked:
-		return
-	selection_locked = true
-	reward_chosen.emit(item_id)
+	selected_item_id = item_id
+	for card in cards:
+		card.set_selected(card.item_id == item_id)
+	subtitle_label.text = "%s selected - press Confirm" % get_choice_data(item_id)["display_name"]
+	continue_button.disabled = false
+
+
+func get_choice_data(item_id: StringName) -> Dictionary:
+	if active_draft_type == DRAFT_TOWER:
+		return StatDatabase.get_tower_draft_entry(item_id)
+	return StatDatabase.get_relic(item_id)
 
 
 func _on_continue_pressed() -> void:
-	if not selection_locked:
+	if selected_item_id.is_empty():
 		return
 	continue_button.disabled = true
-	draft_closed.emit()
+	draft_confirmed.emit(selected_item_id)

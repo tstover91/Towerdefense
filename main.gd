@@ -138,14 +138,9 @@ const FORMATION_ROLE_WEIGHTS := {
 }
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
-const ITEM_TOWER_IDS: Array[StringName] = [
-	&"invader",
-	&"gauss_repeater",
-	&"beholder",
-	&"reaver",
-	&"brainiac",
-]
 const TOWER_SLOT_COUNT := 5
+const DRAFT_TOWER: StringName = &"tower"
+const DRAFT_RELIC: StringName = &"relic"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const PLACEMENT_SNAP_SIZE := 16.0
 const MIN_SIDEBAR_WIDTH := 192.0
@@ -160,6 +155,7 @@ signal money_changed(new_amount: int)
 @onready var tower_list: ItemList = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerSelectionArea/ItemList
 @onready var between_round_shop: Control = $MainUI/BetweenRoundShop
 @onready var pause_menu: Control = $MainUI/PauseMenu
+@onready var speed_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/SpeedButton
 @onready var pause_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton
 @onready var sidebar: Control = $MainUI/HUDRoot/Sidebar
 @onready var money_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/moneydisplay
@@ -204,13 +200,19 @@ var game_ended := false
 var max_rounds: int
 var mode_id: StringName = &"easy"
 var shop_open := false
+var active_draft_type: StringName = &""
+var tower_roster: Array[StringName] = [&"invader", &"gauss_repeater"]
 var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
 var displayed_tower: Node = null
 var occupied_build_cells: Dictionary = {}
 var playable_map_width := 0.0
+var game_speed := 1.0
 
 func _ready() -> void:
+	Engine.time_scale = 1.0
+	game_speed = 1.0
+	update_speed_button()
 	enemy_rng.randomize()
 	shop_rng.randomize()
 	_align_sidebar_to_build_grid()
@@ -226,16 +228,15 @@ func _ready() -> void:
 	update_lives()
 	update_round_count()
 	spawntimer.timeout.connect(_spawn_mob)
-	between_round_shop.reward_chosen.connect(_on_shop_reward_chosen)
-	between_round_shop.draft_closed.connect(_on_draft_closed)
+	between_round_shop.draft_confirmed.connect(_on_draft_confirmed)
 	update_play_pause_button()
 
 
 func populate_tower_list() -> void:
 	tower_list.clear()
 	for slot_index in TOWER_SLOT_COUNT:
-		if slot_index < ITEM_TOWER_IDS.size():
-			var tower_id: StringName = ITEM_TOWER_IDS[slot_index]
+		if slot_index < tower_roster.size():
+			var tower_id: StringName = tower_roster[slot_index]
 			var tower_stats := GameStats.get_tower(tower_id)
 			tower_list.add_item(
 				"$%d" % int(tower_stats["placement_cost"]),
@@ -329,8 +330,8 @@ func update_money() -> void:
 
 
 func update_tower_affordability() -> void:
-	for slot_index in ITEM_TOWER_IDS.size():
-		var tower_id: StringName = ITEM_TOWER_IDS[slot_index]
+	for slot_index in tower_roster.size():
+		var tower_id: StringName = tower_roster[slot_index]
 		var placement_cost: int = GameStats.get_tower(tower_id)["placement_cost"]
 		var price_color := (
 			AFFORDABLE_TOWER_COLOR
@@ -410,8 +411,10 @@ func end_round() -> void:
 
 	if round_number >= max_rounds:
 		victory()
+	elif TOWER_DRAFT_ROUNDS.has(round_number):
+		open_tower_draft()
 	elif RELIC_DRAFT_ROUNDS.has(round_number):
-		open_between_round_shop()
+		open_relic_draft()
 	else:
 		enter_build_phase()
 
@@ -435,23 +438,45 @@ func calculate_end_round_reward() -> int:
 	return roundi(float(base_reward + clear_reward) * reward_multiplier)
 
 
-func open_between_round_shop() -> void:
+func open_tower_draft() -> void:
+	open_between_round_draft(
+		DRAFT_TOWER,
+		roll_tower_offers(),
+		get_tower_roster_dictionary()
+	)
+
+
+func open_relic_draft() -> void:
+	open_between_round_draft(
+		DRAFT_RELIC,
+		roll_relic_offers(),
+		owned_shop_items
+	)
+
+
+func open_between_round_draft(
+	draft_type: StringName,
+	offers: Array[StringName],
+	owned_items: Dictionary
+) -> void:
 	if shop_open or game_ended:
 		return
 	cancel_pending_tower_placement()
 	close_all_tower_menus()
 	shop_open = true
+	active_draft_type = draft_type
 	update_round_count()
 	update_play_pause_button()
-	between_round_shop.open_shop(
+	between_round_shop.open_draft(
 		round_number,
 		max_rounds,
-		roll_shop_offers(),
-		owned_shop_items
+		draft_type,
+		offers,
+		owned_items
 	)
 
 
-func roll_shop_offers() -> Array[StringName]:
+func roll_relic_offers() -> Array[StringName]:
 	var available: Array[StringName] = []
 	for item_key in GameStats.RELICS:
 		available.append(StringName(item_key))
@@ -467,17 +492,32 @@ func roll_shop_offers() -> Array[StringName]:
 	return offers
 
 
-func _on_shop_reward_chosen(item_id: StringName) -> void:
-	if not shop_open:
-		return
-	collect_relic(item_id)
-	between_round_shop.confirm_reward_choice(item_id, owned_shop_items)
+func roll_tower_offers() -> Array[StringName]:
+	var available: Array[StringName] = []
+	for tower_key in GameStats.TOWERS:
+		var tower_id := StringName(tower_key)
+		if not tower_roster.has(tower_id):
+			available.append(tower_id)
+	assert(
+		available.size() >= SHOP_CHOICE_COUNT,
+		"The tower draft needs at least %d available towers." % SHOP_CHOICE_COUNT
+	)
+	var offers: Array[StringName] = []
+	while offers.size() < SHOP_CHOICE_COUNT:
+		var index := shop_rng.randi_range(0, available.size() - 1)
+		offers.append(available.pop_at(index))
+	return offers
 
 
-func _on_draft_closed() -> void:
+func _on_draft_confirmed(item_id: StringName) -> void:
 	if not shop_open:
 		return
+	if active_draft_type == DRAFT_TOWER:
+		collect_tower(item_id)
+	else:
+		collect_relic(item_id)
 	shop_open = false
+	active_draft_type = &""
 	between_round_shop.hide()
 	enter_build_phase()
 
@@ -485,6 +525,22 @@ func _on_draft_closed() -> void:
 func collect_relic(item_id: StringName) -> void:
 	GameStats.get_relic(item_id)
 	owned_shop_items[item_id] = int(owned_shop_items.get(item_id, 0)) + 1
+
+
+func collect_tower(tower_id: StringName) -> void:
+	if tower_roster.has(tower_id) or tower_roster.size() >= TOWER_SLOT_COUNT:
+		return
+	GameStats.get_tower(tower_id)
+	tower_roster.append(tower_id)
+	populate_tower_list()
+	update_tower_affordability()
+
+
+func get_tower_roster_dictionary() -> Dictionary:
+	var roster: Dictionary = {}
+	for tower_id in tower_roster:
+		roster[tower_id] = 1
+	return roster
 
 
 func refresh_placed_tower_stats() -> void:
@@ -1167,6 +1223,7 @@ func finish_game(message: String) -> void:
 		tower_to_place = null
 	
 	pause_button.disabled = true
+	speed_button.disabled = true
 	tower_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	round_timer_display.text = "Run complete"
 	$MainUI/endscreen/VBoxContainer/resultlabel.text = message
@@ -1395,11 +1452,11 @@ func _on_item_list_item_selected(index: int) -> void:
 		tower_list.deselect_all()
 		return
 	
-	if index < 0 or index >= ITEM_TOWER_IDS.size():
+	if index < 0 or index >= tower_roster.size():
 		tower_list.deselect_all()
 		return
 
-	var selected_tower_id: StringName = ITEM_TOWER_IDS[index]
+	var selected_tower_id: StringName = tower_roster[index]
 	if build_mode:
 		if selected_tower_id == pending_tower_type:
 			cancel_pending_tower_placement()
@@ -1418,11 +1475,24 @@ func _on_item_list_item_selected(index: int) -> void:
 
 func _on_restartbutton_pressed() -> void:
 	get_tree().paused = false
+	Engine.time_scale = 1.0
 	get_tree().reload_current_scene()
 	
 func _on_quitbutton_pressed() -> void:
 	get_tree().paused = false
 	get_tree().quit()
+
+
+func _on_speed_button_pressed() -> void:
+	game_speed = 2.0 if is_equal_approx(game_speed, 1.0) else 1.0
+	Engine.time_scale = game_speed
+	update_speed_button()
+
+
+func update_speed_button() -> void:
+	var speed_text := "%dx" % int(game_speed)
+	speed_button.text = speed_text
+	speed_button.tooltip_text = "Game Speed: %s" % speed_text
 
 
 func _on_pause_button_pressed() -> void:

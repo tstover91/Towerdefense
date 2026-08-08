@@ -185,13 +185,13 @@ theme_override_constants/separation = 10
 
 [node name="SidebarHeader" type="HBoxContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout" unique_id=1658441414]
 layout_mode = 2
+alignment = 2
 
-[node name="SidebarTitle" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader" unique_id=1328474895]
+[node name="SpeedButton" type="Button" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader"]
+custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 24
-text = "Towers"
-horizontal_alignment = 1
+tooltip_text = "Game Speed: 1x"
+text = "1x"
 
 [node name="PauseButton" type="Button" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader" unique_id=1251669766]
 custom_minimum_size = Vector2(44, 44)
@@ -321,6 +321,7 @@ layout_mode = 2
 text = "Quit"
 
 [connection signal="pressed" from="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton" to="." method="_on_pause_button_pressed"]
+[connection signal="pressed" from="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/SpeedButton" to="." method="_on_speed_button_pressed"]
 [connection signal="item_selected" from="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerSelectionArea/ItemList" to="." method="_on_item_list_item_selected"]
 [connection signal="pressed" from="MainUI/endscreen/VBoxContainer/restartbutton" to="." method="_on_restartbutton_pressed"]
 [connection signal="pressed" from="MainUI/endscreen/VBoxContainer/quitbutton" to="." method="_on_quitbutton_pressed"]

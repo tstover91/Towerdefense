@@ -239,7 +239,7 @@ func get_target_hit_radius(candidate: Node) -> float:
 	return 12.0
 
 
-func is_valid_target(candidate: Node) -> bool:
+func is_valid_target(candidate: Variant) -> bool:
 	return (
 		candidate != null
 		and is_instance_valid(candidate)

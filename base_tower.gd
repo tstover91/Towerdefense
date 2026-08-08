@@ -7,6 +7,20 @@ const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const MENU_HALF_WIDTH := 106.0
 const MENU_EDGE_MARGIN := 8.0
+const GAUSS_TOWER_ID: StringName = &"gauss_repeater"
+const GAUSS_LINE_HALF_WIDTH := 3.0
+const DIRECTION_BUTTON_RADIUS := 72.0
+const AIM_DIRECTIONS: Array[Vector2] = [
+	Vector2(1.0, 0.0),
+	Vector2(0.70710678, 0.70710678),
+	Vector2(0.0, 1.0),
+	Vector2(-0.70710678, 0.70710678),
+	Vector2(-1.0, 0.0),
+	Vector2(-0.70710678, -0.70710678),
+	Vector2(0.0, -1.0),
+	Vector2(0.70710678, -0.70710678),
+]
+const AIM_DIRECTION_ARROWS := ["→", "↘", "↓", "↙", "←", "↖", "↑", "↗"]
 
 const TYPE_TECHNOLOGY: StringName = &"technology"
 const TYPE_BIOLOGICAL: StringName = &"biological"
@@ -72,6 +86,8 @@ var range_radius_pixels := 0.0
 var upgrade_range_radius_pixels := -1.0
 var range_preview_visible := false
 var range_preview_valid := true
+var aim_direction := Vector2.RIGHT
+var direction_ui: Node2D
 var main: Node
 
 
@@ -112,6 +128,15 @@ func _draw() -> void:
 	if not range_preview_valid:
 		fill_color = Color(1.0, 0.15, 0.15, 0.16)
 		border_color = Color(1.0, 0.2, 0.2, 0.8)
+	if uses_directional_aim():
+		draw_line(
+			Vector2.ZERO,
+			aim_direction * get_directional_max_distance(),
+			border_color,
+			3.0,
+			true
+		)
+		return
 
 	draw_circle(Vector2.ZERO, range_radius_pixels, fill_color)
 	draw_arc(Vector2.ZERO, range_radius_pixels, 0.0, TAU, 96, border_color, 2.0, true)
@@ -139,6 +164,9 @@ func show_current_range_preview() -> void:
 
 
 func show_upgrade_range_preview() -> void:
+	if uses_directional_aim():
+		show_current_range_preview()
+		return
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
 	var levels: Array = tower_data["levels"]
 	var next_level := tower_level + 1
@@ -171,13 +199,17 @@ func show_main_menu() -> void:
 	pending_action = MenuAction.NONE
 	$HBoxContainer.visible = true
 	$targetui.visible = false
+	if direction_ui != null:
+		direction_ui.visible = false
 	update_menu_buttons()
 
 func show_target_menu() -> void:
 	pending_action = MenuAction.NONE
 	show_current_range_preview()
 	$HBoxContainer.visible = false
-	$targetui.visible = true
+	$targetui.visible = not uses_directional_aim()
+	if direction_ui != null:
+		direction_ui.visible = uses_directional_aim()
 
 func update_sell_button() -> void:
 	var sell_price := get_sell_price()
@@ -210,13 +242,18 @@ func update_upgrade_button() -> void:
 func update_menu_buttons() -> void:
 	update_upgrade_button()
 	update_sell_button()
-	$HBoxContainer/targetmode.text = "Target\n%s" % get_target_mode_name()
+	if uses_directional_aim():
+		$HBoxContainer/targetmode.text = "Aim\nDirection"
+	else:
+		$HBoxContainer/targetmode.text = "Target\n%s" % get_target_mode_name()
 
 func close_menus() -> void:
 	pending_action = MenuAction.NONE
 	selected = false
 	$HBoxContainer.visible = false
 	$targetui.visible = false
+	if direction_ui != null:
+		direction_ui.visible = false
 	set_range_preview(false)
 	if main != null:
 		main.clear_tower_details(self)
@@ -251,6 +288,7 @@ func get_sell_price() -> int:
 func _ready() -> void:
 	load_base_tags()
 	load_level_stats()
+	create_direction_ui()
 	update_menu_buttons()
 	if main != null:
 		main.money_changed.connect(_on_main_money_changed)
@@ -259,6 +297,52 @@ func _ready() -> void:
 	damage_timer.timeout.connect(_apply_damage)
 	begin_placement()
 	add_to_group("towers")
+
+
+func create_direction_ui() -> void:
+	if not uses_directional_aim():
+		return
+	direction_ui = Node2D.new()
+	direction_ui.name = "DirectionUI"
+	direction_ui.z_index = 101
+	direction_ui.z_as_relative = false
+	direction_ui.visible = false
+	add_child(direction_ui)
+	for index in AIM_DIRECTIONS.size():
+		var button := Button.new()
+		button.name = "Direction%d" % index
+		button.text = AIM_DIRECTION_ARROWS[index]
+		button.tooltip_text = get_direction_name(index)
+		button.focus_mode = Control.FOCUS_NONE
+		button.size = Vector2(36.0, 36.0)
+		button.position = (
+			AIM_DIRECTIONS[index] * DIRECTION_BUTTON_RADIUS
+			- button.size * 0.5
+		)
+		button.pressed.connect(_on_direction_button_pressed.bind(index))
+		direction_ui.add_child(button)
+
+
+func _on_direction_button_pressed(index: int) -> void:
+	if index < 0 or index >= AIM_DIRECTIONS.size():
+		return
+	aim_direction = AIM_DIRECTIONS[index]
+	target = null
+	rotator.rotation = aim_direction.angle()
+	queue_redraw()
+	close_menus()
+
+
+func get_direction_name(index: int) -> String:
+	var names := [
+		"East", "Southeast", "South", "Southwest",
+		"West", "Northwest", "North", "Northeast",
+	]
+	return names[index]
+
+
+func uses_directional_aim() -> bool:
+	return tower_id == GAUSS_TOWER_ID
 
 
 func _on_main_money_changed(_new_amount: int) -> void:
@@ -380,11 +464,22 @@ func launch_projectile(current_target: Node2D) -> void:
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = muzzle.global_position
 	var impact_radius := splash_radius_pixels if damage_type == DAMAGE_EXPLOSIVE else 0.0
+	var projectile_target_position := current_target.global_position
+	var maximum_projectile_distance := range_radius_pixels
+	if uses_directional_aim():
+		var distance_along_line: float = maxf(
+			(current_target.global_position - muzzle.global_position).dot(aim_direction),
+			1.0
+		)
+		projectile_target_position = (
+			muzzle.global_position + aim_direction * distance_along_line
+		)
+		maximum_projectile_distance = get_directional_max_distance()
 	projectile.setup(
 		current_target,
-		current_target.global_position,
+		projectile_target_position,
 		projectile_speed,
-		range_radius_pixels,
+		maximum_projectile_distance,
 		damage,
 		damage_type,
 		impact_mode,
@@ -462,10 +557,16 @@ func get_targets_along_line(
 func _process(delta: float) -> void:
 	update_menu_layout()
 	if not is_placed:
+		if uses_directional_aim():
+			rotator.rotation = aim_direction.angle()
 		return
+	if uses_directional_aim():
+		rotator.rotation = aim_direction.angle()
+	if not is_instance_valid(target):
+		target = null
 	if not is_valid_target(target):
 		_select_target()
-	if is_valid_target(target):
+	if is_valid_target(target) and not uses_directional_aim():
 		var desired_angle = (target.global_position - rotator.global_position).angle()
 		rotator.rotation = lerp_angle(rotator.rotation, desired_angle, 5.0 * delta)
 
@@ -475,6 +576,7 @@ func update_menu_layout() -> void:
 		not $towerconfirm.visible
 		and not $HBoxContainer.visible
 		and not $targetui.visible
+		and (direction_ui == null or not direction_ui.visible)
 	):
 		return
 
@@ -512,7 +614,7 @@ func _on_body_exited(body: Node2D) -> void:
 	if body == target:
 		target = null
 
-func is_valid_target(candidate: Node) -> bool:
+func is_valid_target(candidate: Variant) -> bool:
 	return (
 		candidate != null
 		and is_instance_valid(candidate)
@@ -522,6 +624,9 @@ func is_valid_target(candidate: Node) -> bool:
 
 
 func _select_target() -> void:
+	if uses_directional_aim():
+		_select_directional_target()
+		return
 	mobs_in_range = mobs_in_range.filter(
 		func(mob):
 			return is_valid_target(mob)
@@ -546,6 +651,50 @@ func _select_target() -> void:
 			TargetMode.HIGHEST_HEALTH:
 				if candidate.health > target.health:
 					target = candidate
+
+
+func _select_directional_target() -> void:
+	target = null
+	var closest_distance := INF
+	var origin := muzzle.global_position
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_target(candidate):
+			continue
+		var offset: Vector2 = candidate.global_position - origin
+		var distance_along_line: float = offset.dot(aim_direction)
+		if distance_along_line <= 0.0:
+			continue
+		var hit_radius := 12.0
+		if candidate.has_method("get_projectile_hit_radius"):
+			hit_radius = candidate.get_projectile_hit_radius()
+		var distance_from_line: float = absf(aim_direction.cross(offset))
+		if distance_from_line > hit_radius + GAUSS_LINE_HALF_WIDTH:
+			continue
+		if distance_along_line < closest_distance:
+			closest_distance = distance_along_line
+			target = candidate
+
+
+func get_directional_max_distance() -> float:
+	var viewport_size := get_viewport_rect().size
+	var right_edge := viewport_size.x
+	if main != null and main.has_method("get_playable_right_edge"):
+		right_edge = main.get_playable_right_edge()
+	var origin := global_position
+	var distances: Array[float] = []
+	if aim_direction.x > 0.0:
+		distances.append((right_edge - origin.x) / aim_direction.x)
+	elif aim_direction.x < 0.0:
+		distances.append((0.0 - origin.x) / aim_direction.x)
+	if aim_direction.y > 0.0:
+		distances.append((viewport_size.y - origin.y) / aim_direction.y)
+	elif aim_direction.y < 0.0:
+		distances.append((0.0 - origin.y) / aim_direction.y)
+	var result := viewport_size.length()
+	for distance in distances:
+		if distance >= 0.0:
+			result = minf(result, distance)
+	return maxf(result + 32.0, 32.0)
 
 func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 	if (

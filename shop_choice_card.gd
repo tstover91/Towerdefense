@@ -16,7 +16,11 @@ func _ready() -> void:
 	choose_button.pressed.connect(_on_choose_pressed)
 
 
-func display_item(item_stats: Dictionary, owned_count: int) -> void:
+func display_item(
+	item_stats: Dictionary,
+	owned_count: int,
+	show_owned_count := true
+) -> void:
 	item_id = item_stats["id"]
 	name_label.text = item_stats["display_name"]
 	category_label.text = "%s • %s" % [
@@ -24,14 +28,15 @@ func display_item(item_stats: Dictionary, owned_count: int) -> void:
 		String(item_stats["category"]).capitalize(),
 	]
 	description_label.text = item_stats["description"]
+	owned_label.visible = show_owned_count
 	owned_label.text = "Owned: %d" % owned_count
 	choose_button.disabled = false
 	choose_button.text = "Choose"
 
 
-func set_choice_locked(selected: bool) -> void:
-	choose_button.disabled = true
-	choose_button.text = "Selected" if selected else "Not Selected"
+func set_selected(selected: bool) -> void:
+	choose_button.disabled = false
+	choose_button.text = "Selected" if selected else "Choose"
 
 
 func update_owned_count(owned_count: int) -> void:
@@ -41,5 +46,4 @@ func update_owned_count(owned_count: int) -> void:
 func _on_choose_pressed() -> void:
 	if item_id.is_empty():
 		return
-	choose_button.disabled = true
 	chosen.emit(item_id)
