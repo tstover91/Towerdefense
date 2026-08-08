@@ -56,7 +56,7 @@ var bonus_tags: Array[StringName] = []
 @onready var upgrade_button: Button = $HBoxContainer/upgradetower
 var tower_level := 0
 var damage: int
-var damage_type: StringName = &"physical"
+var damage_type: StringName = &""
 var projectile_speed := 600.0
 var splash_radius_pixels := 0.0
 var footprint_size_pixels := Vector2(BUILD_CELL_SIZE, BUILD_CELL_SIZE)
@@ -293,7 +293,7 @@ func load_level_stats() -> void:
 	click_shape.size = footprint_size_pixels
 	$clickarea/CollisionShape2D.shape = click_shape
 	damage = stats["damage"]
-	damage_type = stats.get("damage_type", &"physical")
+	damage_type = get_primary_attack_tag()
 	projectile_speed = stats.get("projectile_speed", 600.0)
 	splash_radius_pixels = float(stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT
 	damage_timer.wait_time = stats["firerate"]
@@ -362,28 +362,29 @@ func attack(current_target: Node2D) -> void:
 	if not is_instance_valid(current_target):
 		return
 
-	var target_position := current_target.global_position
-	if splash_radius_pixels > 0.0:
-		apply_splash_damage(target_position)
+	var delivery := GameStats.get_attack_delivery(damage_type)
+	if delivery == GameStats.ATTACK_DELIVERY_PROJECTILE:
+		launch_projectile(current_target)
 	else:
 		current_target.apply_damage(damage, damage_type)
 
+
+func launch_projectile(current_target: Node2D) -> void:
 	if projectile_scene == null:
+		push_error("Projectile tower %s has no projectile scene." % tower_id)
 		return
 
 	var projectile := projectile_scene.instantiate() as TowerProjectile
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = muzzle.global_position
-	projectile.setup(target_position, projectile_speed)
-
-
-func apply_splash_damage(impact_position: Vector2) -> void:
-	for mob in get_tree().get_nodes_in_group("mobs"):
-		if (
-			is_valid_target(mob)
-			and mob.global_position.distance_to(impact_position) <= splash_radius_pixels
-		):
-			mob.apply_damage(damage, damage_type)
+	var impact_radius := splash_radius_pixels if damage_type == ATTACK_EXPLOSIVE else 0.0
+	projectile.setup(
+		current_target,
+		projectile_speed,
+		damage,
+		damage_type,
+		impact_radius
+	)
 
 func _process(delta: float) -> void:
 	update_menu_layout()
@@ -615,3 +616,16 @@ func load_base_tags() -> void:
 
 	for tag in tower_data.get("bonus_tags", []):
 		bonus_tags.append(tag)
+
+	assert(
+		attack_tags.size() == 1,
+		"Tower %s must have exactly one base attack tag." % tower_id
+	)
+
+
+func get_primary_attack_tag() -> StringName:
+	assert(
+		attack_tags.size() == 1,
+		"Tower %s must have exactly one active attack tag." % tower_id
+	)
+	return attack_tags[0]

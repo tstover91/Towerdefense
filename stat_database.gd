@@ -5,8 +5,13 @@ extends RefCounted
 ## can refer to entries without depending on node names.
 
 const DEFAULT_ENEMY_ID := "normal"
-const DEFAULT_TOWER_ID := "scout"
+const DEFAULT_TOWER_ID := "invader"
 const BUILD_CELL_SIZE := 32.0
+
+const ATTACK_DELIVERY_PROJECTILE: StringName = &"projectile"
+const ATTACK_DELIVERY_HITSCAN: StringName = &"hitscan"
+const PROJECTILE_ATTACK_TAGS: Array[StringName] = [&"ballistic", &"explosive"]
+const HITSCAN_ATTACK_TAGS: Array[StringName] = [&"beam", &"electric", &"melee"]
 
 const SHOP_ITEMS := {
 	"sharpened_ammunition": {
@@ -272,118 +277,6 @@ const ENEMIES := {
 }
 
 const TOWERS := {
-	"scout": {
-		"display_name": "Scout",
-		"placement_cost": 125,
-		"footprint_cells": Vector2i(1, 1),
-		"tags": [&"bullet", &"rapid_fire", &"physical"],
-		
-		"levels": [
-			{
-				"upgrade_cost": 0,
-				"damage": 1,
-				"damage_type": &"physical",
-				"projectile_speed": 600.0,
-				"firerate": 1.0,
-				"range": 12.0,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 50,
-				"damage": 1,
-				"damage_type": &"physical",
-				"projectile_speed": 600.0,
-				"firerate": 0.75,
-				"range": 12.0,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 375,
-				"damage": 3,
-				"damage_type": &"physical",
-				"projectile_speed": 650.0,
-				"firerate": 0.75,
-				"range": 14.0,
-				"hidden_detection": true,
-			},
-			{
-				"upgrade_cost": 1350,
-				"damage": 8,
-				"damage_type": &"physical",
-				"projectile_speed": 700.0,
-				"firerate": 0.65,
-				"range": 16.0,
-				"hidden_detection": true,
-			},
-			{
-				"upgrade_cost": 2200,
-				"damage": 8,
-				"damage_type": &"physical",
-				"projectile_speed": 750.0,
-				"firerate": 0.325,
-				"range": 16.0,
-				"hidden_detection": true,
-			},
-		],
-	},
-	"cannon": {
-		"display_name": "Cannon",
-		"placement_cost": 450,
-		"footprint_cells": Vector2i(1, 1),
-		"tags": [&"projectile", &"area", &"explosive"],
-		"levels": [
-			{
-				"upgrade_cost": 0,
-				"damage": 6,
-				"damage_type": &"explosive",
-				"projectile_speed": 360.0,
-				"firerate": 2.5,
-				"range": 10.0,
-				"splash_radius": 3.0,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 250,
-				"damage": 8,
-				"damage_type": &"explosive",
-				"projectile_speed": 380.0,
-				"firerate": 2.4,
-				"range": 10.0,
-				"splash_radius": 3.25,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 700,
-				"damage": 14,
-				"damage_type": &"explosive",
-				"projectile_speed": 410.0,
-				"firerate": 2.3,
-				"range": 11.0,
-				"splash_radius": 3.5,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 1600,
-				"damage": 25,
-				"damage_type": &"explosive",
-				"projectile_speed": 450.0,
-				"firerate": 2.1,
-				"range": 12.0,
-				"splash_radius": 4.0,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 3000,
-				"damage": 42,
-				"damage_type": &"explosive",
-				"projectile_speed": 500.0,
-				"firerate": 1.8,
-				"range": 13.0,
-				"splash_radius": 4.5,
-				"hidden_detection": false,
-			},
-		],
-	},
 	"invader": {
 		"display_name": "Invader",
 		"placement_cost": 450,
@@ -396,7 +289,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -406,7 +298,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -416,7 +307,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -426,7 +316,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -436,7 +325,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -450,14 +338,13 @@ const TOWERS := {
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"technology"],
-		"attack_tags": [],
+		"attack_tags": [&"electric"],
 		"bonus_tags": [&"pierce"],
 		
 		"levels": [
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -467,7 +354,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -477,7 +363,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -487,7 +372,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -497,7 +381,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -518,7 +401,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -528,7 +410,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -538,7 +419,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -548,7 +428,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -558,7 +437,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -579,7 +457,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -589,7 +466,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -599,7 +475,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -609,7 +484,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -619,7 +493,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -632,15 +505,14 @@ const TOWERS := {
 		"display_name": "Brainiac",
 		"placement_cost": 450,
 		"footprint_cells": Vector2i(1, 1),
-		"type_tags": [&"biological",&"technology"],
-		"attack_tags": [],
+		"type_tags": [&"biological", &"technology"],
+		"attack_tags": [&"ballistic"],
 		"bonus_tags": [],
 		
 		"levels": [
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -650,7 +522,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -660,7 +531,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -670,7 +540,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -680,7 +549,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -701,7 +569,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -711,7 +578,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -721,7 +587,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -731,7 +596,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -741,7 +605,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -762,7 +625,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -772,7 +634,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -782,7 +643,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -792,7 +652,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -802,7 +661,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -817,13 +675,12 @@ const TOWERS := {
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
 		"attack_tags": [&"explosive"],
-		"bonus_tags": [&""],
+		"bonus_tags": [],
 		
 		"levels": [
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -833,7 +690,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -843,7 +699,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -853,7 +708,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -863,7 +717,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -884,7 +737,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -894,7 +746,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -904,7 +755,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -914,7 +764,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -924,7 +773,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -945,7 +793,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -955,7 +802,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -965,7 +811,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -975,7 +820,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -985,7 +829,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -1006,7 +849,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -1016,7 +858,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -1026,7 +867,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -1036,7 +876,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -1046,7 +885,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -1061,13 +899,12 @@ const TOWERS := {
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
 		"attack_tags": [&"ballistic"],
-		"bonus_tags": [&"pierce",&"spawner"],
+		"bonus_tags": [&"pierce", &"spawner"],
 		
 		"levels": [
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -1077,7 +914,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -1087,7 +923,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -1097,7 +932,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -1107,7 +941,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -1122,13 +955,12 @@ const TOWERS := {
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"technology"],
 		"attack_tags": [&"ballistic"],
-		"bonus_tags": [&"reveal",&"spawner"],
+		"bonus_tags": [&"reveal", &"spawner"],
 		
 		"levels": [
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -1138,7 +970,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -1148,7 +979,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -1158,7 +988,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -1168,7 +997,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -1189,7 +1017,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 0,
 				"damage": 6,
-				"damage_type": &"explosive",
 				"projectile_speed": 360.0,
 				"firerate": 2.5,
 				"range": 10.0,
@@ -1199,7 +1026,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 250,
 				"damage": 8,
-				"damage_type": &"explosive",
 				"projectile_speed": 380.0,
 				"firerate": 2.4,
 				"range": 10.0,
@@ -1209,7 +1035,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 700,
 				"damage": 14,
-				"damage_type": &"explosive",
 				"projectile_speed": 410.0,
 				"firerate": 2.3,
 				"range": 11.0,
@@ -1219,7 +1044,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 1600,
 				"damage": 25,
-				"damage_type": &"explosive",
 				"projectile_speed": 450.0,
 				"firerate": 2.1,
 				"range": 12.0,
@@ -1229,7 +1053,6 @@ const TOWERS := {
 			{
 				"upgrade_cost": 3000,
 				"damage": 42,
-				"damage_type": &"explosive",
 				"projectile_speed": 500.0,
 				"firerate": 1.8,
 				"range": 13.0,
@@ -1282,6 +1105,15 @@ static func get_tower_level(tower_id: StringName, level: int) -> Dictionary:
 	var levels: Array = tower["levels"]
 	assert(level >= 0 and level < levels.size(), "Invalid level %d for %s" % [level, tower_id])
 	return levels[level].duplicate(true)
+
+
+static func get_attack_delivery(attack_tag: StringName) -> StringName:
+	if PROJECTILE_ATTACK_TAGS.has(attack_tag):
+		return ATTACK_DELIVERY_PROJECTILE
+	if HITSCAN_ATTACK_TAGS.has(attack_tag):
+		return ATTACK_DELIVERY_HITSCAN
+	push_error("Unknown tower attack tag: %s" % attack_tag)
+	return ATTACK_DELIVERY_HITSCAN
 
 
 static func get_mode(mode_id: StringName) -> Dictionary:

@@ -139,19 +139,15 @@ const FORMATION_ROLE_WEIGHTS := {
 		ROLE_SUPPORT: 5.0,
 	},
 }
-const TOWER_SCENES := {
-	&"scout": preload("res://tower.tscn"),
-	&"cannon": preload("res://cannon.tscn"),
-}
-const TOWER_ICONS := {
-	&"scout": preload("res://icon.svg"),
-	&"cannon": preload("res://icon.svg"),
-}
-const TOWER_ICON_COLORS := {
-	&"scout": Color.WHITE,
-	&"cannon": Color(0.45, 0.55, 0.62),
-}
-const ITEM_TOWER_IDS := [&"scout", &"cannon"]
+const TOWER_SCENE = preload("res://base_tower.tscn")
+const DEFAULT_TOWER_ICON = preload("res://icon.svg")
+const ITEM_TOWER_IDS: Array[StringName] = [
+	&"invader",
+	&"gauss_repeater",
+	&"beholder",
+	&"reaver",
+	&"brainiac",
+]
 const TOWER_SLOT_COUNT := 5
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const PLACEMENT_SNAP_SIZE := 16.0
@@ -247,16 +243,11 @@ func populate_tower_list() -> void:
 			var tower_stats := GameStats.get_tower(tower_id)
 			tower_list.add_item(
 				"$%d" % int(tower_stats["placement_cost"]),
-				TOWER_ICONS.get(tower_id)
-			)
-			tower_list.set_item_icon_modulate(
-				slot_index,
-				TOWER_ICON_COLORS.get(tower_id, Color.WHITE)
+				DEFAULT_TOWER_ICON
 			)
 			continue
 
-		var placeholder_icon: Texture2D = TOWER_ICONS[ITEM_TOWER_IDS[0]]
-		tower_list.add_item("Empty Slot", placeholder_icon)
+		tower_list.add_item("Empty Slot", DEFAULT_TOWER_ICON)
 		tower_list.set_item_icon_modulate(slot_index, Color.TRANSPARENT)
 		tower_list.set_item_disabled(slot_index, true)
 		tower_list.set_item_selectable(slot_index, false)
@@ -1396,8 +1387,7 @@ func start_build_tower() -> void:
 	place_mode = true
 	build_mode = true
 	start_button.disabled = true
-	var selected_scene: PackedScene = TOWER_SCENES[pending_tower_type]
-	tower_to_place = selected_scene.instantiate()
+	tower_to_place = TOWER_SCENE.instantiate()
 	tower_to_place.main = self
 	tower_to_place.tower_id = pending_tower_type
 	tower_to_place.tower_confirmed.connect(_on_tower_confirmed)

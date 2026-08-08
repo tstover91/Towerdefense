@@ -174,13 +174,14 @@ func spawn_split_children() -> void:
 		var child_progress := path_follow.progress - spacing * float(index + 1)
 		spawn_requested.emit(split_enemy_id, maxf(child_progress, 0.0))
 
-func apply_damage(amount: int, _damage_type: StringName = &"physical") -> void:
+func apply_damage(amount: int, damage_type: StringName) -> void:
 	if finished:
 		return
 
-	var final_damage := amount
-	if _damage_type == &"physical" and defense > 0.0:
-		final_damage = maxi(1, floori(amount * (1.0 - defense)))
+	var effective_defense := defense
+	if damage_type == &"explosive":
+		effective_defense *= 0.5
+	var final_damage := maxi(1, floori(amount * (1.0 - effective_defense)))
 
 	health -= final_damage
 	health_bar.value = health
