@@ -28,7 +28,9 @@ var contact_explosions_enabled := false
 var contact_explosion_radius := 0.0
 var infinite_pierce := false
 var can_hit_hidden := false
+var homing_enabled := false
 var source_tower_id: StringName = &""
+var maximum_travel_distance := 0.0
 var remaining_bounces := 0
 var remaining_pierce_hits := 0
 var pierce_chain_hit_count := 0
@@ -61,7 +63,8 @@ func setup(
 	attack_contact_explosion_radius := 0.0,
 	attack_infinite_pierce := false,
 	attack_can_hit_hidden := false,
-	attack_source_tower_id: StringName = &""
+	attack_source_tower_id: StringName = &"",
+	attack_homing_enabled := false
 ) -> void:
 	primary_target = target_node
 	impact_position = target_position
@@ -85,7 +88,9 @@ func setup(
 	contact_explosion_radius = maxf(attack_contact_explosion_radius, 0.0)
 	infinite_pierce = attack_infinite_pierce
 	can_hit_hidden = attack_can_hit_hidden
+	homing_enabled = attack_homing_enabled
 	source_tower_id = attack_source_tower_id
+	maximum_travel_distance = maxf(max_travel_distance, distance_to_impact)
 	remaining_bounces = bounce_count
 	remaining_pierce_hits = (
 		1 + pierce_count
@@ -98,8 +103,41 @@ func setup(
 func _physics_process(delta: float) -> void:
 	if piercing_after_primary:
 		process_pierce_travel(delta)
+	elif homing_enabled:
+		process_homing_travel(delta)
 	else:
 		process_primary_travel(delta)
+
+
+func process_homing_travel(delta: float) -> void:
+	if is_valid_target(primary_target):
+		impact_position = primary_target.global_position
+	var target_offset := impact_position - global_position
+	var target_distance := target_offset.length()
+	var target_hit_radius := PROJECTILE_RADIUS
+	if is_valid_target(primary_target):
+		target_hit_radius += get_target_hit_radius(primary_target)
+	if target_distance <= target_hit_radius + speed * delta:
+		global_position = impact_position
+		destination_reached.emit(self)
+		resolve_primary_impact()
+		return
+	if not target_offset.is_zero_approx():
+		direction = target_offset.normalized()
+		rotation = direction.angle()
+	var remaining_distance := maximum_travel_distance - distance_traveled
+	var travel_distance := minf(speed * delta, remaining_distance)
+	if travel_distance <= 0.0:
+		if damage_type == &"explosive":
+			resolve_explosion(global_position)
+		queue_free()
+		return
+	global_position += direction * travel_distance
+	distance_traveled += travel_distance
+	if distance_traveled >= maximum_travel_distance:
+		if damage_type == &"explosive":
+			resolve_explosion(global_position)
+		queue_free()
 
 
 func process_primary_travel(delta: float) -> void:

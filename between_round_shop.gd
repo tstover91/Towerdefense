@@ -2,6 +2,7 @@ class_name BetweenRoundShop
 extends Control
 
 signal draft_confirmed(item_id: StringName, quantity: int)
+signal draft_refresh_requested
 
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
@@ -9,6 +10,7 @@ const DRAFT_RELIC: StringName = &"relic"
 @onready var title_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/TitleLabel
 @onready var subtitle_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/SubtitleLabel
 @onready var owned_items_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/OwnedItemsLabel
+@onready var refresh_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/RefreshButton
 @onready var continue_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/ContinueButton
 @onready var cards: Array[Control] = [
 	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard1,
@@ -25,6 +27,7 @@ var active_draft_type: StringName = DRAFT_RELIC
 func _ready() -> void:
 	for card in cards:
 		card.chosen.connect(_on_card_chosen)
+	refresh_button.pressed.connect(_on_refresh_pressed)
 	continue_button.pressed.connect(_on_continue_pressed)
 
 
@@ -34,7 +37,9 @@ func open_draft(
 	draft_type: StringName,
 	offers: Array[StringName],
 	owned_items: Dictionary,
-	choice_quantities: Dictionary = {}
+	choice_quantities: Dictionary = {},
+	refresh_cost := 0,
+	can_afford_refresh := false
 ) -> void:
 	assert(
 		offers.size() <= cards.size(),
@@ -69,6 +74,9 @@ func open_draft(
 		cards[index].set_selected(false)
 
 	update_owned_items_display(owned_items)
+	refresh_button.visible = draft_type == DRAFT_RELIC
+	refresh_button.text = "Refresh ($%d)" % refresh_cost
+	refresh_button.disabled = not can_afford_refresh
 	continue_button.text = "Confirm"
 	continue_button.disabled = true
 	show()
@@ -123,3 +131,10 @@ func _on_continue_pressed() -> void:
 		return
 	continue_button.disabled = true
 	draft_confirmed.emit(selected_item_id, selected_quantity)
+
+
+func _on_refresh_pressed() -> void:
+	if active_draft_type != DRAFT_RELIC or refresh_button.disabled:
+		return
+	refresh_button.disabled = true
+	draft_refresh_requested.emit()

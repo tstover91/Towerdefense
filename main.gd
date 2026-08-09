@@ -75,6 +75,9 @@ const RELIC_MINIMUM_RARE_PLUS_BY_ROUND := {
 	11: 2,
 }
 const RELIC_ROLL_MAX_ATTEMPTS := 256
+const RELIC_REFRESH_BASE_COST := 75
+const RELIC_REFRESH_COST_INCREASE := 50
+const RELIC_REFRESH_DIFFERENT_ROLL_ATTEMPTS := 24
 const WAVE_ROLE_WEIGHTS := [
 	{
 		"maximum_wave": 3,
@@ -250,6 +253,9 @@ var max_rounds: int
 var mode_id: StringName = &"easy"
 var shop_open := false
 var active_draft_type: StringName = &""
+var active_draft_offers: Array[StringName] = []
+var active_draft_choice_quantities: Dictionary = {}
+var relic_refresh_count := 0
 var tower_roster: Array[StringName] = [&"invader", &"gauss_repeater"]
 var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
@@ -279,6 +285,7 @@ func _ready() -> void:
 	update_round_count()
 	spawntimer.timeout.connect(_spawn_mob)
 	between_round_shop.draft_confirmed.connect(_on_draft_confirmed)
+	between_round_shop.draft_refresh_requested.connect(_on_relic_refresh_requested)
 	update_play_pause_button()
 
 
@@ -585,6 +592,9 @@ func clear_active_projectiles() -> void:
 	for projectile in get_tree().get_nodes_in_group("tower_projectiles"):
 		if is_instance_valid(projectile):
 			projectile.queue_free()
+	for effect in get_tree().get_nodes_in_group("tower_attack_visuals"):
+		if is_instance_valid(effect):
+			effect.queue_free()
 
 
 func get_shared_spore_target(requesting_tower: Node) -> Node2D:
@@ -677,9 +687,8 @@ func open_tower_draft() -> void:
 
 func open_relic_draft() -> void:
 	var offers := roll_relic_offers()
-	var choice_quantities: Dictionary = {}
-	if round_number == 16 and offers.size() >= GAUNTLET_RELIC_CHOICE_COUNT:
-		choice_quantities[offers[GAUNTLET_RELIC_CHOICE_COUNT - 1]] = 2
+	var choice_quantities := get_relic_choice_quantities(offers)
+	relic_refresh_count = 0
 	open_between_round_draft(
 		DRAFT_RELIC,
 		offers,
@@ -700,16 +709,81 @@ func open_between_round_draft(
 	close_all_tower_menus()
 	shop_open = true
 	active_draft_type = draft_type
+	active_draft_offers = offers.duplicate()
+	active_draft_choice_quantities = choice_quantities.duplicate()
 	update_round_count()
 	update_play_pause_button()
+	var refresh_cost := get_relic_refresh_cost() if draft_type == DRAFT_RELIC else 0
 	between_round_shop.open_draft(
 		round_number,
 		max_rounds,
 		draft_type,
 		offers,
 		owned_items,
-		choice_quantities
+		choice_quantities,
+		refresh_cost,
+		draft_type == DRAFT_RELIC and money >= refresh_cost
 	)
+
+
+func get_relic_choice_quantities(offers: Array[StringName]) -> Dictionary:
+	var choice_quantities: Dictionary = {}
+	if round_number == 16 and offers.size() >= GAUNTLET_RELIC_CHOICE_COUNT:
+		choice_quantities[offers[GAUNTLET_RELIC_CHOICE_COUNT - 1]] = 2
+	return choice_quantities
+
+
+func get_relic_refresh_cost() -> int:
+	return (
+		RELIC_REFRESH_BASE_COST
+		+ relic_refresh_count * RELIC_REFRESH_COST_INCREASE
+	)
+
+
+func _on_relic_refresh_requested() -> void:
+	if not shop_open or active_draft_type != DRAFT_RELIC:
+		return
+	var refresh_cost := get_relic_refresh_cost()
+	if not spend_money(refresh_cost):
+		return
+	var refreshed_offers := roll_different_relic_offers(active_draft_offers)
+	relic_refresh_count += 1
+	active_draft_offers = refreshed_offers
+	active_draft_choice_quantities = get_relic_choice_quantities(refreshed_offers)
+	var next_refresh_cost := get_relic_refresh_cost()
+	between_round_shop.open_draft(
+		round_number,
+		max_rounds,
+		DRAFT_RELIC,
+		active_draft_offers,
+		owned_shop_items,
+		active_draft_choice_quantities,
+		next_refresh_cost,
+		money >= next_refresh_cost
+	)
+
+
+func roll_different_relic_offers(
+	previous_offers: Array[StringName]
+) -> Array[StringName]:
+	var refreshed_offers: Array[StringName] = []
+	for _attempt in RELIC_REFRESH_DIFFERENT_ROLL_ATTEMPTS:
+		refreshed_offers = roll_relic_offers()
+		if not relic_offer_sets_match(previous_offers, refreshed_offers):
+			return refreshed_offers
+	return refreshed_offers
+
+
+func relic_offer_sets_match(
+	first: Array[StringName],
+	second: Array[StringName]
+) -> bool:
+	if first.size() != second.size():
+		return false
+	for item_id in first:
+		if not second.has(item_id):
+			return false
+	return true
 
 
 func roll_relic_offers() -> Array[StringName]:
@@ -892,6 +966,9 @@ func _on_draft_confirmed(item_id: StringName, quantity: int) -> void:
 		collect_relic(item_id, quantity)
 	shop_open = false
 	active_draft_type = &""
+	active_draft_offers.clear()
+	active_draft_choice_quantities.clear()
+	relic_refresh_count = 0
 	between_round_shop.hide()
 	enter_build_phase()
 

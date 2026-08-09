@@ -9,6 +9,7 @@ const LONGSHOT_MINE_SCENE = preload("res://longshot_mine.tscn")
 const VOID_SINGULARITY_SCENE = preload("res://void_singularity.tscn")
 const SOLAR_LANCE_SCENE = preload("res://solar_lance.tscn")
 const SAUCER_FLYER_SCENE = preload("res://saucer_flyer.tscn")
+const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const MENU_HALF_WIDTH := 120.0
@@ -213,6 +214,8 @@ var energy_branch_damage_loss := 0.25
 var energy_branch_visual_segments: Array[Dictionary] = []
 var energy_branch_visual_remaining := 0.0
 var saucer_twin_rockets_enabled := false
+var saucer_rocket_damage_multiplier := 2.0
+var saucer_rocket_interval := 3.0
 var saucer_monster_drop_enabled := false
 var saucer_flyer_move_speed := 165.0
 var saucer_attack_radius_pixels := 0.0
@@ -414,7 +417,7 @@ func draw_active_beam() -> void:
 		return
 	if not beam_has_aim:
 		return
-	var beam_start_world := muzzle.global_position
+	var beam_start_world := get_continuous_beam_origin()
 	var beam_direction := beam_aim_direction.normalized()
 	var beam_offsets: Array[float] = [0.0]
 	if uses_dual_continuous_beams():
@@ -422,7 +425,8 @@ func draw_active_beam() -> void:
 	var perpendicular := beam_direction.orthogonal()
 	for beam_offset in beam_offsets:
 		var offset_start := beam_start_world + perpendicular * beam_offset
-		var offset_end := offset_start + beam_direction * range_radius_pixels
+		var beam_length := get_continuous_beam_length(target, offset_start)
+		var offset_end := offset_start + beam_direction * beam_length
 		draw_beam_segment(
 			to_local(offset_start),
 			to_local(offset_end)
@@ -1308,29 +1312,87 @@ func saucer_can_abduct_target(candidate: Variant) -> bool:
 	)
 
 
-func fire_saucer_rockets(launch_position: Vector2, current_target: Node2D) -> void:
+func get_saucer_abduction_target() -> Node2D:
+	if not is_saucer_combat_active():
+		return null
+	var selected_target: Node2D
+	var selected_progress := -INF
+	for candidate in mobs_in_range:
+		if not saucer_can_abduct_target(candidate):
+			continue
+		var candidate_progress := -INF
+		if is_instance_valid(candidate.path_follow):
+			candidate_progress = float(candidate.path_follow.progress)
+		if selected_target == null or candidate_progress > selected_progress:
+			selected_progress = candidate_progress
+			selected_target = candidate
+	return selected_target
+
+
+func fire_saucer_weapon(
+	launch_position: Vector2,
+	current_target: Node2D,
+	launch_homing_rockets := false
+) -> void:
 	if not is_saucer_combat_active() or not is_valid_target(current_target):
 		return
-	var rocket_count := 2 if saucer_twin_rockets_enabled else 1
+	var attack_damage := roll_attack_damage()
+	spawn_hitscan_effect(
+		launch_position,
+		current_target.global_position,
+		DAMAGE_ELECTRIC
+	)
+	apply_control_effects(current_target)
+	apply_tower_damage(current_target, attack_damage, DAMAGE_ELECTRIC, false)
+	if saucer_twin_rockets_enabled and launch_homing_rockets:
+		fire_saucer_homing_rockets(
+			launch_position,
+			current_target,
+			maxi(roundi(float(attack_damage) * saucer_rocket_damage_multiplier), 1)
+		)
+
+
+func fire_saucer_homing_rockets(
+	launch_position: Vector2,
+	current_target: Node2D,
+	rocket_damage: int
+) -> void:
+	if projectile_scene == null or not is_valid_target(current_target):
+		return
 	var aim_offset := current_target.global_position - launch_position
 	var perpendicular := (
 		aim_offset.normalized().orthogonal()
 		if not aim_offset.is_zero_approx()
 		else Vector2.UP
 	)
-	for rocket_index in rocket_count:
-		var lateral_offset := 0.0
-		if rocket_count == 2:
-			lateral_offset = -7.0 if rocket_index == 0 else 7.0
+	for rocket_index in 2:
+		var lateral_offset := -7.0 if rocket_index == 0 else 7.0
 		var rocket_origin := launch_position + perpendicular * lateral_offset
 		var destination := current_target.global_position
-		launch_projectile_from_position(
+		var projectile := projectile_scene.instantiate() as TowerProjectile
+		get_tree().current_scene.add_child(projectile)
+		projectile.global_position = rocket_origin
+		projectile.setup(
 			current_target,
-			rocket_origin,
 			destination,
-			rocket_origin.distance_to(destination),
-			roll_attack_damage(),
-			splash_radius_pixels
+			projectile_speed,
+			maxf(range_radius_pixels, rocket_origin.distance_to(destination) * 2.0),
+			rocket_damage,
+			DAMAGE_EXPLOSIVE,
+			GameStats.IMPACT_PRIMARY,
+			splash_radius_pixels,
+			0,
+			0.0,
+			0.0,
+			false,
+			0,
+			0.0,
+			false,
+			0.0,
+			false,
+			has_bonus_tag(BONUS_REVEAL),
+			tower_id,
+			true
 		)
 
 
@@ -1373,6 +1435,10 @@ func spawn_saucer_monster(spawn_position: Vector2) -> void:
 	)
 	monster_stats["aim_radius"] = (
 		float(monster_stats.get("aim_radius", 4.0))
+		* get_main_multiplier(&"tower_range")
+	)
+	monster_stats["acquisition_radius"] = (
+		float(monster_stats.get("acquisition_radius", 8.0))
 		* get_main_multiplier(&"tower_range")
 	)
 	var monster := SPAWNED_UNIT_SCENE.instantiate()
@@ -2070,6 +2136,10 @@ func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
 	var origin := muzzle.global_position
 	var primary_position := current_target.global_position
 	var aim_offset := primary_position - origin
+	var visual_end := primary_position
+	if pierce_count > 0 and not aim_offset.is_zero_approx():
+		visual_end = origin + aim_offset.normalized() * range_radius_pixels
+	spawn_hitscan_effect(origin, visual_end, damage_type)
 	apply_control_effects(current_target)
 	current_target.apply_damage(attack_damage, damage_type, pierce_count > 0)
 	if pierce_count < 1:
@@ -2094,6 +2164,18 @@ func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
 		targets[index].apply_damage(pierced_damage, damage_type, true)
 
 
+func spawn_hitscan_effect(
+	start_position: Vector2,
+	end_position: Vector2,
+	attack_type: StringName
+) -> void:
+	if HITSCAN_EFFECT_SCENE == null or get_tree().current_scene == null:
+		return
+	var effect := HITSCAN_EFFECT_SCENE.instantiate() as Node2D
+	get_tree().current_scene.add_child(effect)
+	effect.setup(start_position, end_position, attack_type)
+
+
 func apply_continuous_beam_tick(
 	current_target: Node2D,
 	attack_damage: int,
@@ -2104,8 +2186,9 @@ func apply_continuous_beam_tick(
 		return
 	var direction := beam_aim_direction.normalized()
 	var perpendicular := direction.orthogonal()
-	var line_origin := muzzle.global_position + perpendicular * beam_offset
-	var line_end := line_origin + direction * range_radius_pixels
+	var line_origin := get_continuous_beam_origin() + perpendicular * beam_offset
+	var beam_length := get_continuous_beam_length(current_target, line_origin)
+	var line_end := line_origin + direction * beam_length
 	if pierce_count < 1 and not infinite_pierce:
 		if not is_target_intersecting_line(
 			current_target,
@@ -2141,7 +2224,9 @@ func apply_continuous_beam_tick(
 func ensure_continuous_beam_aim(current_target: Node2D) -> void:
 	if beam_has_aim or not is_valid_target(current_target):
 		return
-	var target_offset := current_target.global_position - muzzle.global_position
+	var target_offset := (
+		current_target.global_position - get_continuous_beam_origin()
+	)
 	if target_offset.is_zero_approx():
 		return
 	beam_aim_direction = target_offset.normalized()
@@ -2151,7 +2236,7 @@ func ensure_continuous_beam_aim(current_target: Node2D) -> void:
 func process_continuous_beam_aim(delta: float) -> void:
 	if not uses_continuous_beam() or not is_valid_target(target):
 		return
-	var target_offset := target.global_position - muzzle.global_position
+	var target_offset := target.global_position - get_continuous_beam_origin()
 	if target_offset.is_zero_approx():
 		return
 	var desired_direction := target_offset.normalized()
@@ -2165,6 +2250,25 @@ func process_continuous_beam_aim(delta: float) -> void:
 			clampf(angle_difference, -maximum_turn, maximum_turn)
 		).normalized()
 	rotator.rotation = beam_aim_direction.angle()
+
+
+func get_continuous_beam_origin() -> Vector2:
+	if tower_id == BEHOLDER_TOWER_ID:
+		return global_position
+	return muzzle.global_position
+
+
+func get_continuous_beam_length(
+	current_target: Node2D,
+	beam_origin: Vector2
+) -> float:
+	if (
+		pierce_count < 1
+		and not infinite_pierce
+		and is_valid_target(current_target)
+	):
+		return beam_origin.distance_to(current_target.global_position)
+	return range_radius_pixels
 
 
 func is_target_intersecting_line(
@@ -3146,6 +3250,8 @@ func load_path_behaviors() -> void:
 	energy_branch_range_pixels = 0.0
 	energy_branch_damage_loss = 0.25
 	saucer_twin_rockets_enabled = false
+	saucer_rocket_damage_multiplier = 2.0
+	saucer_rocket_interval = 3.0
 	saucer_monster_drop_enabled = false
 	slinger_contact_explosions_enabled = false
 	slinger_contact_explosion_radius_pixels = 0.0
@@ -3389,6 +3495,14 @@ func load_path_behaviors() -> void:
 			)
 		if flags.get("saucer_twin_rockets", false):
 			saucer_twin_rockets_enabled = true
+			saucer_rocket_damage_multiplier = maxf(
+				float(values.get("saucer_rocket_damage_multiplier", 2.0)),
+				0.0
+			)
+			saucer_rocket_interval = maxf(
+				float(values.get("saucer_rocket_interval", 3.0)),
+				0.1
+			)
 		if flags.get("saucer_monster_drop", false):
 			saucer_monster_drop_enabled = true
 		if flags.get("slinger_contact_explosions", false):

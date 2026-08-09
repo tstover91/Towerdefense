@@ -87,6 +87,11 @@ text = "Owned relics: None"
 horizontal_alignment = 1
 text_overrun_behavior = 3
 
+[node name="RefreshButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "Refresh ($75)"
+
 [node name="ContinueButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2

@@ -4,6 +4,7 @@ extends Node2D
 const GameStats = preload("res://stat_database.gd")
 const PROJECTILE_SCENE = preload("res://projectile.tscn")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
+const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
 const RANGE_PIXELS_PER_UNIT := 12.9
 const ARRIVAL_DISTANCE := 6.0
 const BEAM_HIT_HALF_WIDTH := 2.5
@@ -29,6 +30,7 @@ var bounce_count := 0
 var bounce_range_pixels := 0.0
 var attack_interval := 1.0
 var aim_radius_pixels := 100.0
+var acquisition_radius_pixels := 100.0
 var move_speed := 0.0
 var projectile_speed := 500.0
 var projectile_count := 1
@@ -45,6 +47,7 @@ var returning_to_base := false
 var attack_cooldown := 0.0
 var path_progress := 0.0
 var orbit_angle := 0.0
+var home_position := Vector2.ZERO
 var target: Node2D
 var local_target: Node2D
 var locally_acquired_target := false
@@ -78,6 +81,7 @@ func setup(
 	add_to_group("spawned_units")
 	load_definition()
 	apply_stats(unit_stats)
+	home_position = global_position
 	if movement_type == GameStats.MOVEMENT_PATH_ASSAULT:
 		initialize_path_position()
 	queue_redraw()
@@ -144,6 +148,11 @@ func apply_stats(unit_stats: Dictionary) -> void:
 	aim_radius_pixels = maxf(
 		float(unit_stats.get("aim_radius", 1.0)) * RANGE_PIXELS_PER_UNIT,
 		1.0
+	)
+	acquisition_radius_pixels = maxf(
+		float(unit_stats.get("acquisition_radius", 1.0))
+			* RANGE_PIXELS_PER_UNIT,
+		aim_radius_pixels
 	)
 	move_speed = maxf(float(unit_stats.get("move_speed", move_speed)), 0.0)
 	projectile_speed = maxf(
@@ -216,7 +225,7 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(parent_tower) or parent_tower.is_queued_for_deletion():
 		queue_free()
 		return
-	if movement_type == GameStats.MOVEMENT_STATIONARY and lifetime > 0.0:
+	if lifetime > 0.0:
 		age += delta
 		if age >= lifetime:
 			queue_free()
@@ -229,6 +238,8 @@ func _physics_process(delta: float) -> void:
 			process_drone(delta)
 		GameStats.MOVEMENT_PATH_ASSAULT:
 			process_path_assault(delta)
+		GameStats.MOVEMENT_GUARD:
+			process_guard(delta)
 		_:
 			process_stationary()
 	if continuous_beam:
@@ -303,6 +314,18 @@ func process_drone(delta: float) -> void:
 		+ Vector2.from_angle(orbit_angle) * orbit_radius
 	)
 	move_toward_position(orbit_position, delta)
+
+
+func process_guard(delta: float) -> void:
+	target = select_target(home_position, acquisition_radius_pixels)
+	if is_valid_target(target):
+		if global_position.distance_to(target.global_position) > aim_radius_pixels:
+			move_toward_position(target.global_position, delta)
+			return
+		try_attack_target()
+		return
+	target = null
+	move_toward_position(home_position, delta)
 
 
 func process_path_assault(delta: float) -> void:
@@ -570,6 +593,11 @@ func perform_hitscan_attack(
 	attack_damage: int,
 	damage_type: StringName
 ) -> void:
+	var visual_end := current_target.global_position
+	var aim_offset := current_target.global_position - global_position
+	if pierce_count > 0 and not aim_offset.is_zero_approx():
+		visual_end = global_position + aim_offset.normalized() * aim_radius_pixels
+	spawn_hitscan_effect(global_position, visual_end, damage_type)
 	apply_control_effects(current_target)
 	current_target.apply_damage(
 		attack_damage,
@@ -578,7 +606,6 @@ func perform_hitscan_attack(
 	)
 	if pierce_count < 1:
 		return
-	var aim_offset := current_target.global_position - global_position
 	if aim_offset.is_zero_approx():
 		return
 	var direction := aim_offset.normalized()
@@ -598,6 +625,18 @@ func perform_hitscan_attack(
 		targets[index].apply_damage(pierced_damage, damage_type, true)
 
 
+func spawn_hitscan_effect(
+	start_position: Vector2,
+	end_position: Vector2,
+	attack_type: StringName
+) -> void:
+	if HITSCAN_EFFECT_SCENE == null or get_tree().current_scene == null:
+		return
+	var effect := HITSCAN_EFFECT_SCENE.instantiate() as Node2D
+	get_tree().current_scene.add_child(effect)
+	effect.setup(start_position, end_position, attack_type)
+
+
 func perform_continuous_beam_attack(
 	current_target: Node2D,
 	attack_damage: int,
@@ -607,7 +646,8 @@ func perform_continuous_beam_attack(
 	if not beam_has_aim:
 		return false
 	var line_origin := global_position
-	var line_end := line_origin + beam_aim_direction * aim_radius_pixels
+	var beam_length := get_continuous_beam_length(current_target)
+	var line_end := line_origin + beam_aim_direction * beam_length
 	if pierce_count < 1 and not infinite_pierce:
 		if not is_target_intersecting_beam(current_target, line_origin, line_end):
 			return false
@@ -655,6 +695,16 @@ func update_continuous_beam_aim(delta: float) -> void:
 	beam_aim_direction = beam_aim_direction.rotated(
 		clampf(angle_difference, -maximum_turn, maximum_turn)
 	).normalized()
+
+
+func get_continuous_beam_length(current_target: Node2D) -> float:
+	if (
+		pierce_count < 1
+		and not infinite_pierce
+		and is_valid_target(current_target)
+	):
+		return global_position.distance_to(current_target.global_position)
+	return aim_radius_pixels
 
 
 func is_target_intersecting_beam(
@@ -808,7 +858,10 @@ func _draw() -> void:
 		and is_valid_target(target)
 		and global_position.distance_to(target.global_position) <= aim_radius_pixels
 	):
-		var beam_end := global_position + beam_aim_direction * aim_radius_pixels
+		var beam_end := (
+			global_position
+			+ beam_aim_direction * get_continuous_beam_length(target)
+		)
 		draw_line(
 			Vector2.ZERO,
 			to_local(beam_end),

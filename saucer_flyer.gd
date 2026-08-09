@@ -6,6 +6,7 @@ const RETURN_DISTANCE := 3.0
 var parent_tower
 var attack_cooldown := 0.0
 var abduction_cooldown := 0.0
+var rocket_cooldown := 0.0
 var target: Node2D
 var abduction_flash_remaining := 0.0
 
@@ -27,13 +28,19 @@ func _physics_process(delta: float) -> void:
 		target = null
 		attack_cooldown = 0.0
 		abduction_cooldown = float(parent_tower.saucer_abduction_cooldown)
+		rocket_cooldown = 0.0
 		move_toward_position(parent_tower.global_position, delta)
 		queue_redraw()
 		return
 
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
 	abduction_cooldown = maxf(abduction_cooldown - delta, 0.0)
+	rocket_cooldown = maxf(rocket_cooldown - delta, 0.0)
 	target = parent_tower.get_saucer_target()
+	if abduction_cooldown <= 0.0:
+		var abduction_target = parent_tower.get_saucer_abduction_target()
+		if is_valid_target(abduction_target):
+			target = abduction_target
 	if not is_valid_target(target):
 		target = null
 		move_toward_position(parent_tower.global_position, delta)
@@ -62,12 +69,22 @@ func _physics_process(delta: float) -> void:
 		target = null
 		queue_redraw()
 		return
+	if can_abduct:
+		# Preserve an eligible victim while the saucer closes the final distance.
+		queue_redraw()
+		return
 
 	if (
 		attack_cooldown <= 0.0
 		and distance_to_target <= float(parent_tower.saucer_attack_radius_pixels)
 	):
-		parent_tower.fire_saucer_rockets(global_position, target)
+		var launch_rockets: bool = (
+			parent_tower.saucer_twin_rockets_enabled
+			and rocket_cooldown <= 0.0
+		)
+		parent_tower.fire_saucer_weapon(global_position, target, launch_rockets)
+		if launch_rockets:
+			rocket_cooldown = float(parent_tower.saucer_rocket_interval)
 		attack_cooldown = float(parent_tower.damage_timer.wait_time)
 	queue_redraw()
 
