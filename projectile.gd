@@ -5,6 +5,8 @@ const GameStats = preload("res://stat_database.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const PROJECTILE_RADIUS := 3.0
 
+signal destination_reached(projectile: Node2D)
+
 var primary_target: Node2D
 var impact_position := Vector2.ZERO
 var direction := Vector2.RIGHT
@@ -26,12 +28,18 @@ var contact_explosions_enabled := false
 var contact_explosion_radius := 0.0
 var infinite_pierce := false
 var can_hit_hidden := false
+var source_tower_id: StringName = &""
 var remaining_bounces := 0
 var remaining_pierce_hits := 0
 var pierce_chain_hit_count := 0
 var piercing_after_primary := false
 var first_contact_made := false
 var hit_target_ids: Dictionary = {}
+var contact_splash_hit_target_ids: Dictionary = {}
+
+
+func _ready() -> void:
+	add_to_group("tower_projectiles")
 
 
 func setup(
@@ -52,7 +60,8 @@ func setup(
 	attack_contact_explosions_enabled := false,
 	attack_contact_explosion_radius := 0.0,
 	attack_infinite_pierce := false,
-	attack_can_hit_hidden := false
+	attack_can_hit_hidden := false,
+	attack_source_tower_id: StringName = &""
 ) -> void:
 	primary_target = target_node
 	impact_position = target_position
@@ -76,6 +85,7 @@ func setup(
 	contact_explosion_radius = maxf(attack_contact_explosion_radius, 0.0)
 	infinite_pierce = attack_infinite_pierce
 	can_hit_hidden = attack_can_hit_hidden
+	source_tower_id = attack_source_tower_id
 	remaining_bounces = bounce_count
 	remaining_pierce_hits = (
 		1 + pierce_count
@@ -114,6 +124,7 @@ func process_primary_travel(delta: float) -> void:
 		return
 
 	global_position = impact_position
+	destination_reached.emit(self)
 	if impact_mode == GameStats.IMPACT_FIRST_CONTACT:
 		resolve_first_contact_destination()
 	else:
@@ -331,12 +342,28 @@ func resolve_explosion(center: Vector2) -> void:
 
 
 func resolve_contact_explosion(center: Vector2, explosion_damage: int) -> void:
-	resolve_explosion_with_stats(
-		center,
-		contact_explosion_radius,
-		explosion_damage,
-		&"explosive"
-	)
+	spawn_explosion_zone(center, contact_explosion_radius)
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_target(mob):
+			continue
+		var target_id: int = mob.get_instance_id()
+		if contact_splash_hit_target_ids.has(target_id):
+			continue
+		var distance_from_center: float = mob.global_position.distance_to(center)
+		if distance_from_center > contact_explosion_radius:
+			continue
+		contact_splash_hit_target_ids[target_id] = true
+		var resolved_damage: int = GameStats.get_explosion_damage(
+			explosion_damage,
+			distance_from_center,
+			contact_explosion_radius
+		)
+		apply_damage_and_effects(
+			mob,
+			pierce_count > 0 or infinite_pierce,
+			resolved_damage,
+			&"explosive"
+		)
 
 
 func resolve_explosion_with_stats(
@@ -387,7 +414,15 @@ func apply_damage_and_effects(
 	var resolved_damage_type := (
 		damage_type if attack_damage_type.is_empty() else attack_damage_type
 	)
-	mob.apply_damage(attack_damage, resolved_damage_type, ignores_armor)
+	if mob.has_method("apply_damage_from_tower"):
+		mob.apply_damage_from_tower(
+			attack_damage,
+			resolved_damage_type,
+			ignores_armor,
+			source_tower_id
+		)
+	else:
+		mob.apply_damage(attack_damage, resolved_damage_type, ignores_armor)
 
 
 func get_target_hit_radius(candidate: Node) -> float:
@@ -397,9 +432,14 @@ func get_target_hit_radius(candidate: Node) -> float:
 
 
 func is_valid_target(candidate: Variant) -> bool:
-	return (
+	var valid_target: bool = (
 		candidate != null
 		and is_instance_valid(candidate)
 		and not candidate.is_queued_for_deletion()
 		and not candidate.finished
 	)
+	if not valid_target:
+		return false
+	if candidate.traits.has(&"hidden"):
+		return can_hit_hidden
+	return true

@@ -56,6 +56,16 @@ const SPAWNED_UNITS := {
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
 	},
+	"abducted_monster": {
+		"display_name": "Abducted Monster",
+		"type_tags": [&"biological"],
+		"damage_tags": [&"melee"],
+		"bonus_tags": [],
+		"pierce_count": 0,
+		"movement_type": MOVEMENT_STATIONARY,
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
+	},
 }
 
 const RELICS := {
@@ -356,7 +366,7 @@ const TOWERS := {
 			},
 			"b": {
 				"display_name": "Continuous Beam",
-				"description": "Replaces Ballistic fire with a continuous Beam that deals damage in ticks while locked to its primary target.",
+				"description": "Replaces Ballistic fire with a continuous Beam that tracks its primary target and deals tick damage only while physically aligned with it.",
 				"cost": 1500,
 				"unlock_level": 4,
 				"remove_damage_tags": [&"ballistic"],
@@ -419,6 +429,34 @@ const TOWERS := {
 		"impact_mode": IMPACT_FIRST_CONTACT,
 		"bonus_tags": [&"pierce"],
 		"pierce_count": 1,
+		"paths": {
+			"a": {
+				"display_name": "Heavy Accelerator",
+				"description": "Periodically fires a zero-spread heavy round straight along Gauss's current aim. The heavy round has unlimited Pierce.",
+				"cost": 4500,
+				"unlock_level": 4,
+				"behavior_flags": {
+					"gauss_heavy_shot": true,
+				},
+				"behavior_values": {
+					"heavy_shot_interval": 3.0,
+					"heavy_shot_damage_multiplier": 15.0,
+					"heavy_shot_speed_multiplier": 0.60,
+				},
+			},
+			"b": {
+				"display_name": "Threat Tracker",
+				"description": "Tracks and fires at the strongest enemy inside the selected 45-degree cone. Changing cone direction resets spread.",
+				"cost": 4500,
+				"unlock_level": 4,
+				"behavior_flags": {
+					"gauss_tracking_cone": true,
+				},
+				"behavior_values": {
+					"tracking_cone_degrees": 45.0,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -494,9 +532,41 @@ const TOWERS := {
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"beam"],
+		"primary_damage_type": &"beam",
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"reveal"],
+		"paths": {
+			"a": {
+				"display_name": "Death Burst",
+				"description": "An enemy explodes when it dies while Beholder is actively targeting it, regardless of which attack lands the final hit.",
+				"cost": 5000,
+				"unlock_level": 4,
+				"add_damage_tags": [&"explosive"],
+				"behavior_flags": {
+					"beholder_death_explosion": true,
+				},
+				"behavior_values": {
+					"death_explosion_radius": 3.0,
+					"death_explosion_damage_multiplier": 4.0,
+				},
+			},
+			"b": {
+				"display_name": "Escalating Beam",
+				"description": "Starts at 50% of the previous level's damage and gains 25% every 0.5 seconds of uninterrupted fire, up to 250%.",
+				"cost": 5000,
+				"unlock_level": 4,
+				"behavior_flags": {
+					"beholder_ramping_beam": true,
+				},
+				"behavior_values": {
+					"beam_ramp_start_multiplier": 0.50,
+					"beam_ramp_step_multiplier": 0.25,
+					"beam_ramp_step_interval": 0.50,
+					"beam_ramp_max_multiplier": 2.50,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -545,6 +615,34 @@ const TOWERS := {
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [],
+		"paths": {
+			"a": {
+				"display_name": "Time Bubble",
+				"description": "Activates a Psionic slow aura around Reaver for three seconds, followed by a seven-second cooldown.",
+				"cost": 1800,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"psionic"],
+				"behavior_flags": {
+					"reaver_time_bubble": true,
+				},
+				"behavior_values": {
+					"time_bubble_active_duration": 3.0,
+					"time_bubble_cooldown": 7.0,
+					"time_bubble_refresh_interval": 0.20,
+					"time_bubble_slow_duration": 0.30,
+				},
+			},
+			"b": {
+				"display_name": "Assassinate",
+				"description": "Adds Critical. The combo's finishing strike is guaranteed to critically hit.",
+				"cost": 1800,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"critical"],
+				"behavior_flags": {
+					"reaver_assassinate": true,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -603,6 +701,34 @@ const TOWERS := {
 		"delivery_type": DELIVERY_PROJECTILE,
 		"impact_mode": IMPACT_FIRST_CONTACT,
 		"bonus_tags": [],
+		"paths": {
+			"a": {
+				"display_name": "Convergence Burst",
+				"description": "Bolts that reach the convergence point combine into one explosion. Each arriving bolt increases its damage and radius.",
+				"cost": 2100,
+				"unlock_level": 4,
+				"add_damage_tags": [&"explosive"],
+				"behavior_flags": {"brainiac_convergence_explosion": true},
+				"behavior_values": {
+					"convergence_base_radius": 1.5,
+					"convergence_radius_per_arrival": 0.65,
+					"convergence_damage_per_arrival": 1.0,
+				},
+			},
+			"b": {
+				"display_name": "Psionic Link",
+				"description": "Links Brainiac's strongest target. Half of the damage it receives from all towers is spread to enemies around it.",
+				"cost": 2100,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"psionic"],
+				"behavior_flags": {"brainiac_psionic_link": true},
+				"behavior_values": {
+					"brainiac_link_duration": 2.0,
+					"brainiac_link_radius": 3.5,
+					"brainiac_link_damage_share": 0.5,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -666,6 +792,35 @@ const TOWERS := {
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"critical"],
+		"paths": {
+			"a": {
+				"display_name": "Extreme Range",
+				"description": "Longshot's direct shots gain damage with distance, reaching double damage at maximum range.",
+				"cost": 2400,
+				"unlock_level": 4,
+				"behavior_flags": {"longshot_distance_damage": true},
+				"behavior_values": {
+					"distance_minimum_multiplier": 1.0,
+					"distance_maximum_multiplier": 2.0,
+				},
+			},
+			"b": {
+				"display_name": "Minefield",
+				"description": "Periodically places up to three Explosive mines on nearby path cells. Mines clear after each round.",
+				"cost": 2400,
+				"unlock_level": 4,
+				"add_damage_tags": [&"explosive"],
+				"behavior_flags": {"longshot_mines": true},
+				"behavior_values": {
+					"mine_interval": 5.0,
+					"mine_maximum_count": 3,
+					"mine_placement_radius": 6.0,
+					"mine_trigger_radius": 1.0,
+					"mine_explosion_radius": 3.0,
+					"mine_damage_multiplier": 1.5,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -806,6 +961,34 @@ const TOWERS := {
 		"delivery_type": DELIVERY_PROJECTILE,
 		"impact_mode": IMPACT_FIRST_CONTACT,
 		"bonus_tags": [],
+		"paths": {
+			"a": {
+				"display_name": "Orb Barrage",
+				"description": "Replaces the two-orb attack with a staggered five-orb fan.",
+				"cost": 2500,
+				"unlock_level": 4,
+				"stat_overrides": {
+					"projectile_count": 5,
+					"volley_width": 6.0,
+				},
+			},
+			"b": {
+				"display_name": "Singularity",
+				"description": "Keeps the normal two-orb attack and periodically pulls enemies for one second before a large explosion.",
+				"cost": 2500,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"psionic"],
+				"behavior_flags": {"void_singularity": true},
+				"behavior_values": {
+					"singularity_cooldown": 12.0,
+					"singularity_pull_duration": 1.0,
+					"singularity_pull_radius": 5.0,
+					"singularity_pull_speed": 160.0,
+					"singularity_explosion_radius": 4.5,
+					"singularity_damage_multiplier": 3.0,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -879,6 +1062,42 @@ const TOWERS := {
 		"delivery_type": DELIVERY_PROJECTILE,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"stun"],
+		"minimum_range": 5.0,
+		"paths": {
+			"a": {
+				"display_name": "Solar Lance",
+				"description": "Replaces the stunning strike with a two-second, tile-wide persistent beam that has infinite Pierce.",
+				"cost": 4200,
+				"unlock_level": 4,
+				"remove_bonus_tags": [&"stun"],
+				"add_bonus_tags": [&"pierce"],
+				"stat_overrides": {"stun_duration": 0.0},
+				"behavior_flags": {
+					"orbital_solar_lance": true,
+					"infinite_pierce": true,
+				},
+				"behavior_values": {
+					"solar_lance_duration": 2.0,
+					"solar_lance_tick_interval": 0.2,
+					"solar_lance_tick_damage_multiplier": 0.25,
+					"solar_lance_dual_tick_damage_multiplier": 0.10,
+				},
+			},
+			"b": {
+				"display_name": "Bombardment",
+				"description": "Replaces each strike with five smaller staggered strikes around the selected location.",
+				"cost": 4200,
+				"unlock_level": 4,
+				"behavior_flags": {"orbital_bombardment": true},
+				"behavior_values": {
+					"bombardment_strike_count": 5,
+					"bombardment_stagger": 0.15,
+					"bombardment_spread_radius": 3.0,
+					"bombardment_damage_multiplier": 0.45,
+					"bombardment_radius_multiplier": 0.70,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -942,6 +1161,33 @@ const TOWERS := {
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [],
+		"paths": {
+			"a": {
+				"display_name": "Shockwave",
+				"description": "Every six seconds, releases an electric pulse that damages and stuns all enemies in range.",
+				"cost": 2200,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"stun"],
+				"behavior_flags": {"energy_shockwave": true},
+				"behavior_values": {
+					"shockwave_cooldown": 6.0,
+					"shockwave_damage_multiplier": 2.0,
+					"shockwave_stun_duration": 0.75,
+				},
+			},
+			"b": {
+				"display_name": "Branching Current",
+				"description": "Normal attacks chain to two nearby enemies, losing 25% base damage with each jump.",
+				"cost": 2200,
+				"unlock_level": 4,
+				"behavior_flags": {"energy_branching_current": true},
+				"behavior_values": {
+					"branch_additional_targets": 2,
+					"branch_range": 4.0,
+					"branch_damage_loss": 0.25,
+				},
+			},
+		},
 		
 		"levels": [
 			{
@@ -995,7 +1241,23 @@ const TOWERS := {
 		"delivery_type": DELIVERY_PROJECTILE,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"reveal"],
-		
+		"paths": {
+			"a": {
+				"display_name": "Twin Rockets",
+				"description": "The flying saucer fires two rockets simultaneously at the same target.",
+				"cost": 4200,
+				"unlock_level": 4,
+				"behavior_flags": {"saucer_twin_rockets": true},
+			},
+			"b": {
+				"display_name": "Specimen Deployment",
+				"description": "Successful abductions can deploy one friendly monster beneath the saucer. Limited to one active monster per saucer.",
+				"cost": 4200,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"spawner"],
+				"behavior_flags": {"saucer_monster_drop": true},
+			},
+		},
 		"levels": [
 			{
 				"upgrade_cost": 0,
@@ -1004,6 +1266,12 @@ const TOWERS := {
 				"firerate": 1.8,
 				"range": 20.0,
 				"splash_radius": 2.25,
+				"flyer_move_speed": 165.0,
+				"flyer_attack_radius": 5.0,
+				"abduction_cooldown": 16.0,
+				"abduction_radius": 1.5,
+				"abduction_health_threshold": 0.35,
+				"monster_stats": {"damage": 16, "attack_interval": 1.0, "aim_radius": 4.0, "move_speed": 0.0},
 				"hidden_detection": false,
 			},
 			{
@@ -1013,6 +1281,12 @@ const TOWERS := {
 				"firerate": 1.7,
 				"range": 21.0,
 				"splash_radius": 2.5,
+				"flyer_move_speed": 175.0,
+				"flyer_attack_radius": 5.25,
+				"abduction_cooldown": 15.0,
+				"abduction_radius": 1.5,
+				"abduction_health_threshold": 0.35,
+				"monster_stats": {"damage": 23, "attack_interval": 0.95, "aim_radius": 4.25, "move_speed": 0.0},
 				"hidden_detection": false,
 			},
 			{
@@ -1022,6 +1296,12 @@ const TOWERS := {
 				"firerate": 1.6,
 				"range": 22.0,
 				"splash_radius": 2.75,
+				"flyer_move_speed": 185.0,
+				"flyer_attack_radius": 5.5,
+				"abduction_cooldown": 14.0,
+				"abduction_radius": 1.5,
+				"abduction_health_threshold": 0.35,
+				"monster_stats": {"damage": 34, "attack_interval": 0.9, "aim_radius": 4.5, "move_speed": 0.0},
 				"hidden_detection": false,
 			},
 			{
@@ -1031,6 +1311,12 @@ const TOWERS := {
 				"firerate": 1.45,
 				"range": 23.0,
 				"splash_radius": 3.1,
+				"flyer_move_speed": 195.0,
+				"flyer_attack_radius": 5.75,
+				"abduction_cooldown": 13.0,
+				"abduction_radius": 1.5,
+				"abduction_health_threshold": 0.35,
+				"monster_stats": {"damage": 50, "attack_interval": 0.85, "aim_radius": 4.75, "move_speed": 0.0},
 				"hidden_detection": false,
 			},
 			{
@@ -1040,6 +1326,12 @@ const TOWERS := {
 				"firerate": 1.30,
 				"range": 24.0,
 				"splash_radius": 3.5,
+				"flyer_move_speed": 210.0,
+				"flyer_attack_radius": 6.0,
+				"abduction_cooldown": 12.0,
+				"abduction_radius": 1.5,
+				"abduction_health_threshold": 0.35,
+				"monster_stats": {"damage": 74, "attack_interval": 0.8, "aim_radius": 5.0, "move_speed": 0.0},
 				"hidden_detection": false,
 			},
 		],
@@ -1055,6 +1347,27 @@ const TOWERS := {
 		"bonus_tags": [&"pierce", &"spawner"],
 		"pierce_count": 1,
 		"spawned_unit_id": &"spore_turret",
+		"paths": {
+			"a": {
+				"display_name": "Triple Bloom",
+				"description": "Each Spore Turret fires three projectiles simultaneously.",
+				"cost": 2200,
+				"unlock_level": 4,
+				"unit_stat_overrides": {
+					"projectile_count": 3,
+					"volley_width": 1.5,
+				},
+			},
+			"b": {
+				"display_name": "Mycelial Network",
+				"description": "Spore Turrets can attack enemies locally targeted by a turret belonging to another Hive Mother, even beyond their own range.",
+				"cost": 2200,
+				"unlock_level": 4,
+				"unit_stat_overrides": {
+					"shared_spore_targeting": true,
+				},
+			},
+		},
 		"levels": [
 			{
 				"upgrade_cost": 0,
@@ -1103,6 +1416,34 @@ const TOWERS := {
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"reveal", &"spawner"],
 		"spawned_unit_id": &"drone",
+		"paths": {
+			"a": {
+				"display_name": "Laser Drones",
+				"description": "Replaces each drone's Ballistic weapon with a continuous Beam that must remain physically aligned with its primary target to deal tick damage.",
+				"cost": 4800,
+				"unlock_level": 4,
+				"remove_damage_tags": [&"ballistic"],
+				"add_damage_tags": [&"beam"],
+				"primary_damage_type": &"beam",
+				"unit_stat_overrides": {
+					"damage_tags": [&"beam"],
+					"continuous_beam": true,
+				},
+			},
+			"b": {
+				"display_name": "Final Payload",
+				"description": "Adds Explosive. When a drone exhausts its damage budget, it self-destructs and the depot must replace it.",
+				"cost": 4800,
+				"unlock_level": 4,
+				"add_damage_tags": [&"explosive"],
+				"unit_stat_overrides": {
+					"additional_damage_tags": [&"explosive"],
+					"explode_on_damage_budget": true,
+					"budget_explosion_radius": 2.75,
+					"budget_explosion_damage_multiplier": 5.0,
+				},
+			},
+		},
 		"levels": [
 			{
 				"upgrade_cost": 0,
@@ -1151,6 +1492,45 @@ const TOWERS := {
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [&"spawner"],
 		"spawned_unit_id": &"mech",
+		"paths": {
+			"a": {
+				"display_name": "Juggernaut",
+				"description": "Deploys larger, slower mechs whose two-stage area slams damage and stun every enemy around them.",
+				"cost": 4300,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"stun"],
+				"unit_stat_multipliers": {
+					"damage": 1.75,
+					"attack_interval": 1.40,
+					"move_speed": 0.60,
+				},
+				"unit_stat_overrides": {
+					"additional_bonus_tags": [&"stun"],
+					"mech_area_slam": true,
+					"mech_slam_radius": 3.0,
+					"stun_duration": 0.60,
+					"visual_scale": 1.35,
+				},
+			},
+			"b": {
+				"display_name": "Hunter",
+				"description": "Deploys faster mechs that pursue targets in either direction, prioritizing bosses and elites with increased critical chance.",
+				"cost": 4300,
+				"unlock_level": 4,
+				"add_bonus_tags": [&"critical"],
+				"unit_stat_multipliers": {
+					"attack_interval": 0.75,
+					"move_speed": 1.60,
+				},
+				"unit_stat_overrides": {
+					"additional_bonus_tags": [&"critical"],
+					"critical_chance": 0.10,
+					"hunter_critical_chance": 0.30,
+					"mech_hunter": true,
+					"hunter_pursuit_radius": 12.0,
+				},
+			},
+		},
 		"levels": [
 			{
 				"upgrade_cost": 0,
@@ -1197,9 +1577,6 @@ const MODES := {
 		"starting_cash": 500,
 		"starting_lives": 100,
 		"max_rounds": 20,
-		"wave_bonus_base": 180,
-		"wave_bonus_growth": 70,
-		"clear_bonus_multiplier": 0.35,
 		"wave_duration_start": 20.0,
 		"wave_duration_growth": 5.0,
 		"wave_duration_max": 60.0,

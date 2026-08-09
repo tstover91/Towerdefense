@@ -4,17 +4,28 @@ extends Node2D
 const GameStats = preload("res://stat_database.gd")
 const DEFAULT_PROJECTILE_SCENE = preload("res://projectile.tscn")
 const SPAWNED_UNIT_SCENE = preload("res://spawned_unit.tscn")
+const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
+const LONGSHOT_MINE_SCENE = preload("res://longshot_mine.tscn")
+const VOID_SINGULARITY_SCENE = preload("res://void_singularity.tscn")
+const SOLAR_LANCE_SCENE = preload("res://solar_lance.tscn")
+const SAUCER_FLYER_SCENE = preload("res://saucer_flyer.tscn")
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const MENU_HALF_WIDTH := 120.0
 const MENU_EDGE_MARGIN := 8.0
 const GAUSS_TOWER_ID: StringName = &"gauss_repeater"
 const BRAINIAC_TOWER_ID: StringName = &"brainiac"
+const LONGSHOT_TOWER_ID: StringName = &"longshot"
+const ORBITAL_CANNON_TOWER_ID: StringName = &"orbitalcannon"
+const ENERGY_CORE_TOWER_ID: StringName = &"energycore"
+const SAUCER_TOWER_ID: StringName = &"saucer"
 const VOID_CALLER_TOWER_ID: StringName = &"voidcaller"
 const REAVER_TOWER_ID: StringName = &"reaver"
 const BEHOLDER_TOWER_ID: StringName = &"beholder"
 const SLINGER_TOWER_ID: StringName = &"slinger"
 const GAUSS_LINE_HALF_WIDTH := 3.0
+const BEAM_HIT_HALF_WIDTH := 2.5
+const DEFAULT_BEAM_TURN_SPEED_DEGREES := 720.0
 const DIRECTION_BUTTON_RADIUS := 72.0
 const AIM_DIRECTIONS: Array[Vector2] = [
 	Vector2(1.0, 0.0),
@@ -90,6 +101,9 @@ var bounce_count := 0
 var bounce_range_pixels := 0.0
 var infinite_pierce := false
 var continuous_beam_enabled := false
+var beam_aim_direction := Vector2.RIGHT
+var beam_has_aim := false
+var beam_turn_speed_radians := deg_to_rad(DEFAULT_BEAM_TURN_SPEED_DEGREES)
 var dual_weapons_enabled := false
 var slinger_contact_explosions_enabled := false
 var slinger_contact_explosion_radius_pixels := 0.0
@@ -110,6 +124,104 @@ var gauss_spread_recovery_delay := 0.0
 var gauss_spread_recovery_per_second := 0.0
 var gauss_time_without_target := 0.0
 var gauss_spread_initialized := false
+var gauss_heavy_shot_enabled := false
+var gauss_heavy_shot_interval := 0.0
+var gauss_heavy_shot_remaining := 0.0
+var gauss_heavy_shot_damage_multiplier := 1.0
+var gauss_heavy_shot_speed_multiplier := 1.0
+var gauss_tracking_cone_enabled := false
+var gauss_tracking_cone_degrees := 45.0
+var beholder_death_explosion_enabled := false
+var beholder_death_explosion_radius_pixels := 0.0
+var beholder_death_explosion_damage_multiplier := 1.0
+var beholder_ramping_beam_enabled := false
+var beholder_beam_ramp_start_multiplier := 1.0
+var beholder_beam_ramp_step_multiplier := 0.0
+var beholder_beam_ramp_step_interval := 0.5
+var beholder_beam_ramp_max_multiplier := 1.0
+var beholder_beam_lock_elapsed := 0.0
+var beholder_beam_lock_target_id := 0
+var beholder_observed_target: Node2D
+var reaver_time_bubble_enabled := false
+var reaver_time_bubble_active_duration := 3.0
+var reaver_time_bubble_cooldown := 7.0
+var reaver_time_bubble_active_remaining := 0.0
+var reaver_time_bubble_cooldown_remaining := 0.0
+var reaver_time_bubble_refresh_interval := 0.2
+var reaver_time_bubble_slow_duration := 0.3
+var reaver_time_bubble_refresh_remaining := 0.0
+var reaver_assassinate_enabled := false
+var brainiac_convergence_explosion_enabled := false
+var brainiac_convergence_base_radius_pixels := 0.0
+var brainiac_convergence_radius_per_arrival_pixels := 0.0
+var brainiac_convergence_damage_per_arrival := 1.0
+var brainiac_psionic_link_enabled := false
+var brainiac_link_duration := 2.0
+var brainiac_link_radius_pixels := 0.0
+var brainiac_link_damage_share := 0.5
+var brainiac_volley_sequence := 0
+var active_brainiac_volleys: Dictionary = {}
+var longshot_distance_damage_enabled := false
+var longshot_distance_minimum_multiplier := 1.0
+var longshot_distance_maximum_multiplier := 1.0
+var longshot_mines_enabled := false
+var longshot_mine_interval := 5.0
+var longshot_mine_remaining := 0.0
+var longshot_mine_maximum_count := 3
+var longshot_mine_placement_radius_pixels := 0.0
+var longshot_mine_trigger_radius_pixels := 0.0
+var longshot_mine_explosion_radius_pixels := 0.0
+var longshot_mine_damage_multiplier := 1.0
+var active_longshot_mines: Array[Node] = []
+var void_singularity_enabled := false
+var void_singularity_cooldown := 12.0
+var void_singularity_remaining := 0.0
+var void_singularity_pull_duration := 1.0
+var void_singularity_pull_radius_pixels := 0.0
+var void_singularity_pull_speed := 160.0
+var void_singularity_explosion_radius_pixels := 0.0
+var void_singularity_damage_multiplier := 1.0
+var active_void_singularities: Array[Node] = []
+var orbital_minimum_range_pixels := 0.0
+var orbital_has_target_position := false
+var orbital_target_position := Vector2.ZERO
+var orbital_targeting_active := false
+var orbital_preview_position := Vector2.ZERO
+var orbital_preview_valid := false
+var orbital_solar_lance_enabled := false
+var orbital_solar_lance_duration := 2.0
+var orbital_solar_lance_tick_interval := 0.2
+var orbital_solar_lance_tick_damage_multiplier := 0.25
+var orbital_solar_lance_dual_tick_damage_multiplier := 0.10
+var orbital_bombardment_enabled := false
+var orbital_bombardment_strike_count := 5
+var orbital_bombardment_stagger := 0.15
+var orbital_bombardment_spread_radius_pixels := 0.0
+var orbital_bombardment_damage_multiplier := 0.45
+var orbital_bombardment_radius_multiplier := 0.70
+var active_solar_lances: Array[Node] = []
+var energy_shockwave_enabled := false
+var energy_shockwave_cooldown := 6.0
+var energy_shockwave_remaining := 0.0
+var energy_shockwave_damage_multiplier := 2.0
+var energy_shockwave_stun_duration := 0.75
+var energy_shockwave_visual_remaining := 0.0
+var energy_branching_current_enabled := false
+var energy_branch_additional_targets := 2
+var energy_branch_range_pixels := 0.0
+var energy_branch_damage_loss := 0.25
+var energy_branch_visual_segments: Array[Dictionary] = []
+var energy_branch_visual_remaining := 0.0
+var saucer_twin_rockets_enabled := false
+var saucer_monster_drop_enabled := false
+var saucer_flyer_move_speed := 165.0
+var saucer_attack_radius_pixels := 0.0
+var saucer_abduction_cooldown := 16.0
+var saucer_abduction_radius_pixels := 0.0
+var saucer_abduction_health_threshold := 0.35
+var saucer_monster_stats: Dictionary = {}
+var active_saucer_flyer: Node2D
+var active_saucer_monster: Node
 var delivery_type: StringName = GameStats.DELIVERY_HITSCAN
 var impact_mode: StringName = GameStats.IMPACT_PRIMARY
 var projectile_speed := 600.0
@@ -136,6 +248,10 @@ var spawn_rng := RandomNumberGenerator.new()
 
 func _draw() -> void:
 	draw_active_beam()
+	draw_reaver_time_bubble()
+	draw_orbital_targeting()
+	draw_energy_shockwave()
+	draw_energy_branches()
 	if not range_preview_visible:
 		return
 
@@ -173,6 +289,22 @@ func _draw() -> void:
 		fill_color = Color(1.0, 0.15, 0.15, 0.16)
 		border_color = Color(1.0, 0.2, 0.2, 0.8)
 	if uses_directional_aim():
+		if uses_gauss_tracking_cone():
+			var half_cone := deg_to_rad(gauss_tracking_cone_degrees * 0.5)
+			for boundary_direction in [
+				aim_direction.rotated(-half_cone),
+				aim_direction.rotated(half_cone),
+			]:
+				draw_line(
+					Vector2.ZERO,
+					boundary_direction * get_max_distance_in_direction(
+						boundary_direction,
+						global_position
+					),
+					border_color,
+					1.5,
+					true
+				)
 		draw_line(
 			Vector2.ZERO,
 			aim_direction * get_directional_max_distance(),
@@ -184,6 +316,93 @@ func _draw() -> void:
 
 	draw_circle(Vector2.ZERO, range_radius_pixels, fill_color)
 	draw_arc(Vector2.ZERO, range_radius_pixels, 0.0, TAU, 96, border_color, 2.0, true)
+	if tower_id == ORBITAL_CANNON_TOWER_ID and orbital_minimum_range_pixels > 0.0:
+		draw_circle(
+			Vector2.ZERO,
+			orbital_minimum_range_pixels,
+			Color(1.0, 0.12, 0.12, 0.18)
+		)
+		draw_arc(
+			Vector2.ZERO,
+			orbital_minimum_range_pixels,
+			0.0,
+			TAU,
+			64,
+			Color(1.0, 0.25, 0.2, 0.9),
+			2.0,
+			true
+		)
+
+
+func draw_orbital_targeting() -> void:
+	if tower_id != ORBITAL_CANNON_TOWER_ID or not is_placed:
+		return
+	if orbital_has_target_position:
+		draw_orbital_target_symbol(
+			to_local(orbital_target_position),
+			Color(1.0, 0.45, 0.15, 0.75)
+		)
+	if orbital_targeting_active:
+		var preview_color := (
+			Color(0.25, 1.0, 0.35, 0.95)
+			if orbital_preview_valid
+			else Color(1.0, 0.15, 0.15, 0.95)
+		)
+		draw_orbital_target_symbol(to_local(orbital_preview_position), preview_color)
+
+
+func draw_orbital_target_symbol(local_position: Vector2, color: Color) -> void:
+	draw_arc(local_position, 12.0, 0.0, TAU, 32, color, 2.0, true)
+	draw_line(
+		local_position + Vector2(-18.0, 0.0),
+		local_position + Vector2(18.0, 0.0),
+		color,
+		2.0,
+		true
+	)
+	draw_line(
+		local_position + Vector2(0.0, -18.0),
+		local_position + Vector2(0.0, 18.0),
+		color,
+		2.0,
+		true
+	)
+
+
+func draw_energy_shockwave() -> void:
+	if energy_shockwave_visual_remaining <= 0.0:
+		return
+	var visual_duration := 0.3
+	var progress_ratio := 1.0 - clampf(
+		energy_shockwave_visual_remaining / visual_duration,
+		0.0,
+		1.0
+	)
+	var visual_radius := range_radius_pixels * progress_ratio
+	draw_circle(Vector2.ZERO, visual_radius, Color(0.2, 0.8, 1.0, 0.10))
+	draw_arc(
+		Vector2.ZERO,
+		visual_radius,
+		0.0,
+		TAU,
+		64,
+		Color(0.35, 0.9, 1.0, 0.9),
+		3.0,
+		true
+	)
+
+
+func draw_energy_branches() -> void:
+	if energy_branch_visual_remaining <= 0.0:
+		return
+	for segment in energy_branch_visual_segments:
+		draw_line(
+			to_local(segment["start"]),
+			to_local(segment["end"]),
+			Color(0.35, 0.9, 1.0, 0.95),
+			2.5,
+			true
+		)
 
 
 func draw_active_beam() -> void:
@@ -193,19 +412,20 @@ func draw_active_beam() -> void:
 		return
 	if not is_valid_target(target) or not mobs_in_range.has(target):
 		return
-	var beam_start := to_local(muzzle.global_position)
-	var beam_end := to_local(target.global_position)
+	if not beam_has_aim:
+		return
+	var beam_start_world := muzzle.global_position
+	var beam_direction := beam_aim_direction.normalized()
 	var beam_offsets: Array[float] = [0.0]
 	if uses_dual_continuous_beams():
 		beam_offsets.assign([-4.5, 4.5])
-	var beam_direction := beam_end - beam_start
-	var perpendicular := Vector2.UP
-	if not beam_direction.is_zero_approx():
-		perpendicular = beam_direction.normalized().orthogonal()
+	var perpendicular := beam_direction.orthogonal()
 	for beam_offset in beam_offsets:
+		var offset_start := beam_start_world + perpendicular * beam_offset
+		var offset_end := offset_start + beam_direction * range_radius_pixels
 		draw_beam_segment(
-			beam_start + perpendicular * beam_offset,
-			beam_end
+			to_local(offset_start),
+			to_local(offset_end)
 		)
 
 
@@ -225,6 +445,32 @@ func draw_beam_segment(beam_start: Vector2, beam_end: Vector2) -> void:
 		true
 	)
 	draw_circle(beam_end, 4.0, Color(1.0, 0.75, 1.0, 0.9))
+
+
+func draw_reaver_time_bubble() -> void:
+	if (
+		not reaver_time_bubble_enabled
+		or not is_placed
+		or reaver_time_bubble_active_remaining <= 0.0
+	):
+		return
+	if main == null or not main.round_active:
+		return
+	draw_circle(
+		Vector2.ZERO,
+		range_radius_pixels,
+		Color(0.20, 0.55, 1.0, 0.10)
+	)
+	draw_arc(
+		Vector2.ZERO,
+		range_radius_pixels,
+		0.0,
+		TAU,
+		96,
+		Color(0.45, 0.78, 1.0, 0.55),
+		1.5,
+		true
+	)
 
 
 func set_range_preview(value: bool, placement_is_valid := true) -> void:
@@ -335,9 +581,12 @@ func update_upgrade_button() -> void:
 func update_menu_buttons() -> void:
 	update_upgrade_button()
 	update_sell_button()
-	if is_spawner_tower():
+	if uses_standard_spawner_system():
 		$HBoxContainer/targetmode.text = "Units\nAuto"
 		$HBoxContainer/targetmode.disabled = true
+	elif uses_manual_ground_targeting():
+		$HBoxContainer/targetmode.disabled = false
+		$HBoxContainer/targetmode.text = "Target\nGround"
 	elif uses_directional_aim():
 		$HBoxContainer/targetmode.disabled = false
 		$HBoxContainer/targetmode.text = "Aim\nDirection"
@@ -524,7 +773,9 @@ func get_total_invested() -> int:
 	return total
 
 func get_sell_price() -> int:
-	return floori(get_total_invested() / 3.0)
+	var placement_cost: int = GameStats.get_tower(tower_id)["placement_cost"]
+	var additional_investment := maxi(get_total_invested() - placement_cost, 0)
+	return placement_cost + floori(float(additional_investment) / 3.0)
 
 func _ready() -> void:
 	spawn_rng.randomize()
@@ -538,7 +789,7 @@ func _ready() -> void:
 		main.round_ended.connect(_on_round_ended)
 	tower_area.body_entered.connect(_on_body_entered)
 	tower_area.body_exited.connect(_on_body_exited)
-	if is_spawner_tower():
+	if uses_standard_spawner_system():
 		damage_timer.timeout.connect(_spawn_unit)
 	else:
 		damage_timer.timeout.connect(_apply_damage)
@@ -593,6 +844,61 @@ func uses_directional_aim() -> bool:
 	return tower_id == GAUSS_TOWER_ID
 
 
+func uses_manual_ground_targeting() -> bool:
+	return tower_id == ORBITAL_CANNON_TOWER_ID
+
+
+func begin_manual_targeting() -> void:
+	if not uses_manual_ground_targeting() or main == null:
+		return
+	orbital_targeting_active = true
+	orbital_preview_position = get_global_mouse_position()
+	orbital_preview_valid = is_valid_orbital_target_position(
+		orbital_preview_position
+	)
+	$HBoxContainer.visible = false
+	$targetui.visible = false
+	$pathui.visible = false
+	show_current_range_preview()
+	main.begin_manual_tower_targeting(self)
+	queue_redraw()
+
+
+func cancel_manual_targeting() -> void:
+	orbital_targeting_active = false
+	queue_redraw()
+	set_selected(false)
+
+
+func confirm_manual_target_position(world_position: Vector2) -> bool:
+	if not orbital_targeting_active or not is_valid_orbital_target_position(world_position):
+		return false
+	orbital_target_position = world_position
+	orbital_has_target_position = true
+	orbital_targeting_active = false
+	queue_redraw()
+	set_selected(false)
+	return true
+
+
+func is_valid_orbital_target_position(world_position: Vector2) -> bool:
+	var distance_from_tower := global_position.distance_to(world_position)
+	if (
+		distance_from_tower < orbital_minimum_range_pixels
+		or distance_from_tower > range_radius_pixels
+	):
+		return false
+	return (
+		main == null
+		or not main.has_method("is_world_position_in_playable_area")
+		or main.is_world_position_in_playable_area(world_position)
+	)
+
+
+func uses_gauss_tracking_cone() -> bool:
+	return uses_directional_aim() and gauss_tracking_cone_enabled
+
+
 func uses_continuous_beam() -> bool:
 	return tower_id == BEHOLDER_TOWER_ID or continuous_beam_enabled
 
@@ -622,12 +928,19 @@ func confirm_placement() -> void:
 	$clickarea.monitoring = true
 	$clickarea.input_pickable = true
 	$clickarea/CollisionShape2D.disabled = false
+	ensure_saucer_flyer()
 	damage_timer.start()
 
 
 func load_level_stats() -> void:
 	var stats := get_effective_stats_for_level(tower_level)
 	var tower_data := GameStats.get_tower(tower_id)
+	orbital_minimum_range_pixels = (
+		maxf(float(tower_data.get("minimum_range", 0.0)), 0.0)
+		* RANGE_PIXELS_PER_UNIT
+		if tower_id == ORBITAL_CANNON_TOWER_ID
+		else 0.0
+	)
 	footprint_size_pixels = (
 		Vector2(tower_data.get("footprint_cells", Vector2i.ONE))
 		* BUILD_CELL_SIZE
@@ -708,10 +1021,37 @@ func load_level_stats() -> void:
 			gauss_maximum_spread_degrees
 		)
 	damage_type = get_primary_damage_type()
+	beam_turn_speed_radians = deg_to_rad(maxf(
+		float(stats.get(
+			"beam_turn_speed_degrees",
+			DEFAULT_BEAM_TURN_SPEED_DEGREES
+		)),
+		0.0
+	))
 	projectile_speed = stats.get("projectile_speed", 600.0)
 	splash_radius_pixels = float(stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT
+	if tower_id == SAUCER_TOWER_ID:
+		saucer_flyer_move_speed = maxf(float(stats.get("flyer_move_speed", 165.0)), 0.0)
+		saucer_attack_radius_pixels = (
+			maxf(float(stats.get("flyer_attack_radius", 5.0)), 0.0)
+			* RANGE_PIXELS_PER_UNIT
+		)
+		saucer_abduction_cooldown = maxf(
+			float(stats.get("abduction_cooldown", 16.0)),
+			0.1
+		)
+		saucer_abduction_radius_pixels = (
+			maxf(float(stats.get("abduction_radius", 1.5)), 0.0)
+			* RANGE_PIXELS_PER_UNIT
+		)
+		saucer_abduction_health_threshold = clampf(
+			float(stats.get("abduction_health_threshold", 0.35)),
+			0.0,
+			1.0
+		)
+		saucer_monster_stats = stats.get("monster_stats", {}).duplicate(true)
 	load_path_behaviors()
-	if is_spawner_tower():
+	if uses_standard_spawner_system():
 		spawned_unit_id = tower_data.get("spawned_unit_id", &"")
 		spawn_limit = maxi(int(stats.get("spawn_limit", 1)), 1)
 		deployment_radius_pixels = (
@@ -732,7 +1072,7 @@ func load_level_stats() -> void:
 func get_effective_stats_for_level(level: int) -> Dictionary:
 	var stats := GameStats.get_tower_level(tower_id, level)
 	stats = apply_path_stat_modifiers(stats)
-	if is_spawner_tower():
+	if uses_standard_spawner_system():
 		var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
 		unit_stats["damage"] = roundi(
 			float(unit_stats["damage"]) + get_main_bonus(&"tower_damage_flat")
@@ -851,7 +1191,7 @@ func get_main_multiplier(effect: StringName) -> float:
 
 
 func _spawn_unit() -> void:
-	if not is_placed or not is_spawner_tower() or spawned_unit_id.is_empty():
+	if not is_placed or not uses_standard_spawner_system() or spawned_unit_id.is_empty():
 		return
 	if main == null or not main.round_active:
 		damage_timer.stop()
@@ -925,24 +1265,197 @@ func clear_spawned_units() -> void:
 	active_spawned_units.clear()
 
 
+func ensure_saucer_flyer() -> void:
+	if tower_id != SAUCER_TOWER_ID or not is_placed:
+		return
+	if is_instance_valid(active_saucer_flyer):
+		return
+	if SAUCER_FLYER_SCENE == null or get_tree().current_scene == null:
+		return
+	active_saucer_flyer = SAUCER_FLYER_SCENE.instantiate() as Node2D
+	get_tree().current_scene.add_child(active_saucer_flyer)
+	active_saucer_flyer.global_position = global_position
+	active_saucer_flyer.setup(self)
+
+
+func is_saucer_combat_active() -> bool:
+	return (
+		is_placed
+		and main != null
+		and main.round_active
+		and not is_queued_for_deletion()
+	)
+
+
+func get_saucer_target() -> Node2D:
+	if not is_saucer_combat_active():
+		return null
+	if not is_valid_target(target) or not mobs_in_range.has(target):
+		_select_target()
+	return target if is_valid_target(target) else null
+
+
+func saucer_can_abduct_target(candidate: Variant) -> bool:
+	if not is_valid_target(candidate):
+		return false
+	if candidate.traits.has(&"boss") or candidate.traits.has(&"elite"):
+		return false
+	if candidate.max_health <= 0:
+		return false
+	return (
+		float(candidate.health) / float(candidate.max_health)
+		<= saucer_abduction_health_threshold
+	)
+
+
+func fire_saucer_rockets(launch_position: Vector2, current_target: Node2D) -> void:
+	if not is_saucer_combat_active() or not is_valid_target(current_target):
+		return
+	var rocket_count := 2 if saucer_twin_rockets_enabled else 1
+	var aim_offset := current_target.global_position - launch_position
+	var perpendicular := (
+		aim_offset.normalized().orthogonal()
+		if not aim_offset.is_zero_approx()
+		else Vector2.UP
+	)
+	for rocket_index in rocket_count:
+		var lateral_offset := 0.0
+		if rocket_count == 2:
+			lateral_offset = -7.0 if rocket_index == 0 else 7.0
+		var rocket_origin := launch_position + perpendicular * lateral_offset
+		var destination := current_target.global_position
+		launch_projectile_from_position(
+			current_target,
+			rocket_origin,
+			destination,
+			rocket_origin.distance_to(destination),
+			roll_attack_damage(),
+			splash_radius_pixels
+		)
+
+
+func try_saucer_abduction(current_target: Node2D, saucer_position: Vector2) -> bool:
+	if (
+		not is_saucer_combat_active()
+		or not saucer_can_abduct_target(current_target)
+		or saucer_position.distance_to(current_target.global_position)
+			> saucer_abduction_radius_pixels
+	):
+		return false
+	if current_target.has_method("abduct"):
+		current_target.abduct()
+	else:
+		current_target.queue_free()
+	if saucer_monster_drop_enabled:
+		spawn_saucer_monster(saucer_position)
+	if target == current_target:
+		target = null
+	return true
+
+
+func spawn_saucer_monster(spawn_position: Vector2) -> void:
+	if not saucer_monster_drop_enabled or main == null or not main.round_active:
+		return
+	if (
+		is_instance_valid(active_saucer_monster)
+		and not active_saucer_monster.is_queued_for_deletion()
+	):
+		return
+	var monster_stats := saucer_monster_stats.duplicate(true)
+	monster_stats["damage"] = maxi(
+		roundi(float(monster_stats.get("damage", 1)) + get_main_bonus(&"tower_damage_flat")),
+		1
+	)
+	monster_stats["attack_interval"] = maxf(
+		float(monster_stats.get("attack_interval", 1.0))
+			/ get_main_multiplier(&"tower_attack_speed"),
+		0.01
+	)
+	monster_stats["aim_radius"] = (
+		float(monster_stats.get("aim_radius", 4.0))
+		* get_main_multiplier(&"tower_range")
+	)
+	var monster := SPAWNED_UNIT_SCENE.instantiate()
+	get_tree().current_scene.add_child(monster)
+	monster.global_position = spawn_position
+	monster.setup(&"abducted_monster", monster_stats, self, null)
+	active_saucer_monster = monster
+	active_spawned_units.append(monster)
+	monster.tree_exiting.connect(_on_saucer_monster_exiting.bind(monster))
+
+
+func _on_saucer_monster_exiting(monster: Node) -> void:
+	active_spawned_units.erase(monster)
+	if active_saucer_monster == monster:
+		active_saucer_monster = null
+
+
 func _on_round_started(_round_number: int) -> void:
-	if is_placed and is_spawner_tower():
+	if gauss_heavy_shot_enabled:
+		gauss_heavy_shot_remaining = gauss_heavy_shot_interval
+	if reaver_time_bubble_enabled:
+		reaver_time_bubble_active_remaining = 0.0
+		reaver_time_bubble_cooldown_remaining = 0.0
+		reaver_time_bubble_refresh_remaining = 0.0
+	if longshot_mines_enabled:
+		longshot_mine_remaining = longshot_mine_interval
+	if void_singularity_enabled:
+		void_singularity_remaining = void_singularity_cooldown
+	if energy_shockwave_enabled:
+		energy_shockwave_remaining = energy_shockwave_cooldown
+	if is_placed and uses_standard_spawner_system():
 		damage_timer.start()
 
 
 func _on_round_ended(_round_number: int) -> void:
-	if not is_spawner_tower():
+	active_brainiac_volleys.clear()
+	reaver_time_bubble_active_remaining = 0.0
+	reaver_time_bubble_cooldown_remaining = 0.0
+	reaver_time_bubble_refresh_remaining = 0.0
+	clear_longshot_mines()
+	longshot_mine_remaining = longshot_mine_interval
+	clear_void_singularities()
+	void_singularity_remaining = void_singularity_cooldown
+	clear_solar_lances()
+	energy_shockwave_remaining = energy_shockwave_cooldown
+	energy_shockwave_visual_remaining = 0.0
+	queue_redraw()
+	if tower_id == SAUCER_TOWER_ID:
+		clear_spawned_units()
+		active_saucer_monster = null
+	if not uses_standard_spawner_system():
 		return
 	damage_timer.stop()
 	clear_spawned_units()
 
 
 func _exit_tree() -> void:
+	disconnect_beholder_target_observer()
+	active_brainiac_volleys.clear()
+	clear_longshot_mines()
+	clear_void_singularities()
+	clear_solar_lances()
+	if is_instance_valid(active_saucer_flyer):
+		active_saucer_flyer.queue_free()
+	if main != null and main.has_method("finish_manual_tower_targeting"):
+		main.finish_manual_tower_targeting(self)
 	clear_spawned_units()
 
 
 func _apply_damage() -> void:
 	if not is_placed:
+		return
+	if tower_id == SAUCER_TOWER_ID:
+		_select_target()
+		return
+	if uses_manual_ground_targeting():
+		if (
+			main != null
+			and main.round_active
+			and orbital_has_target_position
+			and has_enemy_in_orbital_target_zone()
+		):
+			attack_orbital_target_position()
 		return
 
 	if (
@@ -951,21 +1464,142 @@ func _apply_damage() -> void:
 		or not mobs_in_range.has(target)
 	):
 		_select_target()
+	update_beholder_target_observer()
 	if is_valid_target(target):
 		attack(target)
+
+
+func has_enemy_in_orbital_target_zone() -> bool:
+	var activation_radius := splash_radius_pixels
+	if orbital_bombardment_enabled:
+		activation_radius = (
+			orbital_bombardment_spread_radius_pixels
+			+ splash_radius_pixels * orbital_bombardment_radius_multiplier
+		)
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_target(mob):
+			continue
+		if mob.global_position.distance_to(orbital_target_position) <= activation_radius:
+			return true
+	return false
+
+
+func attack_orbital_target_position() -> void:
+	var strike_count := orbital_bombardment_strike_count if orbital_bombardment_enabled else 1
+	var strike_damage := roll_attack_damage()
+	var strike_radius := splash_radius_pixels
+	if orbital_bombardment_enabled:
+		strike_damage = maxi(
+			roundi(float(strike_damage) * orbital_bombardment_damage_multiplier),
+			1
+		)
+		strike_radius *= orbital_bombardment_radius_multiplier
+	for strike_index in strike_count:
+		var strike_position := orbital_target_position
+		if strike_index > 0:
+			var offset_angle := spawn_rng.randf_range(0.0, TAU)
+			var offset_distance := (
+				sqrt(spawn_rng.randf()) * orbital_bombardment_spread_radius_pixels
+			)
+			strike_position += Vector2.from_angle(offset_angle) * offset_distance
+		var strike_delay := orbital_bombardment_stagger * float(strike_index)
+		if strike_delay <= 0.0:
+			resolve_orbital_strike(strike_position, strike_damage, strike_radius)
+		else:
+			get_tree().create_timer(strike_delay, false).timeout.connect(
+				resolve_orbital_strike.bind(
+					strike_position,
+					strike_damage,
+					strike_radius
+				),
+				CONNECT_ONE_SHOT
+			)
+
+
+func resolve_orbital_strike(
+	strike_position: Vector2,
+	strike_damage: int,
+	strike_radius: float
+) -> void:
+	if not is_placed or main == null or not main.round_active:
+		return
+	if orbital_solar_lance_enabled:
+		spawn_solar_lance(strike_position, strike_damage, strike_radius)
+		return
+	launch_projectile_from_position(
+		null,
+		muzzle.global_position,
+		strike_position,
+		muzzle.global_position.distance_to(strike_position),
+		strike_damage,
+		strike_radius
+	)
+
+
+func spawn_solar_lance(
+	strike_position: Vector2,
+	strike_damage: int,
+	_strike_radius: float
+) -> void:
+	if SOLAR_LANCE_SCENE == null or get_tree().current_scene == null:
+		return
+	var tick_multiplier := orbital_solar_lance_tick_damage_multiplier
+	if orbital_bombardment_enabled:
+		tick_multiplier = orbital_solar_lance_dual_tick_damage_multiplier
+	var lance := SOLAR_LANCE_SCENE.instantiate() as Node2D
+	get_tree().current_scene.add_child(lance)
+	lance.global_position = strike_position
+	lance.setup(
+		main,
+		BUILD_CELL_SIZE * 0.5,
+		maxi(roundi(float(strike_damage) * tick_multiplier), 1),
+		orbital_solar_lance_duration,
+		orbital_solar_lance_tick_interval
+	)
+	lance.finished.connect(_on_solar_lance_finished)
+	active_solar_lances.append(lance)
+
+
+func _on_solar_lance_finished(lance: Node2D) -> void:
+	active_solar_lances.erase(lance)
+
+
+func clear_solar_lances() -> void:
+	for lance in active_solar_lances:
+		if is_instance_valid(lance):
+			lance.queue_free()
+	active_solar_lances.clear()
 
 
 func attack(current_target: Node2D) -> void:
 	if not is_instance_valid(current_target):
 		return
-	if uses_dual_continuous_beams():
-		for _beam_index in 2:
-			apply_hitscan_damage(current_target, roll_attack_damage())
+	if uses_continuous_beam():
+		var beam_offsets: Array[float] = [0.0]
+		if uses_dual_continuous_beams():
+			beam_offsets.assign([-4.5, 4.5])
+		for beam_offset in beam_offsets:
+			var beam_damage := damage
+			if beholder_ramping_beam_enabled:
+				beam_damage = get_beholder_ramp_damage()
+			apply_continuous_beam_tick(
+				current_target,
+				roll_critical_damage(beam_damage),
+				beam_offset
+			)
 		return
 
-	var attack_damage := roll_attack_damage()
 	if tower_id == REAVER_TOWER_ID:
-		launch_reaver_combo(current_target, attack_damage)
+		launch_reaver_combo(current_target, damage)
+		return
+	var base_attack_damage := damage
+	if tower_id == LONGSHOT_TOWER_ID and longshot_distance_damage_enabled:
+		base_attack_damage = get_longshot_distance_damage(current_target)
+	var attack_damage := roll_critical_damage(base_attack_damage)
+	if beholder_ramping_beam_enabled:
+		attack_damage = roll_critical_damage(get_beholder_ramp_damage())
+	if tower_id == ENERGY_CORE_TOWER_ID and energy_branching_current_enabled:
+		apply_energy_branching_attack(current_target, attack_damage)
 		return
 	if delivery_type == GameStats.DELIVERY_PROJECTILE:
 		match tower_id:
@@ -979,13 +1613,115 @@ func attack(current_target: Node2D) -> void:
 		apply_hitscan_damage(current_target, attack_damage)
 
 
+func apply_energy_branching_attack(
+	current_target: Node2D,
+	attack_damage: int
+) -> void:
+	energy_branch_visual_segments.clear()
+	energy_branch_visual_segments.append({
+		"start": muzzle.global_position,
+		"end": current_target.global_position,
+	})
+	var hit_target_ids: Dictionary = {current_target.get_instance_id(): true}
+	apply_control_effects(current_target)
+	apply_tower_damage(current_target, attack_damage, damage_type, false)
+	var branch_origin := current_target.global_position
+	for branch_index in energy_branch_additional_targets:
+		var branch_target := get_nearest_energy_branch_target(
+			branch_origin,
+			hit_target_ids
+		)
+		if branch_target == null:
+			break
+		hit_target_ids[branch_target.get_instance_id()] = true
+		var branch_multiplier := maxf(
+			1.0 - energy_branch_damage_loss * float(branch_index + 1),
+			0.0
+		)
+		var branch_damage := maxi(
+			roundi(float(attack_damage) * branch_multiplier),
+			1
+		)
+		apply_control_effects(branch_target)
+		apply_tower_damage(branch_target, branch_damage, damage_type, false)
+		energy_branch_visual_segments.append({
+			"start": branch_origin,
+			"end": branch_target.global_position,
+		})
+		branch_origin = branch_target.global_position
+	energy_branch_visual_remaining = 0.12
+	queue_redraw()
+
+
+func get_nearest_energy_branch_target(
+	origin: Vector2,
+	excluded_ids: Dictionary
+) -> Node2D:
+	var nearest_target: Node2D
+	var nearest_distance := INF
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if (
+			not is_valid_target(candidate)
+			or excluded_ids.has(candidate.get_instance_id())
+		):
+			continue
+		var candidate_distance: float = origin.distance_to(candidate.global_position)
+		if candidate_distance > energy_branch_range_pixels:
+			continue
+		if candidate_distance < nearest_distance:
+			nearest_distance = candidate_distance
+			nearest_target = candidate
+	return nearest_target
+
+
+func apply_tower_damage(
+	current_target: Node,
+	attack_damage: int,
+	attack_damage_type: StringName,
+	ignores_armor: bool
+) -> void:
+	if current_target.has_method("apply_damage_from_tower"):
+		current_target.apply_damage_from_tower(
+			attack_damage,
+			attack_damage_type,
+			ignores_armor,
+			tower_id
+		)
+	else:
+		current_target.apply_damage(
+			attack_damage,
+			attack_damage_type,
+			ignores_armor
+		)
+
+
+func get_longshot_distance_damage(current_target: Node2D) -> int:
+	if not is_instance_valid(current_target) or range_radius_pixels <= 0.0:
+		return damage
+	var distance_ratio := clampf(
+		global_position.distance_to(current_target.global_position) / range_radius_pixels,
+		0.0,
+		1.0
+	)
+	var damage_multiplier := lerpf(
+		longshot_distance_minimum_multiplier,
+		longshot_distance_maximum_multiplier,
+		distance_ratio
+	)
+	return maxi(roundi(float(damage) * damage_multiplier), 1)
+
+
 func roll_attack_damage() -> int:
+	return roll_critical_damage(damage)
+
+
+func roll_critical_damage(base_damage: int) -> int:
 	if (
 		has_bonus_tag(BONUS_CRITICAL)
 		and spawn_rng.randf() < critical_chance
 	):
-		return maxi(roundi(float(damage) * critical_multiplier), 1)
-	return damage
+		return maxi(roundi(float(base_damage) * critical_multiplier), 1)
+	return base_damage
 
 
 func launch_reaver_combo(current_target: Node2D, attack_damage: int) -> void:
@@ -994,6 +1730,13 @@ func launch_reaver_combo(current_target: Node2D, attack_damage: int) -> void:
 	var target_reference: WeakRef = weakref(current_target)
 	for hit_index in combo_hit_count:
 		var hit_damage := get_combo_hit_damage(attack_damage, hit_index)
+		if reaver_assassinate_enabled and hit_index == combo_hit_count - 1:
+			hit_damage = maxi(
+				roundi(float(hit_damage) * maxf(critical_multiplier, 1.0)),
+				1
+			)
+		else:
+			hit_damage = roll_critical_damage(hit_damage)
 		var hit_delay := combo_stagger * float(hit_index)
 		if hit_delay <= 0.0:
 			apply_reaver_combo_hit(
@@ -1050,11 +1793,16 @@ func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
 	var projectile_target_position := current_target.global_position
 	var maximum_projectile_distance := range_radius_pixels
 	if uses_directional_aim():
+		var base_shot_direction := aim_direction
+		if uses_gauss_tracking_cone():
+			var target_offset := current_target.global_position - muzzle.global_position
+			if not target_offset.is_zero_approx():
+				base_shot_direction = target_offset.normalized()
 		var spread_offset_degrees := spawn_rng.randf_range(
 			-gauss_current_spread_degrees,
 			gauss_current_spread_degrees
 		)
-		var projectile_direction := aim_direction.rotated(
+		var projectile_direction := base_shot_direction.rotated(
 			deg_to_rad(spread_offset_degrees)
 		)
 		maximum_projectile_distance = get_max_distance_in_direction(
@@ -1092,12 +1840,29 @@ func launch_brainiac_volley(
 	current_target: Node2D,
 	attack_damage: int
 ) -> void:
+	if brainiac_psionic_link_enabled and current_target.has_method("apply_brainiac_link"):
+		current_target.apply_brainiac_link(
+			brainiac_link_duration,
+			brainiac_link_radius_pixels,
+			brainiac_link_damage_share
+		)
 	var aim_offset := current_target.global_position - global_position
 	if aim_offset.is_zero_approx():
 		return
 	var direction := aim_offset.normalized()
 	var perpendicular := direction.orthogonal()
 	var convergence_point := global_position + direction * range_radius_pixels
+	var volley_id := -1
+	var maximum_flight_duration := 0.0
+	if brainiac_convergence_explosion_enabled:
+		brainiac_volley_sequence += 1
+		volley_id = brainiac_volley_sequence
+		active_brainiac_volleys[volley_id] = {
+			"arrivals": 0,
+			"expected": projectile_count,
+			"damage": attack_damage,
+			"position": convergence_point,
+		}
 	for index in projectile_count:
 		var spread_ratio := 0.0
 		if projectile_count > 1:
@@ -1108,14 +1873,101 @@ func launch_brainiac_volley(
 			muzzle.global_position
 			+ perpendicular * volley_width_pixels * spread_ratio
 		)
-		launch_projectile_from_position(
+		var flight_distance := launch_position.distance_to(convergence_point)
+		maximum_flight_duration = maxf(
+			maximum_flight_duration,
+			flight_distance / maxf(projectile_speed, 1.0)
+		)
+		var projectile := launch_projectile_from_position(
 			current_target,
 			launch_position,
 			convergence_point,
-			launch_position.distance_to(convergence_point),
+			flight_distance,
 			attack_damage,
 			0.0
 		)
+		if brainiac_convergence_explosion_enabled and projectile != null:
+			projectile.destination_reached.connect(
+				_on_brainiac_projectile_reached_convergence.bind(volley_id),
+				CONNECT_ONE_SHOT
+			)
+	if brainiac_convergence_explosion_enabled:
+		get_tree().create_timer(maximum_flight_duration + 0.05, false).timeout.connect(
+			resolve_brainiac_convergence_volley.bind(volley_id),
+			CONNECT_ONE_SHOT
+		)
+
+
+func _on_brainiac_projectile_reached_convergence(
+	_projectile: Node2D,
+	volley_id: int
+) -> void:
+	if not active_brainiac_volleys.has(volley_id):
+		return
+	var volley: Dictionary = active_brainiac_volleys[volley_id]
+	volley["arrivals"] = int(volley["arrivals"]) + 1
+	active_brainiac_volleys[volley_id] = volley
+	if int(volley["arrivals"]) >= int(volley["expected"]):
+		resolve_brainiac_convergence_volley(volley_id)
+
+
+func resolve_brainiac_convergence_volley(volley_id: int) -> void:
+	if not active_brainiac_volleys.has(volley_id):
+		return
+	var volley: Dictionary = active_brainiac_volleys[volley_id]
+	active_brainiac_volleys.erase(volley_id)
+	var arrival_count := int(volley["arrivals"])
+	if arrival_count < 1 or main == null or not main.round_active:
+		return
+	var explosion_radius := (
+		brainiac_convergence_base_radius_pixels
+		+ brainiac_convergence_radius_per_arrival_pixels * float(arrival_count - 1)
+	)
+	var explosion_damage := maxi(
+		roundi(
+			float(volley["damage"])
+			* brainiac_convergence_damage_per_arrival
+			* float(arrival_count)
+		),
+		1
+	)
+	trigger_brainiac_convergence_explosion(
+		volley["position"],
+		explosion_radius,
+		explosion_damage
+	)
+
+
+func trigger_brainiac_convergence_explosion(
+	center: Vector2,
+	explosion_radius: float,
+	explosion_damage: int
+) -> void:
+	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
+		var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
+		get_tree().current_scene.add_child(explosion_zone)
+		explosion_zone.global_position = center
+		explosion_zone.setup(explosion_radius)
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_target(mob):
+			continue
+		var distance_from_center: float = mob.global_position.distance_to(center)
+		if distance_from_center > explosion_radius:
+			continue
+		var dealt_damage := GameStats.get_explosion_damage(
+			explosion_damage,
+			distance_from_center,
+			explosion_radius
+		)
+		if mob.has_method("apply_damage_from_tower"):
+			mob.apply_damage_from_tower(
+				dealt_damage,
+				DAMAGE_EXPLOSIVE,
+				false,
+				BRAINIAC_TOWER_ID
+			)
+		else:
+			mob.apply_damage(dealt_damage, DAMAGE_EXPLOSIVE, false)
 
 
 func launch_void_caller_volley(
@@ -1184,9 +2036,9 @@ func launch_projectile_from_position(
 	maximum_projectile_distance: float,
 	attack_damage: int,
 	impact_radius: float
-) -> void:
+) -> TowerProjectile:
 	if projectile_scene == null:
-		return
+		return null
 	var projectile := projectile_scene.instantiate() as TowerProjectile
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = launch_position
@@ -1208,8 +2060,10 @@ func launch_projectile_from_position(
 		slinger_contact_explosions_enabled,
 		slinger_contact_explosion_radius_pixels,
 		infinite_pierce,
-		has_bonus_tag(BONUS_REVEAL)
+		has_bonus_tag(BONUS_REVEAL),
+		tower_id
 	)
+	return projectile
 
 
 func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
@@ -1240,6 +2094,101 @@ func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
 		targets[index].apply_damage(pierced_damage, damage_type, true)
 
 
+func apply_continuous_beam_tick(
+	current_target: Node2D,
+	attack_damage: int,
+	beam_offset := 0.0
+) -> void:
+	ensure_continuous_beam_aim(current_target)
+	if not beam_has_aim:
+		return
+	var direction := beam_aim_direction.normalized()
+	var perpendicular := direction.orthogonal()
+	var line_origin := muzzle.global_position + perpendicular * beam_offset
+	var line_end := line_origin + direction * range_radius_pixels
+	if pierce_count < 1 and not infinite_pierce:
+		if not is_target_intersecting_line(
+			current_target,
+			line_origin,
+			line_end,
+			BEAM_HIT_HALF_WIDTH
+		):
+			return
+		apply_control_effects(current_target)
+		apply_tower_damage(current_target, attack_damage, damage_type, false)
+		return
+
+	var intersected_targets := get_targets_along_line(
+		line_origin,
+		line_end,
+		null,
+		BEAM_HIT_HALF_WIDTH
+	)
+	var maximum_hits := intersected_targets.size()
+	if not infinite_pierce:
+		maximum_hits = mini(maximum_hits, 1 + pierce_count)
+	for index in maximum_hits:
+		var hit_target := intersected_targets[index]
+		apply_control_effects(hit_target)
+		apply_tower_damage(
+			hit_target,
+			GameStats.get_piercing_damage(attack_damage, index),
+			damage_type,
+			true
+		)
+
+
+func ensure_continuous_beam_aim(current_target: Node2D) -> void:
+	if beam_has_aim or not is_valid_target(current_target):
+		return
+	var target_offset := current_target.global_position - muzzle.global_position
+	if target_offset.is_zero_approx():
+		return
+	beam_aim_direction = target_offset.normalized()
+	beam_has_aim = true
+
+
+func process_continuous_beam_aim(delta: float) -> void:
+	if not uses_continuous_beam() or not is_valid_target(target):
+		return
+	var target_offset := target.global_position - muzzle.global_position
+	if target_offset.is_zero_approx():
+		return
+	var desired_direction := target_offset.normalized()
+	if not beam_has_aim:
+		beam_aim_direction = desired_direction
+		beam_has_aim = true
+	else:
+		var angle_difference := beam_aim_direction.angle_to(desired_direction)
+		var maximum_turn := beam_turn_speed_radians * delta
+		beam_aim_direction = beam_aim_direction.rotated(
+			clampf(angle_difference, -maximum_turn, maximum_turn)
+		).normalized()
+	rotator.rotation = beam_aim_direction.angle()
+
+
+func is_target_intersecting_line(
+	candidate: Node2D,
+	line_origin: Vector2,
+	line_end: Vector2,
+	line_half_width := 0.0
+) -> bool:
+	if not is_valid_target(candidate):
+		return false
+	var closest_point := Geometry2D.get_closest_point_to_segment(
+		candidate.global_position,
+		line_origin,
+		line_end
+	)
+	var hit_radius := 12.0
+	if candidate.has_method("get_projectile_hit_radius"):
+		hit_radius = candidate.get_projectile_hit_radius()
+	return (
+		candidate.global_position.distance_to(closest_point)
+		<= hit_radius + line_half_width
+	)
+
+
 func apply_control_effects(current_target: Node) -> void:
 	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
 		current_target.apply_slow(slow_duration)
@@ -1250,7 +2199,8 @@ func apply_control_effects(current_target: Node) -> void:
 func get_targets_along_line(
 	origin: Vector2,
 	end: Vector2,
-	excluded_target: Node = null
+	excluded_target: Node = null,
+	line_half_width := 0.0
 ) -> Array[Node2D]:
 	var candidates: Array[Dictionary] = []
 	var segment := end - origin
@@ -1275,7 +2225,10 @@ func get_targets_along_line(
 		var hit_radius := 12.0
 		if mob.has_method("get_projectile_hit_radius"):
 			hit_radius = mob.get_projectile_hit_radius()
-		if mob.global_position.distance_to(closest_point) > hit_radius:
+		if (
+			mob.global_position.distance_to(closest_point)
+			> hit_radius + line_half_width
+		):
 			continue
 		candidates.append({
 			"mob": mob,
@@ -1294,7 +2247,13 @@ func get_targets_along_line(
 func _process(delta: float) -> void:
 	update_menu_layout()
 	process_gauss_spread(delta)
-	if uses_continuous_beam():
+	if orbital_targeting_active:
+		orbital_preview_position = get_global_mouse_position()
+		orbital_preview_valid = is_valid_orbital_target_position(
+			orbital_preview_position
+		)
+		queue_redraw()
+	if uses_continuous_beam() or reaver_time_bubble_enabled:
 		queue_redraw()
 	if not is_placed:
 		if uses_directional_aim():
@@ -1302,13 +2261,253 @@ func _process(delta: float) -> void:
 		return
 	if uses_directional_aim():
 		rotator.rotation = aim_direction.angle()
+	if uses_manual_ground_targeting():
+		if orbital_has_target_position:
+			rotator.rotation = (
+				orbital_target_position - rotator.global_position
+			).angle()
+		return
 	if not is_instance_valid(target):
+		target = null
+	if uses_gauss_tracking_cone() and not is_target_in_tracking_cone(target):
 		target = null
 	if not is_valid_target(target):
 		_select_target()
-	if is_valid_target(target) and not uses_directional_aim():
+	process_continuous_beam_aim(delta)
+	update_beholder_target_observer()
+	process_beholder_beam_ramp(delta)
+	process_gauss_heavy_shot(delta)
+	process_reaver_time_bubble(delta)
+	process_longshot_mines(delta)
+	process_void_singularity(delta)
+	process_energy_shockwave(delta)
+	if uses_gauss_tracking_cone() and is_valid_target(target):
+		rotator.rotation = (
+			target.global_position - rotator.global_position
+		).angle()
+	if (
+		is_valid_target(target)
+		and not uses_directional_aim()
+		and not uses_continuous_beam()
+	):
 		var desired_angle = (target.global_position - rotator.global_position).angle()
 		rotator.rotation = lerp_angle(rotator.rotation, desired_angle, 5.0 * delta)
+
+
+func process_reaver_time_bubble(delta: float) -> void:
+	if not reaver_time_bubble_enabled or not is_placed:
+		return
+	if main == null or not main.round_active:
+		reaver_time_bubble_active_remaining = 0.0
+		reaver_time_bubble_cooldown_remaining = 0.0
+		reaver_time_bubble_refresh_remaining = 0.0
+		return
+	if reaver_time_bubble_active_remaining <= 0.0:
+		reaver_time_bubble_cooldown_remaining = maxf(
+			reaver_time_bubble_cooldown_remaining - delta,
+			0.0
+		)
+		if reaver_time_bubble_cooldown_remaining > 0.0:
+			return
+		if not has_valid_enemy_in_reaver_bubble():
+			return
+		reaver_time_bubble_active_remaining = reaver_time_bubble_active_duration
+		reaver_time_bubble_refresh_remaining = 0.0
+	reaver_time_bubble_active_remaining = maxf(
+		reaver_time_bubble_active_remaining - delta,
+		0.0
+	)
+	if reaver_time_bubble_active_remaining <= 0.0:
+		reaver_time_bubble_cooldown_remaining = reaver_time_bubble_cooldown
+		return
+	reaver_time_bubble_refresh_remaining -= delta
+	if reaver_time_bubble_refresh_remaining > 0.0:
+		return
+	reaver_time_bubble_refresh_remaining = reaver_time_bubble_refresh_interval
+	for mob in tower_area.get_overlapping_bodies():
+		if (
+			not is_valid_target(mob)
+			or not mob.has_method("apply_slow")
+		):
+			continue
+		mob.apply_slow(reaver_time_bubble_slow_duration)
+
+
+func has_valid_enemy_in_reaver_bubble() -> bool:
+	for mob in tower_area.get_overlapping_bodies():
+		if is_valid_target(mob):
+			return true
+	return false
+
+
+func process_longshot_mines(delta: float) -> void:
+	if not longshot_mines_enabled or not is_placed:
+		return
+	if main == null or not main.round_active:
+		return
+	prune_longshot_mines()
+	if active_longshot_mines.size() >= longshot_mine_maximum_count:
+		return
+	longshot_mine_remaining = maxf(longshot_mine_remaining - delta, 0.0)
+	if longshot_mine_remaining > 0.0:
+		return
+	longshot_mine_remaining = longshot_mine_interval
+	place_longshot_mine()
+
+
+func place_longshot_mine() -> void:
+	if (
+		main == null
+		or not main.has_method("get_path_cell_positions_near")
+		or LONGSHOT_MINE_SCENE == null
+		or get_tree().current_scene == null
+	):
+		return
+	var candidates: Array = main.get_path_cell_positions_near(
+		global_position,
+		longshot_mine_placement_radius_pixels
+	)
+	for mine in active_longshot_mines:
+		if not is_instance_valid(mine):
+			continue
+		candidates = candidates.filter(
+			func(candidate_position: Vector2) -> bool:
+				return candidate_position.distance_to(mine.global_position) > 1.0
+		)
+	if candidates.is_empty():
+		return
+	var mine_position: Vector2 = candidates[spawn_rng.randi_range(0, candidates.size() - 1)]
+	var mine := LONGSHOT_MINE_SCENE.instantiate() as Node2D
+	get_tree().current_scene.add_child(mine)
+	mine.global_position = mine_position
+	mine.setup(
+		main,
+		maxi(roundi(float(damage) * longshot_mine_damage_multiplier), 1),
+		longshot_mine_trigger_radius_pixels,
+		longshot_mine_explosion_radius_pixels
+	)
+	mine.detonated.connect(_on_longshot_mine_detonated)
+	active_longshot_mines.append(mine)
+
+
+func _on_longshot_mine_detonated(mine: Node2D) -> void:
+	active_longshot_mines.erase(mine)
+	longshot_mine_remaining = longshot_mine_interval
+
+
+func prune_longshot_mines() -> void:
+	active_longshot_mines = active_longshot_mines.filter(
+		func(mine: Node) -> bool:
+			return is_instance_valid(mine) and not mine.is_queued_for_deletion()
+	)
+
+
+func clear_longshot_mines() -> void:
+	for mine in active_longshot_mines:
+		if is_instance_valid(mine):
+			mine.queue_free()
+	active_longshot_mines.clear()
+
+
+func process_void_singularity(delta: float) -> void:
+	if not void_singularity_enabled or not is_placed:
+		return
+	if main == null or not main.round_active:
+		return
+	prune_void_singularities()
+	void_singularity_remaining = maxf(void_singularity_remaining - delta, 0.0)
+	if void_singularity_remaining > 0.0:
+		return
+	if not is_valid_target(target):
+		_select_target()
+	if not is_valid_target(target) or not is_instance_valid(target.path_follow):
+		return
+	void_singularity_remaining = void_singularity_cooldown
+	spawn_void_singularity(target)
+
+
+func spawn_void_singularity(current_target: Node2D) -> void:
+	if VOID_SINGULARITY_SCENE == null or get_tree().current_scene == null:
+		return
+	var singularity := VOID_SINGULARITY_SCENE.instantiate() as Node2D
+	get_tree().current_scene.add_child(singularity)
+	singularity.global_position = current_target.global_position
+	singularity.setup(
+		main,
+		current_target.path_follow.progress,
+		void_singularity_pull_duration,
+		void_singularity_pull_radius_pixels,
+		void_singularity_pull_speed,
+		void_singularity_explosion_radius_pixels,
+		maxi(roundi(float(damage) * void_singularity_damage_multiplier), 1)
+	)
+	singularity.finished.connect(_on_void_singularity_finished)
+	active_void_singularities.append(singularity)
+
+
+func _on_void_singularity_finished(singularity: Node2D) -> void:
+	active_void_singularities.erase(singularity)
+
+
+func prune_void_singularities() -> void:
+	active_void_singularities = active_void_singularities.filter(
+		func(singularity: Node) -> bool:
+			return (
+				is_instance_valid(singularity)
+				and not singularity.is_queued_for_deletion()
+			)
+	)
+
+
+func clear_void_singularities() -> void:
+	for singularity in active_void_singularities:
+		if is_instance_valid(singularity):
+			singularity.queue_free()
+	active_void_singularities.clear()
+
+
+func process_energy_shockwave(delta: float) -> void:
+	if energy_branch_visual_remaining > 0.0:
+		energy_branch_visual_remaining = maxf(
+			energy_branch_visual_remaining - delta,
+			0.0
+		)
+		if energy_branch_visual_remaining <= 0.0:
+			energy_branch_visual_segments.clear()
+		queue_redraw()
+	if energy_shockwave_visual_remaining > 0.0:
+		energy_shockwave_visual_remaining = maxf(
+			energy_shockwave_visual_remaining - delta,
+			0.0
+		)
+		queue_redraw()
+	if not energy_shockwave_enabled or not is_placed:
+		return
+	if main == null or not main.round_active:
+		return
+	energy_shockwave_remaining = maxf(energy_shockwave_remaining - delta, 0.0)
+	if energy_shockwave_remaining > 0.0:
+		return
+	var affected_mobs: Array[Node2D] = []
+	for mob in tower_area.get_overlapping_bodies():
+		if not is_valid_target(mob):
+			continue
+		affected_mobs.append(mob)
+	if affected_mobs.is_empty():
+		return
+	energy_shockwave_remaining = energy_shockwave_cooldown
+	energy_shockwave_visual_remaining = 0.3
+	queue_redraw()
+	var shockwave_damage := roll_critical_damage(
+		maxi(roundi(float(damage) * energy_shockwave_damage_multiplier), 1)
+	)
+	for mob in affected_mobs:
+		if mob.has_method("apply_stun"):
+			mob.apply_stun(
+				energy_shockwave_stun_duration,
+				stun_affects_bosses
+			)
+		apply_tower_damage(mob, shockwave_damage, damage_type, false)
 
 
 func update_menu_layout() -> void:
@@ -1382,15 +2581,29 @@ func _select_target() -> void:
 		return
 	mobs_in_range = mobs_in_range.filter(
 		func(mob):
+			return (
+				mob != null
+				and is_instance_valid(mob)
+				and not mob.is_queued_for_deletion()
+				and not mob.finished
+			)
+	)
+	var targetable_mobs := mobs_in_range.filter(
+		func(mob):
 			return is_valid_target(mob)
 	)
-	
-	if mobs_in_range.is_empty():
+
+	if targetable_mobs.is_empty():
 		target = null
 		return
 
-	target = mobs_in_range[0]
-	for candidate in mobs_in_range:
+	target = targetable_mobs[0]
+	if tower_id == BRAINIAC_TOWER_ID and brainiac_psionic_link_enabled:
+		for candidate in targetable_mobs:
+			if candidate.health > target.health:
+				target = candidate
+		return
+	for candidate in targetable_mobs:
 		match target_mode:
 			TargetMode.FIRST:
 				if candidate.path_follow.progress > target.path_follow.progress:
@@ -1408,6 +2621,9 @@ func _select_target() -> void:
 
 func _select_directional_target() -> void:
 	target = null
+	if uses_gauss_tracking_cone():
+		select_strongest_gauss_cone_target()
+		return
 	var closest_distance := INF
 	var origin := muzzle.global_position
 	for candidate in get_tree().get_nodes_in_group("mobs"):
@@ -1426,6 +2642,36 @@ func _select_directional_target() -> void:
 		if distance_along_line < closest_distance:
 			closest_distance = distance_along_line
 			target = candidate
+
+
+func select_strongest_gauss_cone_target() -> void:
+	var highest_health := -1
+	var highest_progress := -INF
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if not is_target_in_tracking_cone(candidate):
+			continue
+		var candidate_health := int(candidate.health)
+		var candidate_progress := float(candidate.path_follow.progress)
+		if (
+			candidate_health > highest_health
+			or (
+				candidate_health == highest_health
+				and candidate_progress > highest_progress
+			)
+		):
+			highest_health = candidate_health
+			highest_progress = candidate_progress
+			target = candidate
+
+
+func is_target_in_tracking_cone(candidate: Variant) -> bool:
+	if not is_valid_target(candidate):
+		return false
+	var offset: Vector2 = candidate.global_position - muzzle.global_position
+	if offset.is_zero_approx():
+		return true
+	var half_angle_radians := deg_to_rad(gauss_tracking_cone_degrees * 0.5)
+	return offset.normalized().dot(aim_direction) >= cos(half_angle_radians)
 
 
 func get_directional_max_distance() -> float:
@@ -1472,6 +2718,163 @@ func process_gauss_spread(delta: float) -> void:
 		+ gauss_spread_recovery_per_second * recovery_delta,
 		gauss_maximum_spread_degrees
 	)
+
+
+func process_gauss_heavy_shot(delta: float) -> void:
+	if not gauss_heavy_shot_enabled or not is_placed:
+		return
+	if main == null or not main.round_active:
+		return
+	gauss_heavy_shot_remaining = maxf(
+		gauss_heavy_shot_remaining - delta,
+		0.0
+	)
+	if gauss_heavy_shot_remaining > 0.0 or not is_valid_target(target):
+		return
+	launch_gauss_heavy_shot()
+	gauss_heavy_shot_remaining = gauss_heavy_shot_interval
+
+
+func launch_gauss_heavy_shot() -> void:
+	if projectile_scene == null or not is_valid_target(target):
+		return
+	var shot_direction := aim_direction
+	if uses_gauss_tracking_cone():
+		var target_offset := target.global_position - muzzle.global_position
+		if not target_offset.is_zero_approx():
+			shot_direction = target_offset.normalized()
+	var maximum_distance := get_max_distance_in_direction(
+		shot_direction,
+		muzzle.global_position
+	)
+	var destination := muzzle.global_position + shot_direction * maximum_distance
+	var heavy_projectile := projectile_scene.instantiate() as TowerProjectile
+	get_tree().current_scene.add_child(heavy_projectile)
+	heavy_projectile.global_position = muzzle.global_position
+	heavy_projectile.setup(
+		target,
+		destination,
+		projectile_speed * gauss_heavy_shot_speed_multiplier,
+		maximum_distance,
+		maxi(roundi(float(roll_attack_damage()) * gauss_heavy_shot_damage_multiplier), 1),
+		damage_type,
+		GameStats.IMPACT_FIRST_CONTACT,
+		0.0,
+		pierce_count,
+		slow_duration,
+		stun_duration,
+		stun_affects_bosses,
+		0,
+		0.0,
+		false,
+		0.0,
+		true,
+		has_bonus_tag(BONUS_REVEAL)
+	)
+
+
+func process_beholder_beam_ramp(delta: float) -> void:
+	if not beholder_ramping_beam_enabled:
+		beholder_beam_lock_elapsed = 0.0
+		beholder_beam_lock_target_id = 0
+		return
+	if (
+		main == null
+		or not main.round_active
+		or not is_valid_target(target)
+		or not mobs_in_range.has(target)
+	):
+		beholder_beam_lock_elapsed = 0.0
+		beholder_beam_lock_target_id = 0
+		return
+	var current_target_id := target.get_instance_id()
+	if current_target_id != beholder_beam_lock_target_id:
+		beholder_beam_lock_target_id = current_target_id
+		beholder_beam_lock_elapsed = 0.0
+		return
+	beholder_beam_lock_elapsed += delta
+
+
+func get_beholder_ramp_damage() -> int:
+	if not beholder_ramping_beam_enabled:
+		return damage
+	var previous_level := maxi(tower_level - 1, 0)
+	var previous_level_damage := int(
+		get_effective_stats_for_level(previous_level)["damage"]
+	)
+	var completed_steps := floori(
+		beholder_beam_lock_elapsed / beholder_beam_ramp_step_interval
+	)
+	var damage_multiplier := minf(
+		beholder_beam_ramp_start_multiplier
+		+ beholder_beam_ramp_step_multiplier * float(completed_steps),
+		beholder_beam_ramp_max_multiplier
+	)
+	return maxi(roundi(float(previous_level_damage) * damage_multiplier), 1)
+
+
+func update_beholder_target_observer() -> void:
+	var desired_target: Node2D
+	if beholder_death_explosion_enabled and is_valid_target(target):
+		desired_target = target
+	if desired_target == beholder_observed_target:
+		return
+	disconnect_beholder_target_observer()
+	beholder_observed_target = desired_target
+	if (
+		is_instance_valid(beholder_observed_target)
+		and beholder_observed_target.has_signal("mob_died")
+	):
+		beholder_observed_target.mob_died.connect(_on_beholder_target_died)
+
+
+func disconnect_beholder_target_observer() -> void:
+	if (
+		is_instance_valid(beholder_observed_target)
+		and beholder_observed_target.has_signal("mob_died")
+		and beholder_observed_target.mob_died.is_connected(
+			_on_beholder_target_died
+		)
+	):
+		beholder_observed_target.mob_died.disconnect(_on_beholder_target_died)
+	beholder_observed_target = null
+
+
+func _on_beholder_target_died(killed_mob: Node2D) -> void:
+	if not beholder_death_explosion_enabled or target != killed_mob:
+		return
+	if killed_mob.get_meta("beholder_death_explosion_triggered", false):
+		return
+	killed_mob.set_meta("beholder_death_explosion_triggered", true)
+	var explosion_damage := maxi(
+		roundi(
+			float(get_beholder_ramp_damage())
+			* beholder_death_explosion_damage_multiplier
+		),
+		1
+	)
+	trigger_beholder_death_explosion(killed_mob.global_position, explosion_damage)
+	beholder_observed_target = null
+
+
+func trigger_beholder_death_explosion(center: Vector2, explosion_damage: int) -> void:
+	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
+		var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
+		get_tree().current_scene.add_child(explosion_zone)
+		explosion_zone.global_position = center
+		explosion_zone.setup(beholder_death_explosion_radius_pixels)
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_target(mob):
+			continue
+		var distance_from_center: float = mob.global_position.distance_to(center)
+		if distance_from_center > beholder_death_explosion_radius_pixels:
+			continue
+		var dealt_damage := GameStats.get_explosion_damage(
+			explosion_damage,
+			distance_from_center,
+			beholder_death_explosion_radius_pixels
+		)
+		mob.apply_damage(dealt_damage, DAMAGE_EXPLOSIVE, false)
 
 
 func reset_gauss_spread() -> void:
@@ -1523,7 +2926,10 @@ func _on_cancel_pressed() -> void:
 	queue_free()
 
 func _on_targetmode_pressed() -> void:
-	if is_spawner_tower():
+	if uses_standard_spawner_system():
+		return
+	if uses_manual_ground_targeting():
+		begin_manual_targeting()
 		return
 	show_target_menu()
 	if main != null and selected:
@@ -1604,6 +3010,10 @@ func is_spawner_tower() -> bool:
 	return bonus_tags.has(BONUS_SPAWNER)
 
 
+func uses_standard_spawner_system() -> bool:
+	return is_spawner_tower() and tower_id != SAUCER_TOWER_ID
+
+
 func add_type_tag(tag: StringName) -> void:
 	if not type_tags.has(tag):
 		type_tags.append(tag)
@@ -1662,9 +3072,81 @@ func set_slinger_contact_explosions(
 
 
 func load_path_behaviors() -> void:
+	var previous_heavy_shot_remaining := gauss_heavy_shot_remaining
+	var previous_longshot_mine_remaining := longshot_mine_remaining
+	var previous_void_singularity_remaining := void_singularity_remaining
+	var previous_energy_shockwave_remaining := energy_shockwave_remaining
+	var previous_reaver_bubble_active := reaver_time_bubble_active_remaining
+	var previous_reaver_bubble_cooldown := reaver_time_bubble_cooldown_remaining
 	infinite_pierce = false
 	continuous_beam_enabled = false
 	dual_weapons_enabled = false
+	gauss_heavy_shot_enabled = false
+	gauss_heavy_shot_interval = 0.0
+	gauss_heavy_shot_damage_multiplier = 1.0
+	gauss_heavy_shot_speed_multiplier = 1.0
+	gauss_tracking_cone_enabled = false
+	gauss_tracking_cone_degrees = 45.0
+	beholder_death_explosion_enabled = false
+	beholder_death_explosion_radius_pixels = 0.0
+	beholder_death_explosion_damage_multiplier = 1.0
+	beholder_ramping_beam_enabled = false
+	beholder_beam_ramp_start_multiplier = 1.0
+	beholder_beam_ramp_step_multiplier = 0.0
+	beholder_beam_ramp_step_interval = 0.5
+	beholder_beam_ramp_max_multiplier = 1.0
+	reaver_time_bubble_enabled = false
+	reaver_time_bubble_active_duration = 3.0
+	reaver_time_bubble_cooldown = 7.0
+	reaver_time_bubble_refresh_interval = 0.2
+	reaver_time_bubble_slow_duration = 0.3
+	reaver_assassinate_enabled = false
+	brainiac_convergence_explosion_enabled = false
+	brainiac_convergence_base_radius_pixels = 0.0
+	brainiac_convergence_radius_per_arrival_pixels = 0.0
+	brainiac_convergence_damage_per_arrival = 1.0
+	brainiac_psionic_link_enabled = false
+	brainiac_link_duration = 2.0
+	brainiac_link_radius_pixels = 0.0
+	brainiac_link_damage_share = 0.5
+	longshot_distance_damage_enabled = false
+	longshot_distance_minimum_multiplier = 1.0
+	longshot_distance_maximum_multiplier = 1.0
+	longshot_mines_enabled = false
+	longshot_mine_interval = 5.0
+	longshot_mine_maximum_count = 3
+	longshot_mine_placement_radius_pixels = 0.0
+	longshot_mine_trigger_radius_pixels = 0.0
+	longshot_mine_explosion_radius_pixels = 0.0
+	longshot_mine_damage_multiplier = 1.0
+	void_singularity_enabled = false
+	void_singularity_cooldown = 12.0
+	void_singularity_pull_duration = 1.0
+	void_singularity_pull_radius_pixels = 0.0
+	void_singularity_pull_speed = 160.0
+	void_singularity_explosion_radius_pixels = 0.0
+	void_singularity_damage_multiplier = 1.0
+	orbital_solar_lance_enabled = false
+	orbital_solar_lance_duration = 2.0
+	orbital_solar_lance_tick_interval = 0.2
+	orbital_solar_lance_tick_damage_multiplier = 0.25
+	orbital_solar_lance_dual_tick_damage_multiplier = 0.10
+	orbital_bombardment_enabled = false
+	orbital_bombardment_strike_count = 5
+	orbital_bombardment_stagger = 0.15
+	orbital_bombardment_spread_radius_pixels = 0.0
+	orbital_bombardment_damage_multiplier = 0.45
+	orbital_bombardment_radius_multiplier = 0.70
+	energy_shockwave_enabled = false
+	energy_shockwave_cooldown = 6.0
+	energy_shockwave_damage_multiplier = 2.0
+	energy_shockwave_stun_duration = 0.75
+	energy_branching_current_enabled = false
+	energy_branch_additional_targets = 2
+	energy_branch_range_pixels = 0.0
+	energy_branch_damage_loss = 0.25
+	saucer_twin_rockets_enabled = false
+	saucer_monster_drop_enabled = false
 	slinger_contact_explosions_enabled = false
 	slinger_contact_explosion_radius_pixels = 0.0
 	for path_id in purchased_paths:
@@ -1677,11 +3159,295 @@ func load_path_behaviors() -> void:
 			continuous_beam_enabled = true
 		if flags.get("dual_weapons", false):
 			dual_weapons_enabled = true
+		if flags.get("gauss_heavy_shot", false):
+			gauss_heavy_shot_enabled = true
+			gauss_heavy_shot_interval = maxf(
+				float(values.get("heavy_shot_interval", 3.0)),
+				0.1
+			)
+			gauss_heavy_shot_damage_multiplier = maxf(
+				float(values.get("heavy_shot_damage_multiplier", 15.0)),
+				1.0
+			)
+			gauss_heavy_shot_speed_multiplier = maxf(
+				float(values.get("heavy_shot_speed_multiplier", 1.25)),
+				0.1
+			)
+		if flags.get("gauss_tracking_cone", false):
+			gauss_tracking_cone_enabled = true
+			gauss_tracking_cone_degrees = clampf(
+				float(values.get("tracking_cone_degrees", 45.0)),
+				1.0,
+				180.0
+			)
+		if flags.get("beholder_death_explosion", false):
+			beholder_death_explosion_enabled = true
+			beholder_death_explosion_radius_pixels = (
+				maxf(float(values.get("death_explosion_radius", 3.0)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			beholder_death_explosion_damage_multiplier = maxf(
+				float(values.get("death_explosion_damage_multiplier", 4.0)),
+				0.0
+			)
+		if flags.get("beholder_ramping_beam", false):
+			beholder_ramping_beam_enabled = true
+			beholder_beam_ramp_start_multiplier = maxf(
+				float(values.get("beam_ramp_start_multiplier", 0.5)),
+				0.0
+			)
+			beholder_beam_ramp_step_multiplier = maxf(
+				float(values.get("beam_ramp_step_multiplier", 0.25)),
+				0.0
+			)
+			beholder_beam_ramp_step_interval = maxf(
+				float(values.get("beam_ramp_step_interval", 0.5)),
+				0.01
+			)
+			beholder_beam_ramp_max_multiplier = maxf(
+				float(values.get("beam_ramp_max_multiplier", 2.5)),
+				beholder_beam_ramp_start_multiplier
+			)
+		if flags.get("reaver_time_bubble", false):
+			reaver_time_bubble_enabled = true
+			reaver_time_bubble_active_duration = maxf(
+				float(values.get("time_bubble_active_duration", 3.0)),
+				0.01
+			)
+			reaver_time_bubble_cooldown = maxf(
+				float(values.get("time_bubble_cooldown", 7.0)),
+				0.0
+			)
+			reaver_time_bubble_refresh_interval = maxf(
+				float(values.get("time_bubble_refresh_interval", 0.2)),
+				0.05
+			)
+			reaver_time_bubble_slow_duration = maxf(
+				float(values.get("time_bubble_slow_duration", 0.3)),
+				0.01
+			)
+		if flags.get("reaver_assassinate", false):
+			reaver_assassinate_enabled = true
+		if flags.get("brainiac_convergence_explosion", false):
+			brainiac_convergence_explosion_enabled = true
+			brainiac_convergence_base_radius_pixels = (
+				maxf(float(values.get("convergence_base_radius", 1.5)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			brainiac_convergence_radius_per_arrival_pixels = (
+				maxf(float(values.get("convergence_radius_per_arrival", 0.65)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			brainiac_convergence_damage_per_arrival = maxf(
+				float(values.get("convergence_damage_per_arrival", 1.0)),
+				0.0
+			)
+		if flags.get("brainiac_psionic_link", false):
+			brainiac_psionic_link_enabled = true
+			brainiac_link_duration = maxf(
+				float(values.get("brainiac_link_duration", 2.0)),
+				0.01
+			)
+			brainiac_link_radius_pixels = (
+				maxf(float(values.get("brainiac_link_radius", 3.5)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			brainiac_link_damage_share = maxf(
+				float(values.get("brainiac_link_damage_share", 0.5)),
+				0.0
+			)
+		if flags.get("longshot_distance_damage", false):
+			longshot_distance_damage_enabled = true
+			longshot_distance_minimum_multiplier = maxf(
+				float(values.get("distance_minimum_multiplier", 1.0)),
+				0.0
+			)
+			longshot_distance_maximum_multiplier = maxf(
+				float(values.get("distance_maximum_multiplier", 2.0)),
+				longshot_distance_minimum_multiplier
+			)
+		if flags.get("longshot_mines", false):
+			longshot_mines_enabled = true
+			longshot_mine_interval = maxf(
+				float(values.get("mine_interval", 5.0)),
+				0.1
+			)
+			longshot_mine_maximum_count = maxi(
+				int(values.get("mine_maximum_count", 3)),
+				1
+			)
+			longshot_mine_placement_radius_pixels = (
+				maxf(float(values.get("mine_placement_radius", 6.0)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			longshot_mine_trigger_radius_pixels = (
+				maxf(float(values.get("mine_trigger_radius", 1.0)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			longshot_mine_explosion_radius_pixels = (
+				maxf(float(values.get("mine_explosion_radius", 3.0)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			longshot_mine_damage_multiplier = maxf(
+				float(values.get("mine_damage_multiplier", 1.5)),
+				0.0
+			)
+		if flags.get("void_singularity", false):
+			void_singularity_enabled = true
+			void_singularity_cooldown = maxf(
+				float(values.get("singularity_cooldown", 12.0)),
+				0.1
+			)
+			void_singularity_pull_duration = maxf(
+				float(values.get("singularity_pull_duration", 1.0)),
+				0.01
+			)
+			void_singularity_pull_radius_pixels = (
+				maxf(float(values.get("singularity_pull_radius", 5.0)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			void_singularity_pull_speed = maxf(
+				float(values.get("singularity_pull_speed", 160.0)),
+				0.0
+			)
+			void_singularity_explosion_radius_pixels = (
+				maxf(float(values.get("singularity_explosion_radius", 4.5)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			void_singularity_damage_multiplier = maxf(
+				float(values.get("singularity_damage_multiplier", 3.0)),
+				0.0
+			)
+		if flags.get("orbital_solar_lance", false):
+			orbital_solar_lance_enabled = true
+			orbital_solar_lance_duration = maxf(
+				float(values.get("solar_lance_duration", 2.0)),
+				0.01
+			)
+			orbital_solar_lance_tick_interval = maxf(
+				float(values.get("solar_lance_tick_interval", 0.2)),
+				0.01
+			)
+			orbital_solar_lance_tick_damage_multiplier = maxf(
+				float(values.get("solar_lance_tick_damage_multiplier", 0.25)),
+				0.0
+			)
+			orbital_solar_lance_dual_tick_damage_multiplier = maxf(
+				float(values.get("solar_lance_dual_tick_damage_multiplier", 0.10)),
+				0.0
+			)
+		if flags.get("orbital_bombardment", false):
+			orbital_bombardment_enabled = true
+			orbital_bombardment_strike_count = maxi(
+				int(values.get("bombardment_strike_count", 5)),
+				1
+			)
+			orbital_bombardment_stagger = maxf(
+				float(values.get("bombardment_stagger", 0.15)),
+				0.0
+			)
+			orbital_bombardment_spread_radius_pixels = (
+				maxf(float(values.get("bombardment_spread_radius", 3.0)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			orbital_bombardment_damage_multiplier = maxf(
+				float(values.get("bombardment_damage_multiplier", 0.45)),
+				0.0
+			)
+			orbital_bombardment_radius_multiplier = maxf(
+				float(values.get("bombardment_radius_multiplier", 0.70)),
+				0.0
+			)
+		if flags.get("energy_shockwave", false):
+			energy_shockwave_enabled = true
+			energy_shockwave_cooldown = maxf(
+				float(values.get("shockwave_cooldown", 6.0)),
+				0.1
+			)
+			energy_shockwave_damage_multiplier = maxf(
+				float(values.get("shockwave_damage_multiplier", 2.0)),
+				0.0
+			)
+			energy_shockwave_stun_duration = maxf(
+				float(values.get("shockwave_stun_duration", 0.75)),
+				0.0
+			)
+		if flags.get("energy_branching_current", false):
+			energy_branching_current_enabled = true
+			energy_branch_additional_targets = maxi(
+				int(values.get("branch_additional_targets", 2)),
+				0
+			)
+			energy_branch_range_pixels = (
+				maxf(float(values.get("branch_range", 4.0)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
+			energy_branch_damage_loss = clampf(
+				float(values.get("branch_damage_loss", 0.25)),
+				0.0,
+				1.0
+			)
+		if flags.get("saucer_twin_rockets", false):
+			saucer_twin_rockets_enabled = true
+		if flags.get("saucer_monster_drop", false):
+			saucer_monster_drop_enabled = true
 		if flags.get("slinger_contact_explosions", false):
 			set_slinger_contact_explosions(
 				true,
 				float(values.get("contact_explosion_radius", 2.5))
 			)
+	if gauss_heavy_shot_enabled:
+		gauss_heavy_shot_remaining = (
+			minf(previous_heavy_shot_remaining, gauss_heavy_shot_interval)
+			if previous_heavy_shot_remaining > 0.0
+			else gauss_heavy_shot_interval
+		)
+	else:
+		gauss_heavy_shot_remaining = 0.0
+	if reaver_time_bubble_enabled:
+		if previous_reaver_bubble_active > 0.0:
+			reaver_time_bubble_active_remaining = minf(
+				previous_reaver_bubble_active,
+				reaver_time_bubble_active_duration
+			)
+			reaver_time_bubble_cooldown_remaining = 0.0
+		elif previous_reaver_bubble_cooldown > 0.0:
+			reaver_time_bubble_active_remaining = 0.0
+			reaver_time_bubble_cooldown_remaining = minf(
+				previous_reaver_bubble_cooldown,
+				reaver_time_bubble_cooldown
+			)
+		else:
+			reaver_time_bubble_active_remaining = 0.0
+			reaver_time_bubble_cooldown_remaining = 0.0
+	else:
+		reaver_time_bubble_active_remaining = 0.0
+		reaver_time_bubble_cooldown_remaining = 0.0
+		reaver_time_bubble_refresh_remaining = 0.0
+	if longshot_mines_enabled:
+		longshot_mine_remaining = (
+			minf(previous_longshot_mine_remaining, longshot_mine_interval)
+			if previous_longshot_mine_remaining > 0.0
+			else longshot_mine_interval
+		)
+	else:
+		longshot_mine_remaining = 0.0
+	if void_singularity_enabled:
+		void_singularity_remaining = (
+			minf(previous_void_singularity_remaining, void_singularity_cooldown)
+			if previous_void_singularity_remaining > 0.0
+			else void_singularity_cooldown
+		)
+	else:
+		void_singularity_remaining = 0.0
+	if energy_shockwave_enabled:
+		energy_shockwave_remaining = (
+			minf(previous_energy_shockwave_remaining, energy_shockwave_cooldown)
+			if previous_energy_shockwave_remaining > 0.0
+			else energy_shockwave_cooldown
+		)
+	else:
+		energy_shockwave_remaining = 0.0
 	
 func load_base_tags() -> void:
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)

@@ -209,6 +209,7 @@ var max_lives: int
 var place_mode := false
 var build_mode := false
 var tower_to_place: Node2D = null
+var manual_targeting_tower: Node2D
 var money: int
 var pending_tower_type: StringName = &""
 var pending_tower_cost := 0
@@ -239,7 +240,11 @@ var active_enemy_cap := 120
 var spawning_active := false
 var director_cooldown := 0.0
 var round_active := false
-var round_was_perfect := true
+var spore_network_last_refresh_msec := -1000000
+var spore_network_primary_owner_id := 0
+var spore_network_primary_target: Node2D
+var spore_network_secondary_owner_id := 0
+var spore_network_secondary_target: Node2D
 var game_ended := false
 var max_rounds: int
 var mode_id: StringName = &"easy"
@@ -405,8 +410,29 @@ func spend_money(amount: int) -> bool:
 	return false
 
 func close_all_tower_menus() -> void:
+	cancel_manual_tower_targeting()
 	for tower in get_tree().get_nodes_in_group("towers"):
 		tower.set_selected(false)
+
+
+func begin_manual_tower_targeting(tower: Node2D) -> void:
+	if is_instance_valid(manual_targeting_tower) and manual_targeting_tower != tower:
+		manual_targeting_tower.cancel_manual_targeting()
+	manual_targeting_tower = tower
+
+
+func finish_manual_tower_targeting(tower: Node2D) -> void:
+	if manual_targeting_tower == tower:
+		manual_targeting_tower = null
+
+
+func cancel_manual_tower_targeting() -> void:
+	if not is_instance_valid(manual_targeting_tower):
+		manual_targeting_tower = null
+		return
+	var tower := manual_targeting_tower
+	manual_targeting_tower = null
+	tower.cancel_manual_targeting()
 
 
 func roll_challenge_round_order() -> void:
@@ -478,7 +504,6 @@ func start_round() -> void:
 		current_wave_spawn_style = &"boss_escort"
 		spawn_schedule = build_timed_boss_opening()
 	mobs_left_to_spawn = spawn_schedule.size()
-	round_was_perfect = true
 	round_active = true
 	round_started.emit(round_number)
 	spawntimer.one_shot = true
@@ -529,6 +554,7 @@ func end_round() -> void:
 	
 	round_active = false
 	spawning_active = false
+	clear_active_projectiles()
 	spawn_schedule.clear()
 	mobs_left_to_spawn = 0
 	spawntimer.stop()
@@ -552,17 +578,93 @@ func enter_build_phase() -> void:
 
 
 func calculate_end_round_reward() -> int:
-	var mode: Dictionary = GameStats.get_mode(mode_id)
-	var base_reward: int = mode["wave_bonus_base"] + (
-		(round_number - 1) * mode["wave_bonus_growth"]
+	return 20 + round_number * 5
+
+
+func clear_active_projectiles() -> void:
+	for projectile in get_tree().get_nodes_in_group("tower_projectiles"):
+		if is_instance_valid(projectile):
+			projectile.queue_free()
+
+
+func get_shared_spore_target(requesting_tower: Node) -> Node2D:
+	refresh_spore_network_cache()
+	if not is_instance_valid(requesting_tower):
+		return null
+	var requesting_owner_id := requesting_tower.get_instance_id()
+	if (
+		spore_network_primary_owner_id != requesting_owner_id
+		and is_valid_spore_network_target(spore_network_primary_target)
+	):
+		return spore_network_primary_target
+	if (
+		spore_network_secondary_owner_id != requesting_owner_id
+		and is_valid_spore_network_target(spore_network_secondary_target)
+	):
+		return spore_network_secondary_target
+	return null
+
+
+func refresh_spore_network_cache() -> void:
+	var current_time_msec := Time.get_ticks_msec()
+	if current_time_msec - spore_network_last_refresh_msec < 200:
+		return
+	spore_network_last_refresh_msec = current_time_msec
+	spore_network_primary_owner_id = 0
+	spore_network_primary_target = null
+	spore_network_secondary_owner_id = 0
+	spore_network_secondary_target = null
+	var owner_targets: Dictionary = {}
+	for candidate in get_tree().get_nodes_in_group("spawned_units"):
+		if (
+			candidate.unit_id != &"spore_turret"
+			or not is_instance_valid(candidate.parent_tower)
+			or not candidate.locally_acquired_target
+			or not is_valid_spore_network_target(candidate.local_target)
+		):
+			continue
+		var owner_id: int = candidate.parent_tower.get_instance_id()
+		var progress := float(candidate.local_target.path_follow.progress)
+		if (
+			not owner_targets.has(owner_id)
+			or progress > float(owner_targets[owner_id]["progress"])
+		):
+			owner_targets[owner_id] = {
+				"target": candidate.local_target,
+				"progress": progress,
+			}
+	for owner_id in owner_targets:
+		var entry: Dictionary = owner_targets[owner_id]
+		var entry_progress := float(entry["progress"])
+		var primary_progress := get_spore_network_target_progress(
+			spore_network_primary_target
+		)
+		if entry_progress > primary_progress:
+			spore_network_secondary_owner_id = spore_network_primary_owner_id
+			spore_network_secondary_target = spore_network_primary_target
+			spore_network_primary_owner_id = int(owner_id)
+			spore_network_primary_target = entry["target"]
+		elif entry_progress > get_spore_network_target_progress(
+			spore_network_secondary_target
+		):
+			spore_network_secondary_owner_id = int(owner_id)
+			spore_network_secondary_target = entry["target"]
+
+
+func is_valid_spore_network_target(candidate: Variant) -> bool:
+	return (
+		candidate != null
+		and is_instance_valid(candidate)
+		and not candidate.is_queued_for_deletion()
+		and not candidate.finished
+		and is_instance_valid(candidate.path_follow)
 	)
-	var clear_reward := 0
 
-	if round_was_perfect:
-		clear_reward = floori(base_reward * mode["clear_bonus_multiplier"])
 
-	var reward_multiplier := 1.0 + get_run_bonus(&"round_reward")
-	return roundi(float(base_reward + clear_reward) * reward_multiplier)
+func get_spore_network_target_progress(candidate: Variant) -> float:
+	if not is_valid_spore_network_target(candidate):
+		return -INF
+	return float(candidate.path_follow.progress)
 
 
 func open_tower_draft() -> void:
@@ -1716,7 +1818,6 @@ func choose_weighted_enemy(available: Array[StringName]) -> StringName:
 
 
 func _on_mob_reached_end(damage: int) -> void:
-	round_was_perfect = false
 	lives -= damage
 	lives = maxi(lives, 0)
 	update_lives()
@@ -1742,6 +1843,7 @@ func finish_game(message: String) -> void:
 	spawn_schedule.clear()
 	mobs_left_to_spawn = 0
 	spawntimer.stop()
+	clear_active_projectiles()
 	shop_open = false
 	between_round_shop.hide()
 	place_mode = false
@@ -1774,6 +1876,33 @@ func mob_finished() -> void:
 
 	if not spawning_active and mobs_left_to_spawn == 0 and mobs_alive == 0:
 		end_round()
+
+
+func _input(event: InputEvent) -> void:
+	if not is_instance_valid(manual_targeting_tower):
+		if manual_targeting_tower != null:
+			manual_targeting_tower = null
+		return
+	if (
+		event.is_action_pressed("ui_cancel")
+		or (
+			event is InputEventMouseButton
+			and event.button_index == MOUSE_BUTTON_RIGHT
+			and event.pressed
+		)
+	):
+		get_viewport().set_input_as_handled()
+		cancel_manual_tower_targeting()
+		return
+	if (
+		event is InputEventMouseButton
+		and event.button_index == MOUSE_BUTTON_LEFT
+		and event.pressed
+	):
+		get_viewport().set_input_as_handled()
+		var targeting_tower := manual_targeting_tower
+		if targeting_tower.confirm_manual_target_position(get_global_mouse_position()):
+			finish_manual_tower_targeting(targeting_tower)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel") and not game_ended:
@@ -1891,6 +2020,16 @@ func get_playable_right_edge() -> float:
 	return playable_map_width
 
 
+func is_world_position_in_playable_area(world_position: Vector2) -> bool:
+	var viewport_size := get_viewport_rect().size
+	return (
+		world_position.x >= 0.0
+		and world_position.y >= 0.0
+		and world_position.x <= get_playable_right_edge()
+		and world_position.y <= viewport_size.y
+	)
+
+
 func _align_sidebar_to_build_grid() -> void:
 	var viewport_width := get_viewport_rect().size.x
 	var available_map_width := maxf(viewport_width - MIN_SIDEBAR_WIDTH, 0.0)
@@ -1908,6 +2047,41 @@ func is_build_cell_blocked_by_path(cell: Vector2i) -> bool:
 	var closest_local := path_node.curve.get_closest_point(path_node.to_local(cell_center))
 	var closest_global := path_node.to_global(closest_local)
 	return cell_center.distance_to(closest_global) <= PATH_NO_BUILD_RADIUS
+
+
+func get_path_cell_positions_near(
+	origin: Vector2,
+	maximum_radius: float
+) -> Array[Vector2]:
+	var positions: Array[Vector2] = []
+	if maximum_radius <= 0.0:
+		return positions
+	var path_node := $path as Path2D
+	if path_node.curve == null:
+		return positions
+	var minimum_cell := world_to_build_cell(
+		origin - Vector2.ONE * maximum_radius
+	)
+	var maximum_cell := world_to_build_cell(
+		origin + Vector2.ONE * maximum_radius
+	)
+	var centerline_snap_distance := PLACEMENT_SNAP_SIZE * 0.75
+	for cell_y in range(minimum_cell.y, maximum_cell.y + 1):
+		for cell_x in range(minimum_cell.x, maximum_cell.x + 1):
+			var cell := Vector2i(cell_x, cell_y)
+			if not is_build_cell_in_playable_area(cell):
+				continue
+			var cell_center := get_build_cell_center(cell)
+			if origin.distance_to(cell_center) > maximum_radius:
+				continue
+			var closest_local := path_node.curve.get_closest_point(
+				path_node.to_local(cell_center)
+			)
+			var closest_global := path_node.to_global(closest_local)
+			if cell_center.distance_to(closest_global) > centerline_snap_distance:
+				continue
+			positions.append(cell_center)
+	return positions
 
 
 func is_build_cell_occupied(cell: Vector2i) -> bool:

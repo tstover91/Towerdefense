@@ -5,6 +5,7 @@ const STUN_FATIGUE_MULTIPLIERS := [1.0, 0.65, 0.40, 0.25, 0.10]
 const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
 
 signal mob_killed(reward: int)
+signal mob_died(mob: Node2D)
 signal reached_end(damage: int)
 signal spawn_requested(
 	enemy_id: StringName,
@@ -46,6 +47,25 @@ var slow_remaining := 0.0
 var stun_remaining := 0.0
 var stun_fatigue_tier := 0
 var stun_fatigue_recovery_elapsed := 0.0
+var brainiac_link_remaining := 0.0
+var brainiac_link_radius := 0.0
+var brainiac_link_damage_share := 0.0
+
+
+func _draw() -> void:
+	if brainiac_link_remaining <= 0.0 or brainiac_link_radius <= 0.0:
+		return
+	draw_circle(Vector2.ZERO, brainiac_link_radius, Color(0.55, 0.2, 0.95, 0.08))
+	draw_arc(
+		Vector2.ZERO,
+		brainiac_link_radius,
+		0.0,
+		TAU,
+		64,
+		Color(0.75, 0.4, 1.0, 0.65),
+		1.5,
+		true
+	)
 
 
 func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
@@ -55,6 +75,7 @@ func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
 	update_health_bar_position()
 	
 func _process(delta: float) -> void:
+	_process_brainiac_link(delta)
 	if path_follow == null or finished:
 		return
 
@@ -192,6 +213,25 @@ func apply_slow(duration: float) -> void:
 	slow_remaining = maxf(slow_remaining, duration)
 
 
+func apply_brainiac_link(duration: float, radius: float, damage_share: float) -> void:
+	if finished or duration <= 0.0 or radius <= 0.0 or damage_share <= 0.0:
+		return
+	brainiac_link_remaining = maxf(brainiac_link_remaining, duration)
+	brainiac_link_radius = maxf(brainiac_link_radius, radius)
+	brainiac_link_damage_share = maxf(brainiac_link_damage_share, damage_share)
+	queue_redraw()
+
+
+func _process_brainiac_link(delta: float) -> void:
+	if brainiac_link_remaining <= 0.0:
+		return
+	brainiac_link_remaining = maxf(brainiac_link_remaining - delta, 0.0)
+	if brainiac_link_remaining <= 0.0:
+		brainiac_link_radius = 0.0
+		brainiac_link_damage_share = 0.0
+		queue_redraw()
+
+
 func apply_stun(duration: float, affects_bosses := false) -> void:
 	if finished or duration <= 0.0:
 		return
@@ -259,8 +299,22 @@ func die() -> void:
 
 	finished = true
 	spawn_split_children()
+	mob_died.emit(self)
 	mob_killed.emit(cash_reward)
 
+	if is_instance_valid(path_follow):
+		path_follow.queue_free()
+	else:
+		queue_free()
+
+
+func abduct() -> void:
+	if finished:
+		return
+	finished = true
+	# Abduction grants the normal reward, but is removal rather than a death:
+	# it does not trigger death observers or create split children.
+	mob_killed.emit(cash_reward)
 	if is_instance_valid(path_follow):
 		path_follow.queue_free()
 	else:
@@ -289,21 +343,69 @@ func get_inherited_spawn_variant() -> StringName:
 func apply_damage(
 	amount: int,
 	damage_type: StringName,
-	ignores_armor := false
-) -> void:
+	ignores_armor := false,
+	can_trigger_brainiac_link := true
+) -> int:
 	if finished:
-		return
+		return 0
+	var should_spread := (
+		can_trigger_brainiac_link
+		and brainiac_link_remaining > 0.0
+		and brainiac_link_radius > 0.0
+		and brainiac_link_damage_share > 0.0
+	)
+	var link_center := global_position
 
 	var effective_defense := 0.0 if ignores_armor else defense
 	if damage_type == &"explosive":
 		effective_defense *= 0.5
 	var final_damage := maxi(1, floori(amount * (1.0 - effective_defense)))
+	var received_damage := mini(final_damage, health)
 
 	health -= final_damage
 	health_bar.value = health
 
 	if health <= 0:
 		die()
+	if should_spread and received_damage > 0:
+		spread_brainiac_damage(link_center, received_damage, damage_type)
+	return received_damage
+
+
+func apply_damage_from_tower(
+	amount: int,
+	damage_type: StringName,
+	ignores_armor: bool,
+	_source_tower_id: StringName
+) -> int:
+	# Keep the source parameter available for future source-specific effects.
+	return apply_damage(amount, damage_type, ignores_armor)
+
+
+func spread_brainiac_damage(
+	center: Vector2,
+	received_damage: int,
+	damage_type: StringName
+) -> void:
+	var shared_damage := maxi(
+		roundi(float(received_damage) * brainiac_link_damage_share),
+		1
+	)
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if (
+			candidate == self
+			or candidate == null
+			or not is_instance_valid(candidate)
+			or candidate.is_queued_for_deletion()
+			or candidate.finished
+		):
+			continue
+		if candidate.traits.has(&"hidden"):
+			continue
+		if candidate.global_position.distance_to(center) > brainiac_link_radius:
+			continue
+		# This is already a share of damage received, so armor is not applied twice.
+		candidate.apply_damage(shared_damage, damage_type, true, false)
 
 
 func get_projectile_hit_radius() -> float:
