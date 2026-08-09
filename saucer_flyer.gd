@@ -37,54 +37,48 @@ func _physics_process(delta: float) -> void:
 	abduction_cooldown = maxf(abduction_cooldown - delta, 0.0)
 	rocket_cooldown = maxf(rocket_cooldown - delta, 0.0)
 	target = parent_tower.get_saucer_target()
+
+	# Abduction evaluates only enemies already inside its short radius. It never
+	# redirects the Saucer away from the Electric gun's First target.
 	if abduction_cooldown <= 0.0:
-		var abduction_target = parent_tower.get_saucer_abduction_target()
-		if is_valid_target(abduction_target):
-			target = abduction_target
+		var abduction_target = parent_tower.get_saucer_abduction_target(
+			global_position
+		)
+		if (
+			is_valid_target(abduction_target)
+			and parent_tower.try_saucer_abduction(abduction_target, global_position)
+		):
+			abduction_cooldown = float(parent_tower.saucer_abduction_cooldown)
+			abduction_flash_remaining = 0.28
+			if target == abduction_target or not is_valid_target(target):
+				target = parent_tower.get_saucer_target()
+
+	# Rockets have their own target selection and cooldown. They may fire even
+	# when the Electric gun currently has no target.
+	if (
+		parent_tower.saucer_twin_rockets_enabled
+		and rocket_cooldown <= 0.0
+		and parent_tower.fire_saucer_rockets(global_position, target)
+	):
+		rocket_cooldown = float(parent_tower.saucer_rocket_interval)
+
 	if not is_valid_target(target):
 		target = null
 		move_toward_position(parent_tower.global_position, delta)
 		queue_redraw()
 		return
 
-	var can_abduct: bool = (
-		abduction_cooldown <= 0.0
-		and parent_tower.saucer_can_abduct_target(target)
-	)
 	var desired_radius := float(parent_tower.saucer_attack_radius_pixels) * 0.8
-	if can_abduct:
-		desired_radius = float(parent_tower.saucer_abduction_radius_pixels) * 0.8
 	var distance_to_target := global_position.distance_to(target.global_position)
 	if distance_to_target > desired_radius:
 		move_toward_position(target.global_position, delta)
 		distance_to_target = global_position.distance_to(target.global_position)
 
 	if (
-		can_abduct
-		and distance_to_target <= float(parent_tower.saucer_abduction_radius_pixels)
-		and parent_tower.try_saucer_abduction(target, global_position)
-	):
-		abduction_cooldown = float(parent_tower.saucer_abduction_cooldown)
-		abduction_flash_remaining = 0.28
-		target = null
-		queue_redraw()
-		return
-	if can_abduct:
-		# Preserve an eligible victim while the saucer closes the final distance.
-		queue_redraw()
-		return
-
-	if (
 		attack_cooldown <= 0.0
 		and distance_to_target <= float(parent_tower.saucer_attack_radius_pixels)
 	):
-		var launch_rockets: bool = (
-			parent_tower.saucer_twin_rockets_enabled
-			and rocket_cooldown <= 0.0
-		)
-		parent_tower.fire_saucer_weapon(global_position, target, launch_rockets)
-		if launch_rockets:
-			rocket_cooldown = float(parent_tower.saucer_rocket_interval)
+		parent_tower.fire_saucer_weapon(global_position, target)
 		attack_cooldown = float(parent_tower.damage_timer.wait_time)
 	queue_redraw()
 

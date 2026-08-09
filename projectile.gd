@@ -32,6 +32,7 @@ var pierce_loses_no_power := false
 var can_hit_hidden := false
 var homing_enabled := false
 var source_tower_id: StringName = &""
+var attack_context: AttackContext
 var maximum_travel_distance := 0.0
 var remaining_bounces := 0
 var remaining_pierce_hits := 0
@@ -68,7 +69,8 @@ func setup(
 	attack_source_tower_id: StringName = &"",
 	attack_homing_enabled := false,
 	attack_pierce_loses_no_power := false,
-	attack_contact_explosion_damage_multiplier := 1.0
+	attack_contact_explosion_damage_multiplier := 1.0,
+	attack_ownership_context: AttackContext = null
 ) -> void:
 	primary_target = target_node
 	impact_position = target_position
@@ -99,6 +101,9 @@ func setup(
 	can_hit_hidden = attack_can_hit_hidden
 	homing_enabled = attack_homing_enabled
 	source_tower_id = attack_source_tower_id
+	attack_context = attack_ownership_context
+	if attack_context == null and not source_tower_id.is_empty():
+		attack_context = AttackContext.legacy(source_tower_id, &"projectile")
 	maximum_travel_distance = maxf(max_travel_distance, distance_to_impact)
 	remaining_bounces = bounce_count
 	remaining_pierce_hits = (
@@ -229,6 +234,13 @@ func begin_next_bounce() -> bool:
 		return false
 
 	remaining_bounces -= 1
+	if attack_context != null:
+		attack_context = attack_context.derive(
+			self,
+			&"projectile",
+			&"bounce",
+			true
+		)
 	primary_target = next_target
 	impact_position = next_target.global_position
 	var aim_offset := impact_position - global_position
@@ -305,7 +317,13 @@ func resolve_pierce_segment(start: Vector2, end: Vector2) -> bool:
 			pierce_chain_hit_count,
 			pierce_loses_no_power
 		)
-		apply_damage_and_effects(mob, true, pierced_damage)
+		apply_damage_and_effects(
+			mob,
+			true,
+			pierced_damage,
+			&"",
+			derive_attack_context(&"pierce")
+		)
 		if contact_explosions_enabled:
 			resolve_contact_explosion(mob.global_position, pierced_damage)
 		pierce_chain_hit_count += 1
@@ -333,7 +351,13 @@ func resolve_first_contact_segment(start: Vector2, end: Vector2) -> bool:
 		apply_damage_and_effects(
 			mob,
 			pierce_count > 0 or infinite_pierce,
-			contact_damage
+			contact_damage,
+			&"",
+			(
+				derive_attack_context(&"pierce")
+				if pierce_chain_hit_count > 0
+				else attack_context
+			)
 		)
 		if contact_explosions_enabled:
 			resolve_contact_explosion(mob.global_position, contact_damage)
@@ -395,6 +419,7 @@ func resolve_contact_explosion(center: Vector2, explosion_damage: int) -> void:
 		float(explosion_damage) * contact_explosion_damage_multiplier
 	), 1)
 	spawn_explosion_zone(center, contact_explosion_radius)
+	var explosion_context := derive_attack_context(&"contact_explosion")
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(mob):
 			continue
@@ -414,7 +439,8 @@ func resolve_contact_explosion(center: Vector2, explosion_damage: int) -> void:
 			mob,
 			pierce_count > 0 or infinite_pierce,
 			resolved_damage,
-			&"explosive"
+			&"explosive",
+			explosion_context
 		)
 
 
@@ -425,6 +451,7 @@ func resolve_explosion_with_stats(
 	explosion_damage_type: StringName
 ) -> void:
 	spawn_explosion_zone(center, explosion_radius)
+	var explosion_context := derive_attack_context(&"explosion")
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(mob):
 			continue
@@ -440,7 +467,8 @@ func resolve_explosion_with_stats(
 			mob,
 			pierce_count > 0,
 			explosion_damage,
-			explosion_damage_type
+			explosion_damage_type,
+			explosion_context
 		)
 
 
@@ -457,24 +485,44 @@ func apply_damage_and_effects(
 	mob: Node,
 	ignores_armor: bool,
 	attack_damage: int,
-	attack_damage_type: StringName = &""
+	attack_damage_type: StringName = &"",
+	ownership_context: AttackContext = null
 ) -> void:
-	if slow_duration > 0.0 and mob.has_method("apply_slow"):
-		mob.apply_slow(slow_duration)
-	if stun_duration > 0.0 and mob.has_method("apply_stun"):
-		mob.apply_stun(stun_duration, stun_affects_bosses)
 	var resolved_damage_type := (
 		damage_type if attack_damage_type.is_empty() else attack_damage_type
 	)
+	var resolved_context := ownership_context if ownership_context != null else attack_context
+	if slow_duration > 0.0 and mob.has_method("apply_slow"):
+		mob.apply_slow(slow_duration, resolved_context)
+	if stun_duration > 0.0 and mob.has_method("apply_stun"):
+		mob.apply_stun(stun_duration, stun_affects_bosses, resolved_context)
 	if mob.has_method("apply_damage_from_tower"):
 		mob.apply_damage_from_tower(
 			attack_damage,
 			resolved_damage_type,
 			ignores_armor,
-			source_tower_id
+			source_tower_id,
+			resolved_context
 		)
 	else:
-		mob.apply_damage(attack_damage, resolved_damage_type, ignores_armor)
+		mob.apply_damage(
+			attack_damage,
+			resolved_damage_type,
+			ignores_armor,
+			true,
+			resolved_context
+		)
+
+
+func derive_attack_context(derived_attack_kind: StringName) -> AttackContext:
+	if attack_context == null:
+		return null
+	return attack_context.derive(
+		self,
+		&"projectile",
+		derived_attack_kind,
+		true
+	)
 
 
 func get_target_hit_radius(candidate: Node) -> float:

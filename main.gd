@@ -259,6 +259,10 @@ var relic_refresh_count := 0
 var tower_roster: Array[StringName] = [&"invader", &"gauss_repeater"]
 var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
+var damage_by_tower_instance: Dictionary = {}
+var eliminations_by_tower_instance: Dictionary = {}
+var damage_by_tower_type: Dictionary = {}
+var eliminations_by_tower_type: Dictionary = {}
 var displayed_tower: Node = null
 var occupied_build_cells: Dictionary = {}
 var playable_map_width := 0.0
@@ -598,6 +602,9 @@ func clear_active_projectiles() -> void:
 	for projectile in get_tree().get_nodes_in_group("tower_projectiles"):
 		if is_instance_valid(projectile):
 			projectile.queue_free()
+	for resolver in get_tree().get_nodes_in_group("tower_attack_resolvers"):
+		if is_instance_valid(resolver):
+			resolver.queue_free()
 	for effect in get_tree().get_nodes_in_group("tower_attack_visuals"):
 		if is_instance_valid(effect):
 			effect.queue_free()
@@ -1107,6 +1114,8 @@ func _create_mob(
 	mob.health_multiplier = get_enemy_health_multiplier(round_number)
 	mob.spawn_variant = spawn_variant
 	mob.mob_killed.connect(_on_mob_killed)
+	mob.damage_received.connect(_on_mob_damage_received)
+	mob.eliminated.connect(_on_mob_eliminated)
 	mob.reached_end.connect(_on_mob_reached_end)
 	mob.spawn_requested.connect(_on_mob_spawn_requested)
 	var pf := PathFollow2D.new()
@@ -1957,6 +1966,45 @@ func _on_mob_killed(reward: int) -> void:
 	var reward_multiplier := 1.0 + get_run_bonus(&"kill_reward")
 	add_money(roundi(float(reward) * reward_multiplier))
 	mob_finished()
+
+
+func _on_mob_damage_received(
+	_mob: Node2D,
+	amount: int,
+	context: AttackContext
+) -> void:
+	if context == null or amount <= 0:
+		return
+	if context.root_tower_instance_id > 0:
+		damage_by_tower_instance[context.root_tower_instance_id] = (
+			int(damage_by_tower_instance.get(context.root_tower_instance_id, 0))
+			+ amount
+		)
+	if not context.root_tower_type.is_empty():
+		damage_by_tower_type[context.root_tower_type] = (
+			int(damage_by_tower_type.get(context.root_tower_type, 0)) + amount
+		)
+
+
+func _on_mob_eliminated(
+	_mob: Node2D,
+	_reward: int,
+	context: AttackContext,
+	_elimination_kind: StringName
+) -> void:
+	if context == null:
+		return
+	if context.root_tower_instance_id > 0:
+		eliminations_by_tower_instance[context.root_tower_instance_id] = (
+			int(eliminations_by_tower_instance.get(
+				context.root_tower_instance_id,
+				0
+			)) + 1
+		)
+	if not context.root_tower_type.is_empty():
+		eliminations_by_tower_type[context.root_tower_type] = (
+			int(eliminations_by_tower_type.get(context.root_tower_type, 0)) + 1
+		)
 
 func mob_finished() -> void:
 	mobs_alive = maxi(mobs_alive - 1, 0)

@@ -13,18 +13,21 @@ var trigger_radius := 12.9
 var explosion_radius := 38.7
 var arm_remaining := 0.15
 var detonating := false
+var attack_context: AttackContext
 
 
 func setup(
 	game_main: Node,
 	mine_damage: int,
 	mine_trigger_radius: float,
-	mine_explosion_radius: float
+	mine_explosion_radius: float,
+	ownership_context: AttackContext = null
 ) -> void:
 	main = game_main
 	damage = maxi(mine_damage, 1)
 	trigger_radius = maxf(mine_trigger_radius, 1.0)
 	explosion_radius = maxf(mine_explosion_radius, trigger_radius)
+	attack_context = ownership_context
 	queue_redraw()
 
 
@@ -78,10 +81,11 @@ func detonate() -> void:
 				dealt_damage,
 				&"explosive",
 				false,
-				LONGSHOT_TOWER_ID
+				LONGSHOT_TOWER_ID,
+				attack_context
 			)
 		else:
-			mob.apply_damage(dealt_damage, &"explosive", false)
+			mob.apply_damage(dealt_damage, &"explosive", false, true, attack_context)
 	detonated.emit(self)
 	queue_free()
 

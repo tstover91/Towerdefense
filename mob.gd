@@ -6,6 +6,13 @@ const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
 
 signal mob_killed(reward: int)
 signal mob_died(mob: Node2D)
+signal damage_received(mob: Node2D, amount: int, context: AttackContext)
+signal eliminated(
+	mob: Node2D,
+	reward: int,
+	context: AttackContext,
+	elimination_kind: StringName
+)
 signal reached_end(damage: int)
 signal spawn_requested(
 	enemy_id: StringName,
@@ -30,6 +37,7 @@ var base_damage: int
 var defense := 0.0
 var path_follow: PathFollow2D
 var finished := false
+var last_attack_context: AttackContext
 var split_enemy_id: StringName = &""
 var split_count := 0
 var regeneration_per_second := 0
@@ -44,12 +52,15 @@ var summon_limit := 0
 var summons_created := 0
 var summon_elapsed := 0.0
 var slow_remaining := 0.0
+var slow_context: AttackContext
 var stun_remaining := 0.0
+var stun_context: AttackContext
 var stun_fatigue_tier := 0
 var stun_fatigue_recovery_elapsed := 0.0
 var brainiac_link_remaining := 0.0
 var brainiac_link_radius := 0.0
 var brainiac_link_damage_share := 0.0
+var brainiac_link_context: AttackContext
 
 
 func _draw() -> void:
@@ -207,18 +218,26 @@ func _process_control_effects(delta: float) -> void:
 	slow_remaining = maxf(slow_remaining - delta, 0.0)
 
 
-func apply_slow(duration: float) -> void:
+func apply_slow(duration: float, attack_context: AttackContext = null) -> void:
 	if finished or duration <= 0.0:
 		return
+	if duration >= slow_remaining:
+		slow_context = attack_context
 	slow_remaining = maxf(slow_remaining, duration)
 
 
-func apply_brainiac_link(duration: float, radius: float, damage_share: float) -> void:
+func apply_brainiac_link(
+	duration: float,
+	radius: float,
+	damage_share: float,
+	attack_context: AttackContext = null
+) -> void:
 	if finished or duration <= 0.0 or radius <= 0.0 or damage_share <= 0.0:
 		return
 	brainiac_link_remaining = maxf(brainiac_link_remaining, duration)
 	brainiac_link_radius = maxf(brainiac_link_radius, radius)
 	brainiac_link_damage_share = maxf(brainiac_link_damage_share, damage_share)
+	brainiac_link_context = attack_context
 	queue_redraw()
 
 
@@ -229,24 +248,60 @@ func _process_brainiac_link(delta: float) -> void:
 	if brainiac_link_remaining <= 0.0:
 		brainiac_link_radius = 0.0
 		brainiac_link_damage_share = 0.0
+		brainiac_link_context = null
 		queue_redraw()
 
 
-func apply_stun(duration: float, affects_bosses := false) -> void:
+func apply_stun(
+	duration: float,
+	affects_bosses := false,
+	attack_context: AttackContext = null
+) -> void:
 	if finished or duration <= 0.0:
 		return
 	if traits.has(&"boss") and not affects_bosses:
 		return
+	if attack_context != null:
+		var big_game_count := int(
+			attack_context.metadata.get("big_game_control", 0)
+		)
+		if big_game_count > 0:
+			if traits.has(&"elite"):
+				duration *= pow(
+					GameStats.BIG_GAME_CONTROL_ELITE_DURATION_PER_STACK,
+					big_game_count
+				)
+			elif not traits.has(&"boss"):
+				duration *= pow(
+					GameStats.BIG_GAME_CONTROL_NORMAL_DURATION_PER_STACK,
+					big_game_count
+				)
+		var emergency_brake_count := int(
+			attack_context.metadata.get("emergency_brake", 0)
+		)
+		if emergency_brake_count > 0 and speed >= 130.0:
+			duration *= pow(
+				GameStats.EMERGENCY_BRAKE_DURATION_PER_STACK,
+				emergency_brake_count
+			)
+	var boss_duration_multiplier := (
+		GameStats.BOSS_STUN_DURATION_MULTIPLIER
+		if traits.has(&"boss")
+		else 1.0
+	)
 	var multiplier_index := mini(
 		stun_fatigue_tier,
 		STUN_FATIGUE_MULTIPLIERS.size() - 1
 	)
 	var effective_duration: float = (
-		duration * STUN_FATIGUE_MULTIPLIERS[multiplier_index]
+		duration
+		* boss_duration_multiplier
+		* STUN_FATIGUE_MULTIPLIERS[multiplier_index]
 	)
 	if effective_duration <= stun_remaining:
 		return
 	stun_remaining = effective_duration
+	stun_context = attack_context
 	stun_fatigue_tier = mini(
 		stun_fatigue_tier + 1,
 		STUN_FATIGUE_MULTIPLIERS.size() - 1
@@ -293,13 +348,15 @@ func _process_summoning(delta: float) -> void:
 		get_inherited_spawn_variant()
 	)
 
-func die() -> void:
+func die(context: AttackContext = null) -> void:
 	if finished:
 		return
 
 	finished = true
+	last_attack_context = context
 	spawn_split_children()
 	mob_died.emit(self)
+	eliminated.emit(self, cash_reward, context, &"death")
 	mob_killed.emit(cash_reward)
 
 	if is_instance_valid(path_follow):
@@ -308,12 +365,14 @@ func die() -> void:
 		queue_free()
 
 
-func abduct() -> void:
+func abduct(context: AttackContext = null) -> void:
 	if finished:
 		return
 	finished = true
+	last_attack_context = context
 	# Abduction grants the normal reward, but is removal rather than a death:
 	# it does not trigger death observers or create split children.
+	eliminated.emit(self, cash_reward, context, &"abduction")
 	mob_killed.emit(cash_reward)
 	if is_instance_valid(path_follow):
 		path_follow.queue_free()
@@ -344,10 +403,18 @@ func apply_damage(
 	amount: int,
 	damage_type: StringName,
 	ignores_armor := false,
-	can_trigger_brainiac_link := true
+	can_trigger_brainiac_link := true,
+	attack_context: AttackContext = null
 ) -> int:
 	if finished:
 		return 0
+	amount = apply_relic_damage_modifiers(amount, damage_type, attack_context)
+	if (
+		attack_context != null
+		and bool(attack_context.metadata.get("was_critical", false))
+		and int(attack_context.metadata.get("pressure_point", 0)) > 0
+	):
+		ignores_armor = true
 	var should_spread := (
 		can_trigger_brainiac_link
 		and brainiac_link_remaining > 0.0
@@ -356,36 +423,159 @@ func apply_damage(
 	)
 	var link_center := global_position
 
+	var conductive_armor := (
+		not ignores_armor
+		and damage_type == &"electric"
+		and attack_context != null
+		and int(attack_context.metadata.get("conductive", 0)) > 0
+	)
 	var effective_defense := 0.0 if ignores_armor else defense
 	if damage_type == &"explosive":
 		effective_defense *= 0.5
-	var final_damage := maxi(1, floori(amount * (1.0 - effective_defense)))
+	var armor_multiplier := (
+		1.0 + effective_defense
+		if conductive_armor
+		else 1.0 - effective_defense
+	)
+	var final_damage := maxi(1, floori(amount * armor_multiplier))
 	var received_damage := mini(final_damage, health)
 
 	health -= final_damage
 	health_bar.value = health
+	last_attack_context = attack_context
+	damage_received.emit(self, received_damage, attack_context)
 
 	if health <= 0:
-		die()
+		die(attack_context)
 	if should_spread and received_damage > 0:
-		spread_brainiac_damage(link_center, received_damage, damage_type)
+		spread_brainiac_damage(
+			link_center,
+			received_damage,
+			damage_type,
+			attack_context
+		)
 	return received_damage
+
+
+func apply_relic_damage_modifiers(
+	amount: int,
+	damage_type: StringName,
+	attack_context: AttackContext
+) -> int:
+	if (
+		attack_context == null
+		or amount <= 0
+		or attack_context.attack_kind == &"brainiac_shared_damage"
+	):
+		return amount
+	var metadata := attack_context.metadata
+	var multiplier := 1.0
+	var source_type_tags: Array = metadata.get("source_type_tags", [])
+	var health_ratio := float(health) / float(maxi(max_health, 1))
+	var pack_hunter_count := int(metadata.get("pack_hunter", 0))
+	if (
+		pack_hunter_count > 0
+		and source_type_tags.has(&"biological")
+		and is_targeted_by_other_biological_tower(
+			attack_context.root_tower_instance_id
+		)
+	):
+		multiplier *= 1.0 + GameStats.PACK_HUNTER_DAMAGE_PER_STACK * pack_hunter_count
+
+	var predatory_count := int(metadata.get("predatory_instinct", 0))
+	if (
+		predatory_count > 0
+		and source_type_tags.has(&"biological")
+		and health_ratio <= GameStats.PREDATORY_INSTINCT_HEALTH_THRESHOLD
+	):
+		multiplier *= (
+			1.0 + GameStats.PREDATORY_INSTINCT_DAMAGE_PER_STACK * predatory_count
+		)
+
+	if (
+		damage_type == &"beam"
+		and int(metadata.get("interference_beam", 0)) > 0
+		and (slow_remaining > 0.0 or stun_remaining > 0.0)
+	):
+		multiplier *= GameStats.INTERFERENCE_BEAM_DAMAGE_MULTIPLIER
+
+	if damage_type == &"ballistic":
+		var hollow_point_count := int(metadata.get("hollow_point", 0))
+		if hollow_point_count > 0 and health >= max_health:
+			multiplier *= (
+				1.0 + GameStats.HOLLOW_POINT_DAMAGE_PER_STACK * hollow_point_count
+			)
+		var source_range := float(metadata.get("source_range", 0.0))
+		var source_position: Variant = metadata.get("source_position", null)
+		if source_range > 0.0 and source_position is Vector2:
+			var distance_ratio := clampf(
+				(source_position as Vector2).distance_to(global_position) / source_range,
+				0.0,
+				1.0
+			)
+			multiplier *= (
+				1.0
+				+ GameStats.LONG_BARREL_MAX_DAMAGE_PER_STACK
+					* int(metadata.get("long_barrel", 0))
+					* distance_ratio
+			)
+			multiplier *= (
+				1.0
+				+ GameStats.POINT_BLANK_MAX_DAMAGE_PER_STACK
+					* int(metadata.get("point_blank", 0))
+					* (1.0 - distance_ratio)
+			)
+
+	if damage_type == &"melee" and int(metadata.get("giant_killer", 0)) > 0:
+		multiplier *= (
+			GameStats.GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER
+			if traits.has(&"elite") or traits.has(&"boss")
+			else GameStats.GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER
+		)
+
+	if (
+		damage_type == &"explosive"
+		and defense > 0.0
+		and int(metadata.get("thermite_bombs", 0)) > 0
+	):
+		multiplier *= GameStats.THERMITE_BOMBS_DAMAGE_MULTIPLIER
+
+	return maxi(roundi(float(amount) * multiplier), 1)
+
+
+func is_targeted_by_other_biological_tower(source_tower_instance_id: int) -> bool:
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if (
+			not is_instance_valid(tower)
+			or tower.is_queued_for_deletion()
+			or tower.get_instance_id() == source_tower_instance_id
+			or not tower.has_method("has_type_tag")
+			or not tower.has_type_tag(&"biological")
+		):
+			continue
+		if tower.get("target") == self:
+			return true
+	return false
 
 
 func apply_damage_from_tower(
 	amount: int,
 	damage_type: StringName,
 	ignores_armor: bool,
-	_source_tower_id: StringName
+	source_tower_id: StringName,
+	attack_context: AttackContext = null
 ) -> int:
-	# Keep the source parameter available for future source-specific effects.
-	return apply_damage(amount, damage_type, ignores_armor)
+	var resolved_context := attack_context
+	if resolved_context == null and not source_tower_id.is_empty():
+		resolved_context = AttackContext.legacy(source_tower_id)
+	return apply_damage(amount, damage_type, ignores_armor, true, resolved_context)
 
 
 func spread_brainiac_damage(
 	center: Vector2,
 	received_damage: int,
-	damage_type: StringName
+	damage_type: StringName,
+	original_context: AttackContext
 ) -> void:
 	var shared_damage := maxi(
 		roundi(float(received_damage) * brainiac_link_damage_share),
@@ -405,7 +595,26 @@ func spread_brainiac_damage(
 		if candidate.global_position.distance_to(center) > brainiac_link_radius:
 			continue
 		# This is already a share of damage received, so armor is not applied twice.
-		candidate.apply_damage(shared_damage, damage_type, true, false)
+		var shared_context: AttackContext
+		var ownership_origin := (
+			original_context
+			if original_context != null
+			else brainiac_link_context
+		)
+		if ownership_origin != null:
+			shared_context = ownership_origin.derive(
+				self,
+				&"brainiac_link",
+				&"brainiac_shared_damage",
+				true
+			)
+		candidate.apply_damage(
+			shared_damage,
+			damage_type,
+			true,
+			false,
+			shared_context
+		)
 
 
 func get_projectile_hit_radius() -> float:

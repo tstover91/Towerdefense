@@ -16,10 +16,14 @@ const MENU_HALF_WIDTH := 120.0
 const MENU_EDGE_MARGIN := 8.0
 const GAUSS_TOWER_ID: StringName = &"gauss_repeater"
 const BRAINIAC_TOWER_ID: StringName = &"brainiac"
+const BRAINIAC_CONVERGENCE_RESOLVER = preload(
+	"res://brainiac_convergence_resolver.gd"
+)
 const LONGSHOT_TOWER_ID: StringName = &"longshot"
 const ORBITAL_CANNON_TOWER_ID: StringName = &"orbitalcannon"
 const ENERGY_CORE_TOWER_ID: StringName = &"energycore"
 const SAUCER_TOWER_ID: StringName = &"saucer"
+const DRONE_DEPOT_TOWER_ID: StringName = &"dronedepot"
 const VOID_CALLER_TOWER_ID: StringName = &"voidcaller"
 const REAVER_TOWER_ID: StringName = &"reaver"
 const BEHOLDER_TOWER_ID: StringName = &"beholder"
@@ -63,6 +67,11 @@ enum TargetMode {
 	HIGHEST_HEALTH,
 }
 
+enum DroneTargetMode {
+	DISTRIBUTED,
+	FOCUS_MAX_HEALTH,
+}
+
 enum MenuAction {
 	NONE,
 	UPGRADE,
@@ -80,6 +89,7 @@ var damage_tags: Array[StringName] = []
 var bonus_tags: Array[StringName] = []
 var pierce_count := 0
 @export var target_mode: TargetMode = TargetMode.FIRST
+var drone_target_mode: DroneTargetMode = DroneTargetMode.DISTRIBUTED
 @export var tower_id: StringName = GameStats.DEFAULT_TOWER_ID
 @export var projectile_scene: PackedScene = DEFAULT_PROJECTILE_SCENE
 @onready var tower_area: Area2D = $Tower
@@ -96,6 +106,7 @@ var damage_type: StringName = &""
 var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
 var noncritical_damage_multiplier := 1.0
+var last_attack_roll_was_critical := false
 var pierce_loses_no_power := false
 var slow_duration := 0.0
 var stun_duration := 0.0
@@ -162,8 +173,6 @@ var brainiac_psionic_link_enabled := false
 var brainiac_link_duration := 2.0
 var brainiac_link_radius_pixels := 0.0
 var brainiac_link_damage_share := 0.5
-var brainiac_volley_sequence := 0
-var active_brainiac_volleys: Dictionary = {}
 var longshot_distance_damage_enabled := false
 var longshot_distance_minimum_multiplier := 1.0
 var longshot_distance_maximum_multiplier := 1.0
@@ -548,6 +557,7 @@ func show_target_menu() -> void:
 	show_current_range_preview()
 	$HBoxContainer.visible = false
 	$targetui.visible = not uses_directional_aim()
+	configure_target_menu()
 	$pathui.visible = false
 	if direction_ui != null:
 		direction_ui.visible = uses_directional_aim()
@@ -587,7 +597,14 @@ func update_upgrade_button() -> void:
 func update_menu_buttons() -> void:
 	update_upgrade_button()
 	update_sell_button()
-	if uses_standard_spawner_system():
+	$HBoxContainer/targetmode.visible = tower_id != SAUCER_TOWER_ID
+	if tower_id == SAUCER_TOWER_ID:
+		$HBoxContainer/targetmode.text = "Target\nFirst"
+		$HBoxContainer/targetmode.disabled = true
+	elif uses_drone_targeting():
+		$HBoxContainer/targetmode.text = "Drones\n%s" % get_drone_target_mode_name()
+		$HBoxContainer/targetmode.disabled = false
+	elif uses_standard_spawner_system():
 		$HBoxContainer/targetmode.text = "Units\nAuto"
 		$HBoxContainer/targetmode.disabled = true
 	elif uses_manual_ground_targeting():
@@ -764,6 +781,22 @@ func get_target_mode_name() -> String:
 		TargetMode.HIGHEST_HEALTH:
 			return "Highest HP"
 	return "Unknown"
+
+
+func get_drone_target_mode_name() -> String:
+	return (
+		"Focus"
+		if drone_target_mode == DroneTargetMode.FOCUS_MAX_HEALTH
+		else "Distributed"
+	)
+
+
+func configure_target_menu() -> void:
+	var drone_menu := uses_drone_targeting()
+	$targetui/button_first.text = "Distributed" if drone_menu else "First"
+	$targetui/button_last.text = "Focus: Max HP" if drone_menu else "Last"
+	$targetui/button_low.visible = not drone_menu
+	$targetui/button_high.visible = not drone_menu
 
 
 func get_total_invested() -> int:
@@ -1470,8 +1503,9 @@ func is_saucer_combat_active() -> bool:
 func get_saucer_target() -> Node2D:
 	if not is_saucer_combat_active():
 		return null
-	if not is_valid_target(target) or not mobs_in_range.has(target):
-		_select_target()
+	# Saucer is permanently locked to First for movement and its Electric gun.
+	target_mode = TargetMode.FIRST
+	_select_target()
 	return target if is_valid_target(target) else null
 
 
@@ -1488,44 +1522,124 @@ func saucer_can_abduct_target(candidate: Variant) -> bool:
 	)
 
 
-func get_saucer_abduction_target() -> Node2D:
+func get_saucer_abduction_target(saucer_position: Vector2) -> Node2D:
 	if not is_saucer_combat_active():
 		return null
 	var selected_target: Node2D
+	var selected_max_health := -1
 	var selected_progress := -INF
-	for candidate in mobs_in_range:
+	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not saucer_can_abduct_target(candidate):
 			continue
+		if (
+			saucer_position.distance_to(candidate.global_position)
+			> saucer_abduction_radius_pixels
+		):
+			continue
+		var candidate_max_health := int(candidate.max_health)
 		var candidate_progress := -INF
 		if is_instance_valid(candidate.path_follow):
 			candidate_progress = float(candidate.path_follow.progress)
-		if selected_target == null or candidate_progress > selected_progress:
+		if (
+			candidate_max_health > selected_max_health
+			or (
+				candidate_max_health == selected_max_health
+				and candidate_progress > selected_progress
+			)
+		):
+			selected_max_health = candidate_max_health
 			selected_progress = candidate_progress
 			selected_target = candidate
 	return selected_target
 
 
+func get_saucer_rocket_target(
+	saucer_position: Vector2,
+	gun_target: Node2D
+) -> Node2D:
+	if not is_saucer_combat_active():
+		return null
+	var selected_target: Node2D
+	var selected_health := -1
+	var selected_progress := -INF
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if candidate == gun_target or not is_valid_target(candidate):
+			continue
+		if (
+			saucer_position.distance_to(candidate.global_position)
+			> saucer_attack_radius_pixels
+		):
+			continue
+		var candidate_health := int(candidate.health)
+		var candidate_progress := -INF
+		if is_instance_valid(candidate.path_follow):
+			candidate_progress = float(candidate.path_follow.progress)
+		if (
+			candidate_health > selected_health
+			or (
+				candidate_health == selected_health
+				and candidate_progress > selected_progress
+			)
+		):
+			selected_health = candidate_health
+			selected_progress = candidate_progress
+			selected_target = candidate
+	if selected_target != null:
+		return selected_target
+	if (
+		is_valid_target(gun_target)
+		and saucer_position.distance_to(gun_target.global_position)
+			<= saucer_attack_radius_pixels
+	):
+		return gun_target
+	return null
+
+
 func fire_saucer_weapon(
 	launch_position: Vector2,
-	current_target: Node2D,
-	launch_homing_rockets := false
+	current_target: Node2D
 ) -> void:
 	if not is_saucer_combat_active() or not is_valid_target(current_target):
 		return
-	var attack_damage := roll_attack_damage()
+	var attack_damage := roll_attack_damage(current_target)
+	var gun_context := create_attack_context(
+		&"electric_primary",
+		null,
+		&"tower",
+		null,
+		false,
+		true
+	)
 	spawn_hitscan_effect(
 		launch_position,
 		current_target.global_position,
 		DAMAGE_ELECTRIC
 	)
-	apply_control_effects(current_target)
-	apply_tower_damage(current_target, attack_damage, DAMAGE_ELECTRIC, false)
-	if saucer_twin_rockets_enabled and launch_homing_rockets:
-		fire_saucer_homing_rockets(
-			launch_position,
-			current_target,
-			maxi(roundi(float(attack_damage) * saucer_rocket_damage_multiplier), 1)
-		)
+	apply_control_effects(current_target, gun_context)
+	apply_tower_damage(
+		current_target,
+		attack_damage,
+		DAMAGE_ELECTRIC,
+		false,
+		gun_context
+	)
+
+
+func fire_saucer_rockets(
+	launch_position: Vector2,
+	gun_target: Node2D
+) -> bool:
+	if not saucer_twin_rockets_enabled:
+		return false
+	var rocket_target := get_saucer_rocket_target(launch_position, gun_target)
+	if not is_valid_target(rocket_target):
+		return false
+	var rocket_damage := maxi(
+		roundi(float(roll_attack_damage(rocket_target)) * saucer_rocket_damage_multiplier),
+		1
+	)
+	fire_saucer_homing_rockets(launch_position, rocket_target, rocket_damage)
+	return true
 
 
 func fire_saucer_homing_rockets(
@@ -1568,7 +1682,17 @@ func fire_saucer_homing_rockets(
 			false,
 			has_bonus_tag(BONUS_REVEAL),
 			tower_id,
-			true
+			true,
+			false,
+			1.0,
+			create_attack_context(
+				&"homing_rocket",
+				projectile,
+				&"projectile",
+				null,
+				false,
+				true
+			)
 		)
 
 
@@ -1581,7 +1705,7 @@ func try_saucer_abduction(current_target: Node2D, saucer_position: Vector2) -> b
 	):
 		return false
 	if current_target.has_method("abduct"):
-		current_target.abduct()
+		current_target.abduct(create_attack_context(&"abduction"))
 	else:
 		current_target.queue_free()
 	if saucer_monster_drop_enabled:
@@ -1650,7 +1774,6 @@ func _on_round_started(_round_number: int) -> void:
 
 
 func _on_round_ended(_round_number: int) -> void:
-	active_brainiac_volleys.clear()
 	reaver_time_bubble_active_remaining = 0.0
 	reaver_time_bubble_cooldown_remaining = 0.0
 	reaver_time_bubble_refresh_remaining = 0.0
@@ -1673,7 +1796,6 @@ func _on_round_ended(_round_number: int) -> void:
 
 func _exit_tree() -> void:
 	disconnect_beholder_target_observer()
-	active_brainiac_volleys.clear()
 	clear_longshot_mines()
 	clear_void_singularities()
 	clear_solar_lances()
@@ -1700,10 +1822,14 @@ func _apply_damage() -> void:
 			attack_orbital_target_position()
 		return
 
+	var sticky_health_mode := target_mode in [
+		TargetMode.LOWEST_HEALTH,
+		TargetMode.HIGHEST_HEALTH,
+	]
 	if (
-		not uses_continuous_beam()
-		or not is_valid_target(target)
+		not is_valid_target(target)
 		or not mobs_in_range.has(target)
+		or (not uses_continuous_beam() and not sticky_health_mode)
 	):
 		_select_target()
 	update_beholder_target_observer()
@@ -1796,7 +1922,15 @@ func spawn_solar_lance(
 		BUILD_CELL_SIZE * 0.5,
 		maxi(roundi(float(strike_damage) * tick_multiplier), 1),
 		orbital_solar_lance_duration,
-		orbital_solar_lance_tick_interval
+		orbital_solar_lance_tick_interval,
+		create_attack_context(
+			&"solar_lance",
+			lance,
+			&"persistent_effect",
+			null,
+			false,
+			true
+		)
 	)
 	lance.finished.connect(_on_solar_lance_finished)
 	active_solar_lances.append(lance)
@@ -1826,7 +1960,7 @@ func attack(current_target: Node2D) -> void:
 				beam_damage = get_beholder_ramp_damage()
 			apply_continuous_beam_tick(
 				current_target,
-				roll_critical_damage(beam_damage),
+				roll_critical_damage(beam_damage, current_target),
 				beam_offset
 			)
 		return
@@ -1837,9 +1971,9 @@ func attack(current_target: Node2D) -> void:
 	var base_attack_damage := damage
 	if tower_id == LONGSHOT_TOWER_ID and longshot_distance_damage_enabled:
 		base_attack_damage = get_longshot_distance_damage(current_target)
-	var attack_damage := roll_critical_damage(base_attack_damage)
+	var attack_damage := roll_critical_damage(base_attack_damage, current_target)
 	if beholder_ramping_beam_enabled:
-		attack_damage = roll_critical_damage(get_beholder_ramp_damage())
+		attack_damage = roll_critical_damage(get_beholder_ramp_damage(), current_target)
 	if tower_id == ENERGY_CORE_TOWER_ID and energy_branching_current_enabled:
 		apply_energy_branching_attack(current_target, attack_damage)
 		return
@@ -1859,14 +1993,23 @@ func apply_energy_branching_attack(
 	current_target: Node2D,
 	attack_damage: int
 ) -> void:
+	var attack_context := create_attack_context(
+		&"electric_primary", null, &"tower", null, false, true
+	)
 	energy_branch_visual_segments.clear()
 	energy_branch_visual_segments.append({
 		"start": muzzle.global_position,
 		"end": current_target.global_position,
 	})
 	var hit_target_ids: Dictionary = {current_target.get_instance_id(): true}
-	apply_control_effects(current_target)
-	apply_tower_damage(current_target, attack_damage, damage_type, false)
+	apply_control_effects(current_target, attack_context)
+	apply_tower_damage(
+		current_target,
+		attack_damage,
+		damage_type,
+		false,
+		attack_context
+	)
 	var branch_origin := current_target.global_position
 	for branch_index in energy_branch_additional_targets:
 		var branch_target := get_nearest_energy_branch_target(
@@ -1884,8 +2027,21 @@ func apply_energy_branching_attack(
 			roundi(float(attack_damage) * branch_multiplier),
 			1
 		)
-		apply_control_effects(branch_target)
-		apply_tower_damage(branch_target, branch_damage, damage_type, false)
+		var branch_context := create_attack_context(
+			&"electric_branch",
+			self,
+			&"tower",
+			attack_context,
+			true
+		)
+		apply_control_effects(branch_target, branch_context)
+		apply_tower_damage(
+			branch_target,
+			branch_damage,
+			damage_type,
+			false,
+			branch_context
+		)
 		energy_branch_visual_segments.append({
 			"start": branch_origin,
 			"end": branch_target.global_position,
@@ -1920,21 +2076,87 @@ func apply_tower_damage(
 	current_target: Node,
 	attack_damage: int,
 	attack_damage_type: StringName,
-	ignores_armor: bool
+	ignores_armor: bool,
+	attack_context: AttackContext = null
 ) -> void:
+	var resolved_context := attack_context
+	if resolved_context == null:
+		resolved_context = create_attack_context(&"direct")
 	if current_target.has_method("apply_damage_from_tower"):
 		current_target.apply_damage_from_tower(
 			attack_damage,
 			attack_damage_type,
 			ignores_armor,
-			tower_id
+			tower_id,
+			resolved_context
 		)
 	else:
 		current_target.apply_damage(
 			attack_damage,
 			attack_damage_type,
-			ignores_armor
+			ignores_armor,
+			true,
+			resolved_context
 		)
+
+
+func create_attack_context(
+	attack_kind: StringName,
+	immediate_source: Object = null,
+	source_kind: StringName = &"tower",
+	parent_context: AttackContext = null,
+	secondary := false,
+	include_critical_roll := false
+) -> AttackContext:
+	var source: Object = immediate_source if immediate_source != null else self
+	if parent_context != null:
+		return parent_context.derive(
+			source,
+			source_kind,
+			attack_kind,
+			secondary,
+			{"was_critical": last_attack_roll_was_critical}
+				if include_critical_roll
+				else {}
+		)
+	var metadata := get_attack_relic_metadata(
+		global_position,
+		range_radius_pixels,
+		type_tags
+	)
+	if include_critical_roll:
+		metadata["was_critical"] = last_attack_roll_was_critical
+	return AttackContext.from_tower(
+		self,
+		source,
+		source_kind,
+		attack_kind,
+		metadata
+	)
+
+
+func get_attack_relic_metadata(
+	source_position: Vector2,
+	source_range: float,
+	source_type_tags: Array
+) -> Dictionary:
+	return {
+		"source_position": source_position,
+		"source_range": maxf(source_range, 0.0),
+		"source_type_tags": source_type_tags.duplicate(),
+		"pack_hunter": get_owned_relic_count(&"pack_hunter"),
+		"predatory_instinct": get_owned_relic_count(&"predatory_instinct"),
+		"interference_beam": get_owned_relic_count(&"interference_beam"),
+		"hollow_point": get_owned_relic_count(&"hollow_point"),
+		"long_barrel": get_owned_relic_count(&"long_barrel"),
+		"point_blank": get_owned_relic_count(&"point_blank"),
+		"giant_killer": get_owned_relic_count(&"giant_killer"),
+		"thermite_bombs": get_owned_relic_count(&"thermite_bombs"),
+		"conductive": get_owned_relic_count(&"conductive"),
+		"pressure_point": get_owned_relic_count(&"pressure_point"),
+		"big_game_control": get_owned_relic_count(&"big_game_control"),
+		"emergency_brake": get_owned_relic_count(&"emergency_brake"),
+	}
 
 
 func get_longshot_distance_damage(current_target: Node2D) -> int:
@@ -1953,15 +2175,30 @@ func get_longshot_distance_damage(current_target: Node2D) -> int:
 	return maxi(roundi(float(damage) * damage_multiplier), 1)
 
 
-func roll_attack_damage() -> int:
-	return roll_critical_damage(damage)
+func roll_attack_damage(current_target: Node2D = null) -> int:
+	return roll_critical_damage(damage, current_target)
 
 
-func roll_critical_damage(base_damage: int) -> int:
+func roll_critical_damage(base_damage: int, current_target: Node2D = null) -> int:
+	last_attack_roll_was_critical = false
+	var current_critical_chance := critical_chance
 	if (
 		has_bonus_tag(BONUS_CRITICAL)
-		and spawn_rng.randf() < critical_chance
+		and is_valid_target(current_target)
+		and current_target.health >= current_target.max_health
 	):
+		current_critical_chance = clampf(
+			current_critical_chance
+			+ GameStats.OPENING_SHOT_CHANCE_PER_STACK
+				* get_owned_relic_count(&"opening_shot"),
+			0.0,
+			1.0
+		)
+	if (
+		has_bonus_tag(BONUS_CRITICAL)
+		and spawn_rng.randf() < current_critical_chance
+	):
+		last_attack_roll_was_critical = true
 		return maxi(roundi(float(base_damage) * critical_multiplier), 1)
 	return maxi(roundi(float(base_damage) * noncritical_damage_multiplier), 1)
 
@@ -1977,21 +2214,27 @@ func launch_reaver_combo(current_target: Node2D, attack_damage: int) -> void:
 				roundi(float(hit_damage) * maxf(critical_multiplier, 1.0)),
 				1
 			)
+			last_attack_roll_was_critical = true
 		else:
-			hit_damage = roll_critical_damage(hit_damage)
+			hit_damage = roll_critical_damage(hit_damage, current_target)
+		var hit_context := create_attack_context(
+			&"reaver_combo_hit", null, &"tower", null, false, true
+		)
 		var hit_delay := combo_stagger * float(hit_index)
 		if hit_delay <= 0.0:
 			apply_reaver_combo_hit(
 				target_reference,
 				hit_damage,
-				combo_sequence
+				combo_sequence,
+				hit_context
 			)
 		else:
 			get_tree().create_timer(hit_delay, false).timeout.connect(
 				apply_reaver_combo_hit.bind(
 					target_reference,
 					hit_damage,
-					combo_sequence
+					combo_sequence,
+					hit_context
 				)
 			)
 
@@ -2008,7 +2251,8 @@ func get_combo_hit_damage(total_damage: int, hit_index: int) -> int:
 func apply_reaver_combo_hit(
 	target_reference: WeakRef,
 	hit_damage: int,
-	combo_sequence: int
+	combo_sequence: int,
+	hit_context: AttackContext
 ) -> void:
 	if combo_sequence != active_combo_sequence:
 		return
@@ -2023,7 +2267,7 @@ func apply_reaver_combo_hit(
 	if global_position.distance_to(combo_target.global_position) > range_radius_pixels:
 		active_combo_sequence += 1
 		return
-	apply_hitscan_damage(combo_target, hit_damage)
+	apply_hitscan_damage(combo_target, hit_damage, hit_context)
 
 
 func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
@@ -2086,7 +2330,8 @@ func launch_brainiac_volley(
 		current_target.apply_brainiac_link(
 			brainiac_link_duration,
 			brainiac_link_radius_pixels,
-			brainiac_link_damage_share
+			brainiac_link_damage_share,
+			create_attack_context(&"brainiac_link")
 		)
 	var aim_offset := current_target.global_position - global_position
 	if aim_offset.is_zero_approx():
@@ -2094,17 +2339,31 @@ func launch_brainiac_volley(
 	var direction := aim_offset.normalized()
 	var perpendicular := direction.orthogonal()
 	var convergence_point := global_position + direction * range_radius_pixels
-	var volley_id := -1
 	var maximum_flight_duration := 0.0
+	var convergence_resolver: Node
+	var volley_context := create_attack_context(
+		&"brainiac_volley", null, &"tower", null, false, true
+	)
 	if brainiac_convergence_explosion_enabled:
-		brainiac_volley_sequence += 1
-		volley_id = brainiac_volley_sequence
-		active_brainiac_volleys[volley_id] = {
-			"arrivals": 0,
-			"expected": projectile_count,
-			"damage": attack_damage,
-			"position": convergence_point,
-		}
+		convergence_resolver = BRAINIAC_CONVERGENCE_RESOLVER.new()
+		get_tree().current_scene.add_child(convergence_resolver)
+		convergence_resolver.setup(
+			main,
+			projectile_count,
+			attack_damage,
+			brainiac_convergence_damage_per_arrival,
+			brainiac_convergence_base_radius_pixels,
+			brainiac_convergence_radius_per_arrival_pixels,
+			convergence_point,
+			has_bonus_tag(BONUS_REVEAL),
+			create_attack_context(
+				&"brainiac_convergence",
+				self,
+				&"tower",
+				volley_context,
+				true
+			)
+		)
 	for index in projectile_count:
 		var spread_ratio := 0.0
 		if projectile_count > 1:
@@ -2126,90 +2385,19 @@ func launch_brainiac_volley(
 			convergence_point,
 			flight_distance,
 			attack_damage,
-			0.0
-		)
-		if brainiac_convergence_explosion_enabled and projectile != null:
-			projectile.destination_reached.connect(
-				_on_brainiac_projectile_reached_convergence.bind(volley_id),
-				CONNECT_ONE_SHOT
+			0.0,
+			create_attack_context(
+				&"brainiac_projectile",
+				self,
+				&"tower",
+				volley_context,
+				false
 			)
-	if brainiac_convergence_explosion_enabled:
-		get_tree().create_timer(maximum_flight_duration + 0.05, false).timeout.connect(
-			resolve_brainiac_convergence_volley.bind(volley_id),
-			CONNECT_ONE_SHOT
 		)
-
-
-func _on_brainiac_projectile_reached_convergence(
-	_projectile: Node2D,
-	volley_id: int
-) -> void:
-	if not active_brainiac_volleys.has(volley_id):
-		return
-	var volley: Dictionary = active_brainiac_volleys[volley_id]
-	volley["arrivals"] = int(volley["arrivals"]) + 1
-	active_brainiac_volleys[volley_id] = volley
-	if int(volley["arrivals"]) >= int(volley["expected"]):
-		resolve_brainiac_convergence_volley(volley_id)
-
-
-func resolve_brainiac_convergence_volley(volley_id: int) -> void:
-	if not active_brainiac_volleys.has(volley_id):
-		return
-	var volley: Dictionary = active_brainiac_volleys[volley_id]
-	active_brainiac_volleys.erase(volley_id)
-	var arrival_count := int(volley["arrivals"])
-	if arrival_count < 1 or main == null or not main.round_active:
-		return
-	var explosion_radius := (
-		brainiac_convergence_base_radius_pixels
-		+ brainiac_convergence_radius_per_arrival_pixels * float(arrival_count - 1)
-	)
-	var explosion_damage := maxi(
-		roundi(
-			float(volley["damage"])
-			* brainiac_convergence_damage_per_arrival
-			* float(arrival_count)
-		),
-		1
-	)
-	trigger_brainiac_convergence_explosion(
-		volley["position"],
-		explosion_radius,
-		explosion_damage
-	)
-
-
-func trigger_brainiac_convergence_explosion(
-	center: Vector2,
-	explosion_radius: float,
-	explosion_damage: int
-) -> void:
-	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
-		var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
-		get_tree().current_scene.add_child(explosion_zone)
-		explosion_zone.global_position = center
-		explosion_zone.setup(explosion_radius)
-	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_target(mob):
-			continue
-		var distance_from_center: float = mob.global_position.distance_to(center)
-		if distance_from_center > explosion_radius:
-			continue
-		var dealt_damage := GameStats.get_explosion_damage(
-			explosion_damage,
-			distance_from_center,
-			explosion_radius
-		)
-		if mob.has_method("apply_damage_from_tower"):
-			mob.apply_damage_from_tower(
-				dealt_damage,
-				DAMAGE_EXPLOSIVE,
-				false,
-				BRAINIAC_TOWER_ID
-			)
-		else:
-			mob.apply_damage(dealt_damage, DAMAGE_EXPLOSIVE, false)
+		if convergence_resolver != null and projectile != null:
+			convergence_resolver.track_projectile(projectile)
+	if convergence_resolver != null:
+		convergence_resolver.arm_timeout(maximum_flight_duration + 0.05)
 
 
 func launch_void_caller_volley(
@@ -2222,6 +2410,9 @@ func launch_void_caller_volley(
 		return
 	var perpendicular := aim_offset.normalized().orthogonal()
 	var target_reference: WeakRef = weakref(current_target)
+	var volley_context := create_attack_context(
+		&"void_caller_volley", null, &"tower", null, false, true
+	)
 	for index in projectile_count:
 		var spread_ratio := 0.0
 		if projectile_count > 1:
@@ -2237,14 +2428,16 @@ func launch_void_caller_volley(
 			launch_delayed_volley_projectile(
 				target_reference,
 				destination,
-				attack_damage
+				attack_damage,
+				volley_context
 			)
 		else:
 			get_tree().create_timer(release_delay, false).timeout.connect(
 				launch_delayed_volley_projectile.bind(
 					target_reference,
 					destination,
-					attack_damage
+					attack_damage,
+					volley_context
 				)
 			)
 
@@ -2252,7 +2445,8 @@ func launch_void_caller_volley(
 func launch_delayed_volley_projectile(
 	target_reference: WeakRef,
 	destination: Vector2,
-	attack_damage: int
+	attack_damage: int,
+	volley_context: AttackContext
 ) -> void:
 	if not is_placed or main == null or not main.round_active:
 		return
@@ -2267,7 +2461,14 @@ func launch_delayed_volley_projectile(
 		destination,
 		launch_position.distance_to(destination),
 		attack_damage,
-		splash_radius_pixels
+		splash_radius_pixels,
+		create_attack_context(
+			&"void_caller_projectile",
+			self,
+			&"tower",
+			volley_context,
+			false
+		)
 	)
 
 
@@ -2277,13 +2478,26 @@ func launch_projectile_from_position(
 	destination: Vector2,
 	maximum_projectile_distance: float,
 	attack_damage: int,
-	impact_radius: float
+	impact_radius: float,
+	attack_ownership_context: AttackContext = null
 ) -> TowerProjectile:
 	if projectile_scene == null:
 		return null
 	var projectile := projectile_scene.instantiate() as TowerProjectile
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = launch_position
+	var resolved_context := attack_ownership_context
+	if resolved_context == null:
+		resolved_context = create_attack_context(
+			&"projectile", projectile, &"projectile", null, false, true
+		)
+	elif resolved_context.get_immediate_source() != projectile:
+		resolved_context = resolved_context.derive(
+			projectile,
+			&"projectile",
+			resolved_context.attack_kind,
+			resolved_context.is_secondary
+		)
 	projectile.setup(
 		current_target,
 		destination,
@@ -2306,12 +2520,17 @@ func launch_projectile_from_position(
 		tower_id,
 		false,
 		pierce_loses_no_power,
-		get_explosion_damage_multiplier()
+		get_explosion_damage_multiplier(),
+		resolved_context
 	)
 	return projectile
 
 
-func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
+func apply_hitscan_damage(
+	current_target: Node2D,
+	attack_damage: int,
+	provided_context: AttackContext = null
+) -> void:
 	var origin := muzzle.global_position
 	var primary_position := current_target.global_position
 	var aim_offset := primary_position - origin
@@ -2319,8 +2538,19 @@ func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
 	if pierce_count > 0 and not aim_offset.is_zero_approx():
 		visual_end = origin + aim_offset.normalized() * range_radius_pixels
 	spawn_hitscan_effect(origin, visual_end, damage_type)
-	apply_control_effects(current_target)
-	current_target.apply_damage(attack_damage, damage_type, pierce_count > 0)
+	var attack_context := provided_context
+	if attack_context == null:
+		attack_context = create_attack_context(
+			&"hitscan", null, &"tower", null, false, true
+		)
+	apply_control_effects(current_target, attack_context)
+	apply_tower_damage(
+		current_target,
+		attack_damage,
+		damage_type,
+		pierce_count > 0,
+		attack_context
+	)
 	if pierce_count < 1:
 		return
 	if aim_offset.is_zero_approx():
@@ -2341,7 +2571,19 @@ func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
 			index + 1,
 			pierce_loses_no_power
 		)
-		targets[index].apply_damage(pierced_damage, damage_type, true)
+		apply_tower_damage(
+			targets[index],
+			pierced_damage,
+			damage_type,
+			true,
+			create_attack_context(
+				&"pierce",
+				self,
+				&"tower",
+				attack_context,
+				true
+			)
+		)
 
 
 func spawn_hitscan_effect(
@@ -2369,6 +2611,9 @@ func apply_continuous_beam_tick(
 	var line_origin := get_continuous_beam_origin() + perpendicular * beam_offset
 	var beam_length := get_continuous_beam_length(current_target, line_origin)
 	var line_end := line_origin + direction * beam_length
+	var beam_context := create_attack_context(
+		&"beam_tick", null, &"tower", null, false, true
+	)
 	if pierce_count < 1 and not infinite_pierce:
 		if not is_target_intersecting_line(
 			current_target,
@@ -2377,8 +2622,14 @@ func apply_continuous_beam_tick(
 			BEAM_HIT_HALF_WIDTH
 		):
 			return
-		apply_control_effects(current_target)
-		apply_tower_damage(current_target, attack_damage, damage_type, false)
+		apply_control_effects(current_target, beam_context)
+		apply_tower_damage(
+			current_target,
+			attack_damage,
+			damage_type,
+			false,
+			beam_context
+		)
 		return
 
 	var intersected_targets := get_targets_along_line(
@@ -2401,7 +2652,14 @@ func apply_continuous_beam_tick(
 				pierce_loses_no_power
 			),
 			damage_type,
-			true
+			true,
+			create_attack_context(
+				&"beam_pierce",
+				self,
+				&"tower",
+				beam_context,
+				index > 0
+			)
 		)
 
 
@@ -2428,10 +2686,10 @@ func process_continuous_beam_aim(delta: float) -> void:
 		beam_aim_direction = desired_direction
 		beam_has_aim = true
 	else:
-		var angle_difference := beam_aim_direction.angle_to(desired_direction)
+		var turn_angle := beam_aim_direction.angle_to(desired_direction)
 		var maximum_turn := beam_turn_speed_radians * delta
 		beam_aim_direction = beam_aim_direction.rotated(
-			clampf(angle_difference, -maximum_turn, maximum_turn)
+			clampf(turn_angle, -maximum_turn, maximum_turn)
 		).normalized()
 	rotator.rotation = beam_aim_direction.angle()
 
@@ -2477,11 +2735,21 @@ func is_target_intersecting_line(
 	)
 
 
-func apply_control_effects(current_target: Node) -> void:
+func apply_control_effects(
+	current_target: Node,
+	attack_context: AttackContext = null
+) -> void:
+	var resolved_context := attack_context
+	if resolved_context == null:
+		resolved_context = create_attack_context(&"status_effect")
 	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
-		current_target.apply_slow(slow_duration)
+		current_target.apply_slow(slow_duration, resolved_context)
 	if stun_duration > 0.0 and current_target.has_method("apply_stun"):
-		current_target.apply_stun(stun_duration, stun_affects_bosses)
+		current_target.apply_stun(
+			stun_duration,
+			stun_affects_bosses,
+			resolved_context
+		)
 
 
 func get_targets_along_line(
@@ -2612,13 +2880,14 @@ func process_reaver_time_bubble(delta: float) -> void:
 	if reaver_time_bubble_refresh_remaining > 0.0:
 		return
 	reaver_time_bubble_refresh_remaining = reaver_time_bubble_refresh_interval
+	var bubble_context := create_attack_context(&"reaver_time_bubble")
 	for mob in tower_area.get_overlapping_bodies():
 		if (
 			not is_valid_target(mob)
 			or not mob.has_method("apply_slow")
 		):
 			continue
-		mob.apply_slow(reaver_time_bubble_slow_duration)
+		mob.apply_slow(reaver_time_bubble_slow_duration, bubble_context)
 
 
 func has_valid_enemy_in_reaver_bubble() -> bool:
@@ -2672,7 +2941,8 @@ func place_longshot_mine() -> void:
 		main,
 		maxi(roundi(float(damage) * longshot_mine_damage_multiplier), 1),
 		longshot_mine_trigger_radius_pixels,
-		longshot_mine_explosion_radius_pixels
+		longshot_mine_explosion_radius_pixels,
+		create_attack_context(&"mine_explosion", mine, &"mine")
 	)
 	mine.detonated.connect(_on_longshot_mine_detonated)
 	active_longshot_mines.append(mine)
@@ -2706,12 +2976,14 @@ func process_void_singularity(delta: float) -> void:
 	void_singularity_remaining = maxf(void_singularity_remaining - delta, 0.0)
 	if void_singularity_remaining > 0.0:
 		return
-	if not is_valid_target(target):
-		_select_target()
-	if not is_valid_target(target) or not is_instance_valid(target.path_follow):
+	var singularity_target := select_standard_target()
+	if (
+		not is_valid_target(singularity_target)
+		or not is_instance_valid(singularity_target.path_follow)
+	):
 		return
 	void_singularity_remaining = void_singularity_cooldown
-	spawn_void_singularity(target)
+	spawn_void_singularity(singularity_target)
 
 
 func spawn_void_singularity(current_target: Node2D) -> void:
@@ -2727,7 +2999,12 @@ func spawn_void_singularity(current_target: Node2D) -> void:
 		void_singularity_pull_radius_pixels,
 		void_singularity_pull_speed,
 		void_singularity_explosion_radius_pixels,
-		maxi(roundi(float(damage) * void_singularity_damage_multiplier), 1)
+		maxi(roundi(float(damage) * void_singularity_damage_multiplier), 1),
+		create_attack_context(
+			&"void_singularity",
+			singularity,
+			&"persistent_effect"
+		)
 	)
 	singularity.finished.connect(_on_void_singularity_finished)
 	active_void_singularities.append(singularity)
@@ -2789,13 +3066,23 @@ func process_energy_shockwave(delta: float) -> void:
 	var shockwave_damage := roll_critical_damage(
 		maxi(roundi(float(damage) * energy_shockwave_damage_multiplier), 1)
 	)
+	var shockwave_context := create_attack_context(
+		&"energy_shockwave", null, &"tower", null, false, true
+	)
 	for mob in affected_mobs:
 		if mob.has_method("apply_stun"):
 			mob.apply_stun(
 				energy_shockwave_stun_duration,
-				stun_affects_bosses
+				stun_affects_bosses,
+				shockwave_context
 			)
-		apply_tower_damage(mob, shockwave_damage, damage_type, false)
+		apply_tower_damage(
+			mob,
+			shockwave_damage,
+			damage_type,
+			false,
+			shockwave_context
+		)
 
 
 func update_menu_layout() -> void:
@@ -2867,6 +3154,10 @@ func _select_target() -> void:
 	if uses_directional_aim():
 		_select_directional_target()
 		return
+	target = select_standard_target()
+
+
+func select_standard_target() -> Node2D:
 	mobs_in_range = mobs_in_range.filter(
 		func(mob):
 			return (
@@ -2882,29 +3173,24 @@ func _select_target() -> void:
 	)
 
 	if targetable_mobs.is_empty():
-		target = null
-		return
+		return null
 
-	target = targetable_mobs[0]
-	if tower_id == BRAINIAC_TOWER_ID and brainiac_psionic_link_enabled:
-		for candidate in targetable_mobs:
-			if candidate.health > target.health:
-				target = candidate
-		return
+	var selected_target: Node2D = targetable_mobs[0]
 	for candidate in targetable_mobs:
 		match target_mode:
 			TargetMode.FIRST:
-				if candidate.path_follow.progress > target.path_follow.progress:
-					target = candidate
+				if candidate.path_follow.progress > selected_target.path_follow.progress:
+					selected_target = candidate
 			TargetMode.LAST:
-				if candidate.path_follow.progress < target.path_follow.progress:
-					target = candidate
+				if candidate.path_follow.progress < selected_target.path_follow.progress:
+					selected_target = candidate
 			TargetMode.LOWEST_HEALTH:
-				if candidate.health < target.health:
-					target = candidate
+				if candidate.health < selected_target.health:
+					selected_target = candidate
 			TargetMode.HIGHEST_HEALTH:
-				if candidate.health > target.health:
-					target = candidate
+				if candidate.health > selected_target.health:
+					selected_target = candidate
+	return selected_target
 
 
 func _select_directional_target() -> void:
@@ -3044,7 +3330,7 @@ func launch_gauss_heavy_shot() -> void:
 		destination,
 		projectile_speed * gauss_heavy_shot_speed_multiplier,
 		maximum_distance,
-		maxi(roundi(float(roll_attack_damage()) * gauss_heavy_shot_damage_multiplier), 1),
+		maxi(roundi(float(roll_attack_damage(target)) * gauss_heavy_shot_damage_multiplier), 1),
 		damage_type,
 		GameStats.IMPACT_FIRST_CONTACT,
 		0.0,
@@ -3057,7 +3343,12 @@ func launch_gauss_heavy_shot() -> void:
 		false,
 		0.0,
 		true,
-		has_bonus_tag(BONUS_REVEAL)
+		has_bonus_tag(BONUS_REVEAL),
+		tower_id,
+		false,
+		pierce_loses_no_power,
+		1.0,
+		create_attack_context(&"gauss_heavy_shot", heavy_projectile, &"projectile")
 	)
 
 
@@ -3146,6 +3437,7 @@ func _on_beholder_target_died(killed_mob: Node2D) -> void:
 
 
 func trigger_beholder_death_explosion(center: Vector2, explosion_damage: int) -> void:
+	var explosion_context := create_attack_context(&"beholder_death_explosion")
 	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
 		var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
 		get_tree().current_scene.add_child(explosion_zone)
@@ -3162,7 +3454,13 @@ func trigger_beholder_death_explosion(center: Vector2, explosion_damage: int) ->
 			distance_from_center,
 			beholder_death_explosion_radius_pixels
 		)
-		mob.apply_damage(dealt_damage, DAMAGE_EXPLOSIVE, false)
+		apply_tower_damage(
+			mob,
+			dealt_damage,
+			DAMAGE_EXPLOSIVE,
+			false,
+			explosion_context
+		)
 
 
 func reset_gauss_spread() -> void:
@@ -3181,11 +3479,21 @@ func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 		set_selected(true)
 
 func _on_button_first_pressed() -> void:
+	if uses_drone_targeting():
+		drone_target_mode = DroneTargetMode.DISTRIBUTED
+		update_menu_buttons()
+		close_menus()
+		return
 	target_mode = TargetMode.FIRST
 	_select_target()
 	close_menus()
 
 func _on_button_last_pressed() -> void:
+	if uses_drone_targeting():
+		drone_target_mode = DroneTargetMode.FOCUS_MAX_HEALTH
+		update_menu_buttons()
+		close_menus()
+		return
 	target_mode = TargetMode.LAST
 	_select_target()
 	close_menus()
@@ -3214,7 +3522,9 @@ func _on_cancel_pressed() -> void:
 	queue_free()
 
 func _on_targetmode_pressed() -> void:
-	if uses_standard_spawner_system():
+	if tower_id == SAUCER_TOWER_ID:
+		return
+	if uses_standard_spawner_system() and not uses_drone_targeting():
 		return
 	if uses_manual_ground_targeting():
 		begin_manual_targeting()
@@ -3300,6 +3610,14 @@ func is_spawner_tower() -> bool:
 
 func uses_standard_spawner_system() -> bool:
 	return is_spawner_tower() and tower_id != SAUCER_TOWER_ID
+
+
+func uses_drone_targeting() -> bool:
+	return tower_id == DRONE_DEPOT_TOWER_ID
+
+
+func get_drone_target_mode() -> DroneTargetMode:
+	return drone_target_mode
 
 
 func add_type_tag(tag: StringName) -> void:

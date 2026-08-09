@@ -14,6 +14,7 @@ var tick_interval := 0.2
 var elapsed := 0.0
 var tick_remaining := 0.0
 var resolving := false
+var attack_context: AttackContext
 
 
 func setup(
@@ -21,13 +22,15 @@ func setup(
 	lance_radius: float,
 	lance_tick_damage: int,
 	lance_duration: float,
-	lance_tick_interval: float
+	lance_tick_interval: float,
+	ownership_context: AttackContext = null
 ) -> void:
 	main = game_main
 	radius = maxf(lance_radius, 1.0)
 	tick_damage = maxi(lance_tick_damage, 1)
 	duration = maxf(lance_duration, 0.01)
 	tick_interval = maxf(lance_tick_interval, 0.01)
+	attack_context = ownership_context
 	tick_remaining = 0.0
 	queue_redraw()
 
@@ -83,10 +86,11 @@ func apply_damage_tick() -> void:
 				dealt_damage,
 				&"explosive",
 				true,
-				ORBITAL_CANNON_TOWER_ID
+				ORBITAL_CANNON_TOWER_ID,
+				attack_context
 			)
 		else:
-			mob.apply_damage(dealt_damage, &"explosive", true)
+			mob.apply_damage(dealt_damage, &"explosive", true, true, attack_context)
 
 
 func finish() -> void:

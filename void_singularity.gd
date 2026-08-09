@@ -16,6 +16,7 @@ var explosion_radius := 58.05
 var explosion_damage := 1
 var elapsed := 0.0
 var resolving := false
+var attack_context: AttackContext
 
 
 func setup(
@@ -25,7 +26,8 @@ func setup(
 	radius: float,
 	path_pull_speed: float,
 	final_explosion_radius: float,
-	final_explosion_damage: int
+	final_explosion_damage: int,
+	ownership_context: AttackContext = null
 ) -> void:
 	main = game_main
 	center_path_progress = maxf(path_progress, 0.0)
@@ -34,6 +36,7 @@ func setup(
 	pull_speed = maxf(path_pull_speed, 0.0)
 	explosion_radius = maxf(final_explosion_radius, 1.0)
 	explosion_damage = maxi(final_explosion_damage, 1)
+	attack_context = ownership_context
 	queue_redraw()
 
 
@@ -133,10 +136,11 @@ func explode() -> void:
 				dealt_damage,
 				&"explosive",
 				false,
-				VOID_CALLER_TOWER_ID
+				VOID_CALLER_TOWER_ID,
+				attack_context
 			)
 		else:
-			mob.apply_damage(dealt_damage, &"explosive", false)
+			mob.apply_damage(dealt_damage, &"explosive", false, true, attack_context)
 	finished.emit(self)
 	queue_free()
 

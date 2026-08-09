@@ -9,6 +9,9 @@ const RANGE_PIXELS_PER_UNIT := 12.9
 const ARRIVAL_DISTANCE := 6.0
 const BEAM_HIT_HALF_WIDTH := 2.5
 const DEFAULT_BEAM_TURN_SPEED_DEGREES := 720.0
+const MOBILE_TARGET_REFRESH_INTERVAL := 0.15
+const DRONE_ASSIGNMENT_FRAME_META: StringName = &"drone_assignment_refresh_bucket"
+const DRONE_ASSIGNMENT_CACHE_META: StringName = &"drone_assignment_cache"
 
 var unit_id: StringName = &""
 var parent_tower: Node2D
@@ -24,6 +27,7 @@ var damage := 1
 var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
 var noncritical_damage_multiplier := 1.0
+var last_attack_roll_was_critical := false
 var pierce_loses_no_power := false
 var slow_duration := 0.0
 var stun_duration := 0.0
@@ -47,6 +51,7 @@ var damage_spent := 0
 var recharge_remaining := 0.0
 var returning_to_base := false
 var attack_cooldown := 0.0
+var target_refresh_remaining := 0.0
 var path_progress := 0.0
 var orbit_angle := 0.0
 var home_position := Vector2.ZERO
@@ -232,7 +237,6 @@ func apply_stats(unit_stats: Dictionary) -> void:
 		0.0
 	)
 	lifetime = maxf(float(unit_stats.get("lifetime", lifetime)), 0.0)
-	attack_cooldown = minf(attack_cooldown, attack_interval)
 	queue_redraw()
 
 
@@ -247,6 +251,7 @@ func _physics_process(delta: float) -> void:
 			return
 
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
+	target_refresh_remaining = maxf(target_refresh_remaining - delta, 0.0)
 	update_continuous_beam_aim(delta)
 	match movement_type:
 		GameStats.MOVEMENT_DRONE:
@@ -299,6 +304,7 @@ func get_target_progress(candidate: Node2D) -> float:
 func process_drone(delta: float) -> void:
 	if returning_to_base:
 		target = null
+		target_refresh_remaining = 0.0
 		move_toward_position(parent_tower.global_position, delta)
 		if global_position.distance_to(parent_tower.global_position) <= ARRIVAL_DISTANCE:
 			global_position = parent_tower.global_position
@@ -308,13 +314,29 @@ func process_drone(delta: float) -> void:
 
 	if recharge_remaining > 0.0:
 		target = null
+		target_refresh_remaining = 0.0
 		global_position = parent_tower.global_position
 		recharge_remaining = maxf(recharge_remaining - delta, 0.0)
 		if recharge_remaining <= 0.0:
 			damage_spent = 0
 		return
 
-	target = select_target(parent_tower.global_position, leash_radius_pixels)
+	var drone_target_eligible := (
+		is_valid_target(target)
+		and parent_tower.global_position.distance_to(target.global_position)
+			<= leash_radius_pixels
+	)
+	var distributed_mode := (
+		parent_tower.has_method("get_drone_target_mode")
+		and int(parent_tower.get_drone_target_mode()) == 0
+	)
+	if distributed_mode:
+		if not drone_target_eligible:
+			get_tree().set_meta(DRONE_ASSIGNMENT_FRAME_META, -1)
+		target = select_drone_command_target()
+	elif target_refresh_remaining <= 0.0 or not drone_target_eligible:
+		target = select_drone_command_target()
+		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
 	if is_valid_target(target):
 		var distance_to_target := global_position.distance_to(target.global_position)
 		if distance_to_target > aim_radius_pixels * 0.8:
@@ -331,8 +353,131 @@ func process_drone(delta: float) -> void:
 	move_toward_position(orbit_position, delta)
 
 
+func select_drone_command_target() -> Node2D:
+	if not is_instance_valid(parent_tower):
+		return null
+	if (
+		parent_tower.has_method("get_drone_target_mode")
+		and int(parent_tower.get_drone_target_mode()) == 1
+	):
+		return select_highest_max_health_drone_target()
+	return select_distributed_drone_target()
+
+
+func select_highest_max_health_drone_target() -> Node2D:
+	var candidates := get_sorted_drone_targets()
+	return candidates[0] if not candidates.is_empty() else null
+
+
+func select_distributed_drone_target() -> Node2D:
+	var current_frame := floori(
+		float(Time.get_ticks_msec())
+		/ (MOBILE_TARGET_REFRESH_INTERVAL * 1000.0)
+	)
+	if int(get_tree().get_meta(DRONE_ASSIGNMENT_FRAME_META, -1)) == current_frame:
+		var cached_assignments: Dictionary = get_tree().get_meta(
+			DRONE_ASSIGNMENT_CACHE_META,
+			{}
+		)
+		if cached_assignments.has(get_instance_id()):
+			return cached_assignments[get_instance_id()] as Node2D
+
+	var available_drones: Array[Node] = []
+	var reserved_targets: Dictionary = {}
+	for candidate in get_tree().get_nodes_in_group("spawned_units"):
+		if not is_available_combat_drone(candidate):
+			continue
+		if candidate.is_focus_max_health_drone():
+			var focused_target: Node2D = (
+				candidate.select_highest_max_health_drone_target()
+			)
+			if is_instance_valid(focused_target):
+				reserved_targets[focused_target.get_instance_id()] = true
+		else:
+			available_drones.append(candidate)
+	available_drones.sort_custom(
+		func(a: Node, b: Node) -> bool:
+			var a_choice_count: int = a.get_sorted_drone_targets().size()
+			var b_choice_count: int = b.get_sorted_drone_targets().size()
+			if a_choice_count != b_choice_count:
+				return a_choice_count < b_choice_count
+			return a.get_instance_id() < b.get_instance_id()
+	)
+
+	var assignments: Dictionary = {}
+	for drone in available_drones:
+		var candidates: Array[Node2D] = drone.get_sorted_drone_targets()
+		var chosen_target: Node2D
+		for candidate in candidates:
+			if not reserved_targets.has(candidate.get_instance_id()):
+				chosen_target = candidate
+				break
+		# Once every valid enemy is occupied, sharing is allowed.
+		if chosen_target == null and not candidates.is_empty():
+			chosen_target = candidates[0]
+		if is_instance_valid(chosen_target):
+			assignments[drone.get_instance_id()] = chosen_target
+			reserved_targets[chosen_target.get_instance_id()] = true
+	get_tree().set_meta(DRONE_ASSIGNMENT_FRAME_META, current_frame)
+	get_tree().set_meta(DRONE_ASSIGNMENT_CACHE_META, assignments)
+	return assignments.get(get_instance_id()) as Node2D
+
+
+func is_available_combat_drone(candidate: Node) -> bool:
+	return (
+		is_instance_valid(candidate)
+		and not candidate.is_queued_for_deletion()
+		and candidate.get("unit_id") == &"drone"
+		and not bool(candidate.get("returning_to_base"))
+		and float(candidate.get("recharge_remaining")) <= 0.0
+		and candidate.has_method("get_sorted_drone_targets")
+	)
+
+
+func is_focus_max_health_drone() -> bool:
+	return (
+		unit_id == &"drone"
+		and is_instance_valid(parent_tower)
+		and parent_tower.has_method("get_drone_target_mode")
+		and int(parent_tower.get_drone_target_mode()) == 1
+	)
+
+
+func get_sorted_drone_targets() -> Array[Node2D]:
+	var candidates: Array[Node2D] = []
+	if not is_instance_valid(parent_tower):
+		return candidates
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_target(candidate):
+			continue
+		if (
+			parent_tower.global_position.distance_to(candidate.global_position)
+			> leash_radius_pixels
+		):
+			continue
+		candidates.append(candidate)
+	candidates.sort_custom(
+		func(a: Node2D, b: Node2D) -> bool:
+			if a.max_health != b.max_health:
+				return a.max_health > b.max_health
+			var a_progress := float(a.path_follow.progress)
+			var b_progress := float(b.path_follow.progress)
+			if not is_equal_approx(a_progress, b_progress):
+				return a_progress > b_progress
+			return a.get_instance_id() < b.get_instance_id()
+	)
+	return candidates
+
+
 func process_guard(delta: float) -> void:
-	target = select_target(home_position, acquisition_radius_pixels)
+	var guard_target_eligible := (
+		is_valid_target(target)
+		and home_position.distance_to(target.global_position)
+			<= acquisition_radius_pixels
+	)
+	if target_refresh_remaining <= 0.0 or not guard_target_eligible:
+		target = select_target(home_position, acquisition_radius_pixels)
+		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
 	if is_valid_target(target):
 		if global_position.distance_to(target.global_position) > aim_radius_pixels:
 			move_toward_position(target.global_position, delta)
@@ -350,7 +495,14 @@ func process_path_assault(delta: float) -> void:
 	if mech_hunter:
 		process_hunter_mech(delta)
 		return
-	target = select_target(global_position, get_effective_attack_radius())
+	var assault_target_eligible := (
+		is_valid_target(target)
+		and global_position.distance_to(target.global_position)
+			<= get_effective_attack_radius()
+	)
+	if target_refresh_remaining <= 0.0 or not assault_target_eligible:
+		target = select_target(global_position, get_effective_attack_radius())
+		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
 	if is_valid_target(target):
 		try_attack_target()
 		return
@@ -363,7 +515,15 @@ func process_path_assault(delta: float) -> void:
 
 
 func process_hunter_mech(delta: float) -> void:
-	target = select_hunter_target()
+	var hunter_target_eligible := (
+		is_valid_target(target)
+		and is_instance_valid(target.path_follow)
+		and absf(float(target.path_follow.progress) - path_progress)
+			<= hunter_pursuit_radius_pixels
+	)
+	if target_refresh_remaining <= 0.0 or not hunter_target_eligible:
+		target = select_hunter_target()
+		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
 	if is_valid_target(target):
 		if global_position.distance_to(target.global_position) <= get_effective_attack_radius():
 			try_attack_target()
@@ -491,6 +651,72 @@ func get_effective_attack_radius() -> float:
 	return aim_radius_pixels
 
 
+func create_attack_context(
+	attack_kind: StringName,
+	parent_context: AttackContext = null,
+	secondary := false,
+	include_critical_roll := false
+) -> AttackContext:
+	if parent_context != null:
+		return parent_context.derive(
+			self,
+			&"spawned_unit",
+			attack_kind,
+			secondary,
+			{"was_critical": last_attack_roll_was_critical}
+				if include_critical_roll
+				else {}
+		)
+	var metadata := {"spawned_unit_id": unit_id}
+	if (
+		is_instance_valid(parent_tower)
+		and parent_tower.has_method("get_attack_relic_metadata")
+	):
+		metadata.merge(
+			parent_tower.get_attack_relic_metadata(
+				global_position,
+				get_effective_attack_radius(),
+				type_tags
+			),
+			true
+		)
+	if include_critical_roll:
+		metadata["was_critical"] = last_attack_roll_was_critical
+	return AttackContext.from_tower(
+		parent_tower,
+		self,
+		&"spawned_unit",
+		attack_kind,
+		metadata
+	)
+
+
+func apply_owned_damage(
+	mob: Node,
+	attack_damage: int,
+	attack_damage_type: StringName,
+	ignores_armor: bool,
+	attack_context: AttackContext
+) -> void:
+	var source_tower_id := StringName(parent_tower.get("tower_id"))
+	if mob.has_method("apply_damage_from_tower"):
+		mob.apply_damage_from_tower(
+			attack_damage,
+			attack_damage_type,
+			ignores_armor,
+			source_tower_id,
+			attack_context
+		)
+	else:
+		mob.apply_damage(
+			attack_damage,
+			attack_damage_type,
+			ignores_armor,
+			true,
+			attack_context
+		)
+
+
 func perform_mech_area_slam() -> void:
 	if mech_slam_radius_pixels <= 0.0:
 		return
@@ -499,28 +725,23 @@ func perform_mech_area_slam() -> void:
 		get_tree().current_scene.add_child(slam_zone)
 		slam_zone.global_position = global_position
 		slam_zone.setup(mech_slam_radius_pixels)
-	var source_tower_id := StringName(parent_tower.get("tower_id"))
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(mob):
 			continue
 		var distance_to_slam: float = global_position.distance_to(mob.global_position)
 		if distance_to_slam > mech_slam_radius_pixels:
 			continue
+		var rolled_damage := roll_attack_damage(mob)
+		var slam_context := create_attack_context(
+			&"mech_slam", null, false, true
+		)
 		var slam_damage := GameStats.get_explosion_damage(
-			roll_attack_damage(mob),
+			rolled_damage,
 			distance_to_slam,
 			mech_slam_radius_pixels
 		)
 		apply_control_effects(mob)
-		if mob.has_method("apply_damage_from_tower"):
-			mob.apply_damage_from_tower(
-				slam_damage,
-				&"melee",
-				false,
-				source_tower_id
-			)
-		else:
-			mob.apply_damage(slam_damage, &"melee", false)
+		apply_owned_damage(mob, slam_damage, &"melee", false, slam_context)
 
 
 func trigger_budget_explosion() -> void:
@@ -535,7 +756,7 @@ func trigger_budget_explosion() -> void:
 		roundi(float(damage) * budget_explosion_damage_multiplier),
 		1
 	)
-	var source_tower_id := StringName(parent_tower.get("tower_id"))
+	var explosion_context := create_attack_context(&"drone_payload_explosion")
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(mob):
 			continue
@@ -547,15 +768,13 @@ func trigger_budget_explosion() -> void:
 			distance_to_blast,
 			budget_explosion_radius_pixels
 		)
-		if mob.has_method("apply_damage_from_tower"):
-			mob.apply_damage_from_tower(
-				dealt_damage,
-				&"explosive",
-				false,
-				source_tower_id
-			)
-		else:
-			mob.apply_damage(dealt_damage, &"explosive", false)
+		apply_owned_damage(
+			mob,
+			dealt_damage,
+			&"explosive",
+			false,
+			explosion_context
+		)
 
 
 func launch_projectile_volley(
@@ -600,9 +819,18 @@ func launch_projectile_volley(
 			0.0,
 			false,
 			has_bonus_tag(&"reveal"),
-			&"",
+			StringName(parent_tower.get("tower_id")),
 			false,
-			pierce_loses_no_power
+			pierce_loses_no_power,
+			1.0,
+			create_attack_context(
+				&"spawned_projectile", null, false, true
+			).derive(
+				projectile,
+				&"projectile",
+				&"spawned_projectile",
+				false
+			)
 		)
 
 
@@ -616,11 +844,16 @@ func perform_hitscan_attack(
 	if pierce_count > 0 and not aim_offset.is_zero_approx():
 		visual_end = global_position + aim_offset.normalized() * aim_radius_pixels
 	spawn_hitscan_effect(global_position, visual_end, damage_type)
-	apply_control_effects(current_target)
-	current_target.apply_damage(
+	var attack_context := create_attack_context(
+		&"spawned_hitscan", null, false, true
+	)
+	apply_control_effects(current_target, attack_context)
+	apply_owned_damage(
+		current_target,
 		attack_damage,
 		damage_type,
-		pierce_count > 0
+		pierce_count > 0,
+		attack_context
 	)
 	if pierce_count < 1:
 		return
@@ -641,7 +874,13 @@ func perform_hitscan_attack(
 			index + 1,
 			pierce_loses_no_power
 		)
-		targets[index].apply_damage(pierced_damage, damage_type, true)
+		apply_owned_damage(
+			targets[index],
+			pierced_damage,
+			damage_type,
+			true,
+			create_attack_context(&"spawned_pierce", attack_context, true)
+		)
 
 
 func spawn_hitscan_effect(
@@ -667,11 +906,20 @@ func perform_continuous_beam_attack(
 	var line_origin := global_position
 	var beam_length := get_continuous_beam_length(current_target)
 	var line_end := line_origin + beam_aim_direction * beam_length
+	var beam_context := create_attack_context(
+		&"spawned_beam_tick", null, false, true
+	)
 	if pierce_count < 1 and not infinite_pierce:
 		if not is_target_intersecting_beam(current_target, line_origin, line_end):
 			return false
-		apply_control_effects(current_target)
-		current_target.apply_damage(attack_damage, damage_type, false)
+		apply_control_effects(current_target, beam_context)
+		apply_owned_damage(
+			current_target,
+			attack_damage,
+			damage_type,
+			false,
+			beam_context
+		)
 		return true
 
 	var targets := get_hitscan_pierce_targets(line_origin, line_end, null, true)
@@ -680,14 +928,20 @@ func perform_continuous_beam_attack(
 		maximum_hits = mini(maximum_hits, 1 + pierce_count)
 	for index in maximum_hits:
 		apply_control_effects(targets[index])
-		targets[index].apply_damage(
+		apply_owned_damage(
+			targets[index],
 			GameStats.get_piercing_damage(
 				attack_damage,
 				index,
 				pierce_loses_no_power
 			),
 			damage_type,
-			true
+			true,
+			create_attack_context(
+				&"spawned_beam_pierce",
+				beam_context,
+				index > 0
+			)
 		)
 	return maximum_hits > 0
 
@@ -713,10 +967,10 @@ func update_continuous_beam_aim(delta: float) -> void:
 		beam_aim_direction = desired_direction
 		beam_has_aim = true
 		return
-	var angle_difference := beam_aim_direction.angle_to(desired_direction)
+	var turn_angle := beam_aim_direction.angle_to(desired_direction)
 	var maximum_turn := beam_turn_speed_radians * delta
 	beam_aim_direction = beam_aim_direction.rotated(
-		clampf(angle_difference, -maximum_turn, maximum_turn)
+		clampf(turn_angle, -maximum_turn, maximum_turn)
 	).normalized()
 
 
@@ -800,7 +1054,22 @@ func get_hitscan_pierce_targets(
 
 
 func roll_attack_damage(current_target: Node2D = null) -> int:
+	last_attack_roll_was_critical = false
 	var current_critical_chance := critical_chance
+	if (
+		has_bonus_tag(&"critical")
+		and is_valid_target(current_target)
+		and current_target.health >= current_target.max_health
+		and is_instance_valid(parent_tower)
+		and parent_tower.has_method("get_owned_relic_count")
+	):
+		current_critical_chance = clampf(
+			current_critical_chance
+			+ GameStats.OPENING_SHOT_CHANCE_PER_STACK
+				* int(parent_tower.get_owned_relic_count(&"opening_shot")),
+			0.0,
+			1.0
+		)
 	if (
 		mech_hunter
 		and is_valid_target(current_target)
@@ -814,15 +1083,26 @@ func roll_attack_damage(current_target: Node2D = null) -> int:
 			hunter_critical_chance
 		)
 	if has_bonus_tag(&"critical") and randf() < current_critical_chance:
+		last_attack_roll_was_critical = true
 		return maxi(roundi(float(damage) * critical_multiplier), 1)
 	return maxi(roundi(float(damage) * noncritical_damage_multiplier), 1)
 
 
-func apply_control_effects(current_target: Node) -> void:
+func apply_control_effects(
+	current_target: Node,
+	attack_context: AttackContext = null
+) -> void:
+	var resolved_context := attack_context
+	if resolved_context == null:
+		resolved_context = create_attack_context(&"spawned_status_effect")
 	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
-		current_target.apply_slow(slow_duration)
+		current_target.apply_slow(slow_duration, resolved_context)
 	if stun_duration > 0.0 and current_target.has_method("apply_stun"):
-		current_target.apply_stun(stun_duration, stun_affects_bosses)
+		current_target.apply_stun(
+			stun_duration,
+			stun_affects_bosses,
+			resolved_context
+		)
 
 
 func select_target(origin: Vector2, maximum_distance: float) -> Node2D:

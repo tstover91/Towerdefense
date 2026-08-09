@@ -24,7 +24,7 @@ const EXPLOSION_OUTER_DAMAGE_MULTIPLIER := 0.50
 # Provisional relic balance values. These are centralized so later tuning does
 # not require changing combat code.
 const DIVIDENDS_INTEREST_RATE := 0.05
-const DIVIDENDS_INTEREST_CAP := 250
+const DIVIDENDS_INTEREST_CAP := 500
 const FOCUSED_LENS_DAMAGE_PER_STACK := 0.20
 const FOCUSED_LENS_RANGE_MULTIPLIER := 0.90
 const WIDE_LENS_RANGE_PER_STACK := 0.20
@@ -42,10 +42,25 @@ const CONCENTRATED_CHARGE_DAMAGE_MULTIPLIER := 1.25
 const MAXIMUM_PAYLOAD_RADIUS_MULTIPLIER := 1.50
 const MAXIMUM_PAYLOAD_DAMAGE_MULTIPLIER := 1.50
 const MAXIMUM_PAYLOAD_INTERVAL_MULTIPLIER := 1.75
-const LUCKY_SHOT_CHANCE_PER_STACK := 0.05
-const GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS := 1.0
+const LUCKY_SHOT_CHANCE_PER_STACK := 0.15
+const GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS := 2.0
 const GLASS_CANNON_NONCRITICAL_MULTIPLIER := 0.70
-const DEADEYE_CRITICAL_MULTIPLIER_BONUS := 0.50
+const DEADEYE_CRITICAL_MULTIPLIER_BONUS := 2.0
+const BOSS_STUN_DURATION_MULTIPLIER := 0.50
+const PREDATORY_INSTINCT_HEALTH_THRESHOLD := 0.25
+const PREDATORY_INSTINCT_DAMAGE_PER_STACK := 0.50
+const PACK_HUNTER_DAMAGE_PER_STACK := 0.15
+const INTERFERENCE_BEAM_DAMAGE_MULTIPLIER := 1.35
+const HOLLOW_POINT_DAMAGE_PER_STACK := 0.25
+const LONG_BARREL_MAX_DAMAGE_PER_STACK := 0.30
+const POINT_BLANK_MAX_DAMAGE_PER_STACK := 0.30
+const GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER := 1.50
+const GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER := 0.65
+const THERMITE_BOMBS_DAMAGE_MULTIPLIER := 1.35
+const OPENING_SHOT_CHANCE_PER_STACK := 0.20
+const BIG_GAME_CONTROL_ELITE_DURATION_PER_STACK := 1.25
+const BIG_GAME_CONTROL_NORMAL_DURATION_PER_STACK := 0.75
+const EMERGENCY_BRAKE_DURATION_PER_STACK := 1.35
 
 const MOVEMENT_STATIONARY: StringName = &"stationary"
 const MOVEMENT_DRONE: StringName = &"drone"
@@ -97,24 +112,24 @@ const SPAWNED_UNITS := {
 
 const RELICS := {
 	"long_term_investment": {"display_name": "Long-Term Investment", "description": "A tower gains sell value for every round it remains active.", "rarity": &"common", "category": &"global", "stackable": true},
-	"dividends": {"display_name": "Dividends", "description": "Gain 5% interest at the end of each round, up to $250.", "rarity": &"rare", "category": &"global", "stackable": false},
+	"dividends": {"display_name": "Dividends", "description": "Gain 5% interest at the end of each round, up to $500.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"holiday_sale": {"display_name": "Holiday Sale", "description": "Each round, one tower's build price is reduced by 35%; all others increase by 15%.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"contraband_blueprint": {"display_name": "Contraband Blueprint", "description": "Immediately place one random tower outside your five-tower roster for free. Additional copies cannot be built.", "rarity": &"legendary", "category": &"global", "stackable": false},
 	"network_upgrade": {"display_name": "Network Upgrade", "description": "Technology towers gain attack speed for each adjacent Technology tower.", "rarity": &"common", "category": &"technology", "stackable": true},
 	"singularity_core": {"display_name": "Singularity Core", "description": "Technology towers can build both final paths.", "rarity": &"legendary", "category": &"technology", "stackable": false},
-	"pack_hunter": {"display_name": "Pack Hunter", "description": "Biological towers deal increased damage to an enemy targeted by another Biological tower.", "rarity": &"common", "category": &"biological", "stackable": true},
-	"predatory_instinct": {"display_name": "Predatory Instinct", "description": "Biological towers deal a powerful bonus hit against enemies below a health threshold.", "rarity": &"common", "category": &"biological", "stackable": true},
+	"pack_hunter": {"display_name": "Pack Hunter", "description": "Biological attacks deal 15% more damage per stack when another Biological tower is targeting that enemy.", "rarity": &"common", "category": &"biological", "stackable": true},
+	"predatory_instinct": {"display_name": "Predatory Instinct", "description": "Biological attacks deal 50% more damage per stack to enemies at or below 25% health.", "rarity": &"common", "category": &"biological", "stackable": true},
 	"perfect_mutation": {"display_name": "Perfect Mutation", "description": "Biological towers can build both final paths.", "rarity": &"legendary", "category": &"biological", "stackable": false},
 	"focused_lens": {"display_name": "Focused Lens", "description": "Beam damage increases by 20%, but range is reduced by 10%.", "rarity": &"common", "category": &"beam", "stackable": true},
 	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases by 20%, but damage is reduced by 10%.", "rarity": &"common", "category": &"beam", "stackable": true},
-	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal more damage to slowed and stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
+	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal 35% more damage to slowed or stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"microwave": {"display_name": "Microwave", "description": "Enemies damaged by beams explode on death.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"death_ray": {"display_name": "Death Ray", "description": "Beams gain infinite Pierce, but turn speed is reduced to 90 degrees per second.", "rarity": &"legendary", "category": &"beam", "stackable": false},
-	"hollow_point": {"display_name": "Hollow Point", "description": "Ballistic attacks deal more damage to full-health enemies.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"hollow_point": {"display_name": "Hollow Point", "description": "Ballistic attacks deal 25% more damage per stack to full-health enemies.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"heavy_rounds": {"display_name": "Heavy Rounds", "description": "Ballistic damage increases by 25%, but attacks take 15% longer.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"lightweight_ammo": {"display_name": "Lightweight Ammo", "description": "Ballistic attacks are 20% faster, but deal 15% less damage.", "rarity": &"common", "category": &"ballistic", "stackable": true},
-	"long_barrel": {"display_name": "Long Barrel", "description": "Ballistic damage increases with distance.", "rarity": &"common", "category": &"ballistic", "stackable": true},
-	"point_blank": {"display_name": "Point Blank", "description": "Ballistic damage increases at close range.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"long_barrel": {"display_name": "Long Barrel", "description": "Ballistic damage gains up to 30% per stack based on distance from its source.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"point_blank": {"display_name": "Point Blank", "description": "Ballistic damage gains up to 30% per stack at close range.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"armor_piercing": {"display_name": "Armor Piercing", "description": "Ballistic attacks gain Pierce 1.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"suppressive_fire": {"display_name": "Suppressive Fire", "description": "Ballistic attacks slow enemies for at least 0.75 seconds.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce one time.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
@@ -122,31 +137,31 @@ const RELICS := {
 	"frenzy": {"display_name": "Frenzy", "description": "Melee towers attack faster for each enemy in range.", "rarity": &"common", "category": &"melee", "stackable": true},
 	"duelist": {"display_name": "Duelist", "description": "Melee towers deal increased damage when fewer enemies are in range.", "rarity": &"common", "category": &"melee", "stackable": true},
 	"relentless": {"display_name": "Relentless", "description": "Attack speed increases for each hit on the same enemy and resets when the target changes.", "rarity": &"rare", "category": &"melee", "stackable": false},
-	"giant_killer": {"display_name": "Giant Killer", "description": "Deal extra damage to elites and bosses, but less damage to normal enemies.", "rarity": &"rare", "category": &"melee", "stackable": false},
+	"giant_killer": {"display_name": "Giant Killer", "description": "Melee attacks deal 50% more damage to elites and bosses, but 35% less to normal enemies.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"strength_in_numbers": {"display_name": "Strength in Numbers", "description": "Gain increased damage for each adjacent Melee tower.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"lone_wolf": {"display_name": "Lone Wolf", "description": "Gain greatly increased stats when no other towers are nearby.", "rarity": &"legendary", "category": &"melee", "stackable": false},
 	"high_yield": {"display_name": "High Yield", "description": "Explosion radius increases by 25%, but damage is reduced by 15%.", "rarity": &"common", "category": &"explosive", "stackable": true},
 	"concentrated_charge": {"display_name": "Concentrated Charge", "description": "Explosion radius is reduced by 20%, but damage increases by 25%.", "rarity": &"common", "category": &"explosive", "stackable": true},
 	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosion damage increases based on how many enemies are inside the blast radius.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"direct_hit": {"display_name": "Direct Hit", "description": "Explosion damage increases when fewer enemies are inside the blast radius.", "rarity": &"rare", "category": &"explosive", "stackable": false},
-	"thermite_bombs": {"display_name": "Thermite Bombs", "description": "Explosions deal bonus damage to armored enemies.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"thermite_bombs": {"display_name": "Thermite Bombs", "description": "Explosions deal 35% more damage to armored enemies.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"maximum_payload": {"display_name": "Maximum Payload", "description": "Explosion damage and radius increase by 50%, but explosive cooldowns take 75% longer.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions remove the Hidden trait.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"conductive": {"display_name": "Conductive", "description": "Armor increases Electric damage instead of reducing it.", "rarity": &"common", "category": &"electric", "stackable": false},
-	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 5 percentage points.", "rarity": &"common", "category": &"critical", "stackable": true},
-	"opening_shot": {"display_name": "Opening Shot", "description": "Gain a higher critical-hit chance against full-health enemies.", "rarity": &"common", "category": &"critical", "stackable": true},
-	"glass_cannon": {"display_name": "Glass Cannon", "description": "Adds +1x critical damage, but non-critical attacks deal 30% less damage.", "rarity": &"rare", "category": &"critical", "stackable": false},
+	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 15 percentage points.", "rarity": &"common", "category": &"critical", "stackable": true},
+	"opening_shot": {"display_name": "Opening Shot", "description": "Gain 20 percentage points of critical-hit chance per stack against full-health enemies.", "rarity": &"common", "category": &"critical", "stackable": true},
+	"glass_cannon": {"display_name": "Glass Cannon", "description": "Adds +2x critical damage, but non-critical attacks deal 30% less damage.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"pressure_point": {"display_name": "Pressure Point", "description": "Critical hits ignore armor.", "rarity": &"rare", "category": &"critical", "stackable": false},
-	"deadeye": {"display_name": "Deadeye", "description": "Adds +0.5x to the critical-hit multiplier.", "rarity": &"rare", "category": &"critical", "stackable": false},
+	"deadeye": {"display_name": "Deadeye", "description": "Adds +2x to the critical-hit multiplier.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"lingering_thoughts": {"display_name": "Lingering Thoughts", "description": "Psionic abilities last longer.", "rarity": &"common", "category": &"psionic", "stackable": true},
 	"quick_thinking": {"display_name": "Quick Thinking", "description": "Psionic abilities have shorter duration and shorter cooldown.", "rarity": &"common", "category": &"psionic", "stackable": true},
 	"spotter": {"display_name": "Spotter", "description": "Enemies revealed by one tower can be targeted by all towers while revealed.", "rarity": &"common", "category": &"reveal", "stackable": false},
 	"perfect_intelligence": {"display_name": "Perfect Intelligence", "description": "Once revealed by a tower, an enemy permanently loses the Hidden trait.", "rarity": &"rare", "category": &"reveal", "stackable": false},
 	"deep_penetration": {"display_name": "Deep Penetration", "description": "Adds +1 Pierce.", "rarity": &"common", "category": &"pierce", "stackable": true},
 	"follow_through": {"display_name": "Follow Through", "description": "Piercing attacks lose no power after each hit.", "rarity": &"rare", "category": &"pierce", "stackable": false},
-	"big_game_control": {"display_name": "Big Game Control", "description": "Stuns last longer against elites but less time against normal enemies.", "rarity": &"common", "category": &"stun", "stackable": true},
-	"emergency_brake": {"display_name": "Emergency Brake", "description": "Stuns last longer against fast enemies.", "rarity": &"common", "category": &"stun", "stackable": true},
-	"youre_not_special": {"display_name": "You're Not Special", "description": "Bosses can be stunned.", "rarity": &"legendary", "category": &"stun", "stackable": false},
+	"big_game_control": {"display_name": "Big Game Control", "description": "Stuns last 25% longer per stack against elites and 25% less per stack against normal enemies.", "rarity": &"common", "category": &"stun", "stackable": true},
+	"emergency_brake": {"display_name": "Emergency Brake", "description": "Stuns last 35% longer per stack against enemies with at least 130 base movement speed.", "rarity": &"common", "category": &"stun", "stackable": true},
+	"youre_not_special": {"display_name": "You're Not Special", "description": "Bosses can be stunned for 50% of the normal duration.", "rarity": &"legendary", "category": &"stun", "stackable": false},
 	"trade_agreement": {"display_name": "Trade Agreement", "description": "Spawn limit is tripled, spawn speed is reduced, and Spawner tower build costs are greatly increased.", "rarity": &"legendary", "category": &"spawner", "stackable": false},
 }
 
@@ -743,7 +758,7 @@ const TOWERS := {
 			},
 			"b": {
 				"display_name": "Psionic Link",
-				"description": "Links Brainiac's strongest target. Half of the damage it receives from all towers is spread to enemies around it.",
+				"description": "Links Brainiac's current target. Half of the damage it receives from all towers is spread to enemies around it.",
 				"cost": 2100,
 				"unlock_level": 4,
 				"add_bonus_tags": [&"psionic"],
@@ -1000,7 +1015,7 @@ const TOWERS := {
 			},
 			"b": {
 				"display_name": "Singularity",
-				"description": "Keeps the normal two-orb attack and periodically pulls enemies for one second before a large explosion.",
+				"description": "Keeps the normal two-orb attack. When ready, Singularity independently selects an enemy using Void Caller's targeting mode, then pulls for one second before exploding.",
 				"cost": 2500,
 				"unlock_level": 4,
 				"add_bonus_tags": [&"psionic"],
