@@ -175,6 +175,12 @@ const FORMATION_ROLE_WEIGHTS := {
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
 const TOWER_SLOT_COUNT := 5
+const CONTRABAND_SLOT_INDEX := TOWER_SLOT_COUNT
+const TRADE_AGREEMENT_TOWER_IDS: Array[StringName] = [
+	&"hivemother",
+	&"dronedepot",
+	&"mechbay",
+]
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
@@ -216,6 +222,7 @@ var manual_targeting_tower: Node2D
 var money: int
 var pending_tower_type: StringName = &""
 var pending_tower_cost := 0
+var pending_tower_is_contraband := false
 var round_number := 0
 var mobs_left_to_spawn := 0
 var mobs_alive := 0
@@ -257,6 +264,8 @@ var active_draft_offers: Array[StringName] = []
 var active_draft_choice_quantities: Dictionary = {}
 var relic_refresh_count := 0
 var tower_roster: Array[StringName] = [&"invader", &"gauss_repeater"]
+var contraband_tower_id: StringName = &""
+var holiday_sale_tower_id: StringName = &""
 var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
 var damage_by_tower_instance: Dictionary = {}
@@ -298,10 +307,13 @@ func populate_tower_list() -> void:
 	for slot_index in TOWER_SLOT_COUNT:
 		if slot_index < tower_roster.size():
 			var tower_id: StringName = tower_roster[slot_index]
-			var tower_stats := GameStats.get_tower(tower_id)
 			tower_list.add_item(
-				"$%d" % int(tower_stats["placement_cost"]),
+				"$%d" % get_tower_build_cost(tower_id),
 				DEFAULT_TOWER_ICON
+			)
+			tower_list.set_item_tooltip(
+				slot_index,
+				GameStats.get_tower(tower_id)["display_name"]
 			)
 			continue
 
@@ -309,6 +321,12 @@ func populate_tower_list() -> void:
 		tower_list.set_item_icon_modulate(slot_index, Color.TRANSPARENT)
 		tower_list.set_item_disabled(slot_index, true)
 		tower_list.set_item_selectable(slot_index, false)
+	if not contraband_tower_id.is_empty():
+		tower_list.add_item("$0", DEFAULT_TOWER_ICON)
+		tower_list.set_item_tooltip(
+			CONTRABAND_SLOT_INDEX,
+			"Contraband: %s" % GameStats.get_tower(contraband_tower_id)["display_name"]
+		)
 
 
 func show_tower_details(tower: Node) -> void:
@@ -399,9 +417,14 @@ func update_money() -> void:
 
 
 func update_tower_affordability() -> void:
-	for slot_index in tower_roster.size():
-		var tower_id: StringName = tower_roster[slot_index]
-		var placement_cost: int = GameStats.get_tower(tower_id)["placement_cost"]
+	for slot_index in tower_list.item_count:
+		var tower_id := get_sidebar_tower_id(slot_index)
+		if tower_id.is_empty():
+			continue
+		var placement_cost := get_tower_build_cost(
+			tower_id,
+			slot_index == CONTRABAND_SLOT_INDEX
+		)
 		var price_color := (
 			AFFORDABLE_TOWER_COLOR
 			if money >= placement_cost
@@ -571,6 +594,7 @@ func end_round() -> void:
 	spawntimer.stop()
 	round_ended.emit(round_number)
 	add_money(calculate_end_round_reward())
+	roll_holiday_sale_tower()
 	update_round_count()
 
 	if round_number >= max_rounds:
@@ -910,9 +934,26 @@ func count_applicable_relics(offers: Array[StringName]) -> int:
 	var count := 0
 	for item_id in offers:
 		var category: StringName = GameStats.get_relic(item_id)["category"]
-		if category == &"global" or roster_tags.has(category):
+		if item_id == &"trade_agreement":
+			if has_dedicated_spawner_available():
+				count += 1
+		elif category == &"global" or roster_tags.has(category):
 			count += 1
 	return count
+
+
+func has_dedicated_spawner_available() -> bool:
+	for tower_id in TRADE_AGREEMENT_TOWER_IDS:
+		if tower_roster.has(tower_id) or tower_id == contraband_tower_id:
+			return true
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if (
+			is_instance_valid(tower)
+			and tower.is_placed
+			and TRADE_AGREEMENT_TOWER_IDS.has(StringName(tower.tower_id))
+		):
+			return true
+	return false
 
 
 func choose_stacked_common_relic(
@@ -939,6 +980,13 @@ func get_tower_roster_tags() -> Array[StringName]:
 		var tower_stats: Dictionary = GameStats.get_tower(tower_id)
 		for tag_group in ["type_tags", "damage_tags", "bonus_tags"]:
 			for tag in tower_stats.get(tag_group, []):
+				var typed_tag := StringName(tag)
+				if not roster_tags.has(typed_tag):
+					roster_tags.append(typed_tag)
+	if not contraband_tower_id.is_empty():
+		var contraband_stats := GameStats.get_tower(contraband_tower_id)
+		for tag_group in ["type_tags", "damage_tags", "bonus_tags"]:
+			for tag in contraband_stats.get(tag_group, []):
 				var typed_tag := StringName(tag)
 				if not roster_tags.has(typed_tag):
 					roster_tags.append(typed_tag)
@@ -997,7 +1045,61 @@ func collect_relic(item_id: StringName, quantity := 1) -> void:
 		int(owned_shop_items.get(item_id, 0))
 		+ maxi(quantity, 1)
 	)
+	if item_id == &"contraband_blueprint":
+		activate_contraband_blueprint()
+	elif item_id == &"holiday_sale":
+		roll_holiday_sale_tower()
 	refresh_placed_tower_stats()
+	populate_tower_list()
+	update_tower_affordability()
+
+
+func activate_contraband_blueprint() -> void:
+	if not contraband_tower_id.is_empty():
+		return
+	var available: Array[StringName] = []
+	for tower_key in GameStats.TOWERS:
+		var tower_id := StringName(tower_key)
+		if not tower_roster.has(tower_id):
+			available.append(tower_id)
+	if available.is_empty():
+		return
+	contraband_tower_id = available[shop_rng.randi_range(0, available.size() - 1)]
+
+
+func roll_holiday_sale_tower() -> void:
+	holiday_sale_tower_id = &""
+	if get_relic_count(&"holiday_sale") <= 0 or tower_roster.is_empty():
+		return
+	holiday_sale_tower_id = tower_roster[shop_rng.randi_range(0, tower_roster.size() - 1)]
+	populate_tower_list()
+	update_tower_affordability()
+
+
+func get_sidebar_tower_id(slot_index: int) -> StringName:
+	if slot_index >= 0 and slot_index < tower_roster.size():
+		return tower_roster[slot_index]
+	if slot_index == CONTRABAND_SLOT_INDEX:
+		return contraband_tower_id
+	return &""
+
+
+func get_tower_build_cost(tower_id: StringName, is_contraband := false) -> int:
+	if is_contraband and tower_id == contraband_tower_id:
+		return 0
+	var cost := float(GameStats.get_tower(tower_id)["placement_cost"])
+	if get_relic_count(&"holiday_sale") > 0:
+		cost *= (
+			GameStats.HOLIDAY_SALE_DISCOUNT_MULTIPLIER
+			if tower_id == holiday_sale_tower_id
+			else GameStats.HOLIDAY_SALE_OTHER_COST_MULTIPLIER
+		)
+	if (
+		get_relic_count(&"trade_agreement") > 0
+		and TRADE_AGREEMENT_TOWER_IDS.has(tower_id)
+	):
+		cost *= GameStats.TRADE_AGREEMENT_BUILD_COST_MULTIPLIER
+	return maxi(roundi(cost), 0)
 
 
 func collect_tower(tower_id: StringName) -> void:
@@ -1056,6 +1158,7 @@ func cancel_pending_tower_placement() -> void:
 	build_mode = false
 	pending_tower_type = &""
 	pending_tower_cost = 0
+	pending_tower_is_contraband = false
 	tower_list.deselect_all()
 	update_play_pause_button()
 	
@@ -2245,18 +2348,24 @@ func release_tower_build_cells(tower: Node2D) -> void:
 func _on_tower_confirmed(tower: Node2D) -> void:
 	reserve_tower_build_cells(tower)
 	money -= pending_tower_cost
+	if pending_tower_is_contraband and tower.tower_id == contraband_tower_id:
+		contraband_tower_id = &""
+		populate_tower_list()
 	update_money()
 	pending_tower_type = &""
 	pending_tower_cost = 0
+	pending_tower_is_contraband = false
 	build_mode = false
 	tower_to_place = null
 	update_play_pause_button()
 	show_tower_details(tower)
+	call_deferred("refresh_placed_tower_stats")
 
 func _on_tower_cancelled(tower: Node2D) -> void:
 	clear_tower_details(tower)
 	pending_tower_type = &""
 	pending_tower_cost = 0
+	pending_tower_is_contraband = false
 	build_mode = false
 	tower_to_place = null
 	update_play_pause_button()
@@ -2264,6 +2373,7 @@ func _on_tower_cancelled(tower: Node2D) -> void:
 
 func _on_tower_sold(tower: Node2D) -> void:
 	release_tower_build_cells(tower)
+	call_deferred("refresh_placed_tower_stats")
 
 func start_build_tower() -> void:
 	if game_ended or shop_open or build_mode or pending_tower_type.is_empty():
@@ -2292,22 +2402,24 @@ func _on_item_list_item_selected(index: int) -> void:
 		tower_list.deselect_all()
 		return
 	
-	if index < 0 or index >= tower_roster.size():
+	var selected_tower_id := get_sidebar_tower_id(index)
+	if selected_tower_id.is_empty():
 		tower_list.deselect_all()
 		return
 
-	var selected_tower_id: StringName = tower_roster[index]
+	var selected_is_contraband := index == CONTRABAND_SLOT_INDEX
 	if build_mode:
 		if selected_tower_id == pending_tower_type:
 			cancel_pending_tower_placement()
 			return
 		cancel_pending_tower_placement()
 
-	var cost: int = GameStats.get_tower(selected_tower_id)["placement_cost"]
+	var cost := get_tower_build_cost(selected_tower_id, selected_is_contraband)
 	
 	if money >= cost:
 		pending_tower_type = selected_tower_id
 		pending_tower_cost = cost
+		pending_tower_is_contraband = selected_is_contraband
 		start_build_tower()
 		tower_list.select(index)
 	else:

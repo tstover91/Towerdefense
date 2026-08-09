@@ -2,6 +2,7 @@ class_name BaseTower
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
+const RelicEffects = preload("res://relic_combat.gd")
 const DEFAULT_PROJECTILE_SCENE = preload("res://projectile.tscn")
 const SPAWNED_UNIT_SCENE = preload("res://spawned_unit.tscn")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
@@ -96,17 +97,22 @@ var drone_target_mode: DroneTargetMode = DroneTargetMode.DISTRIBUTED
 @onready var rotator: Node2D = $Rotator
 @onready var muzzle: Marker2D = $Rotator/Muzzle
 @onready var damage_timer: Timer = $Timer
+var loaded_attack_interval := 1.0
 @onready var upgrade_button: Button = $HBoxContainer/upgradetower
 @onready var path_a_button: Button = $pathui/PathA
 @onready var path_b_button: Button = $pathui/PathB
 @onready var path_confirm_button: Button = $pathui/ConfirmPath
 var tower_level := 0
+var completed_rounds_active := 0
+var qualified_for_investment_round := false
 var damage: int
 var damage_type: StringName = &""
 var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
 var noncritical_damage_multiplier := 1.0
 var last_attack_roll_was_critical := false
+var relentless_target_instance_id := 0
+var relentless_stacks := 0
 var pierce_loses_no_power := false
 var slow_duration := 0.0
 var stun_duration := 0.0
@@ -171,6 +177,8 @@ var brainiac_convergence_radius_per_arrival_pixels := 0.0
 var brainiac_convergence_damage_per_arrival := 1.0
 var brainiac_psionic_link_enabled := false
 var brainiac_link_duration := 2.0
+var brainiac_link_cooldown := 6.0
+var brainiac_link_cooldown_remaining := 0.0
 var brainiac_link_radius_pixels := 0.0
 var brainiac_link_damage_share := 0.5
 var longshot_distance_damage_enabled := false
@@ -814,7 +822,19 @@ func get_total_invested() -> int:
 func get_sell_price() -> int:
 	var placement_cost: int = GameStats.get_tower(tower_id)["placement_cost"]
 	var additional_investment := maxi(get_total_invested() - placement_cost, 0)
-	return placement_cost + floori(float(additional_investment) / 3.0)
+	var normal_sell_price := placement_cost + floori(float(additional_investment) / 3.0)
+	var investment_stacks := get_owned_relic_count(&"long_term_investment")
+	var investment_bonus := floori(
+		float(placement_cost)
+		* GameStats.LONG_TERM_INVESTMENT_RATE_PER_ROUND
+		* float(completed_rounds_active)
+		* float(investment_stacks)
+	)
+	var investment_cap := floori(
+		float(get_total_invested())
+		* GameStats.LONG_TERM_INVESTMENT_MAXIMUM_INVESTMENT_BONUS
+	)
+	return normal_sell_price + mini(investment_bonus, investment_cap)
 
 func _ready() -> void:
 	spawn_rng.randomize()
@@ -968,6 +988,7 @@ func confirm_placement() -> void:
 	$clickarea.input_pickable = true
 	$clickarea/CollisionShape2D.disabled = false
 	ensure_saucer_flyer()
+	refresh_reveal_relic_coverage()
 	damage_timer.start()
 
 
@@ -1099,18 +1120,25 @@ func load_level_stats() -> void:
 	if uses_standard_spawner_system():
 		spawned_unit_id = tower_data.get("spawned_unit_id", &"")
 		spawn_limit = maxi(int(stats.get("spawn_limit", 1)), 1)
+		if get_owned_relic_count(&"trade_agreement") > 0:
+			spawn_limit *= GameStats.TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER
 		deployment_radius_pixels = (
 			float(stats.get("deployment_radius", 1.0))
 			* RANGE_PIXELS_PER_UNIT
 		)
-		damage_timer.wait_time = maxf(float(stats.get("spawn_interval", 1.0)), 0.1)
+		var spawn_interval := float(stats.get("spawn_interval", 1.0))
+		if get_owned_relic_count(&"trade_agreement") > 0:
+			spawn_interval *= GameStats.TRADE_AGREEMENT_SPAWN_INTERVAL_MULTIPLIER
+		damage_timer.wait_time = maxf(spawn_interval, 0.1)
 		refresh_spawned_unit_stats(stats["unit_stats"])
 	else:
-		damage_timer.wait_time = stats["firerate"]
+		loaded_attack_interval = maxf(float(stats["firerate"]), 0.01)
+		damage_timer.wait_time = loaded_attack_interval
 	var range_shape := $Tower/CollisionShape2D.shape.duplicate() as CircleShape2D
 	range_radius_pixels = stats["range"] * RANGE_PIXELS_PER_UNIT
 	range_shape.radius = range_radius_pixels
 	$Tower/CollisionShape2D.shape = range_shape
+	refresh_reveal_relic_coverage()
 	queue_redraw()
 
 
@@ -1161,6 +1189,34 @@ func apply_relic_combat_stat_modifiers(
 	var interval_key := "attack_interval" if for_spawned_unit else "firerate"
 	var range_key := "aim_radius" if for_spawned_unit else "range"
 	var primary_type := get_primary_damage_type()
+	if has_type_tag(TYPE_TECHNOLOGY):
+		var network_stacks := get_owned_relic_count(&"network_upgrade")
+		if network_stacks > 0:
+			var network_speed_bonus := (
+				GameStats.NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK
+				* float(get_cardinal_adjacent_tower_count(TYPE_TECHNOLOGY))
+				* float(network_stacks)
+			)
+			stats[interval_key] = maxf(
+				float(stats[interval_key]) / (1.0 + network_speed_bonus),
+				0.01
+			)
+	if (
+		has_damage_tag(DAMAGE_MELEE)
+		and get_owned_relic_count(&"lone_wolf") > 0
+		and not has_nearby_other_tower(2.5 * BUILD_CELL_SIZE)
+	):
+		stats[damage_key] = maxi(roundi(
+			float(stats[damage_key]) * GameStats.LONE_WOLF_DAMAGE_MULTIPLIER
+		), 1)
+		stats[interval_key] = maxf(
+			float(stats[interval_key]) / GameStats.LONE_WOLF_ATTACK_SPEED_MULTIPLIER,
+			0.01
+		)
+		stats[range_key] = maxf(
+			float(stats[range_key]) * GameStats.LONE_WOLF_RANGE_MULTIPLIER,
+			0.1
+		)
 
 	if primary_type == DAMAGE_BEAM:
 		var focused_count := get_owned_relic_count(&"focused_lens")
@@ -1198,6 +1254,12 @@ func apply_relic_combat_stat_modifiers(
 			stats["slow_duration"] = maxf(
 				float(stats.get("slow_duration", 0.0)),
 				GameStats.SUPPRESSIVE_FIRE_DURATION
+			)
+		if get_owned_relic_count(&"rubber_bullets") > 0:
+			stats["bounce_count"] = maxi(int(stats.get("bounce_count", 0)), 1)
+			stats["bounce_range"] = maxf(
+				float(stats.get("bounce_range", 0.0)),
+				GameStats.RUBBER_BULLETS_BOUNCE_RANGE
 			)
 
 	if primary_type == DAMAGE_EXPLOSIVE:
@@ -1757,6 +1819,8 @@ func _on_saucer_monster_exiting(monster: Node) -> void:
 
 
 func _on_round_started(_round_number: int) -> void:
+	qualified_for_investment_round = is_placed
+	brainiac_link_cooldown_remaining = 0.0
 	if gauss_heavy_shot_enabled:
 		gauss_heavy_shot_remaining = gauss_heavy_shot_interval
 	if reaver_time_bubble_enabled:
@@ -1774,6 +1838,11 @@ func _on_round_started(_round_number: int) -> void:
 
 
 func _on_round_ended(_round_number: int) -> void:
+	if qualified_for_investment_round and is_placed:
+		completed_rounds_active += 1
+	qualified_for_investment_round = false
+	brainiac_link_cooldown_remaining = 0.0
+	update_sell_button()
 	reaver_time_bubble_active_remaining = 0.0
 	reaver_time_bubble_cooldown_remaining = 0.0
 	reaver_time_bubble_refresh_remaining = 0.0
@@ -1795,6 +1864,7 @@ func _on_round_ended(_round_number: int) -> void:
 
 
 func _exit_tree() -> void:
+	remove_reveal_source_from_all_mobs()
 	disconnect_beholder_target_observer()
 	clear_longshot_mines()
 	clear_void_singularities()
@@ -1807,6 +1877,8 @@ func _exit_tree() -> void:
 
 
 func _apply_damage() -> void:
+	if not uses_standard_spawner_system():
+		damage_timer.wait_time = get_current_attack_interval()
 	if not is_placed:
 		return
 	if tower_id == SAUCER_TOWER_ID:
@@ -1835,6 +1907,64 @@ func _apply_damage() -> void:
 	update_beholder_target_observer()
 	if is_valid_target(target):
 		attack(target)
+		# Projectile Melee attacks confirm Relentless only when the originally
+		# selected primary enemy is physically hit. This keeps Slinger pierce and
+		# bounce contacts from changing its streak.
+		if not (
+			delivery_type == GameStats.DELIVERY_PROJECTILE
+			and has_damage_tag(DAMAGE_MELEE)
+		):
+			register_relentless_primary_attack(target)
+		damage_timer.wait_time = get_current_attack_interval()
+
+
+func get_current_attack_interval() -> float:
+	var interval := loaded_attack_interval
+	var frenzy_stacks := get_owned_relic_count(&"frenzy")
+	if has_damage_tag(DAMAGE_MELEE) and frenzy_stacks > 0:
+		var enemy_count := mini(
+			count_valid_enemies_near(global_position, range_radius_pixels),
+			GameStats.FRENZY_MAXIMUM_ENEMY_COUNT
+		)
+		var speed_bonus := (
+			GameStats.FRENZY_SPEED_PER_ENEMY_PER_STACK
+			* float(enemy_count)
+			* float(frenzy_stacks)
+		)
+		interval /= 1.0 + speed_bonus
+	if (
+		has_damage_tag(DAMAGE_MELEE)
+		and get_owned_relic_count(&"relentless") > 0
+		and relentless_stacks > 0
+	):
+		interval /= (
+			1.0 + GameStats.RELENTLESS_SPEED_PER_STACK * float(relentless_stacks)
+		)
+	return maxf(interval, 0.01)
+
+
+func register_relentless_primary_attack(current_target: Node2D) -> void:
+	if (
+		not has_damage_tag(DAMAGE_MELEE)
+		or get_owned_relic_count(&"relentless") <= 0
+		or not is_valid_target(current_target)
+	):
+		reset_relentless()
+		return
+	var current_target_id := current_target.get_instance_id()
+	if current_target_id != relentless_target_instance_id:
+		relentless_target_instance_id = current_target_id
+		relentless_stacks = 1
+	else:
+		relentless_stacks = mini(
+			relentless_stacks + 1,
+			GameStats.RELENTLESS_MAXIMUM_STACKS
+		)
+
+
+func reset_relentless() -> void:
+	relentless_target_instance_id = 0
+	relentless_stacks = 0
 
 
 func has_enemy_in_orbital_target_zone() -> bool:
@@ -2144,19 +2274,92 @@ func get_attack_relic_metadata(
 		"source_position": source_position,
 		"source_range": maxf(source_range, 0.0),
 		"source_type_tags": source_type_tags.duplicate(),
+		"source_can_reveal": has_bonus_tag(BONUS_REVEAL),
+		"enemies_in_range": count_valid_enemies_near(source_position, source_range),
+		"nearby_melee_towers": mini(
+			get_nearby_tower_count(DAMAGE_MELEE, 1.5 * BUILD_CELL_SIZE),
+			GameStats.STRENGTH_IN_NUMBERS_MAXIMUM_NEIGHBORS
+		),
 		"pack_hunter": get_owned_relic_count(&"pack_hunter"),
 		"predatory_instinct": get_owned_relic_count(&"predatory_instinct"),
 		"interference_beam": get_owned_relic_count(&"interference_beam"),
+		"microwave": get_owned_relic_count(&"microwave"),
 		"hollow_point": get_owned_relic_count(&"hollow_point"),
 		"long_barrel": get_owned_relic_count(&"long_barrel"),
 		"point_blank": get_owned_relic_count(&"point_blank"),
 		"giant_killer": get_owned_relic_count(&"giant_killer"),
+		"duelist": get_owned_relic_count(&"duelist"),
+		"strength_in_numbers": get_owned_relic_count(&"strength_in_numbers"),
+		"crowd_pleaser": get_owned_relic_count(&"crowd_pleaser"),
+		"direct_hit": get_owned_relic_count(&"direct_hit"),
 		"thermite_bombs": get_owned_relic_count(&"thermite_bombs"),
+		"charred_clothes": get_owned_relic_count(&"charred_clothes"),
 		"conductive": get_owned_relic_count(&"conductive"),
 		"pressure_point": get_owned_relic_count(&"pressure_point"),
 		"big_game_control": get_owned_relic_count(&"big_game_control"),
 		"emergency_brake": get_owned_relic_count(&"emergency_brake"),
 	}
+
+
+func get_cardinal_adjacent_tower_count(required_type_tag: StringName) -> int:
+	var count := 0
+	for candidate in get_tree().get_nodes_in_group("towers"):
+		if not is_valid_neighbor_tower(candidate):
+			continue
+		if not candidate.has_type_tag(required_type_tag):
+			continue
+		var offset: Vector2 = candidate.global_position - global_position
+		var horizontal := (
+			absf(absf(offset.x) - BUILD_CELL_SIZE) <= 1.0
+			and absf(offset.y) <= 1.0
+		)
+		var vertical := (
+			absf(absf(offset.y) - BUILD_CELL_SIZE) <= 1.0
+			and absf(offset.x) <= 1.0
+		)
+		if horizontal or vertical:
+			count += 1
+	return mini(count, 4)
+
+
+func get_nearby_tower_count(required_damage_tag: StringName, radius: float) -> int:
+	var count := 0
+	for candidate in get_tree().get_nodes_in_group("towers"):
+		if not is_valid_neighbor_tower(candidate):
+			continue
+		if not candidate.has_damage_tag(required_damage_tag):
+			continue
+		if global_position.distance_to(candidate.global_position) <= radius:
+			count += 1
+	return count
+
+
+func has_nearby_other_tower(radius: float) -> bool:
+	for candidate in get_tree().get_nodes_in_group("towers"):
+		if (
+			is_valid_neighbor_tower(candidate)
+			and global_position.distance_to(candidate.global_position) <= radius
+		):
+			return true
+	return false
+
+
+func is_valid_neighbor_tower(candidate: Variant) -> bool:
+	return (
+		candidate != null
+		and candidate != self
+		and is_instance_valid(candidate)
+		and not candidate.is_queued_for_deletion()
+		and bool(candidate.get("is_placed"))
+	)
+
+
+func count_valid_enemies_near(origin: Vector2, radius: float) -> int:
+	var count := 0
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if is_valid_target(mob) and origin.distance_to(mob.global_position) <= radius:
+			count += 1
+	return count
 
 
 func get_longshot_distance_damage(current_target: Node2D) -> int:
@@ -2326,13 +2529,18 @@ func launch_brainiac_volley(
 	current_target: Node2D,
 	attack_damage: int
 ) -> void:
-	if brainiac_psionic_link_enabled and current_target.has_method("apply_brainiac_link"):
+	if (
+		brainiac_psionic_link_enabled
+		and brainiac_link_cooldown_remaining <= 0.0
+		and current_target.has_method("apply_brainiac_link")
+	):
 		current_target.apply_brainiac_link(
 			brainiac_link_duration,
 			brainiac_link_radius_pixels,
 			brainiac_link_damage_share,
 			create_attack_context(&"brainiac_link")
 		)
+		brainiac_link_cooldown_remaining = brainiac_link_cooldown
 	var aim_offset := current_target.global_position - global_position
 	if aim_offset.is_zero_approx():
 		return
@@ -2551,39 +2759,107 @@ func apply_hitscan_damage(
 		pierce_count > 0,
 		attack_context
 	)
-	if pierce_count < 1:
-		return
-	if aim_offset.is_zero_approx():
-		return
-
-	var direction := aim_offset.normalized()
-	var pierce_origin := primary_position + direction * 0.01
-	var end := origin + direction * range_radius_pixels
-	var targets := get_targets_along_line(
-		pierce_origin,
-		end,
-		current_target
-	)
-	for index in mini(targets.size(), pierce_count):
-		apply_control_effects(targets[index])
-		var pierced_damage := GameStats.get_piercing_damage(
-			attack_damage,
-			index + 1,
-			pierce_loses_no_power
+	var hit_target_ids: Dictionary = {current_target.get_instance_id(): true}
+	var last_hit_target := current_target
+	if pierce_count > 0 and not aim_offset.is_zero_approx():
+		var direction := aim_offset.normalized()
+		var pierce_origin := primary_position + direction * 0.01
+		var end := origin + direction * range_radius_pixels
+		var targets := get_targets_along_line(
+			pierce_origin,
+			end,
+			current_target
 		)
-		apply_tower_damage(
-			targets[index],
-			pierced_damage,
-			damage_type,
-			true,
-			create_attack_context(
+		for index in mini(targets.size(), pierce_count):
+			var pierced_target: Node2D = targets[index]
+			hit_target_ids[pierced_target.get_instance_id()] = true
+			last_hit_target = pierced_target
+			var pierce_context := create_attack_context(
 				&"pierce",
 				self,
 				&"tower",
 				attack_context,
 				true
 			)
+			apply_control_effects(pierced_target, pierce_context)
+			var pierced_damage := GameStats.get_piercing_damage(
+				attack_damage,
+				index + 1,
+				pierce_loses_no_power
+			)
+			apply_tower_damage(
+				pierced_target,
+				pierced_damage,
+				damage_type,
+				true,
+				pierce_context
+			)
+	apply_hitscan_bounces(
+		last_hit_target,
+		attack_damage,
+		attack_context,
+		hit_target_ids
+	)
+
+
+func apply_hitscan_bounces(
+	starting_target: Node2D,
+	attack_damage: int,
+	parent_context: AttackContext,
+	hit_target_ids: Dictionary
+) -> void:
+	if bounce_count < 1 or bounce_range_pixels <= 0.0:
+		return
+	var bounce_source := starting_target
+	for _bounce_index in bounce_count:
+		var bounce_target := get_nearest_bounce_target(
+			bounce_source.global_position,
+			hit_target_ids
 		)
+		if bounce_target == null:
+			return
+		var bounce_context := create_attack_context(
+			&"bounce",
+			self,
+			&"tower",
+			parent_context,
+			true
+		)
+		spawn_hitscan_effect(
+			bounce_source.global_position,
+			bounce_target.global_position,
+			damage_type
+		)
+		apply_control_effects(bounce_target, bounce_context)
+		apply_tower_damage(
+			bounce_target,
+			attack_damage,
+			damage_type,
+			false,
+			bounce_context
+		)
+		hit_target_ids[bounce_target.get_instance_id()] = true
+		bounce_source = bounce_target
+
+
+func get_nearest_bounce_target(
+	origin: Vector2,
+	excluded_target_ids: Dictionary
+) -> Node2D:
+	var selected_target: Node2D
+	var selected_distance := INF
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_target(candidate):
+			continue
+		if excluded_target_ids.has(candidate.get_instance_id()):
+			continue
+		var candidate_distance := origin.distance_to(candidate.global_position)
+		if candidate_distance > bounce_range_pixels:
+			continue
+		if candidate_distance < selected_distance:
+			selected_distance = candidate_distance
+			selected_target = candidate
+	return selected_target
 
 
 func spawn_hitscan_effect(
@@ -2802,6 +3078,19 @@ func get_targets_along_line(
 
 func _process(delta: float) -> void:
 	update_menu_layout()
+	if (
+		relentless_target_instance_id > 0
+		and (
+			not is_valid_target(target)
+			or target.get_instance_id() != relentless_target_instance_id
+		)
+	):
+		reset_relentless()
+	if main != null and main.round_active:
+		brainiac_link_cooldown_remaining = maxf(
+			brainiac_link_cooldown_remaining - delta,
+			0.0
+		)
 	process_gauss_spread(delta)
 	if orbital_targeting_active:
 		orbital_preview_position = get_global_mouse_position()
@@ -3128,11 +3417,14 @@ func update_menu_layout() -> void:
 func _on_body_entered(body: Node2D) -> void:
 	if body.is_in_group("mobs") and not mobs_in_range.has(body):
 		mobs_in_range.append(body)
+		apply_reveal_relics_to_mob(body)
 		if not is_valid_target(target):
 			_select_target()
 
 func _on_body_exited(body: Node2D) -> void:
 	mobs_in_range.erase(body)
+	if body.has_method("remove_global_reveal_source"):
+		body.remove_global_reveal_source(self)
 	if body == target:
 		target = null
 
@@ -3146,8 +3438,55 @@ func is_valid_target(candidate: Variant) -> bool:
 	if not valid_target:
 		return false
 	if candidate.traits.has(&"hidden"):
-		return has_bonus_tag(BONUS_REVEAL)
+		return (
+			has_bonus_tag(BONUS_REVEAL)
+			or (
+				candidate.has_method("is_revealed_for_all")
+				and candidate.is_revealed_for_all()
+			)
+		)
 	return true
+
+
+func refresh_reveal_relic_coverage() -> void:
+	remove_reveal_source_from_all_mobs()
+	if not is_placed or not has_bonus_tag(BONUS_REVEAL):
+		return
+	for mob in mobs_in_range:
+		if (
+			is_instance_valid(mob)
+			and not mob.is_queued_for_deletion()
+			and global_position.distance_to(mob.global_position) <= range_radius_pixels
+		):
+			apply_reveal_relics_to_mob(mob)
+
+
+func apply_reveal_relics_to_mob(mob: Node) -> void:
+	if (
+		not is_instance_valid(mob)
+		or not has_bonus_tag(BONUS_REVEAL)
+		or not mob.get("traits").has(&"hidden")
+	):
+		return
+	if get_owned_relic_count(&"perfect_intelligence") > 0:
+		if mob.has_method("remove_hidden_trait"):
+			mob.remove_hidden_trait()
+		else:
+			mob.get("traits").erase(&"hidden")
+		return
+	if (
+		get_owned_relic_count(&"spotter") > 0
+		and mob.has_method("add_global_reveal_source")
+	):
+		mob.add_global_reveal_source(self)
+
+
+func remove_reveal_source_from_all_mobs() -> void:
+	if not is_inside_tree():
+		return
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if is_instance_valid(mob) and mob.has_method("remove_global_reveal_source"):
+			mob.remove_global_reveal_source(self)
 
 
 func _select_target() -> void:
@@ -3437,14 +3776,19 @@ func _on_beholder_target_died(killed_mob: Node2D) -> void:
 
 
 func trigger_beholder_death_explosion(center: Vector2, explosion_damage: int) -> void:
-	var explosion_context := create_attack_context(&"beholder_death_explosion")
+	var explosion_context := RelicEffects.prepare_explosion_context(
+		create_attack_context(&"beholder_death_explosion"),
+		get_tree(),
+		center,
+		beholder_death_explosion_radius_pixels
+	)
 	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
 		var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
 		get_tree().current_scene.add_child(explosion_zone)
 		explosion_zone.global_position = center
 		explosion_zone.setup(beholder_death_explosion_radius_pixels)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_target(mob):
+		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_from_center: float = mob.global_position.distance_to(center)
 		if distance_from_center > beholder_death_explosion_radius_pixels:
@@ -3590,6 +3934,7 @@ func _on_selltower_pressed() -> void:
 		return
 
 	main.add_money(get_sell_price())
+	is_placed = false
 	tower_sold.emit(self)
 	close_menus()
 	queue_free()
@@ -3684,6 +4029,7 @@ func load_path_behaviors() -> void:
 	var previous_energy_shockwave_remaining := energy_shockwave_remaining
 	var previous_reaver_bubble_active := reaver_time_bubble_active_remaining
 	var previous_reaver_bubble_cooldown := reaver_time_bubble_cooldown_remaining
+	var previous_brainiac_link_cooldown := brainiac_link_cooldown_remaining
 	infinite_pierce = false
 	continuous_beam_enabled = false
 	dual_weapons_enabled = false
@@ -3713,6 +4059,7 @@ func load_path_behaviors() -> void:
 	brainiac_convergence_damage_per_arrival = 1.0
 	brainiac_psionic_link_enabled = false
 	brainiac_link_duration = 2.0
+	brainiac_link_cooldown = 6.0
 	brainiac_link_radius_pixels = 0.0
 	brainiac_link_damage_share = 0.5
 	longshot_distance_damage_enabled = false
@@ -3854,6 +4201,10 @@ func load_path_behaviors() -> void:
 			brainiac_psionic_link_enabled = true
 			brainiac_link_duration = maxf(
 				float(values.get("brainiac_link_duration", 2.0)),
+				0.01
+			)
+			brainiac_link_cooldown = maxf(
+				float(values.get("brainiac_link_cooldown", 6.0)),
 				0.01
 			)
 			brainiac_link_radius_pixels = (
@@ -4014,7 +4365,15 @@ func load_path_behaviors() -> void:
 			)
 	if has_damage_tag(DAMAGE_BEAM) and get_owned_relic_count(&"death_ray") > 0:
 		infinite_pierce = true
+	apply_psionic_relic_behavior_modifiers()
 	apply_explosive_relic_behavior_modifiers()
+	if brainiac_psionic_link_enabled:
+		brainiac_link_cooldown_remaining = minf(
+			previous_brainiac_link_cooldown,
+			brainiac_link_cooldown
+		)
+	else:
+		brainiac_link_cooldown_remaining = 0.0
 	if gauss_heavy_shot_enabled:
 		gauss_heavy_shot_remaining = (
 			minf(previous_heavy_shot_remaining, gauss_heavy_shot_interval)
@@ -4067,6 +4426,30 @@ func load_path_behaviors() -> void:
 		)
 	else:
 		energy_shockwave_remaining = 0.0
+
+
+func apply_psionic_relic_behavior_modifiers() -> void:
+	if not has_bonus_tag(BONUS_PSIONIC):
+		return
+	var lingering_count := get_owned_relic_count(&"lingering_thoughts")
+	var quick_count := get_owned_relic_count(&"quick_thinking")
+	var duration_multiplier := (
+		pow(GameStats.LINGERING_THOUGHTS_DURATION_MULTIPLIER, lingering_count)
+		* pow(GameStats.QUICK_THINKING_DURATION_MULTIPLIER, quick_count)
+	)
+	var cooldown_multiplier := pow(
+		GameStats.QUICK_THINKING_COOLDOWN_MULTIPLIER,
+		quick_count
+	)
+	if reaver_time_bubble_enabled:
+		reaver_time_bubble_active_duration *= duration_multiplier
+		reaver_time_bubble_cooldown *= cooldown_multiplier
+	if brainiac_psionic_link_enabled:
+		brainiac_link_duration *= duration_multiplier
+		brainiac_link_cooldown *= cooldown_multiplier
+	if void_singularity_enabled:
+		void_singularity_pull_duration *= duration_multiplier
+		void_singularity_cooldown *= cooldown_multiplier
 
 
 func apply_explosive_relic_behavior_modifiers() -> void:

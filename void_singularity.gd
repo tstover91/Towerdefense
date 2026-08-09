@@ -2,6 +2,7 @@ class_name VoidSingularity
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
+const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const VOID_CALLER_TOWER_ID: StringName = &"voidcaller"
 
@@ -120,8 +121,14 @@ func explode() -> void:
 		return
 	resolving = true
 	spawn_explosion_zone()
+	var resolved_context := RelicEffects.prepare_explosion_context(
+		attack_context,
+		get_tree(),
+		global_position,
+		explosion_radius
+	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_mob(mob):
+		if not RelicEffects.is_valid_explosion_target(mob, resolved_context):
 			continue
 		var distance_from_center: float = global_position.distance_to(mob.global_position)
 		if distance_from_center > explosion_radius:
@@ -137,10 +144,10 @@ func explode() -> void:
 				&"explosive",
 				false,
 				VOID_CALLER_TOWER_ID,
-				attack_context
+				resolved_context
 			)
 		else:
-			mob.apply_damage(dealt_damage, &"explosive", false, true, attack_context)
+			mob.apply_damage(dealt_damage, &"explosive", false, true, resolved_context)
 	finished.emit(self)
 	queue_free()
 
@@ -169,4 +176,10 @@ func is_valid_mob(candidate: Variant) -> bool:
 		and not candidate.is_queued_for_deletion()
 		and not candidate.finished
 	)
-	return valid_mob and not candidate.traits.has(&"hidden")
+	return valid_mob and (
+		not candidate.traits.has(&"hidden")
+		or (
+			candidate.has_method("is_revealed_for_all")
+			and candidate.is_revealed_for_all()
+		)
+	)

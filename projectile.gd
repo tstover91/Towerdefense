@@ -2,12 +2,15 @@ class_name TowerProjectile
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
+const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const PROJECTILE_RADIUS := 3.0
 
 signal destination_reached(projectile: Node2D)
 
 var primary_target: Node2D
+var original_primary_target_instance_id := 0
+var relentless_primary_hit_registered := false
 var impact_position := Vector2.ZERO
 var direction := Vector2.RIGHT
 var speed := 600.0
@@ -41,6 +44,7 @@ var piercing_after_primary := false
 var first_contact_made := false
 var hit_target_ids: Dictionary = {}
 var contact_splash_hit_target_ids: Dictionary = {}
+var segment_started_bounce := false
 
 
 func _ready() -> void:
@@ -73,6 +77,11 @@ func setup(
 	attack_ownership_context: AttackContext = null
 ) -> void:
 	primary_target = target_node
+	original_primary_target_instance_id = (
+		target_node.get_instance_id()
+		if is_instance_valid(target_node)
+		else 0
+	)
 	impact_position = target_position
 	var aim_offset := impact_position - global_position
 	if not aim_offset.is_zero_approx():
@@ -166,6 +175,9 @@ func process_primary_travel(delta: float) -> void:
 			impact_mode == GameStats.IMPACT_FIRST_CONTACT
 			and resolve_first_contact_segment(start, end)
 		):
+			if segment_started_bounce:
+				segment_started_bounce = false
+				return
 			global_position = end
 			queue_free()
 			return
@@ -213,6 +225,7 @@ func resolve_primary_impact() -> void:
 
 	hit_target_ids[primary_target.get_instance_id()] = true
 	apply_damage_and_effects(primary_target, pierce_count > 0 or infinite_pierce, damage)
+	register_relentless_primary_contact(primary_target)
 	if contact_explosions_enabled:
 		resolve_contact_explosion(impact_position, damage)
 	pierce_chain_hit_count = 1
@@ -242,6 +255,7 @@ func begin_next_bounce() -> bool:
 			true
 		)
 	primary_target = next_target
+	impact_mode = GameStats.IMPACT_PRIMARY
 	impact_position = next_target.global_position
 	var aim_offset := impact_position - global_position
 	if not aim_offset.is_zero_approx():
@@ -259,7 +273,14 @@ func get_nearest_bounce_target() -> Node2D:
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(candidate):
 			continue
-		if candidate.traits.has(&"hidden") and not can_hit_hidden:
+		if (
+			candidate.traits.has(&"hidden")
+			and not can_hit_hidden
+			and not (
+				candidate.has_method("is_revealed_for_all")
+				and candidate.is_revealed_for_all()
+			)
+		):
 			continue
 		if hit_target_ids.has(candidate.get_instance_id()):
 			continue
@@ -324,6 +345,7 @@ func resolve_pierce_segment(start: Vector2, end: Vector2) -> bool:
 			&"",
 			derive_attack_context(&"pierce")
 		)
+		register_relentless_primary_contact(mob)
 		if contact_explosions_enabled:
 			resolve_contact_explosion(mob.global_position, pierced_damage)
 		pierce_chain_hit_count += 1
@@ -359,6 +381,7 @@ func resolve_first_contact_segment(start: Vector2, end: Vector2) -> bool:
 				else attack_context
 			)
 		)
+		register_relentless_primary_contact(mob)
 		if contact_explosions_enabled:
 			resolve_contact_explosion(mob.global_position, contact_damage)
 		pierce_chain_hit_count += 1
@@ -366,6 +389,9 @@ func resolve_first_contact_segment(start: Vector2, end: Vector2) -> bool:
 		if not infinite_pierce:
 			remaining_pierce_hits -= 1
 			if remaining_pierce_hits <= 0:
+				global_position = mob.global_position
+				if begin_next_bounce():
+					segment_started_bounce = true
 				return true
 	return false
 
@@ -381,7 +407,14 @@ func get_segment_candidates(start: Vector2, end: Vector2) -> Array[Dictionary]:
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(mob) or hit_target_ids.has(mob.get_instance_id()):
 			continue
-		if mob.traits.has(&"hidden") and not can_hit_hidden:
+		if (
+			mob.traits.has(&"hidden")
+			and not can_hit_hidden
+			and not (
+				mob.has_method("is_revealed_for_all")
+				and mob.is_revealed_for_all()
+			)
+		):
 			continue
 		var distance_along_segment: float = (
 			mob.global_position - start
@@ -419,9 +452,14 @@ func resolve_contact_explosion(center: Vector2, explosion_damage: int) -> void:
 		float(explosion_damage) * contact_explosion_damage_multiplier
 	), 1)
 	spawn_explosion_zone(center, contact_explosion_radius)
-	var explosion_context := derive_attack_context(&"contact_explosion")
+	var explosion_context := RelicEffects.prepare_explosion_context(
+		derive_attack_context(&"contact_explosion"),
+		get_tree(),
+		center,
+		contact_explosion_radius
+	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_target(mob):
+		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var target_id: int = mob.get_instance_id()
 		if contact_splash_hit_target_ids.has(target_id):
@@ -451,9 +489,14 @@ func resolve_explosion_with_stats(
 	explosion_damage_type: StringName
 ) -> void:
 	spawn_explosion_zone(center, explosion_radius)
-	var explosion_context := derive_attack_context(&"explosion")
+	var explosion_context := RelicEffects.prepare_explosion_context(
+		derive_attack_context(&"explosion"),
+		get_tree(),
+		center,
+		explosion_radius
+	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_target(mob):
+		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_from_center: float = mob.global_position.distance_to(center)
 		if distance_from_center > explosion_radius:
@@ -525,6 +568,29 @@ func derive_attack_context(derived_attack_kind: StringName) -> AttackContext:
 	)
 
 
+func register_relentless_primary_contact(hit_mob: Node) -> void:
+	if (
+		relentless_primary_hit_registered
+		or original_primary_target_instance_id <= 0
+		or not is_instance_valid(hit_mob)
+		or hit_mob.get_instance_id() != original_primary_target_instance_id
+		or attack_context == null
+	):
+		return
+	var root_tower := attack_context.get_root_tower()
+	if (
+		root_tower == null
+		or not is_instance_valid(root_tower)
+		or root_tower.is_queued_for_deletion()
+		or not root_tower.has_method("register_relentless_primary_attack")
+	):
+		return
+	relentless_primary_hit_registered = true
+	root_tower.register_relentless_primary_attack(hit_mob)
+	if root_tower.has_method("get_current_attack_interval"):
+		root_tower.damage_timer.wait_time = root_tower.get_current_attack_interval()
+
+
 func get_target_hit_radius(candidate: Node) -> float:
 	if candidate.has_method("get_projectile_hit_radius"):
 		return candidate.get_projectile_hit_radius()
@@ -541,5 +607,11 @@ func is_valid_target(candidate: Variant) -> bool:
 	if not valid_target:
 		return false
 	if candidate.traits.has(&"hidden"):
-		return can_hit_hidden
+		return (
+			can_hit_hidden
+			or (
+				candidate.has_method("is_revealed_for_all")
+				and candidate.is_revealed_for_all()
+			)
+		)
 	return true

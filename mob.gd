@@ -1,6 +1,8 @@
 extends CharacterBody2D
 
 const GameStats = preload("res://stat_database.gd")
+const RelicEffects = preload("res://relic_combat.gd")
+const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const STUN_FATIGUE_MULTIPLIERS := [1.0, 0.65, 0.40, 0.25, 0.10]
 const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
 
@@ -26,6 +28,7 @@ var wave_number := 1
 var health_multiplier := 1.0
 var spawn_variant: StringName = &"normal"
 var traits: Array[StringName] = []
+var global_reveal_sources: Dictionary = {}
 var health: int
 var max_health: int
 @onready var health_bar: ProgressBar = $HealthBarAnchor/HealthBar
@@ -408,6 +411,12 @@ func apply_damage(
 ) -> int:
 	if finished:
 		return 0
+	if (
+		damage_type == &"explosive"
+		and attack_context != null
+		and int(attack_context.metadata.get("charred_clothes", 0)) > 0
+	):
+		remove_hidden_trait()
 	amount = apply_relic_damage_modifiers(amount, damage_type, attack_context)
 	if (
 		attack_context != null
@@ -446,6 +455,12 @@ func apply_damage(
 	damage_received.emit(self, received_damage, attack_context)
 
 	if health <= 0:
+		if (
+			damage_type == &"beam"
+			and attack_context != null
+			and int(attack_context.metadata.get("microwave", 0)) > 0
+		):
+			trigger_microwave_explosion(final_damage, attack_context)
 		die(attack_context)
 	if should_spread and received_damage > 0:
 		spread_brainiac_damage(
@@ -455,6 +470,63 @@ func apply_damage(
 			attack_context
 		)
 	return received_damage
+
+
+func trigger_microwave_explosion(
+	killing_beam_damage: int,
+	beam_context: AttackContext
+) -> void:
+	var explosion_damage := mini(
+		maxi(roundi(float(max_health) * GameStats.MICROWAVE_MAX_HEALTH_DAMAGE_RATIO), 1),
+		maxi(roundi(
+			float(killing_beam_damage)
+			* GameStats.MICROWAVE_BEAM_DAMAGE_CAP_MULTIPLIER
+		), 1)
+	)
+	var explosion_context := beam_context.derive(
+		self,
+		&"defeated_enemy",
+		&"microwave_explosion",
+		true
+	)
+	explosion_context = RelicEffects.prepare_explosion_context(
+		explosion_context,
+		get_tree(),
+		global_position,
+		GameStats.MICROWAVE_EXPLOSION_RADIUS,
+		self
+	)
+	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
+		var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
+		get_tree().current_scene.add_child(explosion_zone)
+		explosion_zone.global_position = global_position
+		explosion_zone.setup(GameStats.MICROWAVE_EXPLOSION_RADIUS)
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if (
+			candidate == self
+			or not RelicEffects.is_valid_explosion_target(
+				candidate,
+				explosion_context
+			)
+		):
+			continue
+		var distance_from_center: float = global_position.distance_to(
+			candidate.global_position
+		)
+		if distance_from_center > GameStats.MICROWAVE_EXPLOSION_RADIUS:
+			continue
+		var dealt_damage := GameStats.get_explosion_damage(
+			explosion_damage,
+			distance_from_center,
+			GameStats.MICROWAVE_EXPLOSION_RADIUS
+		)
+		candidate.apply_damage_from_tower(
+			dealt_damage,
+			&"explosive",
+			false,
+			beam_context.root_tower_type,
+			explosion_context
+		)
 
 
 func apply_relic_damage_modifiers(
@@ -532,6 +604,51 @@ func apply_relic_damage_modifiers(
 			if traits.has(&"elite") or traits.has(&"boss")
 			else GameStats.GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER
 		)
+	if damage_type == &"melee":
+		var enemy_count := int(metadata.get("enemies_in_range", 0))
+		var duelist_count := int(metadata.get("duelist", 0))
+		if duelist_count > 0:
+			if enemy_count == 1:
+				multiplier *= (
+					1.0
+					+ GameStats.DUELIST_ONE_ENEMY_DAMAGE_PER_STACK
+						* float(duelist_count)
+				)
+			elif enemy_count == 2:
+				multiplier *= (
+					1.0
+					+ GameStats.DUELIST_TWO_ENEMY_DAMAGE_PER_STACK
+						* float(duelist_count)
+				)
+		if int(metadata.get("strength_in_numbers", 0)) > 0:
+			multiplier *= (
+				1.0
+				+ GameStats.STRENGTH_IN_NUMBERS_DAMAGE_PER_NEIGHBOR
+					* float(int(metadata.get("nearby_melee_towers", 0)))
+			)
+
+	if damage_type == &"explosive":
+		var explosion_target_count := int(metadata.get("explosion_target_count", 0))
+		if (
+			explosion_target_count > 0
+			and int(metadata.get("crowd_pleaser", 0)) > 0
+		):
+			multiplier *= (
+				1.0
+				+ minf(
+					GameStats.CROWD_PLEASER_DAMAGE_PER_ENEMY
+						* float(explosion_target_count),
+					GameStats.CROWD_PLEASER_MAXIMUM_DAMAGE_BONUS
+				)
+			)
+		if int(metadata.get("direct_hit", 0)) > 0:
+			match explosion_target_count:
+				1:
+					multiplier *= 1.60
+				2:
+					multiplier *= 1.30
+				3:
+					multiplier *= 1.15
 
 	if (
 		damage_type == &"explosive"
@@ -590,7 +707,13 @@ func spread_brainiac_damage(
 			or candidate.finished
 		):
 			continue
-		if candidate.traits.has(&"hidden"):
+		if (
+			candidate.traits.has(&"hidden")
+			and not (
+				candidate.has_method("is_revealed_for_all")
+				and candidate.is_revealed_for_all()
+			)
+		):
 			continue
 		if candidate.global_position.distance_to(center) > brainiac_link_radius:
 			continue
@@ -625,3 +748,39 @@ func get_projectile_hit_radius() -> float:
 	if collision_shape is RectangleShape2D:
 		return collision_shape.size.length() * 0.5 * variant_radius_multiplier
 	return 12.0 * variant_radius_multiplier
+
+
+func add_global_reveal_source(source: Node) -> void:
+	if not traits.has(&"hidden") or not is_instance_valid(source):
+		return
+	global_reveal_sources[source.get_instance_id()] = weakref(source)
+
+
+func remove_global_reveal_source(source: Node) -> void:
+	if source == null:
+		return
+	global_reveal_sources.erase(source.get_instance_id())
+
+
+func is_revealed_for_all() -> bool:
+	if not traits.has(&"hidden"):
+		return true
+	var stale_source_ids: Array[int] = []
+	for source_id in global_reveal_sources:
+		var source_reference: WeakRef = global_reveal_sources[source_id]
+		var source: Variant = source_reference.get_ref()
+		if (
+			source == null
+			or not is_instance_valid(source)
+			or source.is_queued_for_deletion()
+			or not bool(source.get("is_placed"))
+		):
+			stale_source_ids.append(int(source_id))
+	for source_id in stale_source_ids:
+		global_reveal_sources.erase(source_id)
+	return not global_reveal_sources.is_empty()
+
+
+func remove_hidden_trait() -> void:
+	traits.erase(&"hidden")
+	global_reveal_sources.clear()

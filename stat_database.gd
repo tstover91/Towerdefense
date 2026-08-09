@@ -61,6 +61,28 @@ const OPENING_SHOT_CHANCE_PER_STACK := 0.20
 const BIG_GAME_CONTROL_ELITE_DURATION_PER_STACK := 1.25
 const BIG_GAME_CONTROL_NORMAL_DURATION_PER_STACK := 0.75
 const EMERGENCY_BRAKE_DURATION_PER_STACK := 1.35
+const LONG_TERM_INVESTMENT_RATE_PER_ROUND := 0.05
+const LONG_TERM_INVESTMENT_MAXIMUM_INVESTMENT_BONUS := 0.50
+const NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK := 0.08
+const FRENZY_SPEED_PER_ENEMY_PER_STACK := 0.04
+const FRENZY_MAXIMUM_ENEMY_COUNT := 10
+const DUELIST_ONE_ENEMY_DAMAGE_PER_STACK := 0.30
+const DUELIST_TWO_ENEMY_DAMAGE_PER_STACK := 0.15
+const STRENGTH_IN_NUMBERS_DAMAGE_PER_NEIGHBOR := 0.15
+const STRENGTH_IN_NUMBERS_MAXIMUM_NEIGHBORS := 4
+const LONE_WOLF_DAMAGE_MULTIPLIER := 1.50
+const LONE_WOLF_ATTACK_SPEED_MULTIPLIER := 1.35
+const LONE_WOLF_RANGE_MULTIPLIER := 1.25
+const CROWD_PLEASER_DAMAGE_PER_ENEMY := 0.08
+const CROWD_PLEASER_MAXIMUM_DAMAGE_BONUS := 1.50
+const LINGERING_THOUGHTS_DURATION_MULTIPLIER := 1.25
+const QUICK_THINKING_DURATION_MULTIPLIER := 0.80
+const QUICK_THINKING_COOLDOWN_MULTIPLIER := 0.80
+const RELENTLESS_SPEED_PER_STACK := 0.10
+const RELENTLESS_MAXIMUM_STACKS := 5
+const MICROWAVE_MAX_HEALTH_DAMAGE_RATIO := 0.30
+const MICROWAVE_BEAM_DAMAGE_CAP_MULTIPLIER := 5.0
+const MICROWAVE_EXPLOSION_RADIUS := BUILD_CELL_SIZE * 1.5
 
 const MOVEMENT_STATIONARY: StringName = &"stationary"
 const MOVEMENT_DRONE: StringName = &"drone"
@@ -111,11 +133,11 @@ const SPAWNED_UNITS := {
 }
 
 const RELICS := {
-	"long_term_investment": {"display_name": "Long-Term Investment", "description": "A tower gains sell value for every round it remains active.", "rarity": &"common", "category": &"global", "stackable": true},
+	"long_term_investment": {"display_name": "Long-Term Investment", "description": "Towers gain 5% of placement cost in sell value per completed round per stack, tracked retroactively and capped at 50% of total investment.", "rarity": &"common", "category": &"global", "stackable": true},
 	"dividends": {"display_name": "Dividends", "description": "Gain 5% interest at the end of each round, up to $500.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"holiday_sale": {"display_name": "Holiday Sale", "description": "Each round, one tower's build price is reduced by 35%; all others increase by 15%.", "rarity": &"rare", "category": &"global", "stackable": false},
-	"contraband_blueprint": {"display_name": "Contraband Blueprint", "description": "Immediately place one random tower outside your five-tower roster for free. Additional copies cannot be built.", "rarity": &"legendary", "category": &"global", "stackable": false},
-	"network_upgrade": {"display_name": "Network Upgrade", "description": "Technology towers gain attack speed for each adjacent Technology tower.", "rarity": &"common", "category": &"technology", "stackable": true},
+	"contraband_blueprint": {"display_name": "Contraband Blueprint", "description": "Adds one random tower outside your five-tower roster beneath the normal tower slots. It costs $0 to build and is removed after placement.", "rarity": &"legendary", "category": &"global", "stackable": false},
+	"network_upgrade": {"display_name": "Network Upgrade", "description": "Technology towers gain 8% attack speed per stack for each Technology tower directly above, below, left, or right of them.", "rarity": &"common", "category": &"technology", "stackable": true},
 	"singularity_core": {"display_name": "Singularity Core", "description": "Technology towers can build both final paths.", "rarity": &"legendary", "category": &"technology", "stackable": false},
 	"pack_hunter": {"display_name": "Pack Hunter", "description": "Biological attacks deal 15% more damage per stack when another Biological tower is targeting that enemy.", "rarity": &"common", "category": &"biological", "stackable": true},
 	"predatory_instinct": {"display_name": "Predatory Instinct", "description": "Biological attacks deal 50% more damage per stack to enemies at or below 25% health.", "rarity": &"common", "category": &"biological", "stackable": true},
@@ -123,7 +145,7 @@ const RELICS := {
 	"focused_lens": {"display_name": "Focused Lens", "description": "Beam damage increases by 20%, but range is reduced by 10%.", "rarity": &"common", "category": &"beam", "stackable": true},
 	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases by 20%, but damage is reduced by 10%.", "rarity": &"common", "category": &"beam", "stackable": true},
 	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal 35% more damage to slowed or stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
-	"microwave": {"display_name": "Microwave", "description": "Enemies damaged by beams explode on death.", "rarity": &"rare", "category": &"beam", "stackable": false},
+	"microwave": {"display_name": "Microwave", "description": "An enemy killed by Beam damage explodes for 30% of its maximum health, capped at five times the killing damage.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"death_ray": {"display_name": "Death Ray", "description": "Beams gain infinite Pierce, but turn speed is reduced to 90 degrees per second.", "rarity": &"legendary", "category": &"beam", "stackable": false},
 	"hollow_point": {"display_name": "Hollow Point", "description": "Ballistic attacks deal 25% more damage per stack to full-health enemies.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"heavy_rounds": {"display_name": "Heavy Rounds", "description": "Ballistic damage increases by 25%, but attacks take 15% longer.", "rarity": &"common", "category": &"ballistic", "stackable": true},
@@ -132,38 +154,45 @@ const RELICS := {
 	"point_blank": {"display_name": "Point Blank", "description": "Ballistic damage gains up to 30% per stack at close range.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"armor_piercing": {"display_name": "Armor Piercing", "description": "Ballistic attacks gain Pierce 1.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"suppressive_fire": {"display_name": "Suppressive Fire", "description": "Ballistic attacks slow enemies for at least 0.75 seconds.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
-	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce one time.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
+	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce once to another enemy within 3 tiles.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
 	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
-	"frenzy": {"display_name": "Frenzy", "description": "Melee towers attack faster for each enemy in range.", "rarity": &"common", "category": &"melee", "stackable": true},
-	"duelist": {"display_name": "Duelist", "description": "Melee towers deal increased damage when fewer enemies are in range.", "rarity": &"common", "category": &"melee", "stackable": true},
-	"relentless": {"display_name": "Relentless", "description": "Attack speed increases for each hit on the same enemy and resets when the target changes.", "rarity": &"rare", "category": &"melee", "stackable": false},
+	"frenzy": {"display_name": "Frenzy", "description": "Melee attacks become 4% faster per enemy in range per stack, counting up to 10 enemies.", "rarity": &"common", "category": &"melee", "stackable": true},
+	"duelist": {"display_name": "Duelist", "description": "Melee damage gains 30% per stack with one enemy in range or 15% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true},
+	"relentless": {"display_name": "Relentless", "description": "Gain 10% Melee attack speed after each attack against the same primary target, up to five stacks. Changing targets resets it.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"giant_killer": {"display_name": "Giant Killer", "description": "Melee attacks deal 50% more damage to elites and bosses, but 35% less to normal enemies.", "rarity": &"rare", "category": &"melee", "stackable": false},
-	"strength_in_numbers": {"display_name": "Strength in Numbers", "description": "Gain increased damage for each adjacent Melee tower.", "rarity": &"rare", "category": &"melee", "stackable": false},
-	"lone_wolf": {"display_name": "Lone Wolf", "description": "Gain greatly increased stats when no other towers are nearby.", "rarity": &"legendary", "category": &"melee", "stackable": false},
+	"strength_in_numbers": {"display_name": "Strength in Numbers", "description": "Gain 15% Melee damage per nearby Melee tower, counting up to four.", "rarity": &"rare", "category": &"melee", "stackable": false},
+	"lone_wolf": {"display_name": "Lone Wolf", "description": "Gain 50% damage, 35% attack speed, and 25% range when no other tower is within 2.5 tiles.", "rarity": &"legendary", "category": &"melee", "stackable": false},
 	"high_yield": {"display_name": "High Yield", "description": "Explosion radius increases by 25%, but damage is reduced by 15%.", "rarity": &"common", "category": &"explosive", "stackable": true},
 	"concentrated_charge": {"display_name": "Concentrated Charge", "description": "Explosion radius is reduced by 20%, but damage increases by 25%.", "rarity": &"common", "category": &"explosive", "stackable": true},
-	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosion damage increases based on how many enemies are inside the blast radius.", "rarity": &"rare", "category": &"explosive", "stackable": false},
-	"direct_hit": {"display_name": "Direct Hit", "description": "Explosion damage increases when fewer enemies are inside the blast radius.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosions gain 8% damage per enemy caught, up to 150% bonus damage.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"direct_hit": {"display_name": "Direct Hit", "description": "Explosions gain 60% damage against one target, 30% against two, or 15% against three.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"thermite_bombs": {"display_name": "Thermite Bombs", "description": "Explosions deal 35% more damage to armored enemies.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"maximum_payload": {"display_name": "Maximum Payload", "description": "Explosion damage and radius increase by 50%, but explosive cooldowns take 75% longer.", "rarity": &"rare", "category": &"explosive", "stackable": false},
-	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions remove the Hidden trait.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions can hit Hidden enemies and permanently remove Hidden from enemies they hit.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"conductive": {"display_name": "Conductive", "description": "Armor increases Electric damage instead of reducing it.", "rarity": &"common", "category": &"electric", "stackable": false},
 	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 15 percentage points.", "rarity": &"common", "category": &"critical", "stackable": true},
 	"opening_shot": {"display_name": "Opening Shot", "description": "Gain 20 percentage points of critical-hit chance per stack against full-health enemies.", "rarity": &"common", "category": &"critical", "stackable": true},
 	"glass_cannon": {"display_name": "Glass Cannon", "description": "Adds +2x critical damage, but non-critical attacks deal 30% less damage.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"pressure_point": {"display_name": "Pressure Point", "description": "Critical hits ignore armor.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"deadeye": {"display_name": "Deadeye", "description": "Adds +2x to the critical-hit multiplier.", "rarity": &"rare", "category": &"critical", "stackable": false},
-	"lingering_thoughts": {"display_name": "Lingering Thoughts", "description": "Psionic abilities last longer.", "rarity": &"common", "category": &"psionic", "stackable": true},
-	"quick_thinking": {"display_name": "Quick Thinking", "description": "Psionic abilities have shorter duration and shorter cooldown.", "rarity": &"common", "category": &"psionic", "stackable": true},
-	"spotter": {"display_name": "Spotter", "description": "Enemies revealed by one tower can be targeted by all towers while revealed.", "rarity": &"common", "category": &"reveal", "stackable": false},
-	"perfect_intelligence": {"display_name": "Perfect Intelligence", "description": "Once revealed by a tower, an enemy permanently loses the Hidden trait.", "rarity": &"rare", "category": &"reveal", "stackable": false},
+	"lingering_thoughts": {"display_name": "Lingering Thoughts", "description": "Psionic abilities last 25% longer per stack.", "rarity": &"common", "category": &"psionic", "stackable": true},
+	"quick_thinking": {"display_name": "Quick Thinking", "description": "Psionic duration and cooldown are both reduced by 20% per stack.", "rarity": &"common", "category": &"psionic", "stackable": true},
+	"spotter": {"display_name": "Spotter", "description": "Hidden enemies inside any Reveal tower's range can be targeted by all towers until they leave every Reveal range.", "rarity": &"common", "category": &"reveal", "stackable": false},
+	"perfect_intelligence": {"display_name": "Perfect Intelligence", "description": "A Hidden enemy permanently loses Hidden when it enters any Reveal tower's range.", "rarity": &"rare", "category": &"reveal", "stackable": false},
 	"deep_penetration": {"display_name": "Deep Penetration", "description": "Adds +1 Pierce.", "rarity": &"common", "category": &"pierce", "stackable": true},
 	"follow_through": {"display_name": "Follow Through", "description": "Piercing attacks lose no power after each hit.", "rarity": &"rare", "category": &"pierce", "stackable": false},
 	"big_game_control": {"display_name": "Big Game Control", "description": "Stuns last 25% longer per stack against elites and 25% less per stack against normal enemies.", "rarity": &"common", "category": &"stun", "stackable": true},
 	"emergency_brake": {"display_name": "Emergency Brake", "description": "Stuns last 35% longer per stack against enemies with at least 130 base movement speed.", "rarity": &"common", "category": &"stun", "stackable": true},
 	"youre_not_special": {"display_name": "You're Not Special", "description": "Bosses can be stunned for 50% of the normal duration.", "rarity": &"legendary", "category": &"stun", "stackable": false},
-	"trade_agreement": {"display_name": "Trade Agreement", "description": "Spawn limit is tripled, spawn speed is reduced, and Spawner tower build costs are greatly increased.", "rarity": &"legendary", "category": &"spawner", "stackable": false},
+	"trade_agreement": {"display_name": "Trade Agreement", "description": "Hive Mother, Drone Depot, and Mech Bay gain triple spawn limits, but take 50% longer to spawn units and cost twice as much to build. Saucer is unaffected.", "rarity": &"legendary", "category": &"spawner", "stackable": false},
 }
+
+const HOLIDAY_SALE_DISCOUNT_MULTIPLIER := 0.65
+const HOLIDAY_SALE_OTHER_COST_MULTIPLIER := 1.15
+const RUBBER_BULLETS_BOUNCE_RANGE := 3.0
+const TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER := 3
+const TRADE_AGREEMENT_SPAWN_INTERVAL_MULTIPLIER := 1.5
+const TRADE_AGREEMENT_BUILD_COST_MULTIPLIER := 2.0
 
 const ENEMIES := {
 	"normal": {
@@ -758,13 +787,14 @@ const TOWERS := {
 			},
 			"b": {
 				"display_name": "Psionic Link",
-				"description": "Links Brainiac's current target. Half of the damage it receives from all towers is spread to enemies around it.",
+				"description": "Every 6 seconds, links Brainiac's current target for 2 seconds. Half of the damage it receives from all towers is spread to enemies around it.",
 				"cost": 2100,
 				"unlock_level": 4,
 				"add_bonus_tags": [&"psionic"],
 				"behavior_flags": {"brainiac_psionic_link": true},
 				"behavior_values": {
 					"brainiac_link_duration": 2.0,
+					"brainiac_link_cooldown": 6.0,
 					"brainiac_link_radius": 3.5,
 					"brainiac_link_damage_share": 0.5,
 				},

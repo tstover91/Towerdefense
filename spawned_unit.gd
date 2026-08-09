@@ -2,6 +2,7 @@ class_name SpawnedUnit
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
+const RelicEffects = preload("res://relic_combat.gd")
 const PROJECTILE_SCENE = preload("res://projectile.tscn")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
@@ -28,6 +29,8 @@ var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
 var noncritical_damage_multiplier := 1.0
 var last_attack_roll_was_critical := false
+var relentless_target_instance_id := 0
+var relentless_stacks := 0
 var pierce_loses_no_power := false
 var slow_duration := 0.0
 var stun_duration := 0.0
@@ -251,6 +254,14 @@ func _physics_process(delta: float) -> void:
 			return
 
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
+	if (
+		relentless_target_instance_id > 0
+		and (
+			not is_valid_target(target)
+			or target.get_instance_id() != relentless_target_instance_id
+		)
+	):
+		reset_relentless()
 	target_refresh_remaining = maxf(target_refresh_remaining - delta, 0.0)
 	update_continuous_beam_aim(delta)
 	match movement_type:
@@ -610,7 +621,8 @@ func try_attack_target() -> void:
 	):
 		return
 	perform_attack(target)
-	attack_cooldown = attack_interval
+	register_relentless_primary_attack(target)
+	attack_cooldown = get_current_attack_interval()
 
 
 func perform_attack(current_target: Node2D) -> void:
@@ -651,6 +663,72 @@ func get_effective_attack_radius() -> float:
 	return aim_radius_pixels
 
 
+func get_current_attack_interval() -> float:
+	var interval := attack_interval
+	if (
+		has_damage_tag(&"melee")
+		and is_instance_valid(parent_tower)
+		and parent_tower.has_method("get_owned_relic_count")
+	):
+		var frenzy_stacks := int(parent_tower.get_owned_relic_count(&"frenzy"))
+		if frenzy_stacks > 0:
+			var enemy_count := 0
+			for mob in get_tree().get_nodes_in_group("mobs"):
+				if (
+					is_valid_target(mob)
+					and global_position.distance_to(mob.global_position)
+						<= get_effective_attack_radius()
+				):
+					enemy_count += 1
+			enemy_count = mini(
+				enemy_count,
+				GameStats.FRENZY_MAXIMUM_ENEMY_COUNT
+			)
+			interval /= (
+				1.0
+				+ GameStats.FRENZY_SPEED_PER_ENEMY_PER_STACK
+					* float(enemy_count)
+					* float(frenzy_stacks)
+			)
+	if (
+		has_damage_tag(&"melee")
+		and is_instance_valid(parent_tower)
+		and parent_tower.has_method("get_owned_relic_count")
+		and int(parent_tower.get_owned_relic_count(&"relentless")) > 0
+		and relentless_stacks > 0
+	):
+		interval /= (
+			1.0 + GameStats.RELENTLESS_SPEED_PER_STACK * float(relentless_stacks)
+		)
+	return maxf(interval, 0.01)
+
+
+func register_relentless_primary_attack(current_target: Node2D) -> void:
+	if (
+		not has_damage_tag(&"melee")
+		or not is_instance_valid(parent_tower)
+		or not parent_tower.has_method("get_owned_relic_count")
+		or int(parent_tower.get_owned_relic_count(&"relentless")) <= 0
+		or not is_valid_target(current_target)
+	):
+		reset_relentless()
+		return
+	var current_target_id := current_target.get_instance_id()
+	if current_target_id != relentless_target_instance_id:
+		relentless_target_instance_id = current_target_id
+		relentless_stacks = 1
+	else:
+		relentless_stacks = mini(
+			relentless_stacks + 1,
+			GameStats.RELENTLESS_MAXIMUM_STACKS
+		)
+
+
+func reset_relentless() -> void:
+	relentless_target_instance_id = 0
+	relentless_stacks = 0
+
+
 func create_attack_context(
 	attack_kind: StringName,
 	parent_context: AttackContext = null,
@@ -680,6 +758,16 @@ func create_attack_context(
 			),
 			true
 		)
+		metadata["source_can_reveal"] = has_bonus_tag(&"reveal")
+		var local_enemy_count := 0
+		for mob in get_tree().get_nodes_in_group("mobs"):
+			if (
+				is_valid_target(mob)
+				and global_position.distance_to(mob.global_position)
+					<= get_effective_attack_radius()
+			):
+				local_enemy_count += 1
+		metadata["enemies_in_range"] = local_enemy_count
 	if include_critical_roll:
 		metadata["was_critical"] = last_attack_roll_was_critical
 	return AttackContext.from_tower(
@@ -756,9 +844,14 @@ func trigger_budget_explosion() -> void:
 		roundi(float(damage) * budget_explosion_damage_multiplier),
 		1
 	)
-	var explosion_context := create_attack_context(&"drone_payload_explosion")
+	var explosion_context := RelicEffects.prepare_explosion_context(
+		create_attack_context(&"drone_payload_explosion"),
+		get_tree(),
+		global_position,
+		budget_explosion_radius_pixels
+	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_target(mob):
+		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_to_blast: float = global_position.distance_to(mob.global_position)
 		if distance_to_blast > budget_explosion_radius_pixels:
@@ -855,32 +948,101 @@ func perform_hitscan_attack(
 		pierce_count > 0,
 		attack_context
 	)
-	if pierce_count < 1:
-		return
-	if aim_offset.is_zero_approx():
-		return
-	var direction := aim_offset.normalized()
-	var line_origin := current_target.global_position + direction * 0.01
-	var line_end := global_position + direction * aim_radius_pixels
-	var targets := get_hitscan_pierce_targets(
-		line_origin,
-		line_end,
-		current_target
+	var hit_target_ids: Dictionary = {current_target.get_instance_id(): true}
+	var last_hit_target := current_target
+	if pierce_count > 0 and not aim_offset.is_zero_approx():
+		var direction := aim_offset.normalized()
+		var line_origin := current_target.global_position + direction * 0.01
+		var line_end := global_position + direction * aim_radius_pixels
+		var targets := get_hitscan_pierce_targets(
+			line_origin,
+			line_end,
+			current_target
+		)
+		for index in mini(targets.size(), pierce_count):
+			var pierced_target: Node2D = targets[index]
+			hit_target_ids[pierced_target.get_instance_id()] = true
+			last_hit_target = pierced_target
+			var pierce_context := create_attack_context(
+				&"spawned_pierce", attack_context, true
+			)
+			apply_control_effects(pierced_target, pierce_context)
+			var pierced_damage := GameStats.get_piercing_damage(
+				attack_damage,
+				index + 1,
+				pierce_loses_no_power
+			)
+			apply_owned_damage(
+				pierced_target,
+				pierced_damage,
+				damage_type,
+				true,
+				pierce_context
+			)
+	perform_hitscan_bounces(
+		last_hit_target,
+		attack_damage,
+		damage_type,
+		attack_context,
+		hit_target_ids
 	)
-	for index in mini(targets.size(), pierce_count):
-		apply_control_effects(targets[index])
-		var pierced_damage := GameStats.get_piercing_damage(
-			attack_damage,
-			index + 1,
-			pierce_loses_no_power
+
+
+func perform_hitscan_bounces(
+	starting_target: Node2D,
+	attack_damage: int,
+	attack_damage_type: StringName,
+	parent_context: AttackContext,
+	hit_target_ids: Dictionary
+) -> void:
+	if bounce_count < 1 or bounce_range_pixels <= 0.0:
+		return
+	var bounce_source := starting_target
+	for _bounce_index in bounce_count:
+		var bounce_target := get_nearest_hitscan_bounce_target(
+			bounce_source.global_position,
+			hit_target_ids
 		)
+		if bounce_target == null:
+			return
+		var bounce_context := create_attack_context(
+			&"spawned_bounce", parent_context, true
+		)
+		spawn_hitscan_effect(
+			bounce_source.global_position,
+			bounce_target.global_position,
+			attack_damage_type
+		)
+		apply_control_effects(bounce_target, bounce_context)
 		apply_owned_damage(
-			targets[index],
-			pierced_damage,
-			damage_type,
-			true,
-			create_attack_context(&"spawned_pierce", attack_context, true)
+			bounce_target,
+			attack_damage,
+			attack_damage_type,
+			false,
+			bounce_context
 		)
+		hit_target_ids[bounce_target.get_instance_id()] = true
+		bounce_source = bounce_target
+
+
+func get_nearest_hitscan_bounce_target(
+	origin: Vector2,
+	excluded_target_ids: Dictionary
+) -> Node2D:
+	var selected_target: Node2D
+	var selected_distance := INF
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_target(candidate):
+			continue
+		if excluded_target_ids.has(candidate.get_instance_id()):
+			continue
+		var candidate_distance := origin.distance_to(candidate.global_position)
+		if candidate_distance > bounce_range_pixels:
+			continue
+		if candidate_distance < selected_distance:
+			selected_distance = candidate_distance
+			selected_target = candidate
+	return selected_target
 
 
 func spawn_hitscan_effect(
@@ -1130,7 +1292,13 @@ func is_valid_target(candidate: Variant) -> bool:
 	if not valid_target:
 		return false
 	if candidate.traits.has(&"hidden"):
-		return has_bonus_tag(&"reveal")
+		return (
+			has_bonus_tag(&"reveal")
+			or (
+				candidate.has_method("is_revealed_for_all")
+				and candidate.is_revealed_for_all()
+			)
+		)
 	return true
 
 

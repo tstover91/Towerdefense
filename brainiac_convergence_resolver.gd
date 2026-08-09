@@ -2,6 +2,7 @@ class_name BrainiacConvergenceResolver
 extends Node
 
 const GameStats = preload("res://stat_database.gd")
+const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 
 var main_ref: WeakRef
@@ -107,8 +108,14 @@ func trigger_explosion() -> void:
 		get_tree().current_scene.add_child(explosion_zone)
 		explosion_zone.global_position = convergence_position
 		explosion_zone.setup(explosion_radius)
+	var explosion_context := RelicEffects.prepare_explosion_context(
+		attack_context,
+		get_tree(),
+		convergence_position,
+		explosion_radius
+	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_target(mob):
+		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_from_center: float = (
 			mob.global_position.distance_to(convergence_position)
@@ -125,8 +132,8 @@ func trigger_explosion() -> void:
 				dealt_damage,
 				&"explosive",
 				false,
-				attack_context.root_tower_type if attack_context != null else &"brainiac",
-				attack_context
+				explosion_context.root_tower_type if explosion_context != null else &"brainiac",
+				explosion_context
 			)
 		else:
 			mob.apply_damage(
@@ -134,7 +141,7 @@ func trigger_explosion() -> void:
 				&"explosive",
 				false,
 				true,
-				attack_context
+				explosion_context
 			)
 
 
@@ -148,7 +155,13 @@ func is_valid_target(candidate: Variant) -> bool:
 		return false
 	var traits: Variant = candidate.get("traits")
 	if traits is Array and traits.has(&"hidden"):
-		return can_hit_hidden
+		return (
+			can_hit_hidden
+			or (
+				candidate.has_method("is_revealed_for_all")
+				and candidate.is_revealed_for_all()
+			)
+		)
 	return true
 
 

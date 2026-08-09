@@ -2,6 +2,7 @@ class_name LongshotMine
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
+const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const LONGSHOT_TOWER_ID: StringName = &"longshot"
 
@@ -65,8 +66,14 @@ func detonate() -> void:
 		return
 	detonating = true
 	spawn_explosion_zone()
+	var explosion_context := RelicEffects.prepare_explosion_context(
+		attack_context,
+		get_tree(),
+		global_position,
+		explosion_radius
+	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_mob(mob):
+		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_from_center: float = global_position.distance_to(mob.global_position)
 		if distance_from_center > explosion_radius:
@@ -82,10 +89,10 @@ func detonate() -> void:
 				&"explosive",
 				false,
 				LONGSHOT_TOWER_ID,
-				attack_context
+				explosion_context
 			)
 		else:
-			mob.apply_damage(dealt_damage, &"explosive", false, true, attack_context)
+			mob.apply_damage(dealt_damage, &"explosive", false, true, explosion_context)
 	detonated.emit(self)
 	queue_free()
 
@@ -106,4 +113,10 @@ func is_valid_mob(candidate: Variant) -> bool:
 		and not candidate.is_queued_for_deletion()
 		and not candidate.finished
 	)
-	return valid_mob and not candidate.traits.has(&"hidden")
+	return valid_mob and (
+		not candidate.traits.has(&"hidden")
+		or (
+			candidate.has_method("is_revealed_for_all")
+			and candidate.is_revealed_for_all()
+		)
+	)
