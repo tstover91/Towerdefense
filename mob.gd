@@ -691,8 +691,8 @@ func apply_damage_from_tower(
 func spread_brainiac_damage(
 	center: Vector2,
 	received_damage: int,
-	damage_type: StringName,
-	original_context: AttackContext
+	_damage_type: StringName,
+	_original_context: AttackContext
 ) -> void:
 	var shared_damage := maxi(
 		roundi(float(received_damage) * brainiac_link_damage_share),
@@ -719,13 +719,8 @@ func spread_brainiac_damage(
 			continue
 		# This is already a share of damage received, so armor is not applied twice.
 		var shared_context: AttackContext
-		var ownership_origin := (
-			original_context
-			if original_context != null
-			else brainiac_link_context
-		)
-		if ownership_origin != null:
-			shared_context = ownership_origin.derive(
+		if brainiac_link_context != null:
+			shared_context = brainiac_link_context.derive(
 				self,
 				&"brainiac_link",
 				&"brainiac_shared_damage",
@@ -733,7 +728,7 @@ func spread_brainiac_damage(
 			)
 		candidate.apply_damage(
 			shared_damage,
-			damage_type,
+			&"",
 			true,
 			false,
 			shared_context

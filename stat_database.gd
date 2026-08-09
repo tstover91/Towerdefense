@@ -133,15 +133,15 @@ const SPAWNED_UNITS := {
 }
 
 const RELICS := {
-	"long_term_investment": {"display_name": "Long-Term Investment", "description": "Towers gain 5% of placement cost in sell value per completed round per stack, tracked retroactively and capped at 50% of total investment.", "rarity": &"common", "category": &"global", "stackable": true},
+	"long_term_investment": {"display_name": "Long-Term Investment", "description": "Towers gain 5% of their base sell value per completed round per stack, tracked retroactively and capped at a 50% bonus.", "rarity": &"common", "category": &"global", "stackable": true},
 	"dividends": {"display_name": "Dividends", "description": "Gain 5% interest at the end of each round, up to $500.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"holiday_sale": {"display_name": "Holiday Sale", "description": "Each round, one tower's build price is reduced by 35%; all others increase by 15%.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"contraband_blueprint": {"display_name": "Contraband Blueprint", "description": "Adds one random tower outside your five-tower roster beneath the normal tower slots. It costs $0 to build and is removed after placement.", "rarity": &"legendary", "category": &"global", "stackable": false},
 	"network_upgrade": {"display_name": "Network Upgrade", "description": "Technology towers gain 8% attack speed per stack for each Technology tower directly above, below, left, or right of them.", "rarity": &"common", "category": &"technology", "stackable": true},
-	"singularity_core": {"display_name": "Singularity Core", "description": "Technology towers can build both final paths.", "rarity": &"legendary", "category": &"technology", "stackable": false},
+	"singularity_core": {"display_name": "Singularity Core", "description": "Choose one already-built Technology tower. That tower can purchase both final paths.", "rarity": &"legendary", "category": &"technology", "stackable": false},
 	"pack_hunter": {"display_name": "Pack Hunter", "description": "Biological attacks deal 15% more damage per stack when another Biological tower is targeting that enemy.", "rarity": &"common", "category": &"biological", "stackable": true},
 	"predatory_instinct": {"display_name": "Predatory Instinct", "description": "Biological attacks deal 50% more damage per stack to enemies at or below 25% health.", "rarity": &"common", "category": &"biological", "stackable": true},
-	"perfect_mutation": {"display_name": "Perfect Mutation", "description": "Biological towers can build both final paths.", "rarity": &"legendary", "category": &"biological", "stackable": false},
+	"perfect_mutation": {"display_name": "Perfect Mutation", "description": "Choose one already-built Biological tower. That tower can purchase both final paths.", "rarity": &"legendary", "category": &"biological", "stackable": false},
 	"focused_lens": {"display_name": "Focused Lens", "description": "Beam damage increases by 20%, but range is reduced by 10%.", "rarity": &"common", "category": &"beam", "stackable": true},
 	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases by 20%, but damage is reduced by 10%.", "rarity": &"common", "category": &"beam", "stackable": true},
 	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal 35% more damage to slowed or stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
@@ -167,7 +167,7 @@ const RELICS := {
 	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosions gain 8% damage per enemy caught, up to 150% bonus damage.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"direct_hit": {"display_name": "Direct Hit", "description": "Explosions gain 60% damage against one target, 30% against two, or 15% against three.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"thermite_bombs": {"display_name": "Thermite Bombs", "description": "Explosions deal 35% more damage to armored enemies.", "rarity": &"rare", "category": &"explosive", "stackable": false},
-	"maximum_payload": {"display_name": "Maximum Payload", "description": "Explosion damage and radius increase by 50%, but explosive cooldowns take 75% longer.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"maximum_payload": {"display_name": "Maximum Payload", "description": "Explosion damage and radius increase by 50%, but explosive cooldowns take 75% longer.", "rarity": &"rare", "category": &"explosive", "stackable": false, "enabled": false},
 	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions can hit Hidden enemies and permanently remove Hidden from enemies they hit.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"conductive": {"display_name": "Conductive", "description": "Armor increases Electric damage instead of reducing it.", "rarity": &"common", "category": &"electric", "stackable": false},
 	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 15 percentage points.", "rarity": &"common", "category": &"critical", "stackable": true},
@@ -193,6 +193,43 @@ const RUBBER_BULLETS_BOUNCE_RANGE := 3.0
 const TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER := 3
 const TRADE_AGREEMENT_SPAWN_INTERVAL_MULTIPLIER := 1.5
 const TRADE_AGREEMENT_BUILD_COST_MULTIPLIER := 2.0
+
+# Fixed upgraded sell values preserve the previous normal-price economy without
+# allowing temporary build-price effects to alter refunds. Level 0 is handled
+# separately using the price actually paid for that tower instance.
+const TOWER_UPGRADED_SELL_VALUES := {
+	&"invader": [125, 150, 210, 343, 626],
+	&"gauss_repeater": [450, 550, 800, 1333, 2400],
+	&"beholder": [500, 616, 900, 1500, 2700],
+	&"reaver": [150, 183, 263, 436, 786],
+	&"brainiac": [325, 398, 571, 955, 1721],
+	&"longshot": [350, 433, 633, 1066, 1933],
+	&"slinger": [175, 211, 298, 490, 873],
+	&"voidcaller": [350, 433, 641, 1108, 2041],
+	&"orbitalcannon": [700, 866, 1266, 2133, 3866],
+	&"energycore": [300, 370, 536, 903, 1636],
+	&"saucer": [525, 650, 950, 1600, 2900],
+	&"hivemother": [250, 308, 450, 766, 1400],
+	&"dronedepot": [550, 683, 1000, 1700, 3100],
+	&"mechbay": [500, 616, 900, 1516, 2750],
+}
+
+const TOWER_PATH_SELL_VALUE_ADDITIONS := {
+	&"invader": 500,
+	&"gauss_repeater": 1500,
+	&"beholder": 1666,
+	&"reaver": 600,
+	&"brainiac": 700,
+	&"longshot": 800,
+	&"slinger": 666,
+	&"voidcaller": 833,
+	&"orbitalcannon": 1400,
+	&"energycore": 733,
+	&"saucer": 1400,
+	&"hivemother": 733,
+	&"dronedepot": 1600,
+	&"mechbay": 1433,
+}
 
 const ENEMIES := {
 	"normal": {

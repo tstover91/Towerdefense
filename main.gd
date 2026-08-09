@@ -262,6 +262,7 @@ var shop_open := false
 var active_draft_type: StringName = &""
 var active_draft_offers: Array[StringName] = []
 var active_draft_choice_quantities: Dictionary = {}
+var pending_path_relic_tower_selection: StringName = &""
 var relic_refresh_count := 0
 var tower_roster: Array[StringName] = [&"invader", &"gauss_repeater"]
 var contraband_tower_id: StringName = &""
@@ -493,7 +494,13 @@ func get_round_type(wave: int) -> StringName:
 
 
 func start_round() -> void:
-	if round_active or round_number >= max_rounds or shop_open or build_mode:
+	if (
+		round_active
+		or round_number >= max_rounds
+		or shop_open
+		or build_mode
+		or is_selecting_path_relic_tower()
+	):
 		return
 	close_all_tower_menus()
 	round_number += 1
@@ -565,6 +572,9 @@ func update_round_count() -> void:
 			round_timer_display.text = "%s: Clear remaining enemies" % round_type_name
 	elif shop_open:
 		round_timer_display.text = "Draft"
+	elif is_selecting_path_relic_tower():
+		var relic := GameStats.get_relic(pending_path_relic_tower_selection)
+		round_timer_display.text = "%s: Select a tower" % relic["display_name"]
 	else:
 		round_timer_display.text = "Build Phase"
 
@@ -828,9 +838,16 @@ func roll_relic_offers() -> Array[StringName]:
 	for item_key in GameStats.RELICS:
 		var item_id := StringName(item_key)
 		var item_stats: Dictionary = GameStats.get_relic(item_id)
+		if not bool(item_stats.get("enabled", true)):
+			continue
 		if (
 			not item_stats.get("stackable", false)
 			and int(owned_shop_items.get(item_id, 0)) > 0
+		):
+			continue
+		if (
+			item_id in [&"singularity_core", &"perfect_mutation"]
+			and not has_eligible_built_tower_for_path_relic(item_id)
 		):
 			continue
 		available.append(item_id)
@@ -1031,6 +1048,9 @@ func _on_draft_confirmed(item_id: StringName, quantity: int) -> void:
 	active_draft_choice_quantities.clear()
 	relic_refresh_count = 0
 	between_round_shop.hide()
+	if item_id in [&"singularity_core", &"perfect_mutation"]:
+		begin_path_relic_tower_selection(item_id)
+		return
 	enter_build_phase()
 
 
@@ -1132,20 +1152,72 @@ func get_run_bonus(effect: StringName) -> float:
 
 
 func get_relic_count(relic_id: StringName) -> int:
+	if not bool(GameStats.get_relic(relic_id).get("enabled", true)):
+		return 0
 	return maxi(int(owned_shop_items.get(relic_id, 0)), 0)
 
 
-func can_tower_purchase_both_paths(tower: Node) -> bool:
-	if not is_instance_valid(tower):
-		return false
-	if (
-		tower.has_type_tag(&"technology")
-		and int(owned_shop_items.get(&"singularity_core", 0)) > 0
-	):
-		return true
+func is_selecting_path_relic_tower() -> bool:
+	return not pending_path_relic_tower_selection.is_empty()
+
+
+func get_path_relic_required_type(relic_id: StringName) -> StringName:
+	return &"technology" if relic_id == &"singularity_core" else &"biological"
+
+
+func is_tower_eligible_for_path_relic(tower: Node, relic_id: StringName) -> bool:
 	return (
-		tower.has_type_tag(&"biological")
-		and int(owned_shop_items.get(&"perfect_mutation", 0)) > 0
+		is_instance_valid(tower)
+		and not tower.is_queued_for_deletion()
+		and bool(tower.get("is_placed"))
+		and tower.has_method("has_type_tag")
+		and tower.has_type_tag(get_path_relic_required_type(relic_id))
+		and tower.has_method("has_path_options")
+		and tower.has_path_options()
+		and StringName(tower.get("dual_path_relic_source")).is_empty()
+	)
+
+
+func has_eligible_built_tower_for_path_relic(relic_id: StringName) -> bool:
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if is_tower_eligible_for_path_relic(tower, relic_id):
+			return true
+	return false
+
+
+func begin_path_relic_tower_selection(relic_id: StringName) -> void:
+	pending_path_relic_tower_selection = relic_id
+	close_all_tower_menus()
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if is_instance_valid(tower) and bool(tower.get("is_placed")):
+			tower.set_range_preview(
+				true,
+				is_tower_eligible_for_path_relic(tower, relic_id)
+			)
+	update_round_count()
+	update_play_pause_button()
+
+
+func try_assign_path_relic_to_tower(tower: Node) -> void:
+	if not is_selecting_path_relic_tower():
+		return
+	var relic_id := pending_path_relic_tower_selection
+	if not is_tower_eligible_for_path_relic(tower, relic_id):
+		return
+	tower.grant_dual_path_relic(relic_id)
+	pending_path_relic_tower_selection = &""
+	for candidate in get_tree().get_nodes_in_group("towers"):
+		if is_instance_valid(candidate) and bool(candidate.get("is_placed")):
+			candidate.set_range_preview(false)
+	update_round_count()
+	update_play_pause_button()
+	show_tower_details(tower)
+
+
+func can_tower_purchase_both_paths(tower: Node) -> bool:
+	return (
+		is_instance_valid(tower)
+		and not StringName(tower.get("dual_path_relic_source")).is_empty()
 	)
 
 
@@ -2143,6 +2215,8 @@ func _input(event: InputEvent) -> void:
 			finish_manual_tower_targeting(targeting_tower)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if is_selecting_path_relic_tower():
+		return
 	if event.is_action_pressed("ui_cancel") and not game_ended:
 		get_viewport().set_input_as_handled()
 		pause_menu.open_menu(owned_shop_items)
@@ -2386,6 +2460,7 @@ func start_build_tower() -> void:
 	tower_to_place = TOWER_SCENE.instantiate()
 	tower_to_place.main = self
 	tower_to_place.tower_id = pending_tower_type
+	tower_to_place.purchase_price = pending_tower_cost
 	tower_to_place.tower_confirmed.connect(_on_tower_confirmed)
 	tower_to_place.tower_cancelled.connect(_on_tower_cancelled)
 	tower_to_place.tower_sold.connect(_on_tower_sold)
@@ -2398,7 +2473,7 @@ func can_select_tower() -> bool:
 
 @warning_ignore("unused_parameter")
 func _on_item_list_item_selected(index: int) -> void:
-	if game_ended or shop_open:
+	if game_ended or shop_open or is_selecting_path_relic_tower():
 		tower_list.deselect_all()
 		return
 	
@@ -2448,7 +2523,7 @@ func update_speed_button() -> void:
 
 
 func _on_pause_button_pressed() -> void:
-	if game_ended or shop_open:
+	if game_ended or shop_open or is_selecting_path_relic_tower():
 		return
 	if round_active:
 		pause_menu.open_menu(owned_shop_items)
@@ -2470,4 +2545,6 @@ func update_play_pause_button() -> void:
 			round_number + 1,
 			max_rounds
 		)
-		pause_button.disabled = shop_open or build_mode
+		pause_button.disabled = (
+			shop_open or build_mode or is_selecting_path_relic_tower()
+		)

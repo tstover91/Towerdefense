@@ -103,6 +103,7 @@ var loaded_attack_interval := 1.0
 @onready var path_b_button: Button = $pathui/PathB
 @onready var path_confirm_button: Button = $pathui/ConfirmPath
 var tower_level := 0
+var purchase_price := -1
 var completed_rounds_active := 0
 var qualified_for_investment_round := false
 var damage: int
@@ -134,6 +135,7 @@ var combo_hit_count := 1
 var combo_stagger := 0.0
 var active_combo_sequence := 0
 var purchased_paths: Array[StringName] = []
+var dual_path_relic_source: StringName = &""
 var pending_path_choice: StringName = &""
 var gauss_maximum_spread_degrees := 0.0
 var gauss_minimum_spread_degrees := 0.0
@@ -641,11 +643,16 @@ func get_path_unlock_level(path_id: StringName) -> int:
 
 
 func can_purchase_multiple_paths() -> bool:
-	return (
-		main != null
-		and main.has_method("can_tower_purchase_both_paths")
-		and main.can_tower_purchase_both_paths(self)
-	)
+	return not dual_path_relic_source.is_empty()
+
+
+func grant_dual_path_relic(relic_id: StringName) -> void:
+	if not dual_path_relic_source.is_empty():
+		return
+	dual_path_relic_source = relic_id
+	update_menu_buttons()
+	if main != null and selected:
+		main.show_tower_details(self)
 
 
 func can_purchase_path(path_id: StringName, check_money := true) -> bool:
@@ -758,7 +765,11 @@ func get_path_status_text() -> String:
 			)
 		if tower_level < earliest_unlock:
 			return "Final paths unlock at Level %d" % earliest_unlock
-		return "Final path available"
+		return (
+			"Both final paths available"
+			if can_purchase_multiple_paths()
+			else "Final path available"
+		)
 	var names: Array[String] = []
 	for path_id in purchased_paths:
 		names.append(GameStats.get_tower_path(tower_id, path_id)["display_name"])
@@ -807,34 +818,38 @@ func configure_target_menu() -> void:
 	$targetui/button_high.visible = not drone_menu
 
 
-func get_total_invested() -> int:
-	var tower_data: Dictionary = GameStats.get_tower(tower_id)
-	var levels: Array = tower_data["levels"]
-	var total: int = tower_data["placement_cost"]
-
-	for level in range(1, tower_level + 1):
-		total += levels[level]["upgrade_cost"]
-	for path_id in purchased_paths:
-		total += int(GameStats.get_tower_path(tower_id, path_id).get("cost", 0))
-
-	return total
-
 func get_sell_price() -> int:
-	var placement_cost: int = GameStats.get_tower(tower_id)["placement_cost"]
-	var additional_investment := maxi(get_total_invested() - placement_cost, 0)
-	var normal_sell_price := placement_cost + floori(float(additional_investment) / 3.0)
+	var normal_sell_price := get_static_sell_price()
 	var investment_stacks := get_owned_relic_count(&"long_term_investment")
 	var investment_bonus := floori(
-		float(placement_cost)
+		float(normal_sell_price)
 		* GameStats.LONG_TERM_INVESTMENT_RATE_PER_ROUND
 		* float(completed_rounds_active)
 		* float(investment_stacks)
 	)
 	var investment_cap := floori(
-		float(get_total_invested())
+		float(normal_sell_price)
 		* GameStats.LONG_TERM_INVESTMENT_MAXIMUM_INVESTMENT_BONUS
 	)
 	return normal_sell_price + mini(investment_bonus, investment_cap)
+
+
+func get_static_sell_price() -> int:
+	if tower_level <= 0 and purchased_paths.is_empty():
+		return (
+			maxi(purchase_price, 0)
+			if purchase_price >= 0
+			else int(GameStats.get_tower(tower_id)["placement_cost"])
+		)
+	var level_values: Array = GameStats.TOWER_UPGRADED_SELL_VALUES.get(tower_id, [])
+	if level_values.is_empty():
+		return int(GameStats.get_tower(tower_id)["placement_cost"])
+	var level_index := mini(tower_level, level_values.size() - 1)
+	return (
+		int(level_values[level_index])
+		+ int(GameStats.TOWER_PATH_SELL_VALUE_ADDITIONS.get(tower_id, 0))
+			* purchased_paths.size()
+	)
 
 func _ready() -> void:
 	spawn_rng.randomize()
@@ -2741,11 +2756,7 @@ func apply_hitscan_damage(
 ) -> void:
 	var origin := muzzle.global_position
 	var primary_position := current_target.global_position
-	var aim_offset := primary_position - origin
-	var visual_end := primary_position
-	if pierce_count > 0 and not aim_offset.is_zero_approx():
-		visual_end = origin + aim_offset.normalized() * range_radius_pixels
-	spawn_hitscan_effect(origin, visual_end, damage_type)
+	spawn_hitscan_effect(origin, primary_position, damage_type)
 	var attack_context := provided_context
 	if attack_context == null:
 		attack_context = create_attack_context(
@@ -2760,20 +2771,34 @@ func apply_hitscan_damage(
 		attack_context
 	)
 	var hit_target_ids: Dictionary = {current_target.get_instance_id(): true}
-	var last_hit_target := current_target
-	if pierce_count > 0 and not aim_offset.is_zero_approx():
-		var direction := aim_offset.normalized()
-		var pierce_origin := primary_position + direction * 0.01
-		var end := origin + direction * range_radius_pixels
+	var bounce_result := apply_hitscan_bounces(
+		current_target,
+		origin,
+		attack_damage,
+		attack_context,
+		hit_target_ids
+	)
+	var last_hit_target: Node2D = bounce_result["target"]
+	var final_leg_origin: Vector2 = bounce_result["origin"]
+	var final_leg_distance: float = bounce_result["maximum_distance"]
+	var final_aim_offset := last_hit_target.global_position - final_leg_origin
+	if pierce_count > 0 and not final_aim_offset.is_zero_approx():
+		var direction := final_aim_offset.normalized()
+		var pierce_origin := last_hit_target.global_position + direction * 0.01
+		var end := final_leg_origin + direction * final_leg_distance
+		spawn_hitscan_effect(last_hit_target.global_position, end, damage_type)
 		var targets := get_targets_along_line(
 			pierce_origin,
 			end,
-			current_target
+			last_hit_target
 		)
-		for index in mini(targets.size(), pierce_count):
-			var pierced_target: Node2D = targets[index]
+		var pierced_hits := 0
+		for pierced_target: Node2D in targets:
+			if hit_target_ids.has(pierced_target.get_instance_id()):
+				continue
+			if pierced_hits >= pierce_count:
+				break
 			hit_target_ids[pierced_target.get_instance_id()] = true
-			last_hit_target = pierced_target
 			var pierce_context := create_attack_context(
 				&"pierce",
 				self,
@@ -2784,7 +2809,7 @@ func apply_hitscan_damage(
 			apply_control_effects(pierced_target, pierce_context)
 			var pierced_damage := GameStats.get_piercing_damage(
 				attack_damage,
-				index + 1,
+				pierced_hits + 1,
 				pierce_loses_no_power
 			)
 			apply_tower_damage(
@@ -2794,22 +2819,21 @@ func apply_hitscan_damage(
 				true,
 				pierce_context
 			)
-	apply_hitscan_bounces(
-		last_hit_target,
-		attack_damage,
-		attack_context,
-		hit_target_ids
-	)
-
-
+			pierced_hits += 1
 func apply_hitscan_bounces(
 	starting_target: Node2D,
+	starting_origin: Vector2,
 	attack_damage: int,
 	parent_context: AttackContext,
 	hit_target_ids: Dictionary
-) -> void:
+) -> Dictionary:
+	var result := {
+		"target": starting_target,
+		"origin": starting_origin,
+		"maximum_distance": range_radius_pixels,
+	}
 	if bounce_count < 1 or bounce_range_pixels <= 0.0:
-		return
+		return result
 	var bounce_source := starting_target
 	for _bounce_index in bounce_count:
 		var bounce_target := get_nearest_bounce_target(
@@ -2817,7 +2841,7 @@ func apply_hitscan_bounces(
 			hit_target_ids
 		)
 		if bounce_target == null:
-			return
+			break
 		var bounce_context := create_attack_context(
 			&"bounce",
 			self,
@@ -2835,11 +2859,15 @@ func apply_hitscan_bounces(
 			bounce_target,
 			attack_damage,
 			damage_type,
-			false,
+			pierce_count > 0 or infinite_pierce,
 			bounce_context
 		)
 		hit_target_ids[bounce_target.get_instance_id()] = true
+		result["origin"] = bounce_source.global_position
+		result["maximum_distance"] = bounce_range_pixels
 		bounce_source = bounce_target
+		result["target"] = bounce_source
+	return result
 
 
 func get_nearest_bounce_target(
@@ -3819,6 +3847,12 @@ func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 		and main != null
 		and main.can_select_tower()
 	):
+		if (
+			main.has_method("is_selecting_path_relic_tower")
+			and main.is_selecting_path_relic_tower()
+		):
+			main.try_assign_path_relic_to_tower(self)
+			return
 		main.close_all_tower_menus()
 		set_selected(true)
 

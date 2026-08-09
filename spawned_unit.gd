@@ -932,11 +932,7 @@ func perform_hitscan_attack(
 	attack_damage: int,
 	damage_type: StringName
 ) -> void:
-	var visual_end := current_target.global_position
-	var aim_offset := current_target.global_position - global_position
-	if pierce_count > 0 and not aim_offset.is_zero_approx():
-		visual_end = global_position + aim_offset.normalized() * aim_radius_pixels
-	spawn_hitscan_effect(global_position, visual_end, damage_type)
+	spawn_hitscan_effect(global_position, current_target.global_position, damage_type)
 	var attack_context := create_attack_context(
 		&"spawned_hitscan", null, false, true
 	)
@@ -949,27 +945,42 @@ func perform_hitscan_attack(
 		attack_context
 	)
 	var hit_target_ids: Dictionary = {current_target.get_instance_id(): true}
-	var last_hit_target := current_target
-	if pierce_count > 0 and not aim_offset.is_zero_approx():
-		var direction := aim_offset.normalized()
-		var line_origin := current_target.global_position + direction * 0.01
-		var line_end := global_position + direction * aim_radius_pixels
+	var bounce_result := perform_hitscan_bounces(
+		current_target,
+		global_position,
+		attack_damage,
+		damage_type,
+		attack_context,
+		hit_target_ids
+	)
+	var last_hit_target: Node2D = bounce_result["target"]
+	var final_leg_origin: Vector2 = bounce_result["origin"]
+	var final_leg_distance: float = bounce_result["maximum_distance"]
+	var final_aim_offset := last_hit_target.global_position - final_leg_origin
+	if pierce_count > 0 and not final_aim_offset.is_zero_approx():
+		var direction := final_aim_offset.normalized()
+		var line_origin := last_hit_target.global_position + direction * 0.01
+		var line_end := final_leg_origin + direction * final_leg_distance
+		spawn_hitscan_effect(last_hit_target.global_position, line_end, damage_type)
 		var targets := get_hitscan_pierce_targets(
 			line_origin,
 			line_end,
-			current_target
+			last_hit_target
 		)
-		for index in mini(targets.size(), pierce_count):
-			var pierced_target: Node2D = targets[index]
+		var pierced_hits := 0
+		for pierced_target: Node2D in targets:
+			if hit_target_ids.has(pierced_target.get_instance_id()):
+				continue
+			if pierced_hits >= pierce_count:
+				break
 			hit_target_ids[pierced_target.get_instance_id()] = true
-			last_hit_target = pierced_target
 			var pierce_context := create_attack_context(
 				&"spawned_pierce", attack_context, true
 			)
 			apply_control_effects(pierced_target, pierce_context)
 			var pierced_damage := GameStats.get_piercing_damage(
 				attack_damage,
-				index + 1,
+				pierced_hits + 1,
 				pierce_loses_no_power
 			)
 			apply_owned_damage(
@@ -979,24 +990,22 @@ func perform_hitscan_attack(
 				true,
 				pierce_context
 			)
-	perform_hitscan_bounces(
-		last_hit_target,
-		attack_damage,
-		damage_type,
-		attack_context,
-		hit_target_ids
-	)
-
-
+			pierced_hits += 1
 func perform_hitscan_bounces(
 	starting_target: Node2D,
+	starting_origin: Vector2,
 	attack_damage: int,
 	attack_damage_type: StringName,
 	parent_context: AttackContext,
 	hit_target_ids: Dictionary
-) -> void:
+) -> Dictionary:
+	var result := {
+		"target": starting_target,
+		"origin": starting_origin,
+		"maximum_distance": aim_radius_pixels,
+	}
 	if bounce_count < 1 or bounce_range_pixels <= 0.0:
-		return
+		return result
 	var bounce_source := starting_target
 	for _bounce_index in bounce_count:
 		var bounce_target := get_nearest_hitscan_bounce_target(
@@ -1004,7 +1013,7 @@ func perform_hitscan_bounces(
 			hit_target_ids
 		)
 		if bounce_target == null:
-			return
+			break
 		var bounce_context := create_attack_context(
 			&"spawned_bounce", parent_context, true
 		)
@@ -1018,11 +1027,15 @@ func perform_hitscan_bounces(
 			bounce_target,
 			attack_damage,
 			attack_damage_type,
-			false,
+			pierce_count > 0 or infinite_pierce,
 			bounce_context
 		)
 		hit_target_ids[bounce_target.get_instance_id()] = true
+		result["origin"] = bounce_source.global_position
+		result["maximum_distance"] = bounce_range_pixels
 		bounce_source = bounce_target
+		result["target"] = bounce_source
+	return result
 
 
 func get_nearest_hitscan_bounce_target(
