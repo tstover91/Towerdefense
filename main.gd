@@ -585,7 +585,13 @@ func enter_build_phase() -> void:
 
 
 func calculate_end_round_reward() -> int:
-	return 20 + round_number * 5
+	var reward := 20 + round_number * 5
+	if get_relic_count(&"dividends") > 0:
+		reward += mini(
+			floori(float(money) * GameStats.DIVIDENDS_INTEREST_RATE),
+			GameStats.DIVIDENDS_INTEREST_CAP
+		)
+	return reward
 
 
 func clear_active_projectiles() -> void:
@@ -984,8 +990,7 @@ func collect_relic(item_id: StringName, quantity := 1) -> void:
 		int(owned_shop_items.get(item_id, 0))
 		+ maxi(quantity, 1)
 	)
-	if item_id in [&"singularity_core", &"perfect_mutation"]:
-		refresh_placed_tower_stats()
+	refresh_placed_tower_stats()
 
 
 func collect_tower(tower_id: StringName) -> void:
@@ -1007,6 +1012,7 @@ func get_tower_roster_dictionary() -> Dictionary:
 func refresh_placed_tower_stats() -> void:
 	for tower in get_tree().get_nodes_in_group("towers"):
 		if is_instance_valid(tower) and tower.is_placed:
+			tower.load_base_tags()
 			tower.load_level_stats()
 			tower.update_menu_buttons()
 	refresh_tower_details()
@@ -1014,6 +1020,10 @@ func refresh_placed_tower_stats() -> void:
 
 func get_run_bonus(effect: StringName) -> float:
 	return float(run_bonuses.get(effect, 0.0))
+
+
+func get_relic_count(relic_id: StringName) -> int:
+	return maxi(int(owned_shop_items.get(relic_id, 0)), 0)
 
 
 func can_tower_purchase_both_paths(tower: Node) -> bool:

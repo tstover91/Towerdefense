@@ -26,7 +26,9 @@ var bounce_count := 0
 var bounce_range := 0.0
 var contact_explosions_enabled := false
 var contact_explosion_radius := 0.0
+var contact_explosion_damage_multiplier := 1.0
 var infinite_pierce := false
+var pierce_loses_no_power := false
 var can_hit_hidden := false
 var homing_enabled := false
 var source_tower_id: StringName = &""
@@ -64,7 +66,9 @@ func setup(
 	attack_infinite_pierce := false,
 	attack_can_hit_hidden := false,
 	attack_source_tower_id: StringName = &"",
-	attack_homing_enabled := false
+	attack_homing_enabled := false,
+	attack_pierce_loses_no_power := false,
+	attack_contact_explosion_damage_multiplier := 1.0
 ) -> void:
 	primary_target = target_node
 	impact_position = target_position
@@ -86,7 +90,12 @@ func setup(
 	bounce_range = maxf(attack_bounce_range, 0.0)
 	contact_explosions_enabled = attack_contact_explosions_enabled
 	contact_explosion_radius = maxf(attack_contact_explosion_radius, 0.0)
+	contact_explosion_damage_multiplier = maxf(
+		attack_contact_explosion_damage_multiplier,
+		0.0
+	)
 	infinite_pierce = attack_infinite_pierce
+	pierce_loses_no_power = attack_pierce_loses_no_power
 	can_hit_hidden = attack_can_hit_hidden
 	homing_enabled = attack_homing_enabled
 	source_tower_id = attack_source_tower_id
@@ -293,7 +302,8 @@ func resolve_pierce_segment(start: Vector2, end: Vector2) -> bool:
 		hit_target_ids[mob.get_instance_id()] = true
 		var pierced_damage := GameStats.get_piercing_damage(
 			damage,
-			pierce_chain_hit_count
+			pierce_chain_hit_count,
+			pierce_loses_no_power
 		)
 		apply_damage_and_effects(mob, true, pierced_damage)
 		if contact_explosions_enabled:
@@ -317,7 +327,8 @@ func resolve_first_contact_segment(start: Vector2, end: Vector2) -> bool:
 		hit_target_ids[mob.get_instance_id()] = true
 		var contact_damage := GameStats.get_piercing_damage(
 			damage,
-			pierce_chain_hit_count
+			pierce_chain_hit_count,
+			pierce_loses_no_power
 		)
 		apply_damage_and_effects(
 			mob,
@@ -380,6 +391,9 @@ func resolve_explosion(center: Vector2) -> void:
 
 
 func resolve_contact_explosion(center: Vector2, explosion_damage: int) -> void:
+	explosion_damage = maxi(roundi(
+		float(explosion_damage) * contact_explosion_damage_multiplier
+	), 1)
 	spawn_explosion_zone(center, contact_explosion_radius)
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(mob):

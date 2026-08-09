@@ -23,6 +23,8 @@ var pierce_count := 0
 var damage := 1
 var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
+var noncritical_damage_multiplier := 1.0
+var pierce_loses_no_power := false
 var slow_duration := 0.0
 var stun_duration := 0.0
 var stun_affects_bosses := false
@@ -115,6 +117,11 @@ func apply_stats(unit_stats: Dictionary) -> void:
 		var bonus_tag := StringName(tag)
 		if not bonus_tags.has(bonus_tag):
 			bonus_tags.append(bonus_tag)
+	pierce_count = maxi(int(unit_stats.get("pierce_count", pierce_count)), 0)
+	if pierce_count > 0 and not bonus_tags.has(&"pierce"):
+		bonus_tags.append(&"pierce")
+	elif pierce_count < 1:
+		bonus_tags.erase(&"pierce")
 	damage = maxi(int(unit_stats.get("damage", damage)), 1)
 	critical_chance = clampf(
 		float(unit_stats.get(
@@ -130,6 +137,14 @@ func apply_stats(unit_stats: Dictionary) -> void:
 			GameStats.DEFAULT_CRITICAL_MULTIPLIER
 		)),
 		1.0
+	)
+	noncritical_damage_multiplier = clampf(
+		float(unit_stats.get("noncritical_damage_multiplier", 1.0)),
+		0.0,
+		1.0
+	)
+	pierce_loses_no_power = bool(
+		unit_stats.get("pierce_loses_no_power", false)
 	)
 	slow_duration = maxf(float(unit_stats.get("slow_duration", 0.0)), 0.0)
 	stun_duration = maxf(float(unit_stats.get("stun_duration", 0.0)), 0.0)
@@ -584,7 +599,10 @@ func launch_projectile_volley(
 			false,
 			0.0,
 			false,
-			has_bonus_tag(&"reveal")
+			has_bonus_tag(&"reveal"),
+			&"",
+			false,
+			pierce_loses_no_power
 		)
 
 
@@ -620,7 +638,8 @@ func perform_hitscan_attack(
 		apply_control_effects(targets[index])
 		var pierced_damage := GameStats.get_piercing_damage(
 			attack_damage,
-			index + 1
+			index + 1,
+			pierce_loses_no_power
 		)
 		targets[index].apply_damage(pierced_damage, damage_type, true)
 
@@ -662,7 +681,11 @@ func perform_continuous_beam_attack(
 	for index in maximum_hits:
 		apply_control_effects(targets[index])
 		targets[index].apply_damage(
-			GameStats.get_piercing_damage(attack_damage, index),
+			GameStats.get_piercing_damage(
+				attack_damage,
+				index,
+				pierce_loses_no_power
+			),
 			damage_type,
 			true
 		)
@@ -792,7 +815,7 @@ func roll_attack_damage(current_target: Node2D = null) -> int:
 		)
 	if has_bonus_tag(&"critical") and randf() < current_critical_chance:
 		return maxi(roundi(float(damage) * critical_multiplier), 1)
-	return damage
+	return maxi(roundi(float(damage) * noncritical_damage_multiplier), 1)
 
 
 func apply_control_effects(current_target: Node) -> void:

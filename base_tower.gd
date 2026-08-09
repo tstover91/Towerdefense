@@ -95,6 +95,8 @@ var damage: int
 var damage_type: StringName = &""
 var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
+var noncritical_damage_multiplier := 1.0
+var pierce_loses_no_power := false
 var slow_duration := 0.0
 var stun_duration := 0.0
 var stun_affects_bosses := false
@@ -965,6 +967,12 @@ func load_level_stats() -> void:
 		)),
 		1.0
 	)
+	noncritical_damage_multiplier = clampf(
+		float(stats.get("noncritical_damage_multiplier", 1.0)),
+		0.0,
+		1.0
+	)
+	pierce_loses_no_power = bool(stats.get("pierce_loses_no_power", false))
 	slow_duration = maxf(float(stats.get("slow_duration", 0.0)), 0.0)
 	stun_duration = maxf(float(stats.get("stun_duration", 0.0)), 0.0)
 	stun_affects_bosses = bool(stats.get("stun_affects_bosses", false))
@@ -1090,6 +1098,7 @@ func get_effective_stats_for_level(level: int) -> Dictionary:
 			float(unit_stats["aim_radius"])
 			* get_main_multiplier(&"tower_range")
 		)
+		unit_stats = apply_relic_combat_stat_modifiers(unit_stats, true)
 		stats["unit_stats"] = unit_stats
 		stats["damage"] = unit_stats["damage"]
 		stats["firerate"] = unit_stats["attack_interval"]
@@ -1106,7 +1115,168 @@ func get_effective_stats_for_level(level: int) -> Dictionary:
 		0.01
 	)
 	stats["range"] = float(stats["range"]) * get_main_multiplier(&"tower_range")
+	stats = apply_relic_combat_stat_modifiers(stats, false)
 	return stats
+
+
+func apply_relic_combat_stat_modifiers(
+	base_stats: Dictionary,
+	for_spawned_unit: bool
+) -> Dictionary:
+	var stats := base_stats.duplicate(true)
+	var damage_key := "damage"
+	var interval_key := "attack_interval" if for_spawned_unit else "firerate"
+	var range_key := "aim_radius" if for_spawned_unit else "range"
+	var primary_type := get_primary_damage_type()
+
+	if primary_type == DAMAGE_BEAM:
+		var focused_count := get_owned_relic_count(&"focused_lens")
+		var wide_count := get_owned_relic_count(&"wide_lens")
+		stats[damage_key] = maxi(roundi(
+			float(stats[damage_key])
+			* (1.0 + GameStats.FOCUSED_LENS_DAMAGE_PER_STACK * focused_count)
+			* pow(GameStats.WIDE_LENS_DAMAGE_MULTIPLIER, wide_count)
+		), 1)
+		stats[range_key] = maxf(
+			float(stats[range_key])
+			* pow(GameStats.FOCUSED_LENS_RANGE_MULTIPLIER, focused_count)
+			* (1.0 + GameStats.WIDE_LENS_RANGE_PER_STACK * wide_count),
+			0.1
+		)
+		if get_owned_relic_count(&"death_ray") > 0:
+			stats["beam_turn_speed_degrees"] = GameStats.DEATH_RAY_TURN_SPEED_DEGREES
+			stats["infinite_pierce"] = true
+
+	if primary_type == DAMAGE_BALLISTIC:
+		var heavy_count := get_owned_relic_count(&"heavy_rounds")
+		var lightweight_count := get_owned_relic_count(&"lightweight_ammo")
+		stats[damage_key] = maxi(roundi(
+			float(stats[damage_key])
+			* pow(GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER, heavy_count)
+			* pow(GameStats.LIGHTWEIGHT_AMMO_DAMAGE_MULTIPLIER, lightweight_count)
+		), 1)
+		stats[interval_key] = maxf(
+			float(stats[interval_key])
+			* pow(GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER, heavy_count)
+			* pow(GameStats.LIGHTWEIGHT_AMMO_INTERVAL_MULTIPLIER, lightweight_count),
+			0.01
+		)
+		if get_owned_relic_count(&"suppressive_fire") > 0:
+			stats["slow_duration"] = maxf(
+				float(stats.get("slow_duration", 0.0)),
+				GameStats.SUPPRESSIVE_FIRE_DURATION
+			)
+
+	if primary_type == DAMAGE_EXPLOSIVE:
+		stats[damage_key] = maxi(roundi(
+			float(stats[damage_key]) * get_explosion_damage_multiplier()
+		), 1)
+		if stats.has("splash_radius"):
+			stats["splash_radius"] = (
+				float(stats["splash_radius"]) * get_explosion_radius_multiplier()
+			)
+		stats[interval_key] = maxf(
+			float(stats[interval_key]) * get_explosion_interval_multiplier(),
+			0.01
+		)
+	if for_spawned_unit and bool(stats.get("explode_on_damage_budget", false)):
+		stats["budget_explosion_radius"] = (
+			float(stats.get("budget_explosion_radius", 0.0))
+			* get_explosion_radius_multiplier()
+		)
+		stats["budget_explosion_damage_multiplier"] = (
+			float(stats.get("budget_explosion_damage_multiplier", 1.0))
+			* get_explosion_damage_multiplier()
+		)
+
+	if has_bonus_tag(BONUS_CRITICAL):
+		stats["critical_chance"] = clampf(
+			float(stats.get("critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE))
+			+ GameStats.LUCKY_SHOT_CHANCE_PER_STACK
+				* get_owned_relic_count(&"lucky_shot"),
+			0.0,
+			1.0
+		)
+		stats["critical_multiplier"] = maxf(
+			float(stats.get("critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER))
+			+ (
+				GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS
+				if get_owned_relic_count(&"glass_cannon") > 0
+				else 0.0
+			)
+			+ (
+				GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS
+				if get_owned_relic_count(&"deadeye") > 0
+				else 0.0
+			),
+			1.0
+		)
+		if get_owned_relic_count(&"glass_cannon") > 0:
+			stats["noncritical_damage_multiplier"] = (
+				GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER
+			)
+
+	if has_bonus_tag(BONUS_PIERCE):
+		stats["pierce_count"] = pierce_count
+		stats["pierce_loses_no_power"] = (
+			get_owned_relic_count(&"follow_through") > 0
+		)
+	if has_bonus_tag(BONUS_STUN) and get_owned_relic_count(&"youre_not_special") > 0:
+		stats["stun_affects_bosses"] = true
+	if for_spawned_unit:
+		var inherited_bonus_tags: Array = stats.get(
+			"additional_bonus_tags",
+			[]
+		).duplicate()
+		for inherited_tag in [BONUS_CRITICAL, BONUS_PIERCE, BONUS_STUN, BONUS_REVEAL]:
+			if has_bonus_tag(inherited_tag) and not inherited_bonus_tags.has(inherited_tag):
+				inherited_bonus_tags.append(inherited_tag)
+		stats["additional_bonus_tags"] = inherited_bonus_tags
+	return stats
+
+
+func get_explosion_damage_multiplier() -> float:
+	return (
+		pow(
+			GameStats.HIGH_YIELD_DAMAGE_MULTIPLIER,
+			get_owned_relic_count(&"high_yield")
+		)
+		* pow(
+			GameStats.CONCENTRATED_CHARGE_DAMAGE_MULTIPLIER,
+			get_owned_relic_count(&"concentrated_charge")
+		)
+		* (
+			GameStats.MAXIMUM_PAYLOAD_DAMAGE_MULTIPLIER
+			if get_owned_relic_count(&"maximum_payload") > 0
+			else 1.0
+		)
+	)
+
+
+func get_explosion_radius_multiplier() -> float:
+	return (
+		pow(
+			GameStats.HIGH_YIELD_RADIUS_MULTIPLIER,
+			get_owned_relic_count(&"high_yield")
+		)
+		* pow(
+			GameStats.CONCENTRATED_CHARGE_RADIUS_MULTIPLIER,
+			get_owned_relic_count(&"concentrated_charge")
+		)
+		* (
+			GameStats.MAXIMUM_PAYLOAD_RADIUS_MULTIPLIER
+			if get_owned_relic_count(&"maximum_payload") > 0
+			else 1.0
+		)
+	)
+
+
+func get_explosion_interval_multiplier() -> float:
+	return (
+		GameStats.MAXIMUM_PAYLOAD_INTERVAL_MULTIPLIER
+		if get_owned_relic_count(&"maximum_payload") > 0
+		else 1.0
+	)
 
 
 func get_sidebar_stats() -> Dictionary:
@@ -1192,6 +1362,12 @@ func get_main_bonus(effect: StringName) -> float:
 
 func get_main_multiplier(effect: StringName) -> float:
 	return 1.0 + get_main_bonus(effect)
+
+
+func get_owned_relic_count(relic_id: StringName) -> int:
+	if main == null or not main.has_method("get_relic_count"):
+		return 0
+	return int(main.get_relic_count(relic_id))
 
 
 func _spawn_unit() -> void:
@@ -1380,7 +1556,7 @@ func fire_saucer_homing_rockets(
 			rocket_damage,
 			DAMAGE_EXPLOSIVE,
 			GameStats.IMPACT_PRIMARY,
-			splash_radius_pixels,
+			splash_radius_pixels * get_explosion_radius_multiplier(),
 			0,
 			0.0,
 			0.0,
@@ -1787,7 +1963,7 @@ func roll_critical_damage(base_damage: int) -> int:
 		and spawn_rng.randf() < critical_chance
 	):
 		return maxi(roundi(float(base_damage) * critical_multiplier), 1)
-	return base_damage
+	return maxi(roundi(float(base_damage) * noncritical_damage_multiplier), 1)
 
 
 func launch_reaver_combo(current_target: Node2D, attack_damage: int) -> void:
@@ -2127,7 +2303,10 @@ func launch_projectile_from_position(
 		slinger_contact_explosion_radius_pixels,
 		infinite_pierce,
 		has_bonus_tag(BONUS_REVEAL),
-		tower_id
+		tower_id,
+		false,
+		pierce_loses_no_power,
+		get_explosion_damage_multiplier()
 	)
 	return projectile
 
@@ -2159,7 +2338,8 @@ func apply_hitscan_damage(current_target: Node2D, attack_damage: int) -> void:
 		apply_control_effects(targets[index])
 		var pierced_damage := GameStats.get_piercing_damage(
 			attack_damage,
-			index + 1
+			index + 1,
+			pierce_loses_no_power
 		)
 		targets[index].apply_damage(pierced_damage, damage_type, true)
 
@@ -2215,7 +2395,11 @@ func apply_continuous_beam_tick(
 		apply_control_effects(hit_target)
 		apply_tower_damage(
 			hit_target,
-			GameStats.get_piercing_damage(attack_damage, index),
+			GameStats.get_piercing_damage(
+				attack_damage,
+				index,
+				pierce_loses_no_power
+			),
 			damage_type,
 			true
 		)
@@ -3510,6 +3694,9 @@ func load_path_behaviors() -> void:
 				true,
 				float(values.get("contact_explosion_radius", 2.5))
 			)
+	if has_damage_tag(DAMAGE_BEAM) and get_owned_relic_count(&"death_ray") > 0:
+		infinite_pierce = true
+	apply_explosive_relic_behavior_modifiers()
 	if gauss_heavy_shot_enabled:
 		gauss_heavy_shot_remaining = (
 			minf(previous_heavy_shot_remaining, gauss_heavy_shot_interval)
@@ -3562,6 +3749,33 @@ func load_path_behaviors() -> void:
 		)
 	else:
 		energy_shockwave_remaining = 0.0
+
+
+func apply_explosive_relic_behavior_modifiers() -> void:
+	if not has_damage_tag(DAMAGE_EXPLOSIVE):
+		return
+	var radius_multiplier := get_explosion_radius_multiplier()
+	var damage_multiplier := get_explosion_damage_multiplier()
+	var interval_multiplier := get_explosion_interval_multiplier()
+
+	# These are secondary or path-granted explosions, so their damage has not
+	# already been adjusted through the tower's primary attack stats.
+	if get_primary_damage_type() != DAMAGE_EXPLOSIVE:
+		beholder_death_explosion_damage_multiplier *= damage_multiplier
+		brainiac_convergence_damage_per_arrival *= damage_multiplier
+		longshot_mine_damage_multiplier *= damage_multiplier
+		saucer_rocket_damage_multiplier *= damage_multiplier
+
+	beholder_death_explosion_radius_pixels *= radius_multiplier
+	brainiac_convergence_base_radius_pixels *= radius_multiplier
+	brainiac_convergence_radius_per_arrival_pixels *= radius_multiplier
+	longshot_mine_explosion_radius_pixels *= radius_multiplier
+	void_singularity_explosion_radius_pixels *= radius_multiplier
+	slinger_contact_explosion_radius_pixels *= radius_multiplier
+
+	longshot_mine_interval *= interval_multiplier
+	void_singularity_cooldown *= interval_multiplier
+	saucer_rocket_interval *= interval_multiplier
 	
 func load_base_tags() -> void:
 	var tower_data: Dictionary = GameStats.get_tower(tower_id)
@@ -3608,6 +3822,16 @@ func load_base_tags() -> void:
 		if path.has("impact_mode"):
 			impact_mode = path["impact_mode"]
 	set_pierce_count(loaded_pierce_count)
+	if has_damage_tag(DAMAGE_BEAM) and get_owned_relic_count(&"death_ray") > 0:
+		set_pierce_count(maxi(pierce_count, 1))
+		infinite_pierce = true
+	if has_damage_tag(DAMAGE_BALLISTIC):
+		if get_owned_relic_count(&"armor_piercing") > 0:
+			add_pierce(1)
+		if get_owned_relic_count(&"experimental_munitions") > 0:
+			add_bonus_tag(BONUS_CRITICAL)
+	if has_bonus_tag(BONUS_PIERCE):
+		add_pierce(get_owned_relic_count(&"deep_penetration"))
 
 	assert(
 		not damage_tags.is_empty(),
