@@ -207,7 +207,7 @@ const TRADE_AGREEMENT_BUILD_COST_MULTIPLIER := 2.0
 # allowing temporary build-price effects to alter refunds. Level 0 is handled
 # separately using the price actually paid for that tower instance.
 const TOWER_UPGRADED_SELL_VALUES := {
-	&"invader": [125, 150, 210, 493],
+	&"invader": [125, 150, 203, 336],
 	&"gauss_repeater": [450, 550, 800, 1866],
 	&"beholder": [500, 616, 900, 2100],
 	&"reaver": [150, 183, 263, 613],
@@ -224,7 +224,7 @@ const TOWER_UPGRADED_SELL_VALUES := {
 }
 
 const TOWER_PATH_SELL_VALUE_ADDITIONS := {
-	&"invader": 500,
+	&"invader": 233,
 	&"gauss_repeater": 1500,
 	&"beholder": 1666,
 	&"reaver": 600,
@@ -454,81 +454,80 @@ const ENEMIES := {
 
 const TOWERS := {
 	"invader": {
-		"display_name": "Invader",
-		"placement_cost": 125,
-		"footprint_cells": Vector2i(1, 1),
-		"type_tags": [&"biological"],
-		"damage_tags": [&"ballistic"],
-		"primary_damage_type": &"ballistic",
-		"delivery_type": DELIVERY_HITSCAN,
-		"impact_mode": IMPACT_PRIMARY,
-		"bonus_tags": [&"critical"],
-		"paths": {
-			"a": {
-				"display_name": "Dual Pistols",
-				"description": "Adds a second gun, doubling Invader's attack rate and granting Reveal.",
-				"cost": 1500,
-				"unlock_level": 3,
-				"add_bonus_tags": [&"reveal"],
-				"conditional_stat_multipliers": [
-					{
-						"unless_path": &"b",
-						"values": {"firerate": 0.5},
-					},
-				],
-				"behavior_flags": {
-					"dual_weapons": true,
-				},
+	"display_name": "Invader",
+	"placement_cost": 125,
+	"footprint_cells": Vector2i(1, 1),
+	"type_tags": [&"biological"],
+	"damage_tags": [&"ballistic"],
+	"primary_damage_type": &"ballistic",
+	"delivery_type": DELIVERY_HITSCAN,
+	"impact_mode": IMPACT_PRIMARY,
+
+	# Invader no longer has Critical at base.
+	"bonus_tags": [],
+
+	"paths": {
+		"a": {
+			"display_name": "Dual Pistols",
+			"description": "Adds a second pistol, increasing attack speed and granting Critical while preserving Invader's general-purpose role.",
+			"cost": 700,
+			"unlock_level": 3,
+
+			"add_bonus_tags": [&"critical"],
+
+			"stat_multipliers": {
+				"firerate": 0.65,
 			},
-			"b": {
-				"display_name": "Continuous Beam",
-				"description": "Replaces Ballistic fire with a stronger continuous Beam that tracks its primary target and deals tick damage only while physically aligned with it.",
-				"cost": 1500,
-				"unlock_level": 3,
-				"stat_multipliers": {"damage": 1.40},
-				"remove_damage_tags": [&"ballistic"],
-				"add_damage_tags": [&"beam"],
-				"remove_bonus_tags": [&"critical"],
-				"primary_damage_type": &"beam",
-				"delivery_type": DELIVERY_HITSCAN,
-				"impact_mode": IMPACT_PRIMARY,
-				"behavior_flags": {
-					"continuous_beam": true,
-				},
+
+			"behavior_flags": {
+				"dual_weapons": true,
 			},
 		},
-		
-		"levels": [
-			{
-				"upgrade_cost": 0,
-				"damage": 1,
-				"firerate": 0.20,
-				"range": 11.0,
-				"hidden_detection": false,
+
+		"b": {
+			"display_name": "Piercing Blaster",
+			"description": "Fires slower, heavier shots that pierce through an additional enemy.",
+			"cost": 700,
+			"unlock_level": 3,
+
+			"add_bonus_tags": [&"pierce"],
+			"pierce_count_add": 1,
+
+			"stat_multipliers": {
+				"damage": 2.25,
+				"firerate": 2.0,
 			},
-			{
-				"upgrade_cost": 75,
-				"damage": 1,
-				"firerate": 0.19,
-				"range": 11.0,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 180,
-				"damage": 2,
-				"firerate": 0.18,
-				"range": 12.0,
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 850,
-				"damage": 4,
-				"firerate": 0.13,
-				"range": 14.0,
-				"hidden_detection": false,
-			},
-		],
+		},
 	},
+
+	"levels": [
+		{
+			"upgrade_cost": 0,
+			"damage": 3,
+			"firerate": 0.50,
+			"range": 11.0,
+		},
+		{
+			"upgrade_cost": 75,
+			"damage": 4,
+			"firerate": 0.42,
+			"range": 11.5,
+		},
+		{
+			"upgrade_cost": 160,
+			"damage": 7,
+			"firerate": 0.42,
+			"range": 12.5,
+			"add_bonus_tags": [&"reveal"],
+		},
+		{
+			"upgrade_cost": 400,
+			"damage": 12,
+			"firerate": 0.36,
+			"range": 14.0,
+		},
+	],
+},
 	"gauss_repeater": {
 		"display_name": "Gauss Repeater",
 		"placement_cost": 450,

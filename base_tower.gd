@@ -3950,6 +3950,7 @@ func _on_upgradetower_pressed() -> void:
 
 	if main.spend_money(upgrade_cost):
 		tower_level = next_level
+		load_base_tags()
 		load_level_stats()
 
 	pending_action = MenuAction.NONE
@@ -4528,62 +4529,95 @@ func load_base_tags() -> void:
 	for tag in tower_data.get("bonus_tags", []):
 		bonus_tags.append(tag)
 
+	# Apply tags gained or removed from regular tower levels.
+	# These accumulate, so a tag gained at Level 3 remains active at Level 4.
+	var levels: Array = tower_data.get("levels", [])
+
+	for level_index in range(0, mini(tower_level + 1, levels.size())):
+		var level_data: Dictionary = levels[level_index]
+
+		for tag in level_data.get("add_type_tags", []):
+			if not type_tags.has(tag):
+				type_tags.append(tag)
+
+		for tag in level_data.get("add_damage_tags", []):
+			if not damage_tags.has(tag):
+				damage_tags.append(tag)
+
+		for tag in level_data.get("add_bonus_tags", []):
+			if not bonus_tags.has(tag):
+				bonus_tags.append(tag)
+
+		for tag in level_data.get("remove_type_tags", []):
+			type_tags.erase(tag)
+
+		for tag in level_data.get("remove_damage_tags", []):
+			damage_tags.erase(tag)
+
+		for tag in level_data.get("remove_bonus_tags", []):
+			bonus_tags.erase(tag)
+
 	var loaded_pierce_count := int(tower_data.get(
 		"pierce_count",
 		1 if bonus_tags.has(BONUS_PIERCE) else 0
 	))
-	delivery_type = tower_data.get("delivery_type", GameStats.DELIVERY_HITSCAN)
-	impact_mode = tower_data.get("impact_mode", GameStats.IMPACT_PRIMARY)
+
+	delivery_type = tower_data.get(
+		"delivery_type",
+		GameStats.DELIVERY_HITSCAN
+	)
+	impact_mode = tower_data.get(
+		"impact_mode",
+		GameStats.IMPACT_PRIMARY
+	)
+
 	for path_id in purchased_paths:
 		var path := GameStats.get_tower_path(tower_id, path_id)
+
 		for tag in path.get("add_type_tags", []):
 			if not type_tags.has(tag):
 				type_tags.append(tag)
+
 		for tag in path.get("add_damage_tags", []):
 			if not damage_tags.has(tag):
 				damage_tags.append(tag)
+
 		for tag in path.get("add_bonus_tags", []):
 			if not bonus_tags.has(tag):
 				bonus_tags.append(tag)
+
 		for tag in path.get("remove_type_tags", []):
 			type_tags.erase(tag)
+
 		for tag in path.get("remove_damage_tags", []):
 			damage_tags.erase(tag)
+
 		for tag in path.get("remove_bonus_tags", []):
 			bonus_tags.erase(tag)
+
 		loaded_pierce_count += int(path.get("pierce_count_add", 0))
+
 		if path.has("delivery_type"):
 			delivery_type = path["delivery_type"]
+
 		if path.has("impact_mode"):
 			impact_mode = path["impact_mode"]
+
 	set_pierce_count(loaded_pierce_count)
-	if has_damage_tag(DAMAGE_BEAM) and get_owned_relic_count(&"death_ray") > 0:
+
+	if (
+		has_damage_tag(DAMAGE_BEAM)
+		and get_owned_relic_count(&"death_ray") > 0
+	):
 		set_pierce_count(maxi(pierce_count, 1))
 		infinite_pierce = true
+
 	if has_damage_tag(DAMAGE_BALLISTIC):
 		if get_owned_relic_count(&"armor_piercing") > 0:
 			add_pierce(1)
+
 		if get_owned_relic_count(&"experimental_munitions") > 0:
 			add_bonus_tag(BONUS_CRITICAL)
-	if has_bonus_tag(BONUS_PIERCE):
-		add_pierce(get_owned_relic_count(&"deep_penetration"))
-
-	assert(
-		not damage_tags.is_empty(),
-		"Tower %s must have at least one damage tag." % tower_id
-	)
-	assert(
-		delivery_type in [GameStats.DELIVERY_PROJECTILE, GameStats.DELIVERY_HITSCAN],
-		"Tower %s has an invalid delivery type." % tower_id
-	)
-	assert(
-		impact_mode in [
-			GameStats.IMPACT_PRIMARY,
-			GameStats.IMPACT_FIRST_CONTACT,
-			GameStats.IMPACT_DESTINATION,
-		],
-		"Tower %s has an invalid impact mode." % tower_id
-	)
 
 
 func get_primary_damage_type() -> StringName:

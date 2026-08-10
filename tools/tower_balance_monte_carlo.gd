@@ -85,7 +85,7 @@ func simulate_variant(
 ) -> Array[Dictionary]:
 	var tower: Dictionary = GameStats.get_tower(tower_id)
 	var stats := get_variant_stats(tower_id, level, paths)
-	var traits := get_variant_traits(tower_id, paths)
+	var traits := get_variant_traits(tower_id, level, paths)
 	var cost := get_variant_cost(tower_id, level, paths)
 	var result: Array[Dictionary] = []
 	for scenario in SCENARIOS:
@@ -154,10 +154,28 @@ func apply_numeric_modifiers(stats: Dictionary, modifiers: Dictionary, multiply:
 			stats[key] = float(stats[key]) * float(modifiers[key]) if multiply else float(stats[key]) + float(modifiers[key])
 
 
-func get_variant_traits(tower_id: StringName, paths: Array[StringName]) -> Dictionary:
+func get_variant_traits(tower_id: StringName, level: int, paths: Array[StringName]) -> Dictionary:
 	var tower := GameStats.get_tower(tower_id)
 	var damage_tags: Array = tower.get("damage_tags", []).duplicate()
 	var bonus_tags: Array = tower.get("bonus_tags", []).duplicate()
+	var levels: Array = tower.get("levels", [])
+
+	for level_index in range(0, mini(level + 1, levels.size())):
+		var level_data: Dictionary = levels[level_index]
+
+		for tag in level_data.get("add_damage_tags", []):
+			if not damage_tags.has(tag):
+				damage_tags.append(tag)
+
+		for tag in level_data.get("add_bonus_tags", []):
+			if not bonus_tags.has(tag):
+				bonus_tags.append(tag)
+
+		for tag in level_data.get("remove_damage_tags", []):
+			damage_tags.erase(tag)
+
+		for tag in level_data.get("remove_bonus_tags", []):
+			bonus_tags.erase(tag)
 	var primary_type := StringName(tower.get("primary_damage_type", damage_tags[0]))
 	var delivery := StringName(tower.get("delivery_type", GameStats.DELIVERY_HITSCAN))
 	var impact := StringName(tower.get("impact_mode", GameStats.IMPACT_PRIMARY))
