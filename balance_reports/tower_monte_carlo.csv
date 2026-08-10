@@ -1,0 +1,449 @@
+tower_id,tower_name,level,variant,scenario,cost,mean_dps,p10_dps,p90_dps,dps_per_100_cost,model
+invader,Invader,0,base,single,125,5.502,5.367,5.667,4.401,generic event model
+invader,Invader,0,base,armored_elite,125,5.050,5.037,5.067,4.040,generic event model
+invader,Invader,0,base,fast_pack,125,5.392,5.267,5.507,4.314,generic event model
+invader,Invader,0,base,horde,125,5.396,5.267,5.533,4.317,generic event model
+invader,Invader,1,base,single,200,5.798,5.667,5.933,2.899,generic event model
+invader,Invader,1,base,armored_elite,200,5.314,5.297,5.333,2.657,generic event model
+invader,Invader,1,base,fast_pack,200,5.690,5.560,5.827,2.845,generic event model
+invader,Invader,1,base,horde,200,5.687,5.560,5.827,2.844,generic event model
+invader,Invader,2,base,single,380,12.192,11.867,12.533,3.208,generic event model
+invader,Invader,2,base,armored_elite,380,6.715,6.527,6.893,1.767,generic event model
+invader,Invader,2,base,fast_pack,380,11.001,10.680,11.340,2.895,generic event model
+invader,Invader,2,base,horde,380,10.994,10.680,11.280,2.893,generic event model
+invader,Invader,3,base,single,780,21.311,20.800,21.900,2.732,generic event model
+invader,Invader,3,base,armored_elite,780,11.729,11.440,12.045,1.504,generic event model
+invader,Invader,3,base,fast_pack,780,19.144,18.630,19.620,2.454,generic event model
+invader,Invader,3,base,horde,780,19.158,18.720,19.710,2.456,generic event model
+invader,Invader,4,base,single,1630,42.350,41.333,43.333,2.598,generic event model
+invader,Invader,4,base,armored_elite,1630,23.260,22.642,23.833,1.427,generic event model
+invader,Invader,4,base,fast_pack,1630,38.058,37.200,38.850,2.335,generic event model
+invader,Invader,4,base,horde,1630,38.104,37.200,39.000,2.338,generic event model
+invader,Invader,4,path_a,single,3130,84.704,83.333,85.833,2.706,generic event model
+invader,Invader,4,path_a,armored_elite,3130,46.538,45.833,47.300,1.487,generic event model
+invader,Invader,4,path_a,fast_pack,3130,76.217,74.700,77.550,2.435,generic event model
+invader,Invader,4,path_a,horde,3130,76.213,75.000,77.400,2.435,generic event model
+invader,Invader,4,path_b,single,3130,53.844,53.667,53.900,1.720,generic event model
+invader,Invader,4,path_b,armored_elite,3130,29.619,29.517,29.645,0.946,generic event model
+invader,Invader,4,path_b,fast_pack,3130,48.466,48.300,48.510,1.548,generic event model
+invader,Invader,4,path_b,horde,3130,48.458,48.300,48.510,1.548,generic event model
+invader,Invader,4,dual,single,4630,53.845,53.667,53.900,1.163,generic event model
+invader,Invader,4,dual,armored_elite,4630,29.615,29.517,29.645,0.640,generic event model
+invader,Invader,4,dual,fast_pack,4630,48.466,48.300,48.510,1.047,generic event model
+invader,Invader,4,dual,horde,4630,48.463,48.300,48.510,1.047,generic event model
+gauss_repeater,Gauss Repeater,0,base,single,450,12.169,12.000,12.333,2.704,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,0,base,armored_elite,450,11.826,11.600,12.033,2.628,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,0,base,fast_pack,450,12.291,12.100,12.467,2.731,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,0,base,horde,450,12.198,12.000,12.400,2.711,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,1,base,single,750,14.227,14.033,14.400,1.897,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,1,base,armored_elite,750,13.825,13.600,14.033,1.843,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,1,base,fast_pack,750,14.337,14.167,14.500,1.912,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,1,base,horde,750,14.252,14.033,14.467,1.900,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,2,base,single,1500,33.260,32.800,33.667,2.217,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,2,base,armored_elite,1500,17.635,17.307,17.967,1.176,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,2,base,fast_pack,1500,30.312,29.940,30.720,2.021,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,2,base,horde,1500,29.987,29.460,30.420,1.999,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,3,base,single,3100,38.036,37.400,38.533,1.227,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,3,base,armored_elite,3100,19.918,19.543,20.277,0.643,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,3,base,fast_pack,3100,34.731,34.320,35.220,1.120,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,3,base,horde,3100,34.311,33.780,34.800,1.107,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,base,single,6300,66.574,65.500,67.500,1.057,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,base,armored_elite,6300,34.486,33.880,35.090,0.547,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,base,fast_pack,6300,61.028,60.120,61.830,0.969,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,base,horde,6300,60.420,59.490,61.290,0.959,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,path_a,single,10800,81.517,80.600,82.400,0.755,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,path_a,armored_elite,10800,49.427,48.770,50.090,0.458,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,path_a,fast_pack,10800,121.120,120.300,121.920,1.121,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,path_a,horde,10800,240.402,239.490,241.380,2.226,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,path_b,single,10800,66.504,65.500,67.600,0.616,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,path_b,armored_elite,10800,34.432,33.715,35.145,0.319,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,path_b,fast_pack,10800,61.151,60.300,62.010,0.566,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,path_b,horde,10800,60.391,59.490,61.200,0.559,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,dual,single,15300,81.557,80.500,82.700,0.533,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,dual,armored_elite,15300,49.488,48.825,50.145,0.323,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,dual,fast_pack,15300,121.133,120.300,122.010,0.792,spread and Heavy Shot approximated
+gauss_repeater,Gauss Repeater,4,dual,horde,15300,240.309,239.400,241.200,1.571,spread and Heavy Shot approximated
+beholder,Beholder,0,base,single,500,11.110,11.067,11.133,2.222,continuous lock assumed; death explosions excluded
+beholder,Beholder,0,base,armored_elite,500,6.110,6.087,6.123,1.222,continuous lock assumed; death explosions excluded
+beholder,Beholder,0,base,fast_pack,500,9.998,9.960,10.020,2.000,continuous lock assumed; death explosions excluded
+beholder,Beholder,0,base,horde,500,9.998,9.960,10.020,2.000,continuous lock assumed; death explosions excluded
+beholder,Beholder,1,base,single,850,17.644,17.600,17.700,2.076,continuous lock assumed; death explosions excluded
+beholder,Beholder,1,base,armored_elite,850,9.705,9.680,9.735,1.142,continuous lock assumed; death explosions excluded
+beholder,Beholder,1,base,fast_pack,850,15.881,15.840,15.930,1.868,continuous lock assumed; death explosions excluded
+beholder,Beholder,1,base,horde,850,15.880,15.840,15.930,1.868,continuous lock assumed; death explosions excluded
+beholder,Beholder,2,base,single,1700,33.333,33.333,33.333,1.961,continuous lock assumed; death explosions excluded
+beholder,Beholder,2,base,armored_elite,1700,18.333,18.333,18.333,1.078,continuous lock assumed; death explosions excluded
+beholder,Beholder,2,base,fast_pack,1700,30.000,30.000,30.000,1.765,continuous lock assumed; death explosions excluded
+beholder,Beholder,2,base,horde,1700,30.000,30.000,30.000,1.765,continuous lock assumed; death explosions excluded
+beholder,Beholder,3,base,single,3500,53.851,53.667,53.900,1.539,continuous lock assumed; death explosions excluded
+beholder,Beholder,3,base,armored_elite,3500,29.609,29.517,29.645,0.846,continuous lock assumed; death explosions excluded
+beholder,Beholder,3,base,fast_pack,3500,48.473,48.300,48.510,1.385,continuous lock assumed; death explosions excluded
+beholder,Beholder,3,base,horde,3500,48.456,48.300,48.510,1.384,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,base,single,7100,90.919,90.667,91.000,1.281,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,base,armored_elite,7100,50.008,49.867,50.050,0.704,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,base,fast_pack,7100,81.817,81.600,81.900,1.152,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,base,horde,7100,81.818,81.600,81.900,1.152,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,path_a,single,12100,90.905,90.667,91.000,0.751,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,path_a,armored_elite,12100,50.006,49.867,50.050,0.413,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,path_a,fast_pack,12100,81.814,81.600,81.900,0.676,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,path_a,horde,12100,81.815,81.600,81.900,0.676,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,path_b,single,12100,213.609,213.067,213.850,1.765,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,path_b,armored_elite,12100,117.495,117.187,117.618,0.971,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,path_b,fast_pack,12100,192.268,191.760,192.465,1.589,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,path_b,horde,12100,192.245,191.760,192.465,1.589,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,dual,single,17100,213.609,213.067,213.850,1.249,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,dual,armored_elite,17100,117.502,117.187,117.618,0.687,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,dual,fast_pack,17100,192.256,191.760,192.465,1.124,continuous lock assumed; death explosions excluded
+beholder,Beholder,4,dual,horde,17100,192.310,191.760,192.465,1.125,continuous lock assumed; death explosions excluded
+reaver,Reaver,0,base,single,150,6.081,6.067,6.067,4.054,continuous combo contact assumed
+reaver,Reaver,0,base,armored_elite,150,3.350,3.337,3.337,2.233,continuous combo contact assumed
+reaver,Reaver,0,base,fast_pack,150,5.476,5.460,5.460,3.651,continuous combo contact assumed
+reaver,Reaver,0,base,horde,150,5.480,5.460,5.460,3.653,continuous combo contact assumed
+reaver,Reaver,1,base,single,250,9.515,9.333,9.667,3.806,continuous combo contact assumed
+reaver,Reaver,1,base,armored_elite,250,5.246,5.133,5.317,2.099,continuous combo contact assumed
+reaver,Reaver,1,base,fast_pack,250,8.582,8.400,8.700,3.433,continuous combo contact assumed
+reaver,Reaver,1,base,horde,250,8.584,8.400,8.700,3.433,continuous combo contact assumed
+reaver,Reaver,2,base,single,490,14.739,14.467,14.933,3.008,continuous combo contact assumed
+reaver,Reaver,2,base,armored_elite,490,8.101,7.957,8.213,1.653,continuous combo contact assumed
+reaver,Reaver,2,base,fast_pack,490,13.259,13.020,13.440,2.706,continuous combo contact assumed
+reaver,Reaver,2,base,horde,490,13.255,13.020,13.440,2.705,continuous combo contact assumed
+reaver,Reaver,3,base,single,1010,24.690,24.500,25.200,2.445,continuous combo contact assumed
+reaver,Reaver,3,base,armored_elite,1010,13.567,13.475,13.860,1.343,continuous combo contact assumed
+reaver,Reaver,3,base,fast_pack,1010,22.244,22.050,22.680,2.202,continuous combo contact assumed
+reaver,Reaver,3,base,horde,1010,22.264,22.050,22.680,2.204,continuous combo contact assumed
+reaver,Reaver,4,base,single,2060,41.333,41.333,41.333,2.006,continuous combo contact assumed
+reaver,Reaver,4,base,armored_elite,2060,22.733,22.733,22.733,1.104,continuous combo contact assumed
+reaver,Reaver,4,base,fast_pack,2060,37.200,37.200,37.200,1.806,continuous combo contact assumed
+reaver,Reaver,4,base,horde,2060,37.200,37.200,37.200,1.806,continuous combo contact assumed
+reaver,Reaver,4,path_a,single,3860,41.333,41.333,41.333,1.071,continuous combo contact assumed
+reaver,Reaver,4,path_a,armored_elite,3860,22.733,22.733,22.733,0.589,continuous combo contact assumed
+reaver,Reaver,4,path_a,fast_pack,3860,37.200,37.200,37.200,0.964,continuous combo contact assumed
+reaver,Reaver,4,path_a,horde,3860,37.200,37.200,37.200,0.964,continuous combo contact assumed
+reaver,Reaver,4,path_b,single,3860,64.046,63.292,64.842,1.659,continuous combo contact assumed
+reaver,Reaver,4,path_b,armored_elite,3860,35.254,34.810,35.805,0.913,continuous combo contact assumed
+reaver,Reaver,4,path_b,fast_pack,3860,57.680,56.962,58.357,1.494,continuous combo contact assumed
+reaver,Reaver,4,path_b,horde,3860,57.693,56.962,58.590,1.495,continuous combo contact assumed
+reaver,Reaver,4,dual,single,5660,64.111,63.292,65.100,1.133,continuous combo contact assumed
+reaver,Reaver,4,dual,armored_elite,5660,35.286,34.810,35.805,0.623,continuous combo contact assumed
+reaver,Reaver,4,dual,fast_pack,5660,57.638,56.962,58.357,1.018,continuous combo contact assumed
+reaver,Reaver,4,dual,horde,5660,57.688,56.962,58.590,1.019,continuous combo contact assumed
+brainiac,Brainiac,0,base,single,325,5.178,4.733,5.533,1.593,convergence accuracy and link excluded
+brainiac,Brainiac,0,base,armored_elite,325,2.855,2.640,3.080,0.879,convergence accuracy and link excluded
+brainiac,Brainiac,0,base,fast_pack,325,5.139,4.800,5.520,1.581,convergence accuracy and link excluded
+brainiac,Brainiac,0,base,horde,325,6.419,6.300,6.600,1.975,convergence accuracy and link excluded
+brainiac,Brainiac,1,base,single,545,8.355,7.700,9.000,1.533,convergence accuracy and link excluded
+brainiac,Brainiac,1,base,armored_elite,545,4.613,4.290,4.950,0.846,convergence accuracy and link excluded
+brainiac,Brainiac,1,base,fast_pack,545,8.322,7.740,8.820,1.527,convergence accuracy and link excluded
+brainiac,Brainiac,1,base,horde,545,10.373,10.350,10.350,1.903,convergence accuracy and link excluded
+brainiac,Brainiac,2,base,single,1065,12.073,11.333,12.933,1.134,convergence accuracy and link excluded
+brainiac,Brainiac,2,base,armored_elite,1065,6.687,6.233,7.187,0.628,convergence accuracy and link excluded
+brainiac,Brainiac,2,base,fast_pack,1065,12.000,11.400,12.600,1.127,convergence accuracy and link excluded
+brainiac,Brainiac,2,base,horde,1065,15.000,15.000,15.000,1.408,convergence accuracy and link excluded
+brainiac,Brainiac,3,base,single,2215,19.765,18.400,21.000,0.892,convergence accuracy and link excluded
+brainiac,Brainiac,3,base,armored_elite,2215,10.779,10.010,11.550,0.487,convergence accuracy and link excluded
+brainiac,Brainiac,3,base,fast_pack,2215,19.647,18.540,20.880,0.887,convergence accuracy and link excluded
+brainiac,Brainiac,3,base,horde,2215,24.548,24.300,25.200,1.108,convergence accuracy and link excluded
+brainiac,Brainiac,4,base,single,4515,34.498,32.400,36.600,0.764,convergence accuracy and link excluded
+brainiac,Brainiac,4,base,armored_elite,4515,18.918,17.655,20.295,0.419,convergence accuracy and link excluded
+brainiac,Brainiac,4,base,fast_pack,4515,34.036,32.130,35.910,0.754,convergence accuracy and link excluded
+brainiac,Brainiac,4,base,horde,4515,42.665,41.850,43.200,0.945,convergence accuracy and link excluded
+brainiac,Brainiac,4,path_a,single,6615,34.447,32.400,36.600,0.521,convergence accuracy and link excluded
+brainiac,Brainiac,4,path_a,armored_elite,6615,18.894,17.655,20.130,0.286,convergence accuracy and link excluded
+brainiac,Brainiac,4,path_a,fast_pack,6615,33.903,32.130,35.910,0.513,convergence accuracy and link excluded
+brainiac,Brainiac,4,path_a,horde,6615,42.574,41.850,43.200,0.644,convergence accuracy and link excluded
+brainiac,Brainiac,4,path_b,single,6615,34.258,31.800,36.300,0.518,convergence accuracy and link excluded
+brainiac,Brainiac,4,path_b,armored_elite,6615,18.913,17.655,19.965,0.286,convergence accuracy and link excluded
+brainiac,Brainiac,4,path_b,fast_pack,6615,34.112,32.130,35.910,0.516,convergence accuracy and link excluded
+brainiac,Brainiac,4,path_b,horde,6615,42.644,41.850,43.200,0.645,convergence accuracy and link excluded
+brainiac,Brainiac,4,dual,single,8715,34.441,32.100,36.600,0.395,convergence accuracy and link excluded
+brainiac,Brainiac,4,dual,armored_elite,8715,18.929,17.655,20.130,0.217,convergence accuracy and link excluded
+brainiac,Brainiac,4,dual,fast_pack,8715,34.200,32.670,35.910,0.392,convergence accuracy and link excluded
+brainiac,Brainiac,4,dual,horde,8715,42.692,41.850,43.200,0.490,convergence accuracy and link excluded
+longshot,Longshot,0,base,single,350,9.017,8.400,10.200,2.576,mine availability approximated
+longshot,Longshot,0,base,armored_elite,350,4.953,4.620,5.610,1.415,mine availability approximated
+longshot,Longshot,0,base,fast_pack,350,8.070,7.020,8.640,2.306,mine availability approximated
+longshot,Longshot,0,base,horde,350,8.074,7.020,8.640,2.307,mine availability approximated
+longshot,Longshot,1,base,single,600,14.173,12.600,15.300,2.362,mine availability approximated
+longshot,Longshot,1,base,armored_elite,600,7.720,6.930,8.415,1.287,mine availability approximated
+longshot,Longshot,1,base,fast_pack,600,12.837,11.340,13.770,2.139,mine availability approximated
+longshot,Longshot,1,base,horde,600,12.730,11.340,13.770,2.122,mine availability approximated
+longshot,Longshot,2,base,single,1200,22.635,20.000,25.333,1.886,mine availability approximated
+longshot,Longshot,2,base,armored_elite,1200,12.352,11.000,13.200,1.029,mine availability approximated
+longshot,Longshot,2,base,fast_pack,1200,20.486,19.200,22.800,1.707,mine availability approximated
+longshot,Longshot,2,base,horde,1200,20.323,18.000,21.600,1.694,mine availability approximated
+longshot,Longshot,3,base,single,2500,36.384,34.000,40.000,1.455,mine availability approximated
+longshot,Longshot,3,base,armored_elite,2500,20.064,18.700,22.000,0.803,mine availability approximated
+longshot,Longshot,3,base,fast_pack,2500,32.940,30.600,36.000,1.318,mine availability approximated
+longshot,Longshot,3,base,horde,2500,33.170,30.600,36.000,1.327,mine availability approximated
+longshot,Longshot,4,base,single,5100,60.468,54.000,66.000,1.186,mine availability approximated
+longshot,Longshot,4,base,armored_elite,5100,32.914,29.700,36.300,0.645,mine availability approximated
+longshot,Longshot,4,base,fast_pack,5100,54.097,51.300,59.400,1.061,mine availability approximated
+longshot,Longshot,4,base,horde,5100,53.892,48.600,59.400,1.057,mine availability approximated
+longshot,Longshot,4,path_a,single,7500,90.162,85.500,99.000,1.202,mine availability approximated
+longshot,Longshot,4,path_a,armored_elite,7500,49.401,44.550,54.450,0.659,mine availability approximated
+longshot,Longshot,4,path_a,fast_pack,7500,80.725,72.900,89.100,1.076,mine availability approximated
+longshot,Longshot,4,path_a,horde,7500,81.632,72.900,89.100,1.088,mine availability approximated
+longshot,Longshot,4,path_b,single,7500,86.976,81.000,93.000,1.160,mine availability approximated
+longshot,Longshot,4,path_b,armored_elite,7500,53.945,50.625,57.225,0.719,mine availability approximated
+longshot,Longshot,4,path_b,fast_pack,7500,130.388,125.550,133.650,1.739,mine availability approximated
+longshot,Longshot,4,path_b,horde,7500,131.188,125.550,136.350,1.749,mine availability approximated
+longshot,Longshot,4,dual,single,9900,116.352,108.000,121.500,1.175,mine availability approximated
+longshot,Longshot,4,dual,armored_elite,9900,70.682,65.475,75.375,0.714,mine availability approximated
+longshot,Longshot,4,dual,fast_pack,9900,158.274,149.850,166.050,1.599,mine availability approximated
+longshot,Longshot,4,dual,horde,9900,157.577,149.850,166.050,1.592,mine availability approximated
+slinger,Slinger,0,base,single,175,5.000,4.433,5.833,2.857,generic event model
+slinger,Slinger,0,base,armored_elite,175,2.768,2.310,3.208,1.582,generic event model
+slinger,Slinger,0,base,fast_pack,175,6.650,4.410,8.820,3.800,generic event model
+slinger,Slinger,0,base,horde,175,11.733,9.450,13.860,6.705,generic event model
+slinger,Slinger,1,base,single,285,8.057,7.000,9.000,2.827,generic event model
+slinger,Slinger,1,base,armored_elite,285,4.434,3.850,4.950,1.556,generic event model
+slinger,Slinger,1,base,fast_pack,285,10.667,7.200,13.500,3.743,generic event model
+slinger,Slinger,1,base,horde,285,19.145,16.200,22.500,6.717,generic event model
+slinger,Slinger,2,base,single,545,12.869,11.667,14.000,2.361,generic event model
+slinger,Slinger,2,base,armored_elite,545,7.162,6.417,7.957,1.314,generic event model
+slinger,Slinger,2,base,fast_pack,545,17.433,12.600,22.680,3.199,generic event model
+slinger,Slinger,2,base,horde,545,30.114,25.200,35.280,5.526,generic event model
+slinger,Slinger,3,base,single,1120,21.837,19.333,24.000,1.950,generic event model
+slinger,Slinger,3,base,armored_elite,1120,12.329,11.367,13.200,1.101,generic event model
+slinger,Slinger,3,base,fast_pack,1120,29.614,21.600,36.000,2.644,generic event model
+slinger,Slinger,3,base,horde,1120,50.861,43.200,57.600,4.541,generic event model
+slinger,Slinger,4,base,single,2270,39.119,35.767,42.533,1.723,generic event model
+slinger,Slinger,4,base,armored_elite,2270,22.054,20.735,23.393,0.972,generic event model
+slinger,Slinger,4,base,fast_pack,2270,53.401,41.760,65.250,2.352,generic event model
+slinger,Slinger,4,base,horde,2270,91.173,80.910,101.790,4.016,generic event model
+slinger,Slinger,4,path_a,single,4270,39.382,35.767,41.567,0.922,generic event model
+slinger,Slinger,4,path_a,armored_elite,4270,22.149,20.203,23.393,0.519,generic event model
+slinger,Slinger,4,path_a,fast_pack,4270,54.528,41.760,65.250,1.277,generic event model
+slinger,Slinger,4,path_a,horde,4270,91.392,80.910,101.790,2.140,generic event model
+slinger,Slinger,4,path_b,single,4270,34.050,29.967,37.700,0.797,generic event model
+slinger,Slinger,4,path_b,armored_elite,4270,18.621,16.482,20.735,0.436,generic event model
+slinger,Slinger,4,path_b,fast_pack,4270,84.338,76.125,91.350,1.975,generic event model
+slinger,Slinger,4,path_b,horde,4270,239.976,238.032,242.991,5.620,generic event model
+slinger,Slinger,4,dual,single,6270,33.818,29.967,37.700,0.539,generic event model
+slinger,Slinger,4,dual,armored_elite,6270,18.681,17.013,20.735,0.298,generic event model
+slinger,Slinger,4,dual,fast_pack,6270,84.721,78.300,93.525,1.351,generic event model
+slinger,Slinger,4,dual,horde,6270,239.877,238.032,242.991,3.826,generic event model
+voidcaller,Void Caller,0,base,single,350,8.000,8.000,8.000,2.286,orb spread and singularity coverage approximated
+voidcaller,Void Caller,0,base,armored_elite,350,6.200,6.200,6.200,1.771,orb spread and singularity coverage approximated
+voidcaller,Void Caller,0,base,fast_pack,350,10.900,10.007,11.907,3.114,orb spread and singularity coverage approximated
+voidcaller,Void Caller,0,base,horde,350,19.825,18.240,21.533,5.664,orb spread and singularity coverage approximated
+voidcaller,Void Caller,1,base,single,600,11.575,11.000,11.733,1.929,orb spread and singularity coverage approximated
+voidcaller,Void Caller,1,base,armored_elite,600,8.964,8.525,9.093,1.494,orb spread and singularity coverage approximated
+voidcaller,Void Caller,1,base,fast_pack,600,15.943,14.630,17.243,2.657,orb spread and singularity coverage approximated
+voidcaller,Void Caller,1,base,horde,600,29.649,27.170,31.872,4.942,orb spread and singularity coverage approximated
+voidcaller,Void Caller,2,base,single,1225,18.886,18.133,19.267,1.542,orb spread and singularity coverage approximated
+voidcaller,Void Caller,2,base,armored_elite,1225,14.584,14.053,14.932,1.191,orb spread and singularity coverage approximated
+voidcaller,Void Caller,2,base,fast_pack,1225,26.838,24.763,29.070,2.191,orb spread and singularity coverage approximated
+voidcaller,Void Caller,2,base,horde,1225,49.780,45.758,54.103,4.064,orb spread and singularity coverage approximated
+voidcaller,Void Caller,3,base,single,2625,30.320,30.000,31.667,1.155,orb spread and singularity coverage approximated
+voidcaller,Void Caller,3,base,armored_elite,2625,23.488,23.250,24.542,0.895,orb spread and singularity coverage approximated
+voidcaller,Void Caller,3,base,fast_pack,2625,43.064,39.583,45.917,1.641,orb spread and singularity coverage approximated
+voidcaller,Void Caller,3,base,horde,2625,82.281,76.000,88.271,3.135,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,base,single,5425,50.667,50.667,50.667,0.934,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,base,armored_elite,5425,39.267,39.267,39.267,0.724,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,base,fast_pack,5425,74.443,69.192,80.022,1.372,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,base,horde,5425,142.487,132.367,152.222,2.626,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,path_a,single,7925,126.667,126.667,126.667,1.598,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,path_a,armored_elite,7925,98.167,98.167,98.167,1.239,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,path_a,fast_pack,7925,184.370,175.687,192.533,2.326,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,path_a,horde,7925,356.179,343.552,371.830,4.494,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,path_b,single,7925,58.267,58.267,58.267,0.735,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,path_b,armored_elite,7925,45.157,45.157,45.157,0.570,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,path_b,fast_pack,7925,102.654,97.470,107.698,1.295,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,path_b,horde,7925,178.421,168.467,187.720,2.251,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,dual,single,10425,134.267,134.267,134.267,1.288,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,dual,armored_elite,10425,104.057,104.057,104.057,0.998,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,dual,fast_pack,10425,213.368,205.168,221.413,2.047,orb spread and singularity coverage approximated
+voidcaller,Void Caller,4,dual,horde,10425,391.894,375.440,409.133,3.759,orb spread and singularity coverage approximated
+orbitalcannon,Orbital Cannon,0,base,single,700,8.722,8.167,9.333,1.246,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,0,base,armored_elite,700,6.760,6.329,7.233,0.966,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,0,base,fast_pack,700,13.291,11.083,16.071,1.899,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,0,base,horde,700,26.150,21.613,31.033,3.736,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,1,base,single,1200,13.133,11.667,13.333,1.094,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,1,base,armored_elite,1200,10.235,10.333,10.333,0.853,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,1,base,fast_pack,1200,20.396,17.417,23.750,1.700,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,1,base,horde,1200,41.322,35.625,48.292,3.443,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,2,base,single,2400,21.430,20.000,22.500,0.893,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,2,base,armored_elite,2400,16.562,15.500,17.438,0.690,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,2,base,fast_pack,2400,34.537,28.500,40.375,1.439,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,2,base,horde,2400,72.129,59.375,84.313,3.005,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,3,base,single,5000,36.892,34.500,38.333,0.738,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,3,base,armored_elite,5000,28.686,26.738,29.708,0.574,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,3,base,fast_pack,5000,62.768,54.625,71.013,1.255,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,3,base,horde,5000,133.941,116.533,151.129,2.679,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,base,single,10200,64.727,64.167,64.167,0.635,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,base,armored_elite,10200,50.380,49.729,54.250,0.494,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,base,fast_pack,10200,113.870,99.750,127.458,1.116,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,base,horde,10200,250.339,224.438,279.854,2.454,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,path_a,single,14400,72.333,72.917,72.917,0.502,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,path_a,armored_elite,14400,55.917,56.510,56.510,0.388,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,path_a,fast_pack,14400,230.152,212.142,251.107,1.598,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,path_a,horde,14400,602.081,559.362,641.621,4.181,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,path_b,single,14400,145.740,144.375,157.500,1.012,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,path_b,armored_elite,14400,112.989,111.891,122.063,0.785,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,path_b,fast_pack,14400,256.128,240.647,275.559,1.779,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,path_b,horde,14400,567.548,533.663,602.241,3.941,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,dual,single,18600,361.484,364.583,364.583,1.943,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,dual,armored_elite,18600,280.433,282.552,282.552,1.508,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,dual,fast_pack,18600,1149.844,1104.004,1190.592,6.182,optimal manual zone assumed; path persistence excluded
+orbitalcannon,Orbital Cannon,4,dual,horde,18600,3018.563,2935.352,3121.517,16.229,optimal manual zone assumed; path persistence excluded
+energycore,Energy Core,0,base,single,300,7.896,7.900,7.900,2.632,generic event model
+energycore,Energy Core,0,base,armored_elite,300,4.340,4.345,4.345,1.447,generic event model
+energycore,Energy Core,0,base,fast_pack,300,7.105,7.110,7.110,2.368,generic event model
+energycore,Energy Core,0,base,horde,300,7.103,7.110,7.110,2.368,generic event model
+energycore,Energy Core,1,base,single,510,11.117,11.067,11.200,2.180,generic event model
+energycore,Energy Core,1,base,armored_elite,510,6.112,6.087,6.160,1.198,generic event model
+energycore,Energy Core,1,base,fast_pack,510,10.001,9.960,10.080,1.961,generic event model
+energycore,Energy Core,1,base,horde,510,9.997,9.960,10.080,1.960,generic event model
+energycore,Energy Core,2,base,single,1010,15.149,15.000,15.167,1.500,generic event model
+energycore,Energy Core,2,base,armored_elite,1010,8.337,8.342,8.342,0.825,generic event model
+energycore,Energy Core,2,base,fast_pack,1010,13.637,13.650,13.650,1.350,generic event model
+energycore,Energy Core,2,base,horde,1010,13.633,13.500,13.650,1.350,generic event model
+energycore,Energy Core,3,base,single,2110,23.333,23.333,23.333,1.106,generic event model
+energycore,Energy Core,3,base,armored_elite,2110,12.833,12.833,12.833,0.608,generic event model
+energycore,Energy Core,3,base,fast_pack,2110,21.000,21.000,21.000,0.995,generic event model
+energycore,Energy Core,3,base,horde,2110,21.000,21.000,21.000,0.995,generic event model
+energycore,Energy Core,4,base,single,4310,38.465,38.333,38.667,0.892,generic event model
+energycore,Energy Core,4,base,armored_elite,4310,21.152,21.083,21.267,0.491,generic event model
+energycore,Energy Core,4,base,fast_pack,4310,34.610,34.500,34.800,0.803,generic event model
+energycore,Energy Core,4,base,horde,4310,34.624,34.500,34.800,0.803,generic event model
+energycore,Energy Core,4,path_a,single,6510,41.793,41.667,42.000,0.642,generic event model
+energycore,Energy Core,4,path_a,armored_elite,6510,22.988,22.917,23.100,0.353,generic event model
+energycore,Energy Core,4,path_a,fast_pack,6510,46.600,46.500,46.800,0.716,generic event model
+energycore,Energy Core,4,path_a,horde,6510,49.636,49.500,49.800,0.762,generic event model
+energycore,Energy Core,4,path_b,single,6510,38.456,38.333,38.667,0.591,generic event model
+energycore,Energy Core,4,path_b,armored_elite,6510,21.147,21.083,21.267,0.325,generic event model
+energycore,Energy Core,4,path_b,fast_pack,6510,77.762,77.625,77.925,1.194,generic event model
+energycore,Energy Core,4,path_b,horde,6510,77.750,77.625,77.925,1.194,generic event model
+energycore,Energy Core,4,dual,single,8710,41.801,41.667,42.000,0.480,generic event model
+energycore,Energy Core,4,dual,armored_elite,8710,22.997,22.917,23.100,0.264,generic event model
+energycore,Energy Core,4,dual,fast_pack,8710,89.729,89.625,89.925,1.030,generic event model
+energycore,Energy Core,4,dual,horde,8710,92.746,92.625,92.925,1.065,generic event model
+saucer,Saucer,0,base,single,525,9.237,9.200,9.400,1.759,travel and abduction removal excluded
+saucer,Saucer,0,base,armored_elite,525,5.074,5.060,5.170,0.966,travel and abduction removal excluded
+saucer,Saucer,0,base,fast_pack,525,8.308,8.280,8.460,1.582,travel and abduction removal excluded
+saucer,Saucer,0,base,horde,525,8.307,8.280,8.460,1.582,travel and abduction removal excluded
+saucer,Saucer,1,base,single,900,15.000,15.000,15.000,1.667,travel and abduction removal excluded
+saucer,Saucer,1,base,armored_elite,900,8.250,8.250,8.250,0.917,travel and abduction removal excluded
+saucer,Saucer,1,base,fast_pack,900,13.500,13.500,13.500,1.500,travel and abduction removal excluded
+saucer,Saucer,1,base,horde,900,13.500,13.500,13.500,1.500,travel and abduction removal excluded
+saucer,Saucer,2,base,single,1800,25.465,25.200,25.667,1.415,travel and abduction removal excluded
+saucer,Saucer,2,base,armored_elite,1800,13.996,13.860,14.117,0.778,travel and abduction removal excluded
+saucer,Saucer,2,base,fast_pack,1800,22.895,22.680,23.100,1.272,travel and abduction removal excluded
+saucer,Saucer,2,base,horde,1800,22.924,22.680,23.100,1.274,travel and abduction removal excluded
+saucer,Saucer,3,base,single,3750,42.000,42.000,42.000,1.120,travel and abduction removal excluded
+saucer,Saucer,3,base,armored_elite,3750,23.100,23.100,23.100,0.616,travel and abduction removal excluded
+saucer,Saucer,3,base,fast_pack,3750,37.800,37.800,37.800,1.008,travel and abduction removal excluded
+saucer,Saucer,3,base,horde,3750,37.800,37.800,37.800,1.008,travel and abduction removal excluded
+saucer,Saucer,4,base,single,7650,68.874,68.200,69.233,0.900,travel and abduction removal excluded
+saucer,Saucer,4,base,armored_elite,7650,37.910,37.510,38.078,0.496,travel and abduction removal excluded
+saucer,Saucer,4,base,fast_pack,7650,62.016,61.380,62.310,0.811,travel and abduction removal excluded
+saucer,Saucer,4,base,horde,7650,62.024,61.380,62.310,0.811,travel and abduction removal excluded
+saucer,Saucer,4,path_a,single,11850,110.265,109.533,110.567,0.931,travel and abduction removal excluded
+saucer,Saucer,4,path_a,armored_elite,11850,69.934,69.543,70.112,0.590,travel and abduction removal excluded
+saucer,Saucer,4,path_a,fast_pack,11850,160.153,159.547,160.477,1.352,travel and abduction removal excluded
+saucer,Saucer,4,path_a,horde,11850,160.127,159.547,160.477,1.351,travel and abduction removal excluded
+saucer,Saucer,4,path_b,single,11850,99.748,99.033,100.067,0.842,travel and abduction removal excluded
+saucer,Saucer,4,path_b,armored_elite,11850,54.889,54.468,55.037,0.463,travel and abduction removal excluded
+saucer,Saucer,4,path_b,fast_pack,11850,89.740,89.130,90.060,0.757,travel and abduction removal excluded
+saucer,Saucer,4,path_b,horde,11850,89.744,89.130,90.060,0.757,travel and abduction removal excluded
+saucer,Saucer,4,dual,single,16050,141.053,140.367,141.400,0.879,travel and abduction removal excluded
+saucer,Saucer,4,dual,armored_elite,16050,86.884,86.502,87.070,0.541,travel and abduction removal excluded
+saucer,Saucer,4,dual,fast_pack,16050,187.959,187.297,188.227,1.171,travel and abduction removal excluded
+saucer,Saucer,4,dual,horde,16050,187.933,187.297,188.227,1.171,travel and abduction removal excluded
+hivemother,Hive Mother,0,base,single,250,5.200,5.200,5.200,2.080,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,0,base,armored_elite,250,2.860,2.860,2.860,1.144,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,0,base,fast_pack,250,4.680,4.680,4.680,1.872,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,0,base,horde,250,4.680,4.680,4.680,1.872,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,1,base,single,425,8.890,8.890,8.890,2.092,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,1,base,armored_elite,425,4.890,4.890,4.890,1.151,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,1,base,fast_pack,425,8.001,8.001,8.001,1.883,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,1,base,horde,425,8.001,8.001,8.001,1.883,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,2,base,single,850,17.514,17.514,17.514,2.060,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,2,base,armored_elite,850,9.632,9.632,9.632,1.133,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,2,base,fast_pack,850,15.762,15.762,15.762,1.854,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,2,base,horde,850,15.762,15.762,15.762,1.854,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,3,base,single,1800,34.269,34.269,34.269,1.904,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,3,base,armored_elite,1800,18.848,18.848,18.848,1.047,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,3,base,fast_pack,1800,30.842,30.842,30.842,1.713,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,3,base,horde,1800,30.842,30.842,30.842,1.713,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,base,single,3700,67.500,67.500,67.500,1.824,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,base,armored_elite,3700,37.125,37.125,37.125,1.003,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,base,fast_pack,3700,60.750,60.750,60.750,1.642,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,base,horde,3700,60.750,60.750,60.750,1.642,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,path_a,single,5900,135.000,135.000,135.000,2.288,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,path_a,armored_elite,5900,74.250,74.250,74.250,1.258,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,path_a,fast_pack,5900,121.500,121.500,121.500,2.059,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,path_a,horde,5900,121.500,121.500,121.500,2.059,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,path_b,single,5900,67.500,67.500,67.500,1.144,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,path_b,armored_elite,5900,37.125,37.125,37.125,0.629,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,path_b,fast_pack,5900,60.750,60.750,60.750,1.030,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,path_b,horde,5900,60.750,60.750,60.750,1.030,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,dual,single,8100,135.000,135.000,135.000,1.667,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,dual,armored_elite,8100,74.250,74.250,74.250,0.917,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,dual,fast_pack,8100,121.500,121.500,121.500,1.500,spawn ramp and combat uptime approximated
+hivemother,Hive Mother,4,dual,horde,8100,121.500,121.500,121.500,1.500,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,0,base,single,550,3.273,3.273,3.273,0.595,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,0,base,armored_elite,550,1.800,1.800,1.800,0.327,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,0,base,fast_pack,550,2.945,2.945,2.945,0.536,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,0,base,horde,550,2.945,2.945,2.945,0.536,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,1,base,single,950,5.119,5.119,5.119,0.539,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,1,base,armored_elite,950,2.815,2.815,2.815,0.296,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,1,base,fast_pack,950,4.607,4.607,4.607,0.485,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,1,base,horde,950,4.607,4.607,4.607,0.485,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,2,base,single,1900,13.986,13.986,13.986,0.736,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,2,base,armored_elite,1900,7.692,7.692,7.692,0.405,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,2,base,fast_pack,1900,12.587,12.587,12.587,0.662,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,2,base,horde,1900,12.587,12.587,12.587,0.662,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,3,base,single,4000,23.906,23.906,23.906,0.598,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,3,base,armored_elite,4000,13.148,13.148,13.148,0.329,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,3,base,fast_pack,4000,21.515,21.515,21.515,0.538,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,3,base,horde,4000,21.515,21.515,21.515,0.538,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,base,single,8200,52.071,52.071,52.071,0.635,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,base,armored_elite,8200,28.639,28.639,28.639,0.349,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,base,fast_pack,8200,46.864,46.864,46.864,0.572,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,base,horde,8200,46.864,46.864,46.864,0.572,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,path_a,single,13000,52.071,52.071,52.071,0.401,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,path_a,armored_elite,13000,28.639,28.639,28.639,0.220,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,path_a,fast_pack,13000,46.864,46.864,46.864,0.360,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,path_a,horde,13000,46.864,46.864,46.864,0.360,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,path_b,single,13000,81.536,81.536,81.536,0.627,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,path_b,armored_elite,13000,58.104,58.104,58.104,0.447,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,path_b,fast_pack,13000,135.257,135.257,135.257,1.040,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,path_b,horde,13000,135.257,135.257,135.257,1.040,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,dual,single,17800,81.536,81.536,81.536,0.458,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,dual,armored_elite,17800,58.104,58.104,58.104,0.326,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,dual,fast_pack,17800,135.257,135.257,135.257,0.760,spawn ramp and combat uptime approximated
+dronedepot,Drone Depot,4,dual,horde,17800,135.257,135.257,135.257,0.760,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,0,base,single,500,3.636,3.636,3.636,0.727,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,0,base,armored_elite,500,2.000,2.000,2.000,0.400,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,0,base,fast_pack,500,3.273,3.273,3.273,0.655,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,0,base,horde,500,3.273,3.273,3.273,0.655,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,1,base,single,850,6.125,6.125,6.125,0.721,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,1,base,armored_elite,850,3.369,3.369,3.369,0.396,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,1,base,fast_pack,850,5.513,5.513,5.513,0.649,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,1,base,horde,850,5.513,5.513,5.513,0.649,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,2,base,single,1700,15.000,15.000,15.000,0.882,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,2,base,armored_elite,1700,8.250,8.250,8.250,0.485,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,2,base,fast_pack,1700,13.500,13.500,13.500,0.794,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,2,base,horde,1700,13.500,13.500,13.500,0.794,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,3,base,single,3550,28.269,28.269,28.269,0.796,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,3,base,armored_elite,3550,15.548,15.548,15.548,0.438,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,3,base,fast_pack,3550,25.442,25.442,25.442,0.717,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,3,base,horde,3550,25.442,25.442,25.442,0.717,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,base,single,7250,64.615,64.615,64.615,0.891,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,base,armored_elite,7250,35.538,35.538,35.538,0.490,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,base,fast_pack,7250,58.154,58.154,58.154,0.802,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,base,horde,7250,58.154,58.154,58.154,0.802,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,path_a,single,11550,80.769,80.769,80.769,0.699,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,path_a,armored_elite,11550,44.423,44.423,44.423,0.385,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,path_a,fast_pack,11550,72.692,72.692,72.692,0.629,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,path_a,horde,11550,72.692,72.692,72.692,0.629,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,path_b,single,11550,86.154,86.154,86.154,0.746,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,path_b,armored_elite,11550,47.385,47.385,47.385,0.410,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,path_b,fast_pack,11550,77.538,77.538,77.538,0.671,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,path_b,horde,11550,77.538,77.538,77.538,0.671,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,dual,single,15850,107.692,107.692,107.692,0.679,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,dual,armored_elite,15850,59.231,59.231,59.231,0.374,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,dual,fast_pack,15850,96.923,96.923,96.923,0.612,spawn ramp and combat uptime approximated
+mechbay,Mech Bay,4,dual,horde,15850,96.923,96.923,96.923,0.612,spawn ramp and combat uptime approximated
