@@ -495,7 +495,7 @@ const TOWERS := {
 
 			"stat_multipliers": {
 				"damage": 2.25,
-				"firerate": 2.0,
+				"firerate": 1.8,
 			},
 		},
 	},
@@ -522,7 +522,7 @@ const TOWERS := {
 		},
 		{
 			"upgrade_cost": 400,
-			"damage": 12,
+			"damage": 10,
 			"firerate": 0.36,
 			"range": 14.0,
 		},
