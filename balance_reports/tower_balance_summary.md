@@ -1,20 +1,25 @@
-# Tower Combat Balance — First Tuning Pass
+# Tower Combat Balance — Four-Level Progression
 
 Generated from `tower_monte_carlo.csv` with 250 trials per case, a 30-second combat window, and seed `730241`.
 
 ## Scope
 
 - 14 towers
-- Base levels 0 through 4
+- Four regular tower levels, displayed as Levels 1 through 4
 - Final Path A, Path B, and dual-path variants
 - Four cases: one normal target, one armored elite, a four-enemy fast pack, and a twelve-enemy horde
-- 448 tower/level/path/scenario combinations
+- 392 tower/level/path/scenario combinations
 - No relic modifiers
 
 The simulation assumes targets are continuously available. Manual zones and area attacks therefore represent favorable uptime. Control, Reveal, movement, target selection, abduction, and similar utility are not assigned a dollar value.
 
 ## Changes in This Pass
 
+- Removed the former penultimate regular level from every tower
+- Preserved each tower's starting stats, early upgrades, middle upgrade, and former maximum stats
+- Final paths now unlock at displayed Level 4
+- Recalculated every fixed upgraded sell value without the removed upgrade
+- Changed player-facing tower levels from zero-based `0/3` to `1/4`
 - Solar Lance duration: 2.0 → 1.25 seconds
 - Solar Lance firing interval: 40% longer
 - Triple Bloom: three projectiles retained, each at 65% damage
@@ -65,5 +70,6 @@ Invader remains the most efficient general-purpose starter, but its average effi
 - The smaller Void Caller explosions reduced Orb Barrage's modeled horde output from about 402 to 356 DPS while preserving its five-orb identity.
 - Continuous Beam now deals about 27% more isolated damage than the unpathed level-four Invader. Dual Pistols remains the higher raw-DPS choice, while Beam retains its separate relic synergies.
 - Invader and Reaver remain efficient cheap towers without being as far ahead of the early roster.
+- Maximum-level Path A costs now range from $2,730 for Invader to $11,800 for Orbital Cannon. Each path is reached one purchase sooner while retaining the former maximum pre-path combat stats.
 
 Spawner towers still require controlled in-game testing because their movement, spawn ramp, recharge, and target access are approximated.

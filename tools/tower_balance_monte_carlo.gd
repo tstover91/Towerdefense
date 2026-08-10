@@ -27,11 +27,25 @@ func _init() -> void:
 func run_balance_simulation() -> void:
 	read_arguments()
 	rng.seed = seed_value
+	validate_tower_progression()
 	print("Balance simulator: %d towers, %d iterations, %.1f seconds" % [GameStats.TOWERS.size(), iterations, duration])
 	var rows := run_simulation()
 	write_report(rows)
 	print_summary(rows)
 	quit()
+
+
+func validate_tower_progression() -> void:
+	for tower_key in GameStats.TOWERS:
+		var tower_id := StringName(tower_key)
+		var tower: Dictionary = GameStats.get_tower(tower_id)
+		var levels: Array = tower["levels"]
+		assert(levels.size() == 4, "%s must have exactly four regular levels" % tower_id)
+		var sell_values: Array = GameStats.TOWER_UPGRADED_SELL_VALUES.get(tower_id, [])
+		assert(sell_values.size() == levels.size(), "%s sell values must match its levels" % tower_id)
+		for path_id in tower.get("paths", {}):
+			var path: Dictionary = tower["paths"][path_id]
+			assert(int(path.get("unlock_level", -1)) == 3, "%s path %s must unlock at the fourth regular level" % [tower_id, path_id])
 
 
 func read_arguments() -> void:
@@ -396,7 +410,7 @@ func print_summary(rows: Array[Dictionary]) -> void:
 	for scenario in SCENARIOS:
 		var candidates: Array[Dictionary] = []
 		for row in rows:
-			if row["scenario"] == scenario["id"] and row["level"] == 4 and row["variant"] in ["path_a", "path_b"]:
+			if row["scenario"] == scenario["id"] and row["variant"] in ["path_a", "path_b"]:
 				candidates.append(row)
 		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["dps_per_100"]) > float(b["dps_per_100"]))
 		print("\n", String(scenario["id"]).to_upper(), " top max-path efficiency")

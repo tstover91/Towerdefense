@@ -347,7 +347,7 @@ func show_tower_details(tower: Node) -> void:
 	var show_upgrade_info: bool = stats["show_upgrade_info"] and stats["has_next_level"]
 	tower_level_label.visible = is_placed and not show_upgrade_info
 	if tower_level_label.visible:
-		tower_level_label.text = "Level %d/%d" % [current_level, maximum_level]
+		tower_level_label.text = "Level %d/%d" % [current_level + 1, maximum_level + 1]
 	var path_status: String = stats.get("path_status", "")
 	tower_path_label.visible = is_placed and not path_status.is_empty()
 	tower_path_label.text = path_status
@@ -360,8 +360,8 @@ func show_tower_details(tower: Node) -> void:
 	if show_upgrade_info:
 		var next_level: int = stats["next_level"]
 		tower_upgrade_header.text = "Upgrade to Level %d/%d" % [
-			next_level,
-			maximum_level,
+			next_level + 1,
+			maximum_level + 1,
 		]
 
 

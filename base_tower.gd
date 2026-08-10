@@ -764,7 +764,7 @@ func get_path_status_text() -> String:
 				get_path_unlock_level(StringName(path_key))
 			)
 		if tower_level < earliest_unlock:
-			return "Final paths unlock at Level %d" % earliest_unlock
+			return "Final paths unlock at Level %d" % (earliest_unlock + 1)
 		return (
 			"Both final paths available"
 			if can_purchase_multiple_paths()
