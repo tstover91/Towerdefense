@@ -53,6 +53,12 @@ const HORDE_GROUP_SIZE_MULTIPLIER := 2.0
 const HORDE_SPAWN_DELAY_MULTIPLIER := 0.5
 const HORDE_ACTIVE_CAP_MULTIPLIER := 1.5
 const GAUNTLET_ACTIVE_CAP_MULTIPLIER := 1.75
+# Initial pacing test values. These retain the threat director and formation
+# recipes while increasing throughput and compressing ordinary formations.
+const STANDARD_THREAT_RATE_MULTIPLIER := 1.40
+const STANDARD_GROUP_SIZE_MULTIPLIER := 1.25
+const STANDARD_FORMATION_DELAY_MULTIPLIER := 0.70
+const SPACED_FORMATION_DELAY_MULTIPLIER := 0.85
 const ELITE_EVENT_MIN_INTERVAL := 15.0
 const ELITE_EVENT_MAX_INTERVAL := 25.0
 const GAUNTLET_ELITE_MIN_INTERVAL := 10.0
@@ -509,7 +515,10 @@ func start_round() -> void:
 	round_duration = get_wave_duration(round_number)
 	round_time_remaining = round_duration
 	round_elapsed = 0.0
-	threat_per_second = get_wave_threat_rate(round_number)
+	threat_per_second = (
+		get_wave_threat_rate(round_number)
+		* STANDARD_THREAT_RATE_MULTIPLIER
+	)
 	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
 		threat_per_second *= HORDE_THREAT_MULTIPLIER
 	var mode: Dictionary = GameStats.get_mode(mode_id)
@@ -1841,19 +1850,21 @@ func get_active_enemy_count(enemy_id: StringName) -> int:
 
 
 func get_director_group_size(style_name: StringName) -> int:
+	var base_size: int
 	match style_name:
 		&"pulses":
-			return enemy_rng.randi_range(7, 12)
+			base_size = enemy_rng.randi_range(7, 12)
 		&"simultaneous_batch":
-			return enemy_rng.randi_range(8, 14)
+			base_size = enemy_rng.randi_range(8, 14)
 		&"convoy":
-			return 8
+			base_size = 8
 		&"sandwich":
-			return enemy_rng.randi_range(10, 14)
+			base_size = enemy_rng.randi_range(10, 14)
 		&"escorted_elite":
-			return 9
+			base_size = 9
 		_:
-			return enemy_rng.randi_range(6, 10)
+			base_size = enemy_rng.randi_range(6, 10)
+	return maxi(1, roundi(float(base_size) * STANDARD_GROUP_SIZE_MULTIPLIER))
 
 
 func build_timed_boss_opening() -> Array[Dictionary]:
@@ -2005,10 +2016,17 @@ func append_enemy_group(
 	gap_after_group: float,
 	style_name: StringName
 ) -> void:
+	var delay_multiplier := STANDARD_FORMATION_DELAY_MULTIPLIER
+	if style_name == &"boss_escort":
+		delay_multiplier = 1.0
+	elif style_name == &"spaced":
+		delay_multiplier = SPACED_FORMATION_DELAY_MULTIPLIER
+	var adjusted_interval := maxf(interval * delay_multiplier, 0.01)
+	var adjusted_gap := maxf(gap_after_group * delay_multiplier, 0.01)
 	for index in group.size():
-		var delay_after := interval
+		var delay_after := adjusted_interval
 		if index == group.size() - 1:
-			delay_after = gap_after_group
+			delay_after = adjusted_gap
 		schedule.append({
 			"enemy_id": group[index],
 			"delay_after": delay_after,

@@ -21,6 +21,15 @@ const PIERCE_MINIMUM_DAMAGE_MULTIPLIER := 0.40
 const EXPLOSION_INNER_RADIUS_RATIO := 0.50
 const EXPLOSION_OUTER_DAMAGE_MULTIPLIER := 0.50
 
+# Initial enemy pacing test pass. Bosses bypass the standard-archetype
+# multipliers; weakened and elite variants use their own centralized values.
+const STANDARD_ENEMY_HEALTH_MULTIPLIER := 1.80
+const STANDARD_ENEMY_SPEED_MULTIPLIER := 0.70
+const HORDE_ENEMY_HEALTH_MULTIPLIER := 0.55
+const ELITE_ENEMY_HEALTH_MULTIPLIER := 2.25
+const ELITE_ENEMY_SPEED_MULTIPLIER := 1.30
+const PAYDAY_ENEMY_HEALTH_MULTIPLIER := 0.50
+
 # Provisional relic balance values. These are centralized so later tuning does
 # not require changing combat code.
 const DIVIDENDS_INTEREST_RATE := 0.05
@@ -513,7 +522,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 850,
-				"damage": 5,
+				"damage": 4,
 				"firerate": 0.13,
 				"range": 14.0,
 				"hidden_detection": false,
@@ -541,7 +550,7 @@ const TOWERS := {
 				},
 				"behavior_values": {
 					"heavy_shot_interval": 3.0,
-					"heavy_shot_damage_multiplier": 15.0,
+					"heavy_shot_damage_multiplier": 12.0,
 					"heavy_shot_speed_multiplier": 0.60,
 				},
 			},
@@ -680,7 +689,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 3600,
-				"damage": 10,
+				"damage": 8,
 				"firerate": 0.11,
 				"range": 9.0,
 				"hidden_detection": false,
@@ -755,7 +764,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1050,
-				"damage": 31,
+				"damage": 25,
 				"firerate": 0.75,
 				"range": 7.0,
 				"combo_hit_count": 3,
@@ -909,7 +918,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 2600,
-				"damage": 90,
+				"damage": 70,
 				"firerate": 1.65,
 				"range": 27.0,
 				"hidden_detection": false,
@@ -988,7 +997,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1150,
-				"damage": 29,
+				"damage": 23,
 				"projectile_speed": 700.0,
 				"firerate": 0.62,
 				"range": 15.0,
@@ -1013,6 +1022,7 @@ const TOWERS := {
 				"description": "Replaces the two-orb attack with a staggered five-orb fan.",
 				"cost": 2500,
 				"unlock_level": 3,
+				"stat_multipliers": {"damage": 0.80},
 				"stat_overrides": {
 					"projectile_count": 5,
 					"volley_width": 6.0,
@@ -1075,7 +1085,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 2800,
-				"damage": 38,
+				"damage": 30,
 				"projectile_speed": 620.0,
 				"firerate": 1.50,
 				"range": 10.0,
@@ -1128,7 +1138,7 @@ const TOWERS := {
 					"bombardment_strike_count": 5,
 					"bombardment_stagger": 0.15,
 					"bombardment_spread_radius": 3.0,
-					"bombardment_damage_multiplier": 0.45,
+					"bombardment_damage_multiplier": 0.36,
 					"bombardment_radius_multiplier": 0.70,
 				},
 			},
@@ -1167,7 +1177,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 5200,
-				"damage": 175,
+				"damage": 135,
 				"projectile_speed": 1200.0,
 				"firerate": 2.7,
 				"range": 30.0,
@@ -1406,7 +1416,7 @@ const TOWERS := {
 				"spawn_interval": 4.5,
 				"spawn_limit": 5,
 				"deployment_radius": 8.0,
-				"unit_stats": {"damage": 15, "attack_interval": 0.55, "aim_radius": 11.0, "move_speed": 0.0, "projectile_speed": 680.0, "lifetime": 25.0},
+				"unit_stats": {"damage": 12, "attack_interval": 0.55, "aim_radius": 11.0, "move_speed": 0.0, "projectile_speed": 680.0, "lifetime": 25.0},
 			},
 		],
 	},
@@ -1555,7 +1565,7 @@ const TOWERS := {
 				"spawn_interval": 8.0,
 				"spawn_limit": 3,
 				"deployment_radius": 3.0,
-				"unit_stats": {"damage": 40, "attack_interval": 0.65, "aim_radius": 4.0, "move_speed": 78.0},
+				"unit_stats": {"damage": 34, "attack_interval": 0.65, "aim_radius": 4.0, "move_speed": 78.0},
 			},
 		],
 	},

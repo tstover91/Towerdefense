@@ -125,33 +125,48 @@ func load_stats() -> void:
 	var visual_multiplier := 1.0
 	match spawn_variant:
 		&"horde":
-			variant_health_multiplier = 0.7
+			variant_health_multiplier = GameStats.HORDE_ENEMY_HEALTH_MULTIPLIER
 			reward_multiplier = 0.55
 			damage_multiplier = 0.7
 			visual_multiplier = 0.9
 			traits.append(&"horde")
 		&"elite":
-			variant_health_multiplier = 3.0
-			speed_multiplier = 1.15
+			variant_health_multiplier = GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER
+			speed_multiplier = GameStats.ELITE_ENEMY_SPEED_MULTIPLIER
 			reward_multiplier = 3.0
 			damage_multiplier = 1.5
 			defense_bonus = 0.15
 			visual_multiplier = 1.25
 			traits.append(&"elite")
 		&"payday":
-			variant_health_multiplier = 0.65
+			variant_health_multiplier = GameStats.PAYDAY_ENEMY_HEALTH_MULTIPLIER
 			damage_multiplier = 0.5
 			visual_multiplier = 0.85
 			traits.append(&"payday")
 	var base_health: int = stats["health"]
 	var health_per_wave: float = stats.get("health_per_wave", 0.0)
 	var scaled_health := base_health + health_per_wave * maxi(wave_number - 1, 0)
+	var standard_health_multiplier := (
+		1.0
+		if bool(stats.get("boss", false))
+		else GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
+	)
 	health = maxi(
 		1,
-		roundi(scaled_health * health_multiplier * variant_health_multiplier)
+		roundi(
+			scaled_health
+			* standard_health_multiplier
+			* health_multiplier
+			* variant_health_multiplier
+		)
 	)
 	max_health = health
-	speed = float(stats["move_speed"]) * speed_multiplier
+	var standard_speed_multiplier := (
+		1.0
+		if bool(stats.get("boss", false))
+		else GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER
+	)
+	speed = float(stats["move_speed"]) * standard_speed_multiplier * speed_multiplier
 	cash_reward = maxi(1, roundi(float(stats["cash_reward"]) * reward_multiplier))
 	base_damage = maxi(
 		1,

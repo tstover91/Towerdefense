@@ -8,10 +8,10 @@ const TARGET_HIT_RADIUS := 12.0
 const REPORT_PATH := "res://balance_reports/tower_monte_carlo.csv"
 
 const SCENARIOS := [
-	{"id": "single", "enemies": 1, "defense": 0.0, "speed": 80.0, "distance_min": 0.45, "distance_max": 0.85},
-	{"id": "armored_elite", "enemies": 1, "defense": 0.45, "speed": 70.0, "distance_min": 0.55, "distance_max": 0.90},
-	{"id": "fast_pack", "enemies": 4, "defense": 0.10, "speed": 180.0, "distance_min": 0.35, "distance_max": 0.85},
-	{"id": "horde", "enemies": 12, "defense": 0.10, "speed": 105.0, "distance_min": 0.30, "distance_max": 0.90},
+	{"id": "single", "enemies": 1, "defense": 0.0, "speed": 70.0, "distance_min": 0.45, "distance_max": 0.85},
+	{"id": "armored_elite", "enemies": 1, "defense": 0.45, "speed": 68.25, "distance_min": 0.55, "distance_max": 0.90},
+	{"id": "fast_pack", "enemies": 4, "defense": 0.10, "speed": 112.0, "distance_min": 0.35, "distance_max": 0.85},
+	{"id": "horde", "enemies": 12, "defense": 0.10, "speed": 70.0, "distance_min": 0.30, "distance_max": 0.90},
 ]
 
 var rng := RandomNumberGenerator.new()
