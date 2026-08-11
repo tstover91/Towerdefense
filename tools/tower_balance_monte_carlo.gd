@@ -241,7 +241,10 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 	var values: Dictionary = traits["values"]
 	var primary_type: StringName = traits["primary_type"]
 	if tower_id not in [&"reaver", &"voidcaller"]:
-		attacks *= maxi(int(stats.get("projectile_count", 1)), 1)
+		var projectile_total := maxi(int(stats.get("projectile_count", 1)), 1)
+		if tower_id == &"energycore":
+			projectile_total = mini(projectile_total, int(scenario["enemies"]))
+		attacks *= projectile_total
 	if flags.get("orbital_bombardment", false):
 		attacks *= maxi(int(values.get("bombardment_strike_count", 5)), 1)
 	for attack_index in attacks:
@@ -318,7 +321,7 @@ func simulate_orbital_path_trial(
 			base_damage * float(values.get("bombardment_damage_multiplier", 0.36))
 		))
 	var hit_radius := (
-		(GameStats.BUILD_CELL_SIZE * 0.5) / RANGE_PIXELS_PER_UNIT
+		GameStats.BUILD_CELL_SIZE / RANGE_PIXELS_PER_UNIT
 		if flags.get("orbital_solar_lance", false)
 		else float(stats.get("splash_radius", 0.0))
 		* float(values.get("bombardment_radius_multiplier", 0.70))
@@ -596,12 +599,29 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 		)
 	if flags.get("energy_shockwave", false):
 		var count := floori(duration / maxf(float(values.get("shockwave_cooldown", 6.0)), 0.1))
-		total += float(count) * apply_armor(damage * float(values.get("shockwave_damage_multiplier", 1.0)), &"electric", defense, false) * minf(float(enemies), 5.0)
+		total += float(count) * apply_armor(
+			maxf(roundf(damage * float(values.get("shockwave_damage_multiplier", 0.25))), 1.0),
+			&"electric",
+			defense,
+			false
+		) * float(enemies)
 	if flags.get("energy_branching_current", false):
 		var attacks := floori(duration / maxf(float(stats.get("firerate", 1.0)), 0.01))
-		var branches := mini(int(values.get("branch_additional_targets", 2)), enemies - 1)
-		for branch in branches:
-			total += float(attacks) * apply_armor(damage * maxf(1.0 - float(values.get("branch_damage_loss", 0.25)) * float(branch + 1), 0.0), &"electric", defense, false)
+		var primary_bolts := mini(
+			maxi(int(stats.get("projectile_count", 1)), 1),
+			enemies
+		)
+		var branches_per_bolt := mini(
+			int(values.get("branch_additional_targets", 2)),
+			enemies - 1
+		)
+		var branch_damage := maxf(roundf(
+			damage * float(values.get("branch_damage_multiplier", 0.30))
+		), 1.0)
+		total += (
+			float(attacks * primary_bolts * branches_per_bolt)
+			* apply_armor(branch_damage, &"electric", defense, false)
+		)
 	if tower_id == &"saucer" and flags.get("saucer_twin_rockets", false):
 		var count := floori(duration / maxf(float(values.get("saucer_rocket_interval", 3.0)), 0.1))
 		total += float(count * 2) * apply_armor(damage * float(values.get("saucer_rocket_damage_multiplier", 3.0)), &"explosive", defense, false) * minf(float(enemies), 2.5)
@@ -662,7 +682,8 @@ func get_model_note(tower_id: StringName) -> String:
 		&"longshot": return "mine availability approximated"
 		&"slinger": return "bounce availability and contact splash approximated"
 		&"voidcaller": return "orb spread and singularity coverage approximated"
-		&"orbitalcannon": return "fixed manual zone; path area and persistence approximated"
+		&"orbitalcannon": return "fixed manual zone; path area and persistence approximated; Lance Slow excluded"
+		&"energycore": return "distinct bolt targets modeled; Slow and Shockwave Stun excluded"
 		&"saucer": return "travel and abduction removal excluded"
 		&"hivemother", &"dronedepot", &"mechbay": return "spawn ramp and combat uptime approximated"
 		_: return "generic event model"

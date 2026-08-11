@@ -233,13 +233,13 @@ var active_solar_lances: Array[Node] = []
 var energy_shockwave_enabled := false
 var energy_shockwave_cooldown := 6.0
 var energy_shockwave_remaining := 0.0
-var energy_shockwave_damage_multiplier := 2.0
+var energy_shockwave_damage_multiplier := 0.25
 var energy_shockwave_stun_duration := 0.75
 var energy_shockwave_visual_remaining := 0.0
 var energy_branching_current_enabled := false
 var energy_branch_additional_targets := 2
 var energy_branch_range_pixels := 0.0
-var energy_branch_damage_loss := 0.25
+var energy_branch_damage_multiplier := 0.30
 var energy_branch_visual_segments: Array[Dictionary] = []
 var energy_branch_visual_remaining := 0.0
 var saucer_twin_rockets_enabled := false
@@ -2045,12 +2045,12 @@ func reset_relentless() -> void:
 func has_enemy_in_orbital_target_zone() -> bool:
 	var activation_radius := splash_radius_pixels
 	if orbital_solar_lance_enabled:
-		activation_radius = BUILD_CELL_SIZE * 0.5
+		activation_radius = BUILD_CELL_SIZE
 	if orbital_bombardment_enabled:
 		activation_radius = (
 			orbital_bombardment_spread_radius_pixels
 			+ (
-				BUILD_CELL_SIZE * 0.5
+				BUILD_CELL_SIZE
 				if orbital_solar_lance_enabled
 				else splash_radius_pixels * orbital_bombardment_radius_multiplier
 			)
@@ -2132,7 +2132,7 @@ func spawn_solar_lance(
 	lance.global_position = strike_position
 	lance.setup(
 		main,
-		BUILD_CELL_SIZE * 0.5,
+		BUILD_CELL_SIZE,
 		maxi(roundi(float(strike_damage) * tick_start_multiplier), 1),
 		maxi(roundi(float(strike_damage) * tick_end_multiplier), 1),
 		orbital_solar_lance_duration,
@@ -2188,8 +2188,8 @@ func attack(current_target: Node2D) -> void:
 	var attack_damage := roll_critical_damage(base_attack_damage, current_target)
 	if beholder_ramping_beam_enabled:
 		attack_damage = roll_critical_damage(get_beholder_ramp_damage(), current_target)
-	if tower_id == ENERGY_CORE_TOWER_ID and energy_branching_current_enabled:
-		apply_energy_branching_attack(current_target, attack_damage)
+	if tower_id == ENERGY_CORE_TOWER_ID:
+		apply_energy_core_attack(current_target, attack_damage)
 		return
 	if delivery_type == GameStats.DELIVERY_PROJECTILE:
 		match tower_id:
@@ -2203,66 +2203,114 @@ func attack(current_target: Node2D) -> void:
 		apply_hitscan_damage(current_target, attack_damage)
 
 
-func apply_energy_branching_attack(
+func apply_energy_core_attack(
 	current_target: Node2D,
 	attack_damage: int
 ) -> void:
-	var attack_context := create_attack_context(
-		&"electric_primary", null, &"tower", null, false, true
-	)
 	energy_branch_visual_segments.clear()
-	energy_branch_visual_segments.append({
-		"start": muzzle.global_position,
-		"end": current_target.global_position,
-	})
-	var hit_target_ids: Dictionary = {current_target.get_instance_id(): true}
-	apply_control_effects(current_target, attack_context)
-	apply_tower_damage(
-		current_target,
-		attack_damage,
-		damage_type,
-		false,
-		attack_context
+	var primary_targets := get_energy_primary_targets(current_target)
+	var volley_context := create_attack_context(
+		&"electric_volley", null, &"tower", null, false, true
 	)
-	var branch_origin := current_target.global_position
-	for branch_index in energy_branch_additional_targets:
+	var primary_strikes: Array[Dictionary] = []
+	for primary_target in primary_targets:
+		var primary_context := create_attack_context(
+			&"electric_primary", self, &"tower", volley_context, false
+		)
+		energy_branch_visual_segments.append({
+			"start": muzzle.global_position,
+			"end": primary_target.global_position,
+		})
+		apply_control_effects(primary_target, primary_context)
+		apply_tower_damage(
+			primary_target,
+			attack_damage,
+			damage_type,
+			false,
+			primary_context
+		)
+		primary_strikes.append({
+			"target": primary_target,
+			"context": primary_context,
+		})
+	if energy_branching_current_enabled:
+		for primary_strike in primary_strikes:
+			apply_energy_branches(
+				primary_strike["target"],
+				attack_damage,
+				primary_strike["context"]
+			)
+	energy_branch_visual_remaining = 0.12
+	queue_redraw()
+
+
+func get_energy_primary_targets(current_target: Node2D) -> Array[Node2D]:
+	var primary_targets: Array[Node2D] = [current_target]
+	var excluded_ids: Dictionary = {current_target.get_instance_id(): true}
+	while primary_targets.size() < projectile_count:
+		var next_target := get_preferred_energy_target(excluded_ids)
+		if next_target == null:
+			break
+		primary_targets.append(next_target)
+		excluded_ids[next_target.get_instance_id()] = true
+	return primary_targets
+
+
+func get_preferred_energy_target(excluded_ids: Dictionary) -> Node2D:
+	var selected_target: Node2D
+	for candidate in mobs_in_range:
+		if (
+			not is_valid_target(candidate)
+			or excluded_ids.has(candidate.get_instance_id())
+		):
+			continue
+		if selected_target == null or is_target_preferred(candidate, selected_target):
+			selected_target = candidate
+	return selected_target
+
+
+func is_target_preferred(candidate: Node2D, selected_target: Node2D) -> bool:
+	match target_mode:
+		TargetMode.FIRST:
+			return candidate.path_follow.progress > selected_target.path_follow.progress
+		TargetMode.LAST:
+			return candidate.path_follow.progress < selected_target.path_follow.progress
+		TargetMode.LOWEST_HEALTH:
+			return candidate.health < selected_target.health
+		TargetMode.HIGHEST_HEALTH:
+			return candidate.health > selected_target.health
+	return false
+
+
+func apply_energy_branches(
+	primary_target: Node2D,
+	attack_damage: int,
+	primary_context: AttackContext
+) -> void:
+	var excluded_ids: Dictionary = {primary_target.get_instance_id(): true}
+	var branch_damage := maxi(
+		roundi(float(attack_damage) * energy_branch_damage_multiplier),
+		1
+	)
+	for _branch_index in energy_branch_additional_targets:
 		var branch_target := get_nearest_energy_branch_target(
-			branch_origin,
-			hit_target_ids
+			primary_target.global_position,
+			excluded_ids
 		)
 		if branch_target == null:
 			break
-		hit_target_ids[branch_target.get_instance_id()] = true
-		var branch_multiplier := maxf(
-			1.0 - energy_branch_damage_loss * float(branch_index + 1),
-			0.0
-		)
-		var branch_damage := maxi(
-			roundi(float(attack_damage) * branch_multiplier),
-			1
-		)
+		excluded_ids[branch_target.get_instance_id()] = true
 		var branch_context := create_attack_context(
-			&"electric_branch",
-			self,
-			&"tower",
-			attack_context,
-			true
+			&"electric_branch", self, &"tower", primary_context, true
 		)
 		apply_control_effects(branch_target, branch_context)
 		apply_tower_damage(
-			branch_target,
-			branch_damage,
-			damage_type,
-			false,
-			branch_context
+			branch_target, branch_damage, damage_type, false, branch_context
 		)
 		energy_branch_visual_segments.append({
-			"start": branch_origin,
+			"start": primary_target.global_position,
 			"end": branch_target.global_position,
 		})
-		branch_origin = branch_target.global_position
-	energy_branch_visual_remaining = 0.12
-	queue_redraw()
 
 
 func get_nearest_energy_branch_target(
@@ -4244,12 +4292,12 @@ func load_path_behaviors() -> void:
 	orbital_bombardment_radius_multiplier = 0.70
 	energy_shockwave_enabled = false
 	energy_shockwave_cooldown = 6.0
-	energy_shockwave_damage_multiplier = 2.0
+	energy_shockwave_damage_multiplier = 0.25
 	energy_shockwave_stun_duration = 0.75
 	energy_branching_current_enabled = false
 	energy_branch_additional_targets = 2
 	energy_branch_range_pixels = 0.0
-	energy_branch_damage_loss = 0.25
+	energy_branch_damage_multiplier = 0.30
 	saucer_twin_rockets_enabled = false
 	saucer_rocket_damage_multiplier = 2.0
 	saucer_rocket_interval = 3.0
@@ -4486,7 +4534,7 @@ func load_path_behaviors() -> void:
 				0.1
 			)
 			energy_shockwave_damage_multiplier = maxf(
-				float(values.get("shockwave_damage_multiplier", 2.0)),
+				float(values.get("shockwave_damage_multiplier", 0.25)),
 				0.0
 			)
 			energy_shockwave_stun_duration = maxf(
@@ -4503,8 +4551,8 @@ func load_path_behaviors() -> void:
 				maxf(float(values.get("branch_range", 4.0)), 0.0)
 				* RANGE_PIXELS_PER_UNIT
 			)
-			energy_branch_damage_loss = clampf(
-				float(values.get("branch_damage_loss", 0.25)),
+			energy_branch_damage_multiplier = clampf(
+				float(values.get("branch_damage_multiplier", 0.30)),
 				0.0,
 				1.0
 			)

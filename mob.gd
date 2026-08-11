@@ -244,6 +244,13 @@ func apply_slow(duration: float, attack_context: AttackContext = null) -> void:
 	slow_remaining = maxf(slow_remaining, duration)
 
 
+func clear_slow_from_context(attack_context: AttackContext) -> void:
+	if attack_context == null or slow_context != attack_context:
+		return
+	slow_remaining = 0.0
+	slow_context = null
+
+
 func apply_brainiac_link(
 	duration: float,
 	radius: float,

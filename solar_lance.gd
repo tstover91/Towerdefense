@@ -18,6 +18,7 @@ var tick_index := 0
 var tick_count := 1
 var resolving := false
 var attack_context: AttackContext
+var slowed_mobs: Array[Node] = []
 
 
 func setup(
@@ -68,6 +69,7 @@ func _process(delta: float) -> void:
 		cancel()
 		return
 	elapsed += delta
+	update_zone_slow(delta)
 	tick_remaining -= delta
 	while tick_remaining <= 0.0 and elapsed <= duration:
 		apply_damage_tick()
@@ -107,10 +109,42 @@ func apply_damage_tick() -> void:
 	tick_index += 1
 
 
+func update_zone_slow(delta: float) -> void:
+	var mobs_inside: Array[Node] = []
+	var refresh_duration := maxf(delta * 2.0, 0.05)
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_mob(mob):
+			continue
+		if global_position.distance_to(mob.global_position) > radius:
+			continue
+		mobs_inside.append(mob)
+		if not slowed_mobs.has(mob):
+			slowed_mobs.append(mob)
+		if mob.has_method("apply_slow"):
+			mob.apply_slow(refresh_duration, attack_context)
+	for mob in slowed_mobs.duplicate():
+		if mobs_inside.has(mob):
+			continue
+		clear_lance_slow_from_mob(mob)
+		slowed_mobs.erase(mob)
+
+
+func clear_all_lance_slows() -> void:
+	for mob in slowed_mobs:
+		clear_lance_slow_from_mob(mob)
+	slowed_mobs.clear()
+
+
+func clear_lance_slow_from_mob(mob: Node) -> void:
+	if is_instance_valid(mob) and mob.has_method("clear_slow_from_context"):
+		mob.clear_slow_from_context(attack_context)
+
+
 func finish() -> void:
 	if resolving:
 		return
 	resolving = true
+	clear_all_lance_slows()
 	finished.emit(self)
 	queue_free()
 
