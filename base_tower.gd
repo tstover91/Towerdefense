@@ -125,6 +125,7 @@ var continuous_beam_enabled := false
 var beam_aim_direction := Vector2.RIGHT
 var beam_has_aim := false
 var beam_turn_speed_radians := deg_to_rad(DEFAULT_BEAM_TURN_SPEED_DEGREES)
+var beam_hit_half_width_pixels := BEAM_HIT_HALF_WIDTH
 var dual_weapons_enabled := false
 var slinger_contact_explosions_enabled := false
 var slinger_contact_explosion_radius_pixels := 0.0
@@ -463,21 +464,26 @@ func draw_active_beam() -> void:
 
 
 func draw_beam_segment(beam_start: Vector2, beam_end: Vector2) -> void:
+	var width_multiplier := beam_hit_half_width_pixels / BEAM_HIT_HALF_WIDTH
 	draw_line(
 		beam_start,
 		beam_end,
 		Color(0.55, 0.1, 0.85, 0.35),
-		7.0,
+		7.0 * width_multiplier,
 		true
 	)
 	draw_line(
 		beam_start,
 		beam_end,
 		Color(0.95, 0.55, 1.0, 0.95),
-		2.5,
+		2.5 * width_multiplier,
 		true
 	)
-	draw_circle(beam_end, 4.0, Color(1.0, 0.75, 1.0, 0.9))
+	draw_circle(
+		beam_end,
+		4.0 * width_multiplier,
+		Color(1.0, 0.75, 1.0, 0.9)
+	)
 
 
 func draw_reaver_time_bubble() -> void:
@@ -1152,6 +1158,10 @@ func load_level_stats() -> void:
 		)),
 		0.0
 	))
+	beam_hit_half_width_pixels = maxf(
+		float(stats.get("beam_half_width", BEAM_HIT_HALF_WIDTH)),
+		0.1
+	)
 	projectile_speed = stats.get("projectile_speed", 600.0)
 	splash_radius_pixels = float(stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT
 	if tower_id == SAUCER_TOWER_ID:
@@ -3049,7 +3059,7 @@ func apply_continuous_beam_tick(
 			current_target,
 			line_origin,
 			line_end,
-			BEAM_HIT_HALF_WIDTH
+			beam_hit_half_width_pixels
 		):
 			return
 		apply_control_effects(current_target, beam_context)
@@ -3066,7 +3076,7 @@ func apply_continuous_beam_tick(
 		line_origin,
 		line_end,
 		null,
-		BEAM_HIT_HALF_WIDTH
+		beam_hit_half_width_pixels
 	)
 	var maximum_hits := intersected_targets.size()
 	if not infinite_pierce:
@@ -3953,7 +3963,7 @@ func _on_beholder_target_died(killed_mob: Node2D) -> void:
 	killed_mob.set_meta("beholder_death_explosion_triggered", true)
 	var explosion_damage := maxi(
 		roundi(
-			float(get_beholder_ramp_damage())
+			float(damage)
 			* beholder_death_explosion_damage_multiplier
 		),
 		1
