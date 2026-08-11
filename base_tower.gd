@@ -128,6 +128,7 @@ var beam_turn_speed_radians := deg_to_rad(DEFAULT_BEAM_TURN_SPEED_DEGREES)
 var dual_weapons_enabled := false
 var slinger_contact_explosions_enabled := false
 var slinger_contact_explosion_radius_pixels := 0.0
+var slinger_contact_explosion_damage_multiplier := 1.0
 var projectile_count := 1
 var volley_width_pixels := 0.0
 var volley_stagger := 0.0
@@ -2809,7 +2810,8 @@ func launch_projectile_from_position(
 		tower_id,
 		false,
 		pierce_loses_no_power,
-		get_explosion_damage_multiplier(),
+		slinger_contact_explosion_damage_multiplier
+			* get_explosion_damage_multiplier(),
 		resolved_context
 	)
 	return projectile
@@ -4144,7 +4146,8 @@ func add_pierce(amount := 1) -> void:
 
 func set_slinger_contact_explosions(
 	enabled: bool,
-	explosion_radius_units := 2.5
+	explosion_radius_units := 2.5,
+	explosion_damage_multiplier := 1.0
 ) -> void:
 	if tower_id != SLINGER_TOWER_ID:
 		return
@@ -4153,6 +4156,9 @@ func set_slinger_contact_explosions(
 		maxf(explosion_radius_units, 0.0) * RANGE_PIXELS_PER_UNIT
 		if enabled
 		else 0.0
+	)
+	slinger_contact_explosion_damage_multiplier = (
+		maxf(explosion_damage_multiplier, 0.0) if enabled else 1.0
 	)
 
 
@@ -4239,6 +4245,7 @@ func load_path_behaviors() -> void:
 	saucer_monster_drop_enabled = false
 	slinger_contact_explosions_enabled = false
 	slinger_contact_explosion_radius_pixels = 0.0
+	slinger_contact_explosion_damage_multiplier = 1.0
 	for path_id in purchased_paths:
 		var path := GameStats.get_tower_path(tower_id, path_id)
 		var flags: Dictionary = path.get("behavior_flags", {})
@@ -4501,7 +4508,11 @@ func load_path_behaviors() -> void:
 		if flags.get("slinger_contact_explosions", false):
 			set_slinger_contact_explosions(
 				true,
-				float(values.get("contact_explosion_radius", 2.5))
+				float(values.get("contact_explosion_radius", 2.5)),
+				float(values.get(
+					"contact_explosion_damage_multiplier",
+					1.0
+				))
 			)
 	if has_damage_tag(DAMAGE_BEAM) and get_owned_relic_count(&"death_ray") > 0:
 		infinite_pierce = true

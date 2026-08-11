@@ -5,7 +5,7 @@ const DEFAULT_ITERATIONS := 1000
 const DEFAULT_DURATION := 30.0
 const RANGE_PIXELS_PER_UNIT := 12.9
 const TARGET_HIT_RADIUS := 12.0
-const REPORT_PATH := "res://balance_reports/tower_monte_carlo.csv"
+const DEFAULT_REPORT_PATH := "res://balance_reports/tower_monte_carlo.csv"
 
 const SCENARIOS := [
 	{"id": "single", "enemies": 1, "defense": 0.0, "speed": 70.0, "distance_min": 0.45, "distance_max": 0.85},
@@ -18,6 +18,8 @@ var rng := RandomNumberGenerator.new()
 var iterations := DEFAULT_ITERATIONS
 var duration := DEFAULT_DURATION
 var seed_value := 730241
+var tower_filter: Array[StringName] = []
+var report_path := DEFAULT_REPORT_PATH
 
 
 func _init() -> void:
@@ -28,7 +30,8 @@ func run_balance_simulation() -> void:
 	read_arguments()
 	rng.seed = seed_value
 	validate_tower_progression()
-	print("Balance simulator: %d towers, %d iterations, %.1f seconds" % [GameStats.TOWERS.size(), iterations, duration])
+	var tower_count := tower_filter.size() if not tower_filter.is_empty() else GameStats.TOWERS.size()
+	print("Balance simulator: %d towers, %d iterations, %.1f seconds" % [tower_count, iterations, duration])
 	var rows := run_simulation()
 	write_report(rows)
 	print_summary(rows)
@@ -56,12 +59,20 @@ func read_arguments() -> void:
 			duration = maxf(float(argument.get_slice("=", 1)), 5.0)
 		elif argument.begins_with("--seed="):
 			seed_value = int(argument.get_slice("=", 1))
+		elif argument.begins_with("--towers="):
+			tower_filter.clear()
+			for tower_name in argument.get_slice("=", 1).split(",", false):
+				tower_filter.append(StringName(tower_name.strip_edges()))
+		elif argument.begins_with("--report-path="):
+			report_path = argument.get_slice("=", 1)
 
 
 func run_simulation() -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
 	for tower_key in GameStats.TOWERS:
 		var tower_id := StringName(tower_key)
+		if not tower_filter.is_empty() and not tower_filter.has(tower_id):
+			continue
 		var tower: Dictionary = GameStats.get_tower(tower_id)
 		var levels: Array = tower["levels"]
 		for level in levels.size():
@@ -242,6 +253,13 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 			continue
 		var hit_damage := apply_armor(attack_damage, primary_type, float(scenario["defense"]), int(stats.get("pierce_count", 0)) > 0)
 		total += get_attack_total_damage(hit_damage, stats, traits, scenario)
+		if flags.get("slinger_contact_explosions", false):
+			total += get_slinger_contact_explosion_damage(
+				attack_damage,
+				stats,
+				traits,
+				scenario
+			)
 	if flags.get("beholder_ramping_beam", false):
 		total *= get_beholder_ramp_average(values)
 	total += simulate_periodic_specials(tower_id, damage, stats, traits, scenario)
@@ -310,6 +328,57 @@ func get_attack_total_damage(primary_damage: float, stats: Dictionary, traits: D
 		for _enemy in range(1, enemy_count):
 			if rng.randf() <= coverage:
 				total += primary_damage if rng.randf() <= 0.25 else primary_damage * GameStats.EXPLOSION_OUTER_DAMAGE_MULTIPLIER
+	return total
+
+
+func get_slinger_contact_explosion_damage(
+	attack_damage: float,
+	stats: Dictionary,
+	traits: Dictionary,
+	scenario: Dictionary
+) -> float:
+	var enemy_count := int(scenario["enemies"])
+	var contact_count := 1 + mini(
+		int(stats.get("bounce_count", 0)),
+		enemy_count - 1
+	)
+	if traits["flags"].get("infinite_pierce", false):
+		contact_count = enemy_count
+	else:
+		contact_count += mini(
+			int(stats.get("pierce_count", 0)),
+			enemy_count - contact_count
+		)
+	var values: Dictionary = traits["values"]
+	var explosion_damage := float(roundi(
+		attack_damage
+		* float(values.get("contact_explosion_damage_multiplier", 1.0))
+	))
+	explosion_damage = apply_armor(
+		explosion_damage,
+		&"explosive",
+		float(scenario["defense"]),
+		false
+	)
+	var total := explosion_damage * float(contact_count)
+	var bystander_count := maxi(enemy_count - contact_count, 0)
+	if bystander_count <= 0:
+		return total
+	var radius := float(values.get("contact_explosion_radius", 2.5))
+	var coverage_per_contact := clampf(0.12 + radius * 0.055, 0.12, 0.75)
+	var combined_coverage := 1.0 - pow(
+		1.0 - coverage_per_contact,
+		float(contact_count)
+	)
+	var average_splash_multiplier := (
+		0.25 + 0.75 * GameStats.EXPLOSION_OUTER_DAMAGE_MULTIPLIER
+	)
+	total += (
+		explosion_damage
+		* float(bystander_count)
+		* combined_coverage
+		* average_splash_multiplier
+	)
 	return total
 
 
@@ -411,6 +480,7 @@ func get_model_note(tower_id: StringName) -> String:
 		&"beholder": return "continuous lock assumed; death explosions excluded"
 		&"reaver": return "continuous combo contact assumed"
 		&"longshot": return "mine availability approximated"
+		&"slinger": return "bounce availability and contact splash approximated"
 		&"voidcaller": return "orb spread and singularity coverage approximated"
 		&"orbitalcannon": return "optimal manual zone assumed; path persistence excluded"
 		&"saucer": return "travel and abduction removal excluded"
@@ -420,7 +490,7 @@ func get_model_note(tower_id: StringName) -> String:
 
 func write_report(rows: Array[Dictionary]) -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://balance_reports"))
-	var file := FileAccess.open(REPORT_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(report_path, FileAccess.WRITE)
 	file.store_line("tower_id,tower_name,level,variant,scenario,cost,mean_dps,p10_dps,p90_dps,dps_per_100_cost,model")
 	for row in rows:
 		var fields := PackedStringArray([
@@ -429,7 +499,7 @@ func write_report(rows: Array[Dictionary]) -> void:
 		])
 		file.store_line(",".join(fields))
 	file.close()
-	print("Monte Carlo report: ", ProjectSettings.globalize_path(REPORT_PATH))
+	print("Monte Carlo report: ", ProjectSettings.globalize_path(report_path))
 
 
 func print_summary(rows: Array[Dictionary]) -> void:
