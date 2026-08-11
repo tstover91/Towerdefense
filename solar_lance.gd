@@ -18,7 +18,7 @@ var tick_index := 0
 var tick_count := 1
 var resolving := false
 var attack_context: AttackContext
-var slowed_mobs: Array[Node] = []
+var slowed_mobs: Dictionary = {}
 
 
 func setup(
@@ -110,32 +110,39 @@ func apply_damage_tick() -> void:
 
 
 func update_zone_slow(delta: float) -> void:
-	var mobs_inside: Array[Node] = []
+	var mob_ids_inside: Dictionary = {}
 	var refresh_duration := maxf(delta * 2.0, 0.05)
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_mob(mob):
 			continue
 		if global_position.distance_to(mob.global_position) > radius:
 			continue
-		mobs_inside.append(mob)
-		if not slowed_mobs.has(mob):
-			slowed_mobs.append(mob)
+		var mob_id := mob.get_instance_id()
+		mob_ids_inside[mob_id] = true
+		slowed_mobs[mob_id] = weakref(mob)
 		if mob.has_method("apply_slow"):
 			mob.apply_slow(refresh_duration, attack_context)
-	for mob in slowed_mobs.duplicate():
-		if mobs_inside.has(mob):
+	for mob_id in slowed_mobs.keys():
+		if mob_ids_inside.has(mob_id):
 			continue
-		clear_lance_slow_from_mob(mob)
-		slowed_mobs.erase(mob)
+		clear_lance_slow_from_mob(get_tracked_slowed_mob(mob_id))
+		slowed_mobs.erase(mob_id)
 
 
 func clear_all_lance_slows() -> void:
-	for mob in slowed_mobs:
-		clear_lance_slow_from_mob(mob)
+	for mob_id in slowed_mobs.keys():
+		clear_lance_slow_from_mob(get_tracked_slowed_mob(mob_id))
 	slowed_mobs.clear()
 
 
-func clear_lance_slow_from_mob(mob: Node) -> void:
+func get_tracked_slowed_mob(mob_id: int) -> Variant:
+	var mob_reference: Variant = slowed_mobs.get(mob_id)
+	if mob_reference is not WeakRef:
+		return null
+	return mob_reference.get_ref()
+
+
+func clear_lance_slow_from_mob(mob: Variant) -> void:
 	if is_instance_valid(mob) and mob.has_method("clear_slow_from_context"):
 		mob.clear_slow_from_context(attack_context)
 

@@ -232,8 +232,11 @@ func _process_control_effects(delta: float) -> void:
 	else:
 		stun_fatigue_recovery_elapsed = 0.0
 	if slow_remaining <= 0.0:
+		slow_context = null
 		return
 	slow_remaining = maxf(slow_remaining - delta, 0.0)
+	if slow_remaining <= 0.0:
+		slow_context = null
 
 
 func apply_slow(duration: float, attack_context: AttackContext = null) -> void:
