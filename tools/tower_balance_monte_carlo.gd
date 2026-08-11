@@ -134,6 +134,11 @@ func get_variant_stats(
 		var path := GameStats.get_tower_path(tower_id, path_id)
 		apply_numeric_modifiers(stats, path.get("stat_multipliers", {}), true)
 		apply_numeric_modifiers(stats, path.get("stat_additions", {}), false)
+		if path.has("pierce_count_add"):
+			stats["pierce_count"] = (
+				int(stats.get("pierce_count", 0))
+				+ int(path.get("pierce_count_add", 0))
+			)
 		for conditional in path.get("conditional_stat_multipliers", []):
 			if paths.has(StringName(conditional.get("unless_path", &""))):
 				continue
@@ -220,6 +225,14 @@ func get_variant_cost(tower_id: StringName, level: int, paths: Array[StringName]
 func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary, scenario: Dictionary) -> float:
 	if stats.has("unit_stats"):
 		return simulate_spawner_trial(tower_id, stats, traits, scenario)
+	if (
+		tower_id == &"orbitalcannon"
+		and (
+			traits["flags"].get("orbital_solar_lance", false)
+			or traits["flags"].get("orbital_bombardment", false)
+		)
+	):
+		return simulate_orbital_path_trial(stats, traits, scenario)
 	var damage := float(stats.get("damage", 0))
 	var interval := maxf(float(stats.get("firerate", 1.0)), 0.01)
 	var attacks := floori((duration + rng.randf() * interval) / interval)
@@ -266,6 +279,112 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 	if flags.get("beholder_ramping_beam", false):
 		total *= get_beholder_ramp_average(values)
 	total += simulate_periodic_specials(tower_id, damage, stats, traits, scenario)
+	return total / duration
+
+
+func simulate_orbital_path_trial(
+	stats: Dictionary,
+	traits: Dictionary,
+	scenario: Dictionary
+) -> float:
+	var flags: Dictionary = traits["flags"]
+	var values: Dictionary = traits["values"]
+	var interval := maxf(float(stats.get("firerate", 1.0)), 0.01)
+	var volleys := floori((duration + rng.randf() * interval) / interval)
+	var enemy_count := maxi(int(scenario["enemies"]), 1)
+	var enemy_positions: Array[Vector2] = [Vector2.ZERO]
+	var reference_radius := maxf(float(stats.get("splash_radius", 0.0)), 0.01)
+	var pack_radius := reference_radius + 0.75
+	for _enemy_index in range(1, enemy_count):
+		enemy_positions.append(
+			Vector2.from_angle(rng.randf_range(0.0, TAU))
+			* sqrt(rng.randf())
+			* pack_radius
+		)
+	var total := 0.0
+	var strike_count := (
+		maxi(int(values.get("bombardment_strike_count", 5)), 1)
+		if flags.get("orbital_bombardment", false)
+		else 1
+	)
+	var spread_radius := (
+		maxf(float(values.get("bombardment_spread_radius", 3.0)), 0.0)
+		if flags.get("orbital_bombardment", false)
+		else 0.0
+	)
+	var base_damage := float(stats.get("damage", 0))
+	if flags.get("orbital_bombardment", false) and not flags.get("orbital_solar_lance", false):
+		base_damage = float(roundi(
+			base_damage * float(values.get("bombardment_damage_multiplier", 0.36))
+		))
+	var hit_radius := (
+		(GameStats.BUILD_CELL_SIZE * 0.5) / RANGE_PIXELS_PER_UNIT
+		if flags.get("orbital_solar_lance", false)
+		else float(stats.get("splash_radius", 0.0))
+		* float(values.get("bombardment_radius_multiplier", 0.70))
+	)
+	var tick_count := 1
+	if flags.get("orbital_solar_lance", false):
+		var lance_duration := float(values.get("solar_lance_duration", 1.25))
+		var tick_interval := maxf(
+			float(values.get("solar_lance_tick_interval", 0.2)),
+			0.01
+		)
+		tick_count = floori(lance_duration / tick_interval) + 1
+		var tick_start_multiplier := (
+			float(values.get("solar_lance_dual_tick_damage_multiplier", 0.10))
+			if flags.get("orbital_bombardment", false)
+			else float(values.get("solar_lance_tick_damage_multiplier", 0.25))
+		)
+		var tick_end_multiplier := (
+			tick_start_multiplier
+			if flags.get("orbital_bombardment", false)
+			else float(values.get("solar_lance_tick_end_damage_multiplier", 0.50))
+		)
+		var total_tick_damage := 0.0
+		for current_tick in tick_count:
+			var ramp_progress := (
+				float(current_tick) / float(tick_count - 1)
+				if tick_count > 1
+				else 1.0
+			)
+			total_tick_damage += float(maxi(roundi(
+				base_damage * lerpf(
+					tick_start_multiplier,
+					tick_end_multiplier,
+					ramp_progress
+				)
+			), 1))
+		base_damage = total_tick_damage / float(tick_count)
+	for _volley_index in volleys:
+		for strike_index in strike_count:
+			var strike_position := Vector2.ZERO
+			if strike_index > 0:
+				strike_position = (
+					Vector2.from_angle(rng.randf_range(0.0, TAU))
+					* sqrt(rng.randf())
+					* spread_radius
+				)
+			for enemy_position in enemy_positions:
+				var distance_from_strike := enemy_position.distance_to(strike_position)
+				if distance_from_strike > hit_radius:
+					continue
+				var damage_multiplier := 1.0
+				if (
+					not flags.get("orbital_solar_lance", false)
+					and distance_from_strike
+					> hit_radius * GameStats.EXPLOSION_INNER_RADIUS_RATIO
+				):
+					damage_multiplier = GameStats.EXPLOSION_OUTER_DAMAGE_MULTIPLIER
+				total += (
+					apply_armor(
+						base_damage * damage_multiplier,
+						&"beam" if flags.get("orbital_solar_lance", false) else &"explosive",
+						float(scenario["defense"]),
+						false
+					)
+					* float(tick_count)
+				)
 	return total / duration
 
 
@@ -444,13 +563,37 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 	var defense := float(scenario["defense"])
 	if flags.get("gauss_heavy_shot", false):
 		var count := floori(duration / maxf(float(values.get("heavy_shot_interval", 3.0)), 0.1))
-		total += float(count) * apply_armor(damage * float(values.get("heavy_shot_damage_multiplier", 10.0)), traits["primary_type"], defense, true) * float(enemies)
+		var heavy_damage := maxi(roundi(
+			damage * float(values.get("heavy_shot_damage_multiplier", 10.0))
+		), 1)
+		var heavy_line_damage := 0.0
+		for hit_index in enemies:
+			heavy_line_damage += apply_armor(
+				float(GameStats.get_piercing_damage(heavy_damage, hit_index)),
+				traits["primary_type"],
+				defense,
+				true
+			)
+		total += float(count) * heavy_line_damage
 	if flags.get("longshot_mines", false):
 		var count := floori(duration / maxf(float(values.get("mine_interval", 5.0)), 0.1))
 		total += float(count) * apply_armor(damage * float(values.get("mine_damage_multiplier", 1.5)), &"explosive", defense, false) * minf(float(enemies), 3.0)
 	if flags.get("void_singularity", false):
 		var count := floori(duration / maxf(float(values.get("singularity_cooldown", 10.0)), 0.1))
-		total += float(count) * apply_armor(damage * float(values.get("singularity_damage_multiplier", 4.0)), &"explosive", defense, false) * minf(float(enemies), 5.0)
+		var coverage_target_cap := maxi(
+			roundi(float(values.get("singularity_explosion_radius", 4.0))) + 2,
+			1
+		)
+		total += (
+			float(count)
+			* apply_armor(
+				damage * float(values.get("singularity_damage_multiplier", 4.0)),
+				&"explosive",
+				defense,
+				false
+			)
+			* minf(float(enemies), float(coverage_target_cap))
+		)
 	if flags.get("energy_shockwave", false):
 		var count := floori(duration / maxf(float(values.get("shockwave_cooldown", 6.0)), 0.1))
 		total += float(count) * apply_armor(damage * float(values.get("shockwave_damage_multiplier", 1.0)), &"electric", defense, false) * minf(float(enemies), 5.0)
@@ -519,7 +662,7 @@ func get_model_note(tower_id: StringName) -> String:
 		&"longshot": return "mine availability approximated"
 		&"slinger": return "bounce availability and contact splash approximated"
 		&"voidcaller": return "orb spread and singularity coverage approximated"
-		&"orbitalcannon": return "optimal manual zone assumed; path persistence excluded"
+		&"orbitalcannon": return "fixed manual zone; path area and persistence approximated"
 		&"saucer": return "travel and abduction removal excluded"
 		&"hivemother", &"dronedepot", &"mechbay": return "spawn ramp and combat uptime approximated"
 		_: return "generic event model"

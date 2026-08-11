@@ -221,6 +221,7 @@ var orbital_solar_lance_enabled := false
 var orbital_solar_lance_duration := 2.0
 var orbital_solar_lance_tick_interval := 0.2
 var orbital_solar_lance_tick_damage_multiplier := 0.25
+var orbital_solar_lance_tick_end_damage_multiplier := 0.50
 var orbital_solar_lance_dual_tick_damage_multiplier := 0.10
 var orbital_bombardment_enabled := false
 var orbital_bombardment_strike_count := 5
@@ -2043,10 +2044,16 @@ func reset_relentless() -> void:
 
 func has_enemy_in_orbital_target_zone() -> bool:
 	var activation_radius := splash_radius_pixels
+	if orbital_solar_lance_enabled:
+		activation_radius = BUILD_CELL_SIZE * 0.5
 	if orbital_bombardment_enabled:
 		activation_radius = (
 			orbital_bombardment_spread_radius_pixels
-			+ splash_radius_pixels * orbital_bombardment_radius_multiplier
+			+ (
+				BUILD_CELL_SIZE * 0.5
+				if orbital_solar_lance_enabled
+				else splash_radius_pixels * orbital_bombardment_radius_multiplier
+			)
 		)
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(mob):
@@ -2115,16 +2122,19 @@ func spawn_solar_lance(
 ) -> void:
 	if SOLAR_LANCE_SCENE == null or get_tree().current_scene == null:
 		return
-	var tick_multiplier := orbital_solar_lance_tick_damage_multiplier
+	var tick_start_multiplier := orbital_solar_lance_tick_damage_multiplier
+	var tick_end_multiplier := orbital_solar_lance_tick_end_damage_multiplier
 	if orbital_bombardment_enabled:
-		tick_multiplier = orbital_solar_lance_dual_tick_damage_multiplier
+		tick_start_multiplier = orbital_solar_lance_dual_tick_damage_multiplier
+		tick_end_multiplier = orbital_solar_lance_dual_tick_damage_multiplier
 	var lance := SOLAR_LANCE_SCENE.instantiate() as Node2D
 	get_tree().current_scene.add_child(lance)
 	lance.global_position = strike_position
 	lance.setup(
 		main,
 		BUILD_CELL_SIZE * 0.5,
-		maxi(roundi(float(strike_damage) * tick_multiplier), 1),
+		maxi(roundi(float(strike_damage) * tick_start_multiplier), 1),
+		maxi(roundi(float(strike_damage) * tick_end_multiplier), 1),
 		orbital_solar_lance_duration,
 		orbital_solar_lance_tick_interval,
 		create_attack_context(
@@ -4224,6 +4234,7 @@ func load_path_behaviors() -> void:
 	orbital_solar_lance_duration = 2.0
 	orbital_solar_lance_tick_interval = 0.2
 	orbital_solar_lance_tick_damage_multiplier = 0.25
+	orbital_solar_lance_tick_end_damage_multiplier = 0.50
 	orbital_solar_lance_dual_tick_damage_multiplier = 0.10
 	orbital_bombardment_enabled = false
 	orbital_bombardment_strike_count = 5
@@ -4436,6 +4447,10 @@ func load_path_behaviors() -> void:
 			)
 			orbital_solar_lance_tick_damage_multiplier = maxf(
 				float(values.get("solar_lance_tick_damage_multiplier", 0.25)),
+				0.0
+			)
+			orbital_solar_lance_tick_end_damage_multiplier = maxf(
+				float(values.get("solar_lance_tick_end_damage_multiplier", 0.50)),
 				0.0
 			)
 			orbital_solar_lance_dual_tick_damage_multiplier = maxf(
