@@ -227,7 +227,7 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 	var flags: Dictionary = traits["flags"]
 	var values: Dictionary = traits["values"]
 	var primary_type: StringName = traits["primary_type"]
-	if tower_id != &"reaver":
+	if tower_id not in [&"reaver", &"voidcaller"]:
 		attacks *= maxi(int(stats.get("projectile_count", 1)), 1)
 	if flags.get("orbital_bombardment", false):
 		attacks *= maxi(int(values.get("bombardment_strike_count", 5)), 1)
@@ -252,7 +252,10 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		if rng.randf() > hit_chance and primary_type != &"explosive":
 			continue
 		var hit_damage := apply_armor(attack_damage, primary_type, float(scenario["defense"]), int(stats.get("pierce_count", 0)) > 0)
-		total += get_attack_total_damage(hit_damage, stats, traits, scenario)
+		if tower_id == &"voidcaller":
+			total += get_voidcaller_volley_damage(hit_damage, stats, scenario)
+		else:
+			total += get_attack_total_damage(hit_damage, stats, traits, scenario)
 		if flags.get("slinger_contact_explosions", false):
 			total += get_slinger_contact_explosion_damage(
 				attack_damage,
@@ -328,6 +331,40 @@ func get_attack_total_damage(primary_damage: float, stats: Dictionary, traits: D
 		for _enemy in range(1, enemy_count):
 			if rng.randf() <= coverage:
 				total += primary_damage if rng.randf() <= 0.25 else primary_damage * GameStats.EXPLOSION_OUTER_DAMAGE_MULTIPLIER
+	return total
+
+
+func get_voidcaller_volley_damage(
+	projectile_damage: float,
+	stats: Dictionary,
+	scenario: Dictionary
+) -> float:
+	var projectile_total := maxi(int(stats.get("projectile_count", 1)), 1)
+	var volley_width := maxf(float(stats.get("volley_width", 0.0)), 0.0)
+	var splash_radius := maxf(float(stats.get("splash_radius", 0.0)), 0.0)
+	var enemy_count := int(scenario["enemies"])
+	var total := 0.0
+	var coverage := clampf(0.12 + splash_radius * 0.055, 0.12, 0.75)
+
+	for projectile_index in projectile_total:
+		var spread_ratio := 0.0
+		if projectile_total > 1:
+			spread_ratio = (
+				float(projectile_index) / float(projectile_total - 1) - 0.5
+			)
+		var target_offset := absf(volley_width * spread_ratio)
+		if target_offset <= splash_radius * GameStats.EXPLOSION_INNER_RADIUS_RATIO:
+			total += projectile_damage
+		elif target_offset <= splash_radius:
+			total += projectile_damage * GameStats.EXPLOSION_OUTER_DAMAGE_MULTIPLIER
+
+		for _enemy in range(1, enemy_count):
+			if rng.randf() <= coverage:
+				total += (
+					projectile_damage
+					if rng.randf() <= 0.25
+					else projectile_damage * GameStats.EXPLOSION_OUTER_DAMAGE_MULTIPLIER
+				)
 	return total
 
 
