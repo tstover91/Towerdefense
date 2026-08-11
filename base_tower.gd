@@ -146,6 +146,11 @@ var gauss_spread_recovery_delay := 0.0
 var gauss_spread_recovery_per_second := 0.0
 var gauss_time_without_target := 0.0
 var gauss_spread_initialized := false
+var gauss_overclock_enabled := false
+var gauss_overclock_elapsed := 0.0
+var gauss_overclock_max_speed_bonus := 0.0
+var gauss_overclock_ramp_duration := 3.0
+var gauss_overclock_decay_duration := 1.0
 var gauss_heavy_shot_enabled := false
 var gauss_heavy_shot_interval := 0.0
 var gauss_heavy_shot_remaining := 0.0
@@ -845,11 +850,16 @@ func get_static_sell_price() -> int:
 	if level_values.is_empty():
 		return int(GameStats.get_tower(tower_id)["placement_cost"])
 	var level_index := mini(tower_level, level_values.size() - 1)
-	return (
-		int(level_values[level_index])
-		+ int(GameStats.TOWER_PATH_SELL_VALUE_ADDITIONS.get(tower_id, 0))
-			* purchased_paths.size()
+	var sell_price := int(level_values[level_index])
+
+	var path_sell_values: Dictionary = (
+		GameStats.TOWER_PATH_SELL_VALUE_ADDITIONS.get(tower_id, {})
 	)
+
+	for path_id in purchased_paths:
+		sell_price += int(path_sell_values.get(path_id, 0))
+
+	return sell_price
 
 func _ready() -> void:
 	spawn_rng.randomize()
@@ -900,6 +910,7 @@ func _on_direction_button_pressed(index: int) -> void:
 		return
 	aim_direction = AIM_DIRECTIONS[index]
 	reset_gauss_spread()
+	gauss_overclock_elapsed = 0.0
 	target = null
 	rotator.rotation = aim_direction.angle()
 	queue_redraw()
@@ -1092,6 +1103,32 @@ func load_level_stats() -> void:
 	gauss_spread_recovery_per_second = maxf(
 		float(stats.get("spread_recovery_per_second", 0.0)),
 		0.0
+	)
+	gauss_overclock_enabled = bool(
+	stats.get("gauss_overclock_enabled", false)
+)
+
+	gauss_overclock_max_speed_bonus = maxf(
+		float(stats.get("gauss_overclock_max_speed_bonus", 0.0)),
+		0.0
+	)
+
+	gauss_overclock_ramp_duration = maxf(
+		float(stats.get("gauss_overclock_ramp_duration", 3.0)),
+		0.01
+	)
+
+	gauss_overclock_decay_duration = maxf(
+		float(stats.get("gauss_overclock_decay_duration", 1.0)),
+		0.01
+	)
+
+	if not gauss_overclock_enabled:
+		gauss_overclock_elapsed = 0.0
+	else:
+		gauss_overclock_elapsed = minf(
+			gauss_overclock_elapsed,
+			gauss_overclock_ramp_duration
 	)
 	if uses_directional_aim() and not gauss_spread_initialized:
 		gauss_current_spread_degrees = gauss_maximum_spread_degrees
@@ -1836,6 +1873,7 @@ func _on_saucer_monster_exiting(monster: Node) -> void:
 func _on_round_started(_round_number: int) -> void:
 	qualified_for_investment_round = is_placed
 	brainiac_link_cooldown_remaining = 0.0
+	gauss_overclock_elapsed = 0.0
 	if gauss_heavy_shot_enabled:
 		gauss_heavy_shot_remaining = gauss_heavy_shot_interval
 	if reaver_time_bubble_enabled:
@@ -1857,6 +1895,7 @@ func _on_round_ended(_round_number: int) -> void:
 		completed_rounds_active += 1
 	qualified_for_investment_round = false
 	brainiac_link_cooldown_remaining = 0.0
+	gauss_overclock_elapsed = 0.0
 	update_sell_button()
 	reaver_time_bubble_active_remaining = 0.0
 	reaver_time_bubble_cooldown_remaining = 0.0
@@ -1935,6 +1974,21 @@ func _apply_damage() -> void:
 
 func get_current_attack_interval() -> float:
 	var interval := loaded_attack_interval
+	
+	if gauss_overclock_enabled and gauss_overclock_elapsed > 0.0:
+		var overclock_progress := clampf(
+			gauss_overclock_elapsed / gauss_overclock_ramp_duration,
+			0.0,
+			1.0
+		)
+
+		var attack_speed_bonus := (
+			gauss_overclock_max_speed_bonus
+			* overclock_progress
+		)
+
+		interval /= 1.0 + attack_speed_bonus
+		
 	var frenzy_stacks := get_owned_relic_count(&"frenzy")
 	if has_damage_tag(DAMAGE_MELEE) and frenzy_stacks > 0:
 		var enemy_count := mini(
@@ -3120,6 +3174,7 @@ func _process(delta: float) -> void:
 			0.0
 		)
 	process_gauss_spread(delta)
+	process_gauss_overclock(delta)
 	if orbital_targeting_active:
 		orbital_preview_position = get_global_mouse_position()
 		orbital_preview_valid = is_valid_orbital_target_position(
@@ -3639,7 +3694,39 @@ func get_max_distance_in_direction(direction: Vector2, origin: Vector2) -> float
 			result = minf(result, distance)
 	return maxf(result + 32.0, 32.0)
 
+func process_gauss_overclock(delta: float) -> void:
+	if (
+		not gauss_overclock_enabled
+		or not uses_directional_aim()
+		or not is_placed
+	):
+		gauss_overclock_elapsed = 0.0
+		return
 
+	if main == null or not main.round_active:
+		gauss_overclock_elapsed = 0.0
+		return
+
+	# Having a valid target means Gauss is actively sustaining fire.
+	if is_valid_target(target):
+		gauss_overclock_elapsed = minf(
+			gauss_overclock_elapsed + delta,
+			gauss_overclock_ramp_duration
+		)
+		return
+
+	# When firing stops, lose the accumulated Overclock over the
+	# configured decay duration instead of resetting instantly.
+	var decay_rate := (
+		gauss_overclock_ramp_duration
+		/ gauss_overclock_decay_duration
+	)
+
+	gauss_overclock_elapsed = maxf(
+		gauss_overclock_elapsed - decay_rate * delta,
+		0.0
+	)
+	
 func process_gauss_spread(delta: float) -> void:
 	if not uses_directional_aim() or not is_placed:
 		return
