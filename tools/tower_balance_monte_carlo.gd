@@ -235,6 +235,8 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		elif flags.get("orbital_bombardment", false):
 			attack_damage *= float(values.get("bombardment_damage_multiplier", 0.45))
 		var distance_ratio := rng.randf_range(float(scenario["distance_min"]), float(scenario["distance_max"]))
+		if flags.get("longshot_distance_damage", false):
+			attack_damage *= get_longshot_distance_multiplier(values, distance_ratio)
 		var hit_chance := get_hit_chance(tower_id, stats, traits, scenario, distance_ratio, attack_index, attacks)
 		if rng.randf() > hit_chance and primary_type != &"explosive":
 			continue
@@ -242,10 +244,17 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		total += get_attack_total_damage(hit_damage, stats, traits, scenario)
 	if flags.get("beholder_ramping_beam", false):
 		total *= get_beholder_ramp_average(values)
-	if flags.get("longshot_distance_damage", false):
-		total *= (float(values.get("distance_minimum_multiplier", 1.0)) + float(values.get("distance_maximum_multiplier", 2.0))) * 0.5
 	total += simulate_periodic_specials(tower_id, damage, stats, traits, scenario)
 	return total / duration
+
+
+func get_longshot_distance_multiplier(values: Dictionary, distance_ratio: float) -> float:
+	var minimum := float(values.get("distance_minimum_multiplier", 1.0))
+	var midpoint := float(values.get("distance_midpoint_multiplier", 1.0))
+	var maximum := float(values.get("distance_maximum_multiplier", 2.0))
+	if distance_ratio <= 0.5:
+		return lerpf(minimum, midpoint, clampf(distance_ratio * 2.0, 0.0, 1.0))
+	return lerpf(midpoint, maximum, clampf((distance_ratio - 0.5) * 2.0, 0.0, 1.0))
 
 
 func get_reaver_combo_damage(damage: float, stats: Dictionary, flags: Dictionary) -> float:

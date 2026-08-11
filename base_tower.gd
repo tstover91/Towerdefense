@@ -190,6 +190,7 @@ var brainiac_link_radius_pixels := 0.0
 var brainiac_link_damage_share := 0.5
 var longshot_distance_damage_enabled := false
 var longshot_distance_minimum_multiplier := 1.0
+var longshot_distance_midpoint_multiplier := 1.0
 var longshot_distance_maximum_multiplier := 1.0
 var longshot_mines_enabled := false
 var longshot_mine_interval := 5.0
@@ -852,12 +853,15 @@ func get_static_sell_price() -> int:
 	var level_index := mini(tower_level, level_values.size() - 1)
 	var sell_price := int(level_values[level_index])
 
-	var path_sell_values: Dictionary = (
+	var path_sell_values: Variant = (
 		GameStats.TOWER_PATH_SELL_VALUE_ADDITIONS.get(tower_id, {})
 	)
 
 	for path_id in purchased_paths:
-		sell_price += int(path_sell_values.get(path_id, 0))
+		if path_sell_values is Dictionary:
+			sell_price += int(path_sell_values.get(path_id, 0))
+		else:
+			sell_price += int(path_sell_values)
 
 	return sell_price
 
@@ -2439,11 +2443,19 @@ func get_longshot_distance_damage(current_target: Node2D) -> int:
 		0.0,
 		1.0
 	)
-	var damage_multiplier := lerpf(
-		longshot_distance_minimum_multiplier,
-		longshot_distance_maximum_multiplier,
-		distance_ratio
-	)
+	var damage_multiplier := longshot_distance_midpoint_multiplier
+	if distance_ratio <= 0.5:
+		damage_multiplier = lerpf(
+			longshot_distance_minimum_multiplier,
+			longshot_distance_midpoint_multiplier,
+			distance_ratio * 2.0
+		)
+	else:
+		damage_multiplier = lerpf(
+			longshot_distance_midpoint_multiplier,
+			longshot_distance_maximum_multiplier,
+			(distance_ratio - 0.5) * 2.0
+		)
 	return maxi(roundi(float(damage) * damage_multiplier), 1)
 
 
@@ -4186,6 +4198,7 @@ func load_path_behaviors() -> void:
 	brainiac_link_damage_share = 0.5
 	longshot_distance_damage_enabled = false
 	longshot_distance_minimum_multiplier = 1.0
+	longshot_distance_midpoint_multiplier = 1.0
 	longshot_distance_maximum_multiplier = 1.0
 	longshot_mines_enabled = false
 	longshot_mine_interval = 5.0
@@ -4343,9 +4356,14 @@ func load_path_behaviors() -> void:
 				float(values.get("distance_minimum_multiplier", 1.0)),
 				0.0
 			)
+			longshot_distance_midpoint_multiplier = clampf(
+				float(values.get("distance_midpoint_multiplier", 1.0)),
+				longshot_distance_minimum_multiplier,
+				float(values.get("distance_maximum_multiplier", 2.0))
+			)
 			longshot_distance_maximum_multiplier = maxf(
 				float(values.get("distance_maximum_multiplier", 2.0)),
-				longshot_distance_minimum_multiplier
+				longshot_distance_midpoint_multiplier
 			)
 		if flags.get("longshot_mines", false):
 			longshot_mines_enabled = true
