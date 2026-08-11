@@ -70,8 +70,9 @@ const SHOP_CHOICE_COUNT := 3
 const GAUNTLET_RELIC_CHOICE_COUNT := 4
 const MINIMUM_APPLICABLE_RELIC_CHOICES := 2
 const TOWER_DRAFT_ROUNDS: Array[int] = [4, 9, 14]
-const RELIC_DRAFT_ROUNDS: Array[int] = [6, 11, 16]
+const RELIC_DRAFT_ROUNDS: Array[int] = [1, 6, 11, 16]
 const RELIC_RARITY_WEIGHTS_BY_ROUND := {
+	1: {&"common": 100.0},
 	6: {&"common": 70.0, &"rare": 30.0},
 	11: {&"common": 35.0, &"rare": 55.0, &"legendary": 10.0},
 	16: {&"rare": 70.0, &"legendary": 30.0},
