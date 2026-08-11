@@ -886,14 +886,14 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Extreme Range",
-				"description": "Longshot's direct shots deal reduced damage nearby, normal damage at half range, and double damage at maximum range.",
+				"description": "Longshot's direct shots deal 75% damage nearby, normal damage at half range, and 225% damage at maximum range.",
 				"cost": 1900,
 				"unlock_level": 3,
 				"behavior_flags": {"longshot_distance_damage": true},
 				"behavior_values": {
 					"distance_minimum_multiplier": 0.75,
 					"distance_midpoint_multiplier": 1.0,
-					"distance_maximum_multiplier": 2.0,
+					"distance_maximum_multiplier": 2.25,
 				},
 			},
 			"b": {
@@ -958,7 +958,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Explosive Ricochet",
-				"description": "The initial hit and every bounced impact create an Explosive blast dealing 85% of the impact's damage.",
+				"description": "The initial hit and every bounced impact create an Explosive blast dealing 75% of the impact's damage.",
 				"cost": 1500,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
@@ -967,7 +967,7 @@ const TOWERS := {
 				},
 				"behavior_values": {
 					"contact_explosion_radius": 2.5,
-					"contact_explosion_damage_multiplier": 0.85,
+					"contact_explosion_damage_multiplier": 0.75,
 				},
 			},
 			"b": {
@@ -1229,15 +1229,15 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Shockwave",
-				"description": "Every six seconds, releases a weak electric pulse that damages and stuns every enemy in range.",
+				"description": "Every five seconds, releases a weak electric pulse that damages and stuns every enemy in range.",
 				"cost": 1000,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"stun"],
 				"behavior_flags": {"energy_shockwave": true},
 				"behavior_values": {
-					"shockwave_cooldown": 6.0,
-					"shockwave_damage_multiplier": 0.25,
-					"shockwave_stun_duration": 0.75,
+					"shockwave_cooldown": 5.0,
+					"shockwave_damage_multiplier": 0.35,
+					"shockwave_stun_duration": 1.0,
 				},
 			},
 			"b": {

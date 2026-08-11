@@ -6,12 +6,9 @@ const DEFAULT_DURATION := 30.0
 const RANGE_PIXELS_PER_UNIT := 12.9
 const TARGET_HIT_RADIUS := 12.0
 const DEFAULT_REPORT_PATH := "res://balance_reports/tower_monte_carlo.csv"
-
-const SCENARIOS := [
-	{"id": "single", "enemies": 1, "armor": 0.0, "speed": 70.0, "distance_min": 0.45, "distance_max": 0.85},
-	{"id": "armored_elite", "enemies": 1, "armor": 16.0, "speed": 68.25, "distance_min": 0.55, "distance_max": 0.90},
-	{"id": "fast_pack", "enemies": 4, "armor": 0.0, "speed": 112.0, "distance_min": 0.35, "distance_max": 0.85},
-	{"id": "horde", "enemies": 12, "armor": 0.0, "speed": 70.0, "distance_min": 0.30, "distance_max": 0.90},
+const BALANCED_TOWERS: Array[StringName] = [
+	&"invader", &"gauss_repeater", &"beholder", &"reaver", &"brainiac",
+	&"longshot", &"slinger", &"voidcaller", &"orbitalcannon", &"energycore",
 ]
 
 var rng := RandomNumberGenerator.new()
@@ -20,6 +17,7 @@ var duration := DEFAULT_DURATION
 var seed_value := 730241
 var tower_filter: Array[StringName] = []
 var report_path := DEFAULT_REPORT_PATH
+var scenarios: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -29,9 +27,10 @@ func _init() -> void:
 func run_balance_simulation() -> void:
 	read_arguments()
 	rng.seed = seed_value
+	build_enemy_scenarios()
 	validate_tower_progression()
-	var tower_count := tower_filter.size() if not tower_filter.is_empty() else GameStats.TOWERS.size()
-	print("Balance simulator: %d towers, %d iterations, %.1f seconds" % [tower_count, iterations, duration])
+	var tower_count := tower_filter.size() if not tower_filter.is_empty() else BALANCED_TOWERS.size()
+	print("Balance simulator: %d towers, %d enemy types, %d iterations, %.1f seconds" % [tower_count, scenarios.size(), iterations, duration])
 	var rows := run_simulation()
 	write_report(rows)
 	print_summary(rows)
@@ -71,6 +70,8 @@ func run_simulation() -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
 	for tower_key in GameStats.TOWERS:
 		var tower_id := StringName(tower_key)
+		if tower_filter.is_empty() and not BALANCED_TOWERS.has(tower_id):
+			continue
 		if not tower_filter.is_empty() and not tower_filter.has(tower_id):
 			continue
 		var tower: Dictionary = GameStats.get_tower(tower_id)
@@ -83,9 +84,59 @@ func run_simulation() -> Array[Dictionary]:
 			rows.append_array(simulate_variant(tower_id, maximum_level, [&"a"], "path_a"))
 		if paths.has("b"):
 			rows.append_array(simulate_variant(tower_id, maximum_level, [&"b"], "path_b"))
-		if paths.has("a") and paths.has("b"):
-			rows.append_array(simulate_variant(tower_id, maximum_level, [&"a", &"b"], "dual"))
 	return rows
+
+
+func build_enemy_scenarios() -> void:
+	scenarios.clear()
+	for enemy_key in GameStats.ENEMIES:
+		var enemy_id := StringName(enemy_key)
+		var enemy: Dictionary = GameStats.get_enemy(enemy_id)
+		var enemy_traits: Array = enemy.get("traits", []).duplicate()
+		var enemy_count := get_enemy_pack_size(enemy)
+		var spawned_count := 0
+		if int(enemy.get("split_count", 0)) > 0:
+			spawned_count += enemy_count * int(enemy.get("split_count", 0))
+		if int(enemy.get("summon_limit", 0)) > 0:
+			spawned_count += enemy_count * int(enemy.get("summon_limit", 0))
+		var first_wave := maxi(int(enemy.get("first_wave", 1)), 1)
+		var health := (
+			float(enemy.get("health", 1))
+			+ float(enemy.get("health_per_wave", 0.0)) * float(first_wave - 1)
+		)
+		var speed := float(enemy.get("move_speed", 70.0))
+		if enemy_traits.has(&"speed_aura"):
+			speed *= float(enemy.get("speed_aura_multiplier", 1.0))
+		if enemy_traits.has(&"rushes"):
+			var rush_start := clampf(float(enemy.get("rush_start_ratio", 0.7)), 0.0, 1.0)
+			var rush_multiplier := maxf(float(enemy.get("rush_speed_multiplier", 1.0)), 1.0)
+			speed /= maxf(rush_start + (1.0 - rush_start) / rush_multiplier, 0.01)
+		scenarios.append({
+			"id": String(enemy_id),
+			"enemy_name": String(enemy.get("display_name", enemy_id)),
+			"enemies": enemy_count + spawned_count,
+			"primary_enemies": enemy_count,
+			"spawned_enemies": spawned_count,
+			"armor": float(enemy.get("armor", 0.0)),
+			"health": maxf(health, 1.0),
+			"speed": speed,
+			"regeneration": float(enemy.get("regeneration_per_second", 0.0)),
+			"boss": bool(enemy.get("boss", false)),
+			"hidden": enemy_traits.has(&"hidden"),
+			"traits": enemy_traits,
+			"distance_min": 0.30 if enemy_count >= 6 else 0.45,
+			"distance_max": 0.90,
+		})
+
+
+func get_enemy_pack_size(enemy: Dictionary) -> int:
+	if bool(enemy.get("boss", false)):
+		return 1
+	match StringName(enemy.get("spawn_style", &"steady")):
+		&"stream": return 12
+		&"burst": return 7
+		&"spaced": return 3
+		_: return 5
 
 
 func simulate_variant(
@@ -99,7 +150,7 @@ func simulate_variant(
 	var traits := get_variant_traits(tower_id, level, paths)
 	var cost := get_variant_cost(tower_id, level, paths)
 	var result: Array[Dictionary] = []
-	for scenario in SCENARIOS:
+	for scenario in scenarios:
 		var samples: Array[float] = []
 		for _iteration in iterations:
 			samples.append(simulate_trial(tower_id, stats, traits, scenario))
@@ -114,11 +165,14 @@ func simulate_variant(
 			"level": level,
 			"variant": variant_name,
 			"scenario": scenario["id"],
+			"enemy_name": scenario["enemy_name"],
+			"enemy_count": scenario["enemies"],
 			"cost": cost,
 			"mean_dps": mean,
 			"p10_dps": percentile(samples, 0.10),
 			"p90_dps": percentile(samples, 0.90),
 			"dps_per_100": mean * 100.0 / maxf(float(cost), 1.0),
+			"control_value": get_control_value(stats, traits, scenario),
 			"model": get_model_note(tower_id),
 		})
 	return result
@@ -197,6 +251,10 @@ func get_variant_traits(tower_id: StringName, level: int, paths: Array[StringNam
 	var impact := StringName(tower.get("impact_mode", GameStats.IMPACT_PRIMARY))
 	var flags := {}
 	var values := {}
+	for level_index in range(0, mini(level + 1, levels.size())):
+		var level_data: Dictionary = levels[level_index]
+		flags.merge(level_data.get("behavior_flags", {}), true)
+		values.merge(level_data.get("behavior_values", {}), true)
 	for path_id in paths:
 		var path := GameStats.get_tower_path(tower_id, path_id)
 		for tag in path.get("add_damage_tags", []):
@@ -223,6 +281,8 @@ func get_variant_cost(tower_id: StringName, level: int, paths: Array[StringName]
 
 
 func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary, scenario: Dictionary) -> float:
+	if bool(scenario.get("hidden", false)) and not traits["bonus_tags"].has(&"reveal"):
+		return 0.0
 	if stats.has("unit_stats"):
 		return simulate_spawner_trial(tower_id, stats, traits, scenario)
 	if (
@@ -235,6 +295,16 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		return simulate_orbital_path_trial(stats, traits, scenario)
 	var damage := float(stats.get("damage", 0))
 	var interval := maxf(float(stats.get("firerate", 1.0)), 0.01)
+	if bool(stats.get("gauss_overclock_enabled", false)):
+		var ramp_duration := minf(
+			float(stats.get("gauss_overclock_ramp_duration", 3.0)),
+			duration
+		)
+		var average_bonus := (
+			float(stats.get("gauss_overclock_max_speed_bonus", 0.25))
+			* (1.0 - ramp_duration / maxf(2.0 * duration, 0.01))
+		)
+		interval /= 1.0 + average_bonus
 	var attacks := floori((duration + rng.randf() * interval) / interval)
 	var total := 0.0
 	var flags: Dictionary = traits["flags"]
@@ -268,6 +338,7 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		if rng.randf() > hit_chance and primary_type != &"explosive":
 			continue
 		var hit_damage := apply_armor(attack_damage, primary_type, float(scenario["armor"]), int(stats.get("pierce_count", 0)) > 0)
+		hit_damage = minf(hit_damage, float(scenario["health"]))
 		if tower_id == &"voidcaller":
 			total += get_voidcaller_volley_damage(hit_damage, stats, scenario)
 		else:
@@ -280,8 +351,53 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 				scenario
 			)
 	if flags.get("beholder_ramping_beam", false):
-		total *= get_beholder_ramp_average(values)
+		var base_single_dps := damage / maxf(interval, 0.01)
+		var expected_lock_duration := minf(
+			duration,
+			float(scenario["health"]) / maxf(base_single_dps, 1.0)
+		)
+		total *= get_beholder_ramp_average(values, expected_lock_duration)
+	if flags.get("beholder_death_explosion", false) and int(scenario["enemies"]) > 1:
+		var kill_count := total / maxf(float(scenario["health"]), 1.0)
+		var death_damage := apply_armor(
+			damage * float(values.get("death_explosion_damage_multiplier", 2.0)),
+			&"explosive",
+			float(scenario["armor"]),
+			false
+		)
+		death_damage = minf(death_damage, float(scenario["health"]))
+		var death_coverage := clampf(
+			0.12 + float(values.get("death_explosion_radius", 3.0)) * 0.055,
+			0.12,
+			0.75
+		)
+		total += kill_count * death_damage * float(int(scenario["enemies"]) - 1) * death_coverage * 0.625
+	if flags.get("brainiac_psionic_link", false) and int(scenario["enemies"]) > 1:
+		var link_uptime := minf(
+			float(values.get("brainiac_link_duration", 2.0))
+			/ maxf(float(values.get("brainiac_link_cooldown", 6.0)), 0.01),
+			1.0
+		)
+		var link_coverage := clampf(
+			0.12 + float(values.get("brainiac_link_radius", 3.5)) * 0.08,
+			0.12,
+			0.70
+		)
+		total += (
+			total
+			* link_uptime
+			* float(values.get("brainiac_link_damage_share", 0.35))
+			* float(int(scenario["enemies"]) - 1)
+			* link_coverage
+		)
 	total += simulate_periodic_specials(tower_id, damage, stats, traits, scenario)
+	var regeneration := float(scenario.get("regeneration", 0.0))
+	if regeneration > 0.0:
+		var pressured_targets := minf(
+			get_expected_targets_per_attack(stats, traits, scenario),
+			float(scenario["enemies"])
+		)
+		total = maxf(total - regeneration * duration * pressured_targets, 0.0)
 	return total / duration
 
 
@@ -379,15 +495,17 @@ func simulate_orbital_path_trial(
 					> hit_radius * GameStats.EXPLOSION_INNER_RADIUS_RATIO
 				):
 					damage_multiplier = GameStats.EXPLOSION_OUTER_DAMAGE_MULTIPLIER
-				total += (
-					apply_armor(
-						base_damage * damage_multiplier,
-						&"beam" if flags.get("orbital_solar_lance", false) else &"explosive",
-						float(scenario["armor"]),
-						false
-					)
-					* float(tick_count)
+				var strike_damage := apply_armor(
+					base_damage * damage_multiplier,
+					&"beam" if flags.get("orbital_solar_lance", false) else &"explosive",
+					float(scenario["armor"]),
+					false
 				)
+				strike_damage = minf(strike_damage, float(scenario["health"]))
+				total += strike_damage * float(tick_count)
+	var regeneration := float(scenario.get("regeneration", 0.0))
+	if regeneration > 0.0:
+		total = maxf(total - regeneration * duration * float(enemy_count), 0.0)
 	return total / duration
 
 
@@ -417,7 +535,20 @@ func get_reaver_combo_damage(damage: float, stats: Dictionary, flags: Dictionary
 
 
 func get_hit_chance(tower_id: StringName, stats: Dictionary, traits: Dictionary, scenario: Dictionary, distance_ratio: float, attack_index: int, attack_count: int) -> float:
+	if tower_id == &"brainiac":
+		return clampf(
+			0.16
+			+ 0.64 * pow(distance_ratio, 2.5)
+			+ 0.035 * float(int(scenario["enemies"])),
+			0.08,
+			1.0
+		)
 	if traits["delivery"] == GameStats.DELIVERY_HITSCAN:
+		if tower_id == &"beholder":
+			var turn_speed := float(stats.get("beam_turn_speed_degrees", 480.0))
+			var width_bonus := float(stats.get("beam_half_width", 2.5)) * 0.015
+			var speed_penalty := float(scenario["speed"]) / 900.0
+			return clampf(0.88 + turn_speed / 6000.0 + width_bonus - speed_penalty, 0.60, 1.0)
 		return 1.0
 	if traits["impact"] in [GameStats.IMPACT_FIRST_CONTACT, GameStats.IMPACT_DESTINATION]:
 		if tower_id == &"gauss_repeater":
@@ -429,8 +560,6 @@ func get_hit_chance(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 			var angular_target := rad_to_deg(atan(TARGET_HIT_RADIUS / maxf(float(stats.get("range", 1.0)) * RANGE_PIXELS_PER_UNIT * distance_ratio, 1.0)))
 			return clampf(angular_target / maxf(spread, 0.1), 0.02, 1.0)
 		return clampf(0.70 + 0.025 * float(int(scenario["enemies"])), 0.0, 1.0)
-	if tower_id == &"brainiac":
-		return clampf(0.20 + 0.80 * pow(distance_ratio, 3.0), 0.0, 1.0)
 	var distance_pixels := float(stats.get("range", 1.0)) * RANGE_PIXELS_PER_UNIT * distance_ratio
 	var travel_time := distance_pixels / maxf(float(stats.get("projectile_speed", 600.0)), 1.0)
 	var displacement := float(scenario["speed"]) * travel_time
@@ -454,6 +583,73 @@ func get_attack_total_damage(primary_damage: float, stats: Dictionary, traits: D
 			if rng.randf() <= coverage:
 				total += primary_damage if rng.randf() <= 0.25 else primary_damage * GameStats.EXPLOSION_OUTER_DAMAGE_MULTIPLIER
 	return total
+
+
+func get_expected_targets_per_attack(
+	stats: Dictionary,
+	traits: Dictionary,
+	scenario: Dictionary
+) -> float:
+	var enemies := maxi(int(scenario["enemies"]), 1)
+	var targets := float(mini(maxi(int(stats.get("projectile_count", 1)), 1), enemies))
+	targets += float(mini(int(stats.get("bounce_count", 0)), maxi(enemies - int(targets), 0)))
+	var pierce := int(stats.get("pierce_count", 0))
+	if traits["flags"].get("infinite_pierce", false):
+		pierce = enemies
+	targets += float(mini(pierce, maxi(enemies - int(targets), 0)))
+	if traits["primary_type"] == &"explosive":
+		var radius := float(stats.get("splash_radius", 0.0))
+		targets += float(maxi(enemies - int(targets), 0)) * clampf(0.12 + radius * 0.055, 0.12, 0.75)
+	return clampf(targets, 1.0, float(enemies))
+
+
+func get_control_value(stats: Dictionary, traits: Dictionary, scenario: Dictionary) -> float:
+	var enemies := maxi(int(scenario["enemies"]), 1)
+	var interval := maxf(float(stats.get("firerate", 1.0)), 0.01)
+	var targets := get_expected_targets_per_attack(stats, traits, scenario)
+	var value := 0.0
+	var slow_duration := float(stats.get("slow_duration", 0.0))
+	if slow_duration > 0.0:
+		value += minf(slow_duration / interval, 1.0) * targets * (1.0 - GameStats.SLOW_SPEED_MULTIPLIER)
+	var stun_duration := float(stats.get("stun_duration", 0.0))
+	if stun_duration > 0.0 and (not bool(scenario["boss"]) or bool(stats.get("stun_affects_bosses", false))):
+		# Repeated stuns quickly settle into fatigue, so sustained control uses the middle fatigue tier.
+		value += minf(stun_duration / interval, 1.0) * targets * 0.40
+	var flags: Dictionary = traits["flags"]
+	var values: Dictionary = traits["values"]
+	if flags.get("reaver_time_bubble", false):
+		var bubble_uptime := minf(
+			float(values.get("time_bubble_active_duration", 3.0))
+			/ maxf(
+				float(values.get("time_bubble_active_duration", 3.0))
+				+ float(values.get("time_bubble_cooldown", 7.0)),
+				0.01
+			),
+			1.0
+		)
+		value += bubble_uptime * float(enemies) * (1.0 - GameStats.SLOW_SPEED_MULTIPLIER)
+	if flags.get("energy_shockwave", false) and not bool(scenario["boss"]):
+		value += (
+			float(values.get("shockwave_stun_duration", 0.75))
+			/ maxf(float(values.get("shockwave_cooldown", 6.0)), 0.01)
+			* float(enemies)
+			* 0.40
+		)
+	if flags.get("energy_branching_current", false):
+		var primary_bolts := mini(maxi(int(stats.get("projectile_count", 1)), 1), enemies)
+		var branches := mini(int(values.get("branch_additional_targets", 2)), maxi(enemies - 1, 0))
+		value += minf(0.5 / interval, 1.0) * float(primary_bolts * branches) * (1.0 - GameStats.SLOW_SPEED_MULTIPLIER)
+	if flags.get("orbital_solar_lance", false):
+		var lance_uptime := minf(float(values.get("solar_lance_duration", 1.5)) / interval, 1.0)
+		value += lance_uptime * targets * (1.0 - GameStats.SLOW_SPEED_MULTIPLIER)
+	if flags.get("void_singularity", false):
+		var pull_uptime := minf(
+			float(values.get("singularity_pull_duration", 1.0))
+			/ maxf(float(values.get("singularity_cooldown", 10.0)), 0.01),
+			1.0
+		)
+		value += pull_uptime * float(enemies) * 0.15
+	return value
 
 
 func get_voidcaller_volley_damage(
@@ -551,13 +747,13 @@ func apply_armor(amount: float, damage_type: StringName, armor: float, ignores_a
 	return maxf(amount - effective_armor, 1.0)
 
 
-func get_beholder_ramp_average(values: Dictionary) -> float:
+func get_beholder_ramp_average(values: Dictionary, lock_duration: float) -> float:
 	var start := float(values.get("beam_ramp_start_multiplier", 0.5))
 	var step := float(values.get("beam_ramp_step_multiplier", 0.25))
 	var step_interval := float(values.get("beam_ramp_step_interval", 0.5))
 	var maximum := float(values.get("beam_ramp_max_multiplier", 2.5))
 	var total := 0.0
-	var ticks := maxi(floori(duration / step_interval), 1)
+	var ticks := maxi(floori(lock_duration / step_interval), 1)
 	for index in ticks: total += minf(start + step * float(index), maximum)
 	return total / float(ticks)
 
@@ -575,16 +771,18 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 		), 1)
 		var heavy_line_damage := 0.0
 		for hit_index in enemies:
-			heavy_line_damage += apply_armor(
+			if hit_index > 0 and rng.randf() > 0.25:
+				continue
+			heavy_line_damage += minf(apply_armor(
 				float(GameStats.get_piercing_damage(heavy_damage, hit_index)),
 				traits["primary_type"],
 				armor,
 				true
-			)
+			), float(scenario["health"]))
 		total += float(count) * heavy_line_damage
 	if flags.get("longshot_mines", false):
 		var count := floori(duration / maxf(float(values.get("mine_interval", 5.0)), 0.1))
-		total += float(count) * apply_armor(damage * float(values.get("mine_damage_multiplier", 1.5)), &"explosive", armor, false) * minf(float(enemies), 3.0)
+		total += float(count) * minf(apply_armor(damage * float(values.get("mine_damage_multiplier", 1.5)), &"explosive", armor, false), float(scenario["health"])) * minf(float(enemies), 3.0)
 	if flags.get("void_singularity", false):
 		var count := floori(duration / maxf(float(values.get("singularity_cooldown", 10.0)), 0.1))
 		var coverage_target_cap := maxi(
@@ -593,22 +791,22 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 		)
 		total += (
 			float(count)
-			* apply_armor(
+			* minf(apply_armor(
 				damage * float(values.get("singularity_damage_multiplier", 4.0)),
 				&"explosive",
 				armor,
 				false
-			)
+			), float(scenario["health"]))
 			* minf(float(enemies), float(coverage_target_cap))
 		)
 	if flags.get("energy_shockwave", false):
 		var count := floori(duration / maxf(float(values.get("shockwave_cooldown", 6.0)), 0.1))
-		total += float(count) * apply_armor(
+		total += float(count) * minf(apply_armor(
 			maxf(roundf(damage * float(values.get("shockwave_damage_multiplier", 0.25))), 1.0),
 			&"electric",
 			armor,
 			false
-		) * float(enemies)
+		), float(scenario["health"])) * float(enemies)
 	if flags.get("energy_branching_current", false):
 		var attacks := floori(duration / maxf(float(stats.get("firerate", 1.0)), 0.01))
 		var primary_bolts := mini(
@@ -624,7 +822,7 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 		), 1.0)
 		total += (
 			float(attacks * primary_bolts * branches_per_bolt)
-			* apply_armor(branch_damage, &"electric", armor, false)
+			* minf(apply_armor(branch_damage, &"electric", armor, false), float(scenario["health"]))
 		)
 	if tower_id == &"saucer" and flags.get("saucer_twin_rockets", false):
 		var count := floori(duration / maxf(float(values.get("saucer_rocket_interval", 3.0)), 0.1))
@@ -679,15 +877,15 @@ func percentile(values: Array[float], ratio: float) -> float:
 
 func get_model_note(tower_id: StringName) -> String:
 	match tower_id:
-		&"gauss_repeater": return "spread and Heavy Shot approximated"
-		&"brainiac": return "convergence accuracy and link excluded"
-		&"beholder": return "continuous lock assumed; death explosions excluded"
-		&"reaver": return "continuous combo contact assumed"
-		&"longshot": return "mine availability approximated"
-		&"slinger": return "bounce availability and contact splash approximated"
-		&"voidcaller": return "orb spread and singularity coverage approximated"
-		&"orbitalcannon": return "fixed manual zone; path area and persistence approximated; Lance Slow excluded"
-		&"energycore": return "distinct bolt targets modeled; Slow and Shockwave Stun excluded"
+		&"gauss_repeater": return "spread tightening; overclock; tracking and Heavy Shot approximated"
+		&"brainiac": return "wide convergence geometry; per-bolt Pierce and solo Psionic Link modeled"
+		&"beholder": return "turn alignment; target-reset ramp and death explosions modeled"
+		&"reaver": return "combo contact; stun fatigue; Time Bubble and Assassinate modeled"
+		&"longshot": return "distance curve and three-target mine availability modeled"
+		&"slinger": return "bounce availability; Pierce falloff and contact splash modeled"
+		&"voidcaller": return "orb geometry; simultaneous Barrage and Singularity coverage modeled"
+		&"orbitalcannon": return "accurate manual placement assumed; area; stun; Lance ramp and Slow modeled"
+		&"energycore": return "distinct primary targets; Slow; Shockwave and Branching Current modeled"
 		&"saucer": return "travel and abduction removal excluded"
 		&"hivemother", &"dronedepot", &"mechbay": return "spawn ramp and combat uptime approximated"
 		_: return "generic event model"
@@ -696,11 +894,11 @@ func get_model_note(tower_id: StringName) -> String:
 func write_report(rows: Array[Dictionary]) -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://balance_reports"))
 	var file := FileAccess.open(report_path, FileAccess.WRITE)
-	file.store_line("tower_id,tower_name,level,variant,scenario,cost,mean_dps,p10_dps,p90_dps,dps_per_100_cost,model")
+	file.store_line("tower_id,tower_name,level,variant,enemy_id,enemy_name,enemy_count,cost,mean_dps,p10_dps,p90_dps,dps_per_100_cost,control_target_seconds_per_second,model")
 	for row in rows:
 		var fields := PackedStringArray([
-			str(row["tower_id"]), str(row["tower_name"]), str(row["level"]), str(row["variant"]), str(row["scenario"]), str(row["cost"]),
-			"%.3f" % float(row["mean_dps"]), "%.3f" % float(row["p10_dps"]), "%.3f" % float(row["p90_dps"]), "%.3f" % float(row["dps_per_100"]), str(row["model"])
+			str(row["tower_id"]), str(row["tower_name"]), str(row["level"]), str(row["variant"]), str(row["scenario"]), str(row["enemy_name"]), str(row["enemy_count"]), str(row["cost"]),
+			"%.3f" % float(row["mean_dps"]), "%.3f" % float(row["p10_dps"]), "%.3f" % float(row["p90_dps"]), "%.3f" % float(row["dps_per_100"]), "%.3f" % float(row["control_value"]), str(row["model"])
 		])
 		file.store_line(",".join(fields))
 	file.close()
@@ -709,7 +907,7 @@ func write_report(rows: Array[Dictionary]) -> void:
 
 func print_summary(rows: Array[Dictionary]) -> void:
 	print("Iterations: ", iterations, " | duration: ", duration, "s | seed: ", seed_value)
-	for scenario in SCENARIOS:
+	for scenario in scenarios:
 		var candidates: Array[Dictionary] = []
 		for row in rows:
 			if row["scenario"] == scenario["id"] and row["variant"] in ["path_a", "path_b"]:
