@@ -8,10 +8,10 @@ const TARGET_HIT_RADIUS := 12.0
 const DEFAULT_REPORT_PATH := "res://balance_reports/tower_monte_carlo.csv"
 
 const SCENARIOS := [
-	{"id": "single", "enemies": 1, "defense": 0.0, "speed": 70.0, "distance_min": 0.45, "distance_max": 0.85},
-	{"id": "armored_elite", "enemies": 1, "defense": 0.45, "speed": 68.25, "distance_min": 0.55, "distance_max": 0.90},
-	{"id": "fast_pack", "enemies": 4, "defense": 0.10, "speed": 112.0, "distance_min": 0.35, "distance_max": 0.85},
-	{"id": "horde", "enemies": 12, "defense": 0.10, "speed": 70.0, "distance_min": 0.30, "distance_max": 0.90},
+	{"id": "single", "enemies": 1, "armor": 0.0, "speed": 70.0, "distance_min": 0.45, "distance_max": 0.85},
+	{"id": "armored_elite", "enemies": 1, "armor": 16.0, "speed": 68.25, "distance_min": 0.55, "distance_max": 0.90},
+	{"id": "fast_pack", "enemies": 4, "armor": 0.0, "speed": 112.0, "distance_min": 0.35, "distance_max": 0.85},
+	{"id": "horde", "enemies": 12, "armor": 0.0, "speed": 70.0, "distance_min": 0.30, "distance_max": 0.90},
 ]
 
 var rng := RandomNumberGenerator.new()
@@ -267,7 +267,7 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		var hit_chance := get_hit_chance(tower_id, stats, traits, scenario, distance_ratio, attack_index, attacks)
 		if rng.randf() > hit_chance and primary_type != &"explosive":
 			continue
-		var hit_damage := apply_armor(attack_damage, primary_type, float(scenario["defense"]), int(stats.get("pierce_count", 0)) > 0)
+		var hit_damage := apply_armor(attack_damage, primary_type, float(scenario["armor"]), int(stats.get("pierce_count", 0)) > 0)
 		if tower_id == &"voidcaller":
 			total += get_voidcaller_volley_damage(hit_damage, stats, scenario)
 		else:
@@ -383,7 +383,7 @@ func simulate_orbital_path_trial(
 					apply_armor(
 						base_damage * damage_multiplier,
 						&"beam" if flags.get("orbital_solar_lance", false) else &"explosive",
-						float(scenario["defense"]),
+						float(scenario["armor"]),
 						false
 					)
 					* float(tick_count)
@@ -516,7 +516,7 @@ func get_slinger_contact_explosion_damage(
 	explosion_damage = apply_armor(
 		explosion_damage,
 		&"explosive",
-		float(scenario["defense"]),
+		float(scenario["armor"]),
 		false
 	)
 	var total := explosion_damage * float(contact_count)
@@ -541,10 +541,14 @@ func get_slinger_contact_explosion_damage(
 	return total
 
 
-func apply_armor(amount: float, damage_type: StringName, defense: float, ignores_armor: bool) -> float:
-	if ignores_armor: return amount
-	var effective_defense := defense * 0.5 if damage_type == &"explosive" else defense
-	return maxf(amount * (1.0 - effective_defense), 1.0)
+func apply_armor(amount: float, damage_type: StringName, armor: float, ignores_armor: bool) -> float:
+	if ignores_armor or damage_type == &"beam": return amount
+	var effective_armor := (
+		armor * GameStats.EXPLOSIVE_ARMOR_MULTIPLIER
+		if damage_type == &"explosive"
+		else armor
+	)
+	return maxf(amount - effective_armor, 1.0)
 
 
 func get_beholder_ramp_average(values: Dictionary) -> float:
@@ -563,7 +567,7 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 	var values: Dictionary = traits["values"]
 	var total := 0.0
 	var enemies := int(scenario["enemies"])
-	var defense := float(scenario["defense"])
+	var armor := float(scenario["armor"])
 	if flags.get("gauss_heavy_shot", false):
 		var count := floori(duration / maxf(float(values.get("heavy_shot_interval", 3.0)), 0.1))
 		var heavy_damage := maxi(roundi(
@@ -574,13 +578,13 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 			heavy_line_damage += apply_armor(
 				float(GameStats.get_piercing_damage(heavy_damage, hit_index)),
 				traits["primary_type"],
-				defense,
+				armor,
 				true
 			)
 		total += float(count) * heavy_line_damage
 	if flags.get("longshot_mines", false):
 		var count := floori(duration / maxf(float(values.get("mine_interval", 5.0)), 0.1))
-		total += float(count) * apply_armor(damage * float(values.get("mine_damage_multiplier", 1.5)), &"explosive", defense, false) * minf(float(enemies), 3.0)
+		total += float(count) * apply_armor(damage * float(values.get("mine_damage_multiplier", 1.5)), &"explosive", armor, false) * minf(float(enemies), 3.0)
 	if flags.get("void_singularity", false):
 		var count := floori(duration / maxf(float(values.get("singularity_cooldown", 10.0)), 0.1))
 		var coverage_target_cap := maxi(
@@ -592,7 +596,7 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 			* apply_armor(
 				damage * float(values.get("singularity_damage_multiplier", 4.0)),
 				&"explosive",
-				defense,
+				armor,
 				false
 			)
 			* minf(float(enemies), float(coverage_target_cap))
@@ -602,7 +606,7 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 		total += float(count) * apply_armor(
 			maxf(roundf(damage * float(values.get("shockwave_damage_multiplier", 0.25))), 1.0),
 			&"electric",
-			defense,
+			armor,
 			false
 		) * float(enemies)
 	if flags.get("energy_branching_current", false):
@@ -620,15 +624,15 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 		), 1.0)
 		total += (
 			float(attacks * primary_bolts * branches_per_bolt)
-			* apply_armor(branch_damage, &"electric", defense, false)
+			* apply_armor(branch_damage, &"electric", armor, false)
 		)
 	if tower_id == &"saucer" and flags.get("saucer_twin_rockets", false):
 		var count := floori(duration / maxf(float(values.get("saucer_rocket_interval", 3.0)), 0.1))
-		total += float(count * 2) * apply_armor(damage * float(values.get("saucer_rocket_damage_multiplier", 3.0)), &"explosive", defense, false) * minf(float(enemies), 2.5)
+		total += float(count * 2) * apply_armor(damage * float(values.get("saucer_rocket_damage_multiplier", 3.0)), &"explosive", armor, false) * minf(float(enemies), 2.5)
 	if tower_id == &"saucer" and flags.get("saucer_monster_drop", false):
 		var monster: Dictionary = stats.get("monster_stats", {})
 		var uptime := minf(float(monster.get("lifetime", 10.0)), duration)
-		total += uptime / maxf(float(monster.get("attack_interval", 1.0)), 0.01) * apply_armor(float(monster.get("damage", 0)), &"melee", defense, false)
+		total += uptime / maxf(float(monster.get("attack_interval", 1.0)), 0.01) * apply_armor(float(monster.get("damage", 0)), &"melee", armor, false)
 	return total
 
 
@@ -656,7 +660,7 @@ func simulate_spawner_trial(tower_id: StringName, stats: Dictionary, traits: Dic
 		time += 0.25
 	var damage_type: StringName = traits["primary_type"]
 	if tower_id == &"mechbay": damage_type = &"melee"
-	total = apply_armor(total, damage_type, float(scenario["defense"]), int(unit.get("pierce_count", 0)) > 0)
+	total = apply_armor(total, damage_type, float(scenario["armor"]), int(unit.get("pierce_count", 0)) > 0)
 	if tower_id == &"dronedepot":
 		var budget := float(unit.get("damage_budget", 0))
 		var recharge := float(unit.get("recharge_duration", 0))

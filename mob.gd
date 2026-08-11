@@ -37,7 +37,7 @@ var max_health: int
 var speed: float
 var cash_reward: int
 var base_damage: int
-var defense := 0.0
+var armor := 0.0
 var path_follow: PathFollow2D
 var finished := false
 var last_attack_context: AttackContext
@@ -121,7 +121,7 @@ func load_stats() -> void:
 	var speed_multiplier := 1.0
 	var reward_multiplier := 1.0
 	var damage_multiplier := 1.0
-	var defense_bonus := 0.0
+	var armor_bonus := 0.0
 	var visual_multiplier := 1.0
 	match spawn_variant:
 		&"horde":
@@ -135,7 +135,7 @@ func load_stats() -> void:
 			speed_multiplier = GameStats.ELITE_ENEMY_SPEED_MULTIPLIER
 			reward_multiplier = 3.0
 			damage_multiplier = 1.5
-			defense_bonus = 0.15
+			armor_bonus = 6.0
 			visual_multiplier = 1.25
 			traits.append(&"elite")
 		&"payday":
@@ -172,7 +172,7 @@ func load_stats() -> void:
 		1,
 		roundi(float(stats.get("base_damage", health)) * damage_multiplier)
 	)
-	defense = minf(float(stats.get("defense", 0.0)) + defense_bonus, 0.95)
+	armor = maxf(float(stats.get("armor", 0.0)) + armor_bonus, 0.0)
 	split_enemy_id = stats.get("split_enemy_id", &"")
 	split_count = stats.get("split_count", 0)
 	regeneration_per_second = stats.get("regeneration_per_second", 0)
@@ -449,6 +449,15 @@ func apply_damage(
 		and int(attack_context.metadata.get("pressure_point", 0)) > 0
 	):
 		ignores_armor = true
+	if damage_type == &"beam":
+		ignores_armor = true
+	if (
+		damage_type == &"explosive"
+		and armor > 0.0
+		and attack_context != null
+		and int(attack_context.metadata.get("thermite_bombs", 0)) > 0
+	):
+		ignores_armor = true
 	var should_spread := (
 		can_trigger_brainiac_link
 		and brainiac_link_remaining > 0.0
@@ -463,15 +472,17 @@ func apply_damage(
 		and attack_context != null
 		and int(attack_context.metadata.get("conductive", 0)) > 0
 	)
-	var effective_defense := 0.0 if ignores_armor else defense
+	var effective_armor := 0.0 if ignores_armor else armor
 	if damage_type == &"explosive":
-		effective_defense *= 0.5
-	var armor_multiplier := (
-		1.0 + effective_defense
-		if conductive_armor
-		else 1.0 - effective_defense
+		effective_armor *= GameStats.EXPLOSIVE_ARMOR_MULTIPLIER
+	var final_damage := maxi(
+		1,
+		roundi(
+			float(amount) + effective_armor
+			if conductive_armor
+			else float(amount) - effective_armor
+		)
 	)
-	var final_damage := maxi(1, floori(amount * armor_multiplier))
 	var received_damage := mini(final_damage, health)
 
 	health -= final_damage
@@ -677,7 +688,7 @@ func apply_relic_damage_modifiers(
 
 	if (
 		damage_type == &"explosive"
-		and defense > 0.0
+		and armor > 0.0
 		and int(metadata.get("thermite_bombs", 0)) > 0
 	):
 		multiplier *= GameStats.THERMITE_BOMBS_DAMAGE_MULTIPLIER
