@@ -278,7 +278,9 @@ func _physics_process(delta: float) -> void:
 
 
 func process_stationary() -> void:
-	local_target = select_target(global_position, aim_radius_pixels)
+	if target_refresh_remaining <= 0.0 or not is_valid_target(local_target):
+		local_target = select_target(global_position, aim_radius_pixels)
+		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
 	target = local_target
 	locally_acquired_target = is_valid_target(local_target)
 	target_is_shared = false

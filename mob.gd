@@ -5,21 +5,17 @@ const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const STUN_FATIGUE_MULTIPLIERS := [1.0, 0.65, 0.40, 0.25, 0.10]
 const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
+const SPEED_AURA_REFRESH_INTERVAL := 0.15
 
 signal mob_killed(reward: int)
 signal mob_died(mob: Node2D)
-signal damage_received(mob: Node2D, amount: int, context: AttackContext)
-signal eliminated(
-	mob: Node2D,
-	reward: int,
-	context: AttackContext,
-	elimination_kind: StringName
-)
 signal reached_end(damage: int)
 signal spawn_requested(
 	enemy_id: StringName,
 	path_progress: float,
-	spawn_variant: StringName
+	spawn_variant: StringName,
+	requester: Node,
+	request_kind: StringName
 )
 
 
@@ -40,7 +36,6 @@ var base_damage: int
 var armor := 0.0
 var path_follow: PathFollow2D
 var finished := false
-var last_attack_context: AttackContext
 var split_enemy_id: StringName = &""
 var split_count := 0
 var regeneration_per_second := 0
@@ -54,6 +49,9 @@ var summon_interval := 0.0
 var summon_limit := 0
 var summons_created := 0
 var summon_elapsed := 0.0
+var summon_request_pending := false
+var speed_aura_refresh_remaining := 0.0
+var cached_speed_aura_multiplier := 1.0
 var slow_remaining := 0.0
 var slow_context: AttackContext
 var stun_remaining := 0.0
@@ -96,6 +94,7 @@ func _process(delta: float) -> void:
 	_process_regeneration(delta)
 	_process_summoning(delta)
 	_process_control_effects(delta)
+	_process_speed_aura(delta)
 	path_follow.progress += get_effective_speed() * delta
 	update_health_bar_position()
 
@@ -207,15 +206,24 @@ func get_effective_speed() -> float:
 	if path_follow.progress_ratio >= rush_start_ratio:
 		result *= rush_speed_multiplier
 
-	var strongest_aura := 1.0
+	if slow_remaining > 0.0:
+		result *= GameStats.SLOW_SPEED_MULTIPLIER
+	return result * cached_speed_aura_multiplier
+
+
+func _process_speed_aura(delta: float) -> void:
+	speed_aura_refresh_remaining -= delta
+	if speed_aura_refresh_remaining > 0.0:
+		return
+	speed_aura_refresh_remaining = SPEED_AURA_REFRESH_INTERVAL
+	cached_speed_aura_multiplier = 1.0
 	for candidate in get_tree().get_nodes_in_group("speed_buffers"):
 		if candidate == self or not candidate.has_method("get_speed_buff_for"):
 			continue
-		strongest_aura = maxf(strongest_aura, candidate.get_speed_buff_for(self))
-
-	if slow_remaining > 0.0:
-		result *= GameStats.SLOW_SPEED_MULTIPLIER
-	return result * strongest_aura
+		cached_speed_aura_multiplier = maxf(
+			cached_speed_aura_multiplier,
+			candidate.get_speed_buff_for(self)
+		)
 
 
 func _process_control_effects(delta: float) -> void:
@@ -361,6 +369,7 @@ func _process_summoning(delta: float) -> void:
 		summon_enemy_id.is_empty()
 		or summon_interval <= 0.0
 		or summons_created >= summon_limit
+		or summon_request_pending
 	):
 		return
 
@@ -369,22 +378,33 @@ func _process_summoning(delta: float) -> void:
 		return
 
 	summon_elapsed -= summon_interval
-	summons_created += 1
+	summon_request_pending = true
 	spawn_requested.emit(
 		summon_enemy_id,
 		path_follow.progress,
-		get_inherited_spawn_variant()
+		get_inherited_spawn_variant(),
+		self,
+		&"summon"
 	)
 
-func die(context: AttackContext = null) -> void:
+
+func resolve_spawn_request(request_kind: StringName, accepted: bool) -> void:
+	if request_kind != &"summon":
+		return
+	summon_request_pending = false
+	if accepted:
+		summons_created += 1
+	else:
+		summon_elapsed = maxf(summon_interval - 0.2, 0.0)
+
+
+func die(_context: AttackContext = null) -> void:
 	if finished:
 		return
 
 	finished = true
-	last_attack_context = context
 	spawn_split_children()
 	mob_died.emit(self)
-	eliminated.emit(self, cash_reward, context, &"death")
 	mob_killed.emit(cash_reward)
 
 	if is_instance_valid(path_follow):
@@ -393,14 +413,12 @@ func die(context: AttackContext = null) -> void:
 		queue_free()
 
 
-func abduct(context: AttackContext = null) -> void:
+func abduct(_context: AttackContext = null) -> void:
 	if finished:
 		return
 	finished = true
-	last_attack_context = context
 	# Abduction grants the normal reward, but is removal rather than a death:
 	# it does not trigger death observers or create split children.
-	eliminated.emit(self, cash_reward, context, &"abduction")
 	mob_killed.emit(cash_reward)
 	if is_instance_valid(path_follow):
 		path_follow.queue_free()
@@ -418,7 +436,9 @@ func spawn_split_children() -> void:
 		spawn_requested.emit(
 			split_enemy_id,
 			maxf(child_progress, 0.0),
-			get_inherited_spawn_variant()
+			get_inherited_spawn_variant(),
+			self,
+			&"split"
 		)
 
 
@@ -487,9 +507,6 @@ func apply_damage(
 
 	health -= final_damage
 	health_bar.value = health
-	last_attack_context = attack_context
-	damage_received.emit(self, received_damage, attack_context)
-
 	if health <= 0:
 		if (
 			damage_type == &"beam"

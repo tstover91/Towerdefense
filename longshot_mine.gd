@@ -5,6 +5,7 @@ const GameStats = preload("res://stat_database.gd")
 const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const LONGSHOT_TOWER_ID: StringName = &"longshot"
+const TARGET_SCAN_INTERVAL := 0.05
 
 signal detonated(mine: Node2D)
 
@@ -15,6 +16,7 @@ var explosion_radius := 38.7
 var arm_remaining := 0.15
 var detonating := false
 var attack_context: AttackContext
+var target_scan_remaining := 0.0
 
 
 func setup(
@@ -53,6 +55,10 @@ func _process(delta: float) -> void:
 	arm_remaining = maxf(arm_remaining - delta, 0.0)
 	if arm_remaining > 0.0:
 		return
+	target_scan_remaining = maxf(target_scan_remaining - delta, 0.0)
+	if target_scan_remaining > 0.0:
+		return
+	target_scan_remaining = TARGET_SCAN_INTERVAL
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_mob(mob):
 			continue

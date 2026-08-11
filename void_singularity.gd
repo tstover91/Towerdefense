@@ -5,6 +5,7 @@ const GameStats = preload("res://stat_database.gd")
 const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const VOID_CALLER_TOWER_ID: StringName = &"voidcaller"
+const TARGET_REFRESH_INTERVAL := 0.10
 
 signal finished(singularity: Node2D)
 
@@ -18,6 +19,8 @@ var explosion_damage := 1
 var elapsed := 0.0
 var resolving := false
 var attack_context: AttackContext
+var pull_targets: Array[Node2D] = []
+var target_refresh_remaining := 0.0
 
 
 func setup(
@@ -65,6 +68,10 @@ func _process(delta: float) -> void:
 		cancel()
 		return
 	elapsed += delta
+	target_refresh_remaining -= delta
+	if target_refresh_remaining <= 0.0:
+		refresh_pull_targets()
+		target_refresh_remaining = TARGET_REFRESH_INTERVAL
 	pull_nearby_mobs(delta)
 	queue_redraw()
 	if elapsed >= pull_duration:
@@ -72,6 +79,20 @@ func _process(delta: float) -> void:
 
 
 func pull_nearby_mobs(delta: float) -> void:
+	for mob in pull_targets:
+		if not is_valid_mob(mob) or not is_instance_valid(mob.path_follow):
+			continue
+		if global_position.distance_to(mob.global_position) > pull_radius:
+			continue
+		mob.path_follow.progress = move_toward(
+			mob.path_follow.progress,
+			center_path_progress,
+			pull_speed * delta
+		)
+
+
+func refresh_pull_targets() -> void:
+	pull_targets.clear()
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_mob(mob):
 			continue
@@ -79,13 +100,7 @@ func pull_nearby_mobs(delta: float) -> void:
 			continue
 		if not is_nearest_singularity_for(mob):
 			continue
-		if not is_instance_valid(mob.path_follow):
-			continue
-		mob.path_follow.progress = move_toward(
-			mob.path_follow.progress,
-			center_path_progress,
-			pull_speed * delta
-		)
+		pull_targets.append(mob)
 
 
 func is_nearest_singularity_for(mob: Node2D) -> bool:

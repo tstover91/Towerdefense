@@ -6,6 +6,8 @@ const ORBITAL_CANNON_TOWER_ID: StringName = &"orbitalcannon"
 
 signal finished(lance: Node2D)
 
+const SLOW_REFRESH_INTERVAL := 0.05
+
 var main: Node
 var radius := 40.0
 var tick_start_damage := 1
@@ -19,6 +21,7 @@ var tick_count := 1
 var resolving := false
 var attack_context: AttackContext
 var slowed_mobs: Dictionary = {}
+var slow_refresh_remaining := 0.0
 
 
 func setup(
@@ -40,6 +43,7 @@ func setup(
 	tick_index = 0
 	attack_context = ownership_context
 	tick_remaining = 0.0
+	slow_refresh_remaining = 0.0
 	queue_redraw()
 
 
@@ -69,7 +73,10 @@ func _process(delta: float) -> void:
 		cancel()
 		return
 	elapsed += delta
-	update_zone_slow(delta)
+	slow_refresh_remaining -= delta
+	if slow_refresh_remaining <= 0.0:
+		update_zone_slow()
+		slow_refresh_remaining = SLOW_REFRESH_INTERVAL
 	tick_remaining -= delta
 	while tick_remaining <= 0.0 and elapsed <= duration:
 		apply_damage_tick()
@@ -109,9 +116,9 @@ func apply_damage_tick() -> void:
 	tick_index += 1
 
 
-func update_zone_slow(delta: float) -> void:
+func update_zone_slow() -> void:
 	var mob_ids_inside: Dictionary = {}
-	var refresh_duration := maxf(delta * 2.0, 0.05)
+	var refresh_duration := SLOW_REFRESH_INTERVAL * 1.5
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_mob(mob):
 			continue

@@ -5,6 +5,7 @@ const GameStats = preload("res://stat_database.gd")
 const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const PROJECTILE_RADIUS := 3.0
+const SEGMENT_QUERY_MAX_RESULTS := 256
 
 signal destination_reached(projectile: Node2D)
 
@@ -45,6 +46,7 @@ var first_contact_made := false
 var hit_target_ids: Dictionary = {}
 var contact_splash_hit_target_ids: Dictionary = {}
 var segment_started_bounce := false
+var segment_query_shape := RectangleShape2D.new()
 
 
 func _ready() -> void:
@@ -403,8 +405,26 @@ func get_segment_candidates(start: Vector2, end: Vector2) -> Array[Dictionary]:
 	if segment_length <= 0.0:
 		return candidates
 	var segment_direction := segment / segment_length
+	segment_query_shape.size = Vector2(
+		segment_length + PROJECTILE_RADIUS * 2.0,
+		PROJECTILE_RADIUS * 2.0 + 32.0
+	)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = segment_query_shape
+	query.transform = Transform2D(
+		segment_direction.angle(),
+		(start + end) * 0.5
+	)
+	query.collision_mask = 1
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var hits := get_world_2d().direct_space_state.intersect_shape(
+		query,
+		SEGMENT_QUERY_MAX_RESULTS
+	)
 
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for hit in hits:
+		var mob: Variant = hit.get("collider")
 		if not is_valid_target(mob) or hit_target_ids.has(mob.get_instance_id()):
 			continue
 		if (

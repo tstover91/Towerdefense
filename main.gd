@@ -276,10 +276,7 @@ var contraband_tower_id: StringName = &""
 var holiday_sale_tower_id: StringName = &""
 var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
-var damage_by_tower_instance: Dictionary = {}
-var eliminations_by_tower_instance: Dictionary = {}
-var damage_by_tower_type: Dictionary = {}
-var eliminations_by_tower_type: Dictionary = {}
+var pending_enemy_spawns: Array[Dictionary] = []
 var displayed_tower: Node = null
 var occupied_build_cells: Dictionary = {}
 var playable_map_width := 0.0
@@ -510,6 +507,7 @@ func start_round() -> void:
 	):
 		return
 	close_all_tower_menus()
+	pending_enemy_spawns.clear()
 	round_number += 1
 	spawn_schedule.clear()
 	current_round_type = get_round_type(round_number)
@@ -610,6 +608,7 @@ func end_round() -> void:
 	spawning_active = false
 	clear_active_projectiles()
 	spawn_schedule.clear()
+	pending_enemy_spawns.clear()
 	mobs_left_to_spawn = 0
 	spawntimer.stop()
 	round_ended.emit(round_number)
@@ -1299,8 +1298,6 @@ func _create_mob(
 	mob.health_multiplier = get_enemy_health_multiplier(round_number)
 	mob.spawn_variant = spawn_variant
 	mob.mob_killed.connect(_on_mob_killed)
-	mob.damage_received.connect(_on_mob_damage_received)
-	mob.eliminated.connect(_on_mob_eliminated)
 	mob.reached_end.connect(_on_mob_reached_end)
 	mob.spawn_requested.connect(_on_mob_spawn_requested)
 	var pf := PathFollow2D.new()
@@ -1314,11 +1311,37 @@ func _create_mob(
 func _on_mob_spawn_requested(
 	enemy_id: StringName,
 	path_progress: float,
-	spawn_variant: StringName
+	spawn_variant: StringName,
+	requester: Node,
+	request_kind: StringName
 ) -> void:
 	if mobs_alive >= active_enemy_cap:
+		if request_kind == &"split":
+			pending_enemy_spawns.append({
+				"enemy_id": enemy_id,
+				"path_progress": path_progress,
+				"spawn_variant": spawn_variant,
+			})
+		elif is_instance_valid(requester) and requester.has_method("resolve_spawn_request"):
+			requester.resolve_spawn_request(request_kind, false)
 		return
 	_create_mob(enemy_id, path_progress, spawn_variant)
+	if is_instance_valid(requester) and requester.has_method("resolve_spawn_request"):
+		requester.resolve_spawn_request(request_kind, true)
+
+
+func flush_pending_enemy_spawns() -> void:
+	while (
+		not pending_enemy_spawns.is_empty()
+		and mobs_alive < active_enemy_cap
+		and not game_ended
+	):
+		var request: Dictionary = pending_enemy_spawns.pop_front()
+		_create_mob(
+			request["enemy_id"],
+			request["path_progress"],
+			request["spawn_variant"]
+		)
 
 
 func choose_wave_spawn_style(wave: int) -> StringName:
@@ -2131,6 +2154,7 @@ func finish_game(message: String) -> void:
 	round_active = false
 	spawning_active = false
 	spawn_schedule.clear()
+	pending_enemy_spawns.clear()
 	mobs_left_to_spawn = 0
 	spawntimer.stop()
 	clear_active_projectiles()
@@ -2162,48 +2186,16 @@ func _on_mob_killed(reward: int) -> void:
 	mob_finished()
 
 
-func _on_mob_damage_received(
-	_mob: Node2D,
-	amount: int,
-	context: AttackContext
-) -> void:
-	if context == null or amount <= 0:
-		return
-	if context.root_tower_instance_id > 0:
-		damage_by_tower_instance[context.root_tower_instance_id] = (
-			int(damage_by_tower_instance.get(context.root_tower_instance_id, 0))
-			+ amount
-		)
-	if not context.root_tower_type.is_empty():
-		damage_by_tower_type[context.root_tower_type] = (
-			int(damage_by_tower_type.get(context.root_tower_type, 0)) + amount
-		)
-
-
-func _on_mob_eliminated(
-	_mob: Node2D,
-	_reward: int,
-	context: AttackContext,
-	_elimination_kind: StringName
-) -> void:
-	if context == null:
-		return
-	if context.root_tower_instance_id > 0:
-		eliminations_by_tower_instance[context.root_tower_instance_id] = (
-			int(eliminations_by_tower_instance.get(
-				context.root_tower_instance_id,
-				0
-			)) + 1
-		)
-	if not context.root_tower_type.is_empty():
-		eliminations_by_tower_type[context.root_tower_type] = (
-			int(eliminations_by_tower_type.get(context.root_tower_type, 0)) + 1
-		)
-
 func mob_finished() -> void:
 	mobs_alive = maxi(mobs_alive - 1, 0)
+	flush_pending_enemy_spawns()
 
-	if not spawning_active and mobs_left_to_spawn == 0 and mobs_alive == 0:
+	if (
+		not spawning_active
+		and mobs_left_to_spawn == 0
+		and mobs_alive == 0
+		and pending_enemy_spawns.is_empty()
+	):
 		end_round()
 
 

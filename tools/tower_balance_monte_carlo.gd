@@ -1,4 +1,4 @@
-extends SceneTree
+extends Node
 
 const GameStats = preload("res://stat_database.gd")
 const DEFAULT_ITERATIONS := 1000
@@ -20,7 +20,7 @@ var report_path := DEFAULT_REPORT_PATH
 var scenarios: Array[Dictionary] = []
 
 
-func _init() -> void:
+func _ready() -> void:
 	call_deferred("run_balance_simulation")
 
 
@@ -34,7 +34,7 @@ func run_balance_simulation() -> void:
 	var rows := run_simulation()
 	write_report(rows)
 	print_summary(rows)
-	quit()
+	get_tree().quit()
 
 
 func validate_tower_progression() -> void:
