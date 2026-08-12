@@ -206,6 +206,7 @@ signal round_ended(round_number: int)
 @onready var tower_list: ItemList = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerSelectionArea/ItemList
 @onready var between_round_shop: Control = $MainUI/BetweenRoundShop
 @onready var pause_menu: Control = $MainUI/PauseMenu
+@onready var sandbox_panel: Control = $MainUI/SandboxPanel
 @onready var speed_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/SpeedButton
 @onready var pause_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton
 @onready var sidebar: Control = $MainUI/HUDRoot/Sidebar
@@ -281,10 +282,12 @@ var displayed_tower: Node = null
 var occupied_build_cells: Dictionary = {}
 var playable_map_width := 0.0
 var game_speed := 1.0
+var sandbox_mode := false
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
 	game_speed = 1.0
+	sandbox_mode = SessionState.sandbox_mode
 	update_speed_button()
 	enemy_rng.randomize()
 	shop_rng.randomize()
@@ -296,6 +299,12 @@ func _ready() -> void:
 	lives = mode["starting_lives"]
 	max_lives = lives
 	max_rounds = mode["max_rounds"]
+	if sandbox_mode:
+		money = 1000000000
+		max_rounds = 100
+		tower_roster.clear()
+		for tower_key in GameStats.TOWERS:
+			tower_roster.append(StringName(tower_key))
 	populate_tower_list()
 	clear_tower_details()
 	update_money()
@@ -305,20 +314,34 @@ func _ready() -> void:
 	between_round_shop.draft_confirmed.connect(_on_draft_confirmed)
 	between_round_shop.draft_refresh_requested.connect(_on_relic_refresh_requested)
 	update_play_pause_button()
+	if sandbox_mode:
+		pause_button.hide()
+		sandbox_panel.configure(self)
+	else:
+		sandbox_panel.hide()
 
 
 func populate_tower_list() -> void:
 	tower_list.clear()
-	for slot_index in TOWER_SLOT_COUNT:
+	var visible_slot_count := tower_roster.size() if sandbox_mode else TOWER_SLOT_COUNT
+	for slot_index in visible_slot_count:
 		if slot_index < tower_roster.size():
 			var tower_id: StringName = tower_roster[slot_index]
+			var tower_data := GameStats.get_tower(tower_id)
 			tower_list.add_item(
-				"$%d" % get_tower_build_cost(tower_id),
-				DEFAULT_TOWER_ICON
+				(
+					"%s\n$%d" % [
+						tower_data["display_name"],
+						get_tower_build_cost(tower_id),
+					]
+					if sandbox_mode
+					else "$%d" % get_tower_build_cost(tower_id)
+				),
+				tower_data.get("texture", DEFAULT_TOWER_ICON)
 			)
 			tower_list.set_item_tooltip(
 				slot_index,
-				GameStats.get_tower(tower_id)["display_name"]
+				tower_data["display_name"]
 			)
 			continue
 
@@ -326,8 +349,14 @@ func populate_tower_list() -> void:
 		tower_list.set_item_icon_modulate(slot_index, Color.TRANSPARENT)
 		tower_list.set_item_disabled(slot_index, true)
 		tower_list.set_item_selectable(slot_index, false)
-	if not contraband_tower_id.is_empty():
-		tower_list.add_item("$0", DEFAULT_TOWER_ICON)
+	if not sandbox_mode and not contraband_tower_id.is_empty():
+		tower_list.add_item(
+			"$0",
+			GameStats.get_tower(contraband_tower_id).get(
+				"texture",
+				DEFAULT_TOWER_ICON
+			)
+		)
 		tower_list.set_item_tooltip(
 			CONTRABAND_SLOT_INDEX,
 			"Contraband: %s" % GameStats.get_tower(contraband_tower_id)["display_name"]
@@ -401,7 +430,7 @@ func _process(delta: float) -> void:
 			get_global_mouse_position(),
 			pending_tower_type
 		)
-		var sprite = tower_to_place.get_node("Rotator")
+		var sprite = tower_to_place.get_node("Sprite2D")
 		tower_to_place.position = snap
 		var placement_is_valid := can_place_tower(snap)
 		tower_to_place.set_range_preview(true, placement_is_valid)
@@ -416,7 +445,7 @@ func update_lives() -> void:
 	lives_display.text = "Health: %d/%d" % [lives, max_lives]
 
 func update_money() -> void:
-	money_display.text = "Money: $%d" % money
+	money_display.text = "Money: Unlimited" if sandbox_mode else "Money: $%d" % money
 	update_tower_affordability()
 	money_changed.emit(money)
 
@@ -438,10 +467,16 @@ func update_tower_affordability() -> void:
 		tower_list.set_item_custom_fg_color(slot_index, price_color)
 
 func add_money(amount: int) -> void:
+	if sandbox_mode:
+		money = 1000000000
+		update_money()
+		return
 	money += amount
 	update_money()
 
 func spend_money(amount: int) -> bool:
+	if sandbox_mode:
+		return true
 	if money >= amount:
 		money -= amount
 		update_money()
@@ -518,6 +553,8 @@ func start_round() -> void:
 		get_wave_threat_rate(round_number)
 		* STANDARD_THREAT_RATE_MULTIPLIER
 	)
+	if round_number == 6:
+		threat_per_second *= GameStats.ROUND_SIX_THREAT_MULTIPLIER
 	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
 		threat_per_second *= HORDE_THREAT_MULTIPLIER
 	var mode: Dictionary = GameStats.get_mode(mode_id)
@@ -560,6 +597,14 @@ func start_round() -> void:
 	update_play_pause_button()
 	
 func update_round_count() -> void:
+	if sandbox_mode and not round_active:
+		round_count_display.text = "Sandbox wave: %d" % maxi(round_number, 1)
+		round_timer_display.text = (
+			"Spawning test enemies"
+			if spawning_active or mobs_left_to_spawn > 0
+			else "Sandbox ready"
+		)
+		return
 	var displayed_round := round_number
 	if not round_active and round_number < max_rounds:
 		displayed_round += 1
@@ -632,7 +677,10 @@ func enter_build_phase() -> void:
 
 
 func calculate_end_round_reward() -> int:
-	var reward := 20 + round_number * 5
+	var reward := (
+		GameStats.ROUND_REWARD_BASE
+		+ round_number * GameStats.ROUND_REWARD_PER_WAVE
+	)
 	if get_relic_count(&"dividends") > 0:
 		reward += mini(
 			floori(float(money) * GameStats.DIVIDENDS_INTEREST_RATE),
@@ -1279,6 +1327,12 @@ func _spawn_mob():
 	if spawn_schedule.is_empty():
 		spawntimer.stop()
 		director_cooldown = spawn_event["delay_after"]
+		if sandbox_mode and not round_active:
+			spawning_active = false
+			update_round_count()
+			sandbox_panel.set_status(
+				"Wave deployed. %d enemies active." % mobs_alive
+			)
 	else:
 		var delay_after: float = spawn_event["delay_after"]
 		spawntimer.start(delay_after)
@@ -1306,6 +1360,139 @@ func _create_mob(
 	pf.add_child(mob)
 	mob.set_path_follow(pf, start_progress)
 	mobs_alive += 1
+
+
+func sandbox_spawn_wave(wave_type: StringName, test_wave: int) -> void:
+	if not sandbox_mode:
+		return
+	var wave := clampi(test_wave, 1, max_rounds)
+	var available := get_available_enemies(wave)
+	if available.is_empty():
+		sandbox_panel.set_status("No enemies are available for that wave.")
+		return
+
+	var enemy_batch: Array[Dictionary] = []
+	var standard_count := clampi(14 + ceili(float(wave) * 0.6), 15, 36)
+	match wave_type:
+		&"horde":
+			for _index in clampi(24 + wave, 25, 48):
+				enemy_batch.append({
+					"enemy_id": choose_weighted_enemy(available),
+					"variant": VARIANT_HORDE,
+				})
+		&"elite":
+			for _index in maxi(standard_count - 5, 8):
+				enemy_batch.append({
+					"enemy_id": choose_weighted_enemy(available),
+					"variant": VARIANT_NORMAL,
+				})
+			for _index in clampi(2 + floori(float(wave) / 8.0), 2, 6):
+				enemy_batch.append({
+					"enemy_id": choose_weighted_enemy(available),
+					"variant": VARIANT_ELITE,
+				})
+		&"gauntlet":
+			for _index in clampi(20 + wave, 24, 44):
+				enemy_batch.append({
+					"enemy_id": choose_weighted_enemy(available),
+					"variant": VARIANT_HORDE,
+				})
+			for _index in clampi(3 + floori(float(wave) / 6.0), 3, 8):
+				enemy_batch.append({
+					"enemy_id": choose_weighted_enemy(available),
+					"variant": VARIANT_ELITE,
+				})
+		&"boss":
+			for _index in clampi(6 + floori(float(wave) / 3.0), 8, 18):
+				enemy_batch.append({
+					"enemy_id": choose_weighted_enemy(available),
+					"variant": VARIANT_NORMAL,
+				})
+			enemy_batch.insert(floori(float(enemy_batch.size()) / 2.0), {
+				"enemy_id": &"brute",
+				"variant": VARIANT_NORMAL,
+			})
+		_:
+			for _index in standard_count:
+				enemy_batch.append({
+					"enemy_id": choose_weighted_enemy(available),
+					"variant": VARIANT_NORMAL,
+				})
+
+	sandbox_queue_enemy_batch(enemy_batch, wave, String(wave_type).capitalize())
+
+
+func sandbox_spawn_enemy(
+	enemy_id: StringName,
+	count: int,
+	spawn_variant: StringName,
+	test_wave: int
+) -> void:
+	if not sandbox_mode or not GameStats.ENEMIES.has(enemy_id):
+		return
+	var enemy_batch: Array[Dictionary] = []
+	for _index in clampi(count, 1, 50):
+		enemy_batch.append({
+			"enemy_id": enemy_id,
+			"variant": spawn_variant,
+		})
+	sandbox_queue_enemy_batch(
+		enemy_batch,
+		clampi(test_wave, 1, max_rounds),
+		GameStats.get_enemy(enemy_id)["display_name"]
+	)
+
+
+func sandbox_queue_enemy_batch(
+	enemy_batch: Array[Dictionary],
+	test_wave: int,
+	label: String
+) -> void:
+	if enemy_batch.is_empty():
+		return
+	round_number = test_wave
+	for entry in enemy_batch:
+		spawn_schedule.append({
+			"enemy_id": entry["enemy_id"],
+			"variant": entry.get("variant", VARIANT_NORMAL),
+			"free_spawn": true,
+			"delay_after": 0.08,
+			"style": &"sandbox",
+		})
+	mobs_left_to_spawn = spawn_schedule.size()
+	spawning_active = true
+	update_round_count()
+	sandbox_panel.set_status(
+		"Queued %d %s enemies at wave %d scaling." % [
+			enemy_batch.size(), label, test_wave,
+		]
+	)
+	if spawntimer.is_stopped():
+		spawntimer.start(0.01)
+
+
+func sandbox_clear_enemies() -> void:
+	if not sandbox_mode:
+		return
+	spawning_active = false
+	spawn_schedule.clear()
+	pending_enemy_spawns.clear()
+	mobs_left_to_spawn = 0
+	spawntimer.stop()
+	clear_active_projectiles()
+	for path_follow in $path.get_children():
+		path_follow.queue_free()
+	mobs_alive = 0
+	update_round_count()
+	sandbox_panel.set_status("All test enemies cleared.")
+
+
+func sandbox_restore_health() -> void:
+	if not sandbox_mode:
+		return
+	lives = max_lives
+	update_lives()
+	sandbox_panel.set_status("Health restored.")
 
 
 func _on_mob_spawn_requested(
@@ -2136,6 +2323,9 @@ func _on_mob_reached_end(damage: int) -> void:
 	update_lives()
 	
 	if lives == 0:
+		if sandbox_mode:
+			mob_finished()
+			return
 		defeat()
 		return
 
@@ -2493,7 +2683,9 @@ func _on_item_list_item_selected(index: int) -> void:
 		tower_list.deselect_all()
 		return
 
-	var selected_is_contraband := index == CONTRABAND_SLOT_INDEX
+	var selected_is_contraband := (
+		not sandbox_mode and index == CONTRABAND_SLOT_INDEX
+	)
 	if build_mode:
 		if selected_tower_id == pending_tower_type:
 			cancel_pending_tower_placement()
@@ -2517,8 +2709,7 @@ func _on_restartbutton_pressed() -> void:
 	get_tree().reload_current_scene()
 	
 func _on_quitbutton_pressed() -> void:
-	get_tree().paused = false
-	get_tree().quit()
+	SessionState.return_to_main_menu()
 
 
 func _on_speed_button_pressed() -> void:

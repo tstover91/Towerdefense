@@ -1,7 +1,8 @@
 param(
     [ValidateSet("smoke", "standard", "overnight")]
     [string]$Preset = "overnight",
-    [string]$GodotPath = ""
+    [string]$GodotPath = "",
+    [switch]$Fresh
 )
 
 $projectPath = Split-Path -Parent $PSScriptRoot
@@ -29,10 +30,17 @@ $godotArguments = @(
     "--output-dir=res://balance_reports/overnight"
 )
 
+if ($Fresh) {
+    $godotArguments += "--fresh"
+}
+
 Write-Host "Starting the $Preset balance run."
 Write-Host "Reports: $reportPath"
 Write-Host "Progress log: $logPath"
 Write-Host "Leave this window open until the run finishes."
+if (-not $Fresh) {
+    Write-Host "A matching interrupted run will resume automatically."
+}
 
 $process = Start-Process `
     -FilePath $GodotPath `

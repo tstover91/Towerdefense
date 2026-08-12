@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bv71feb7dsh86"]
 
 [ext_resource type="Script" uid="uid://b8ahua0pg7i6b" path="res://mob.gd" id="1_dy6sc"]
-[ext_resource type="Texture2D" uid="uid://n5wurppyeq5" path="res://icon.svg" id="2_nokgg"]
+[ext_resource type="Texture2D" uid="uid://b0fsiya3ef2mi" path="res://assets/enemies/enemy_marker.svg" id="2_nokgg"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_g7b7a"]
 size = Vector2(22, 21)

@@ -15,6 +15,9 @@ The run-level optimizer searches complete 20-round build policies. It models
 staged tower purchases and upgrades, paths, tower and relic drafts, kill and
 round income, Dividends, discounts, major relic interactions, enemy growth,
 splits, summons, armor, speed, density, control, and roster opportunity cost.
+Saucer, Hive Mother, Drone Depot, and Mech Bay are currently excluded until
+their individual balance passes are complete. Trade Agreement is also excluded
+because none of its affected towers are in the test pool.
 
 Use the smoke preset after changing the optimizer itself:
 
@@ -40,6 +43,14 @@ log in `balance_reports/overnight/optimizer.log`, and waits until the reports
 are complete. Use `-Preset smoke` for a short validation run or `-Preset
 standard` for a smaller but useful search. For a long run, keep the PC plugged
 in and temporarily prevent Windows from sleeping.
+
+Progress is saved to two alternating checkpoint files after every evolution
+generation and throughout finalist testing. Running the same command again
+automatically resumes the newest intact checkpoint. Checkpoints are accepted
+only when the preset, seed, sample counts, and sensitivity profiles match, and
+they are removed after all reports finish successfully. Add `-Fresh` to the
+launcher (or `--fresh` to the Godot command) when you intentionally want to
+discard an interrupted run and start over.
 
 The overnight preset evolves 120 policies for 16 generations, then tests 16
 finalists 80 times against each of 43 economy and enemy-stat profiles. Runtime

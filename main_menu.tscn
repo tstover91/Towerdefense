@@ -1,0 +1,144 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://main_menu.gd" id="1_menu"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBackground"]
+bg_color = Color(0.018, 0.031, 0.047, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleCard"]
+bg_color = Color(0.035, 0.059, 0.086, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.18, 0.42, 0.55, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleButton"]
+bg_color = Color(0.075, 0.14, 0.19, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2, 0.55, 0.7, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBackground")
+
+[node name="AccentTop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 6.0
+grow_horizontal = 2
+color = Color(0.16, 0.68, 0.78, 1)
+
+[node name="Content" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Card" type="PanelContainer" parent="Content"]
+custom_minimum_size = Vector2(680, 500)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleCard")
+
+[node name="Content" type="VBoxContainer" parent="Content/Card"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="TopSpacer" type="Control" parent="Content/Card/Content"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Content/Card/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.64, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 46
+text = "TOWER DEFENCE"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Content/Card/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.76, 0.82, 1)
+theme_override_font_sizes/font_size = 18
+text = "Choose a level"
+horizontal_alignment = 1
+
+[node name="Separator" type="HSeparator" parent="Content/Card/Content"]
+layout_mode = 2
+
+[node name="LevelButtons" type="VBoxContainer" parent="Content/Card/Content"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 14
+
+[node name="NormalButton" type="Button" parent="Content/Card/Content/LevelButtons"]
+custom_minimum_size = Vector2(540, 82)
+layout_mode = 2
+theme_override_font_sizes/font_size = 23
+theme_override_styles/normal = SubResource("StyleButton")
+text = "FARM\nStandard 20-round run"
+
+[node name="SandboxButton" type="Button" parent="Content/Card/Content/LevelButtons"]
+custom_minimum_size = Vector2(540, 96)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("StyleButton")
+text = "FARM — SANDBOX\nUnlimited money • All towers • Enemy controls"
+
+[node name="BottomSpacer" type="Control" parent="Content/Card/Content"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="QuitButton" type="Button" parent="Content/Card/Content"]
+custom_minimum_size = Vector2(180, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Quit"
+
+[node name="Footer" type="Label" parent="Content/Card/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.52, 0.6, 1)
+text = "More maps can be added to this level select later."
+horizontal_alignment = 1
+
+[node name="FooterSpacer" type="Control" parent="Content/Card/Content"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+
+[connection signal="pressed" from="Content/Card/Content/LevelButtons/NormalButton" to="." method="_on_normal_button_pressed"]
+[connection signal="pressed" from="Content/Card/Content/LevelButtons/SandboxButton" to="." method="_on_sandbox_button_pressed"]
+[connection signal="pressed" from="Content/Card/Content/QuitButton" to="." method="_on_quit_button_pressed"]

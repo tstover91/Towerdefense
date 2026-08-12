@@ -18,12 +18,11 @@ input_pickable = false
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Tower" unique_id=856746508]
 shape = SubResource("CircleShape2D_gyc6d")
 
-[node name="Rotator" type="Node2D" parent="." unique_id=1317124998]
-
-[node name="Sprite2D" type="Sprite2D" parent="Rotator" unique_id=1735206397]
-rotation = 1.5707964
-scale = Vector2(0.46, 0.46)
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1735206397]
+scale = Vector2(0.25, 0.25)
 texture = ExtResource("1_k1sas")
+
+[node name="Rotator" type="Node2D" parent="." unique_id=1317124998]
 
 [node name="Muzzle" type="Marker2D" parent="Rotator"]
 position = Vector2(42, 0)

@@ -72,5 +72,4 @@ func _on_restart_button_pressed() -> void:
 
 
 func _on_quit_button_pressed() -> void:
-	get_tree().paused = false
-	get_tree().quit()
+	SessionState.return_to_main_menu()

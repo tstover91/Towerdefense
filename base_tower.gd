@@ -94,6 +94,7 @@ var drone_target_mode: DroneTargetMode = DroneTargetMode.DISTRIBUTED
 @export var tower_id: StringName = GameStats.DEFAULT_TOWER_ID
 @export var projectile_scene: PackedScene = DEFAULT_PROJECTILE_SCENE
 @onready var tower_area: Area2D = $Tower
+@onready var visual_sprite: Sprite2D = $Sprite2D
 @onready var rotator: Node2D = $Rotator
 @onready var muzzle: Marker2D = $Rotator/Muzzle
 @onready var damage_timer: Timer = $Timer
@@ -1033,6 +1034,9 @@ func confirm_placement() -> void:
 func load_level_stats() -> void:
 	var stats := get_effective_stats_for_level(tower_level)
 	var tower_data := GameStats.get_tower(tower_id)
+	var tower_texture := tower_data.get("texture") as Texture2D
+	if tower_texture != null:
+		visual_sprite.texture = tower_texture
 	orbital_minimum_range_pixels = (
 		maxf(float(tower_data.get("minimum_range", 0.0)), 0.0)
 		* RANGE_PIXELS_PER_UNIT
@@ -4056,9 +4060,8 @@ func _on_button_high_pressed() -> void:
 	close_menus()
 
 func _on_confirm_pressed() -> void:
-	var sprite = $Rotator
 	set_range_preview(false)
-	sprite.modulate = Color(1, 1, 1, 1)
+	visual_sprite.modulate = Color.WHITE
 	confirm_placement()
 	$towerconfirm.visible = false
 	tower_confirmed.emit(self)

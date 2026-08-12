@@ -10,9 +10,16 @@ const TARGET_WIN_RATE := 0.60
 const ACCEPTABLE_WIN_LOW := 0.42
 const ACCEPTABLE_WIN_HIGH := 0.78
 const DEFAULT_OUTPUT_DIR := "res://balance_reports/overnight"
+const CHECKPOINT_VERSION := 3
+const CHECKPOINT_FILE_A := "optimizer_checkpoint_a.dat"
+const CHECKPOINT_FILE_B := "optimizer_checkpoint_b.dat"
 const TOWER_ENGAGEMENT_COVERAGE := 0.45
 const STARTING_ROSTER: Array[StringName] = [&"invader", &"gauss_repeater"]
 const TRADE_TOWERS: Array[StringName] = [&"hivemother", &"dronedepot", &"mechbay"]
+const EXCLUDED_TOWERS: Array[StringName] = [
+	&"saucer", &"hivemother", &"dronedepot", &"mechbay",
+]
+const EXCLUDED_RELICS: Array[StringName] = [&"trade_agreement"]
 
 var preset := "standard"
 var population_size := 60
@@ -23,6 +30,7 @@ var finalist_count := 12
 var combat_samples := 8
 var seed_value := 884271
 var output_dir := DEFAULT_OUTPUT_DIR
+var resume_from_checkpoint := true
 var search_rng := RandomNumberGenerator.new()
 var combat: Node
 var candidates: Dictionary = {}
@@ -31,6 +39,7 @@ var enemy_scenarios: Dictionary = {}
 var sensitivity_profiles: Array[Dictionary] = []
 var next_policy_id := 1
 var final_results: Array[Dictionary] = []
+var checkpoint_sequence := 0
 
 
 func _ready() -> void:
@@ -42,24 +51,49 @@ func run_optimizer() -> void:
 	apply_preset()
 	search_rng.seed = seed_value
 	build_sensitivity_profiles()
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_dir))
+	if not resume_from_checkpoint:
+		clear_checkpoints()
 	print("Run balance optimizer: preset=%s population=%d generations=%d" % [
 		preset, population_size, generations,
 	])
 	prepare_combat_lookup()
-	var population := create_initial_population()
+	var checkpoint := load_checkpoint() if resume_from_checkpoint else {}
+	var population: Array[Dictionary] = []
 	var ranked: Array[Dictionary] = []
-	for generation in generations:
-		ranked = evaluate_population(population, runs_per_policy, generation)
-		print_generation(generation, ranked)
-		if generation < generations - 1:
-			print("Breeding generation ", generation + 2, "...")
-			population = breed_population(ranked)
-			print("Breeding complete: ", population.size(), " policies")
 	var finalists: Array[Dictionary] = []
-	for index in mini(finalist_count, ranked.size()):
-		finalists.append(ranked[index]["policy"])
-	evaluate_finalists(finalists)
+	var next_generation := 0
+	var next_final_index := 0
+	if not checkpoint.is_empty():
+		ranked.assign(checkpoint.get("ranked", []))
+		population.assign(checkpoint.get("population", []))
+		finalists.assign(checkpoint.get("finalists", []))
+		final_results.assign(checkpoint.get("final_results", []))
+		next_generation = int(checkpoint.get("next_generation", 0))
+		next_final_index = int(checkpoint.get("next_final_index", 0))
+		print("Resuming checkpoint: stage=%s, generation=%d/%d, finalist runs=%d" % [
+			checkpoint.get("stage", "evolution"), next_generation, generations, next_final_index,
+		])
+	else:
+		population = create_initial_population()
+		save_checkpoint("evolution", population, ranked, finalists, 0, 0)
+
+	if finalists.is_empty():
+		for generation in range(next_generation, generations):
+			ranked = evaluate_population(population, runs_per_policy, generation)
+			print_generation(generation, ranked)
+			if generation < generations - 1:
+				print("Breeding generation ", generation + 2, "...")
+				population = breed_population(ranked)
+				print("Breeding complete: ", population.size(), " policies")
+				save_checkpoint("evolution", population, ranked, finalists, generation + 1, 0)
+		for index in mini(finalist_count, ranked.size()):
+			finalists.append(ranked[index]["policy"])
+		save_checkpoint("finalists", [], ranked, finalists, generations, 0)
+
+	evaluate_finalists(finalists, next_final_index, ranked)
 	write_all_reports(ranked)
+	clear_checkpoints()
 	print_final_summary()
 	get_tree().quit()
 
@@ -84,6 +118,8 @@ func read_arguments() -> void:
 			seed_value = int(argument.get_slice("=", 1))
 		elif argument.begins_with("--output-dir="):
 			output_dir = argument.get_slice("=", 1)
+		elif argument == "--fresh":
+			resume_from_checkpoint = false
 
 
 func apply_preset() -> void:
@@ -141,6 +177,15 @@ func profile(profile_id: String, axis: String, value: float) -> Dictionary:
 	return result
 
 
+func get_test_tower_ids() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for tower_key in GameStats.TOWERS:
+		var tower_id := StringName(tower_key)
+		if not EXCLUDED_TOWERS.has(tower_id):
+			result.append(tower_id)
+	return result
+
+
 func prepare_combat_lookup() -> void:
 	combat = CombatSimulator.new()
 	combat.duration = 20.0
@@ -149,8 +194,7 @@ func prepare_combat_lookup() -> void:
 	combat.validate_tower_progression()
 	for scenario in combat.scenarios:
 		enemy_scenarios[StringName(scenario["id"])] = scenario.duplicate(true)
-	for tower_key in GameStats.TOWERS:
-		var tower_id := StringName(tower_key)
+	for tower_id in get_test_tower_ids():
 		candidates_by_tower[tower_id] = []
 		for level in 4:
 			add_combat_candidate(tower_id, level, &"")
@@ -209,7 +253,7 @@ func create_initial_population() -> Array[Dictionary]:
 	var archetypes := [
 		"generalist", "economy", "upgrades", "expansion", "biological",
 		"technology", "ballistic", "explosive", "beam", "melee",
-		"electric", "control", "critical", "spawner",
+		"electric", "control", "critical",
 	]
 	for name in archetypes:
 		if result.size() >= population_size:
@@ -222,13 +266,13 @@ func create_initial_population() -> Array[Dictionary]:
 
 func create_policy(archetype: String) -> Dictionary:
 	var tower_weights := {}
-	for tower_key in GameStats.TOWERS:
-		tower_weights[StringName(tower_key)] = search_rng.randf_range(0.75, 1.25)
+	for tower_id in get_test_tower_ids():
+		tower_weights[tower_id] = search_rng.randf_range(0.75, 1.25)
 	var category_weights := {}
 	for category in [
 		&"global", &"biological", &"technology", &"ballistic", &"explosive",
 		&"beam", &"melee", &"electric", &"critical", &"psionic", &"reveal",
-		&"pierce", &"stun", &"spawner",
+		&"pierce", &"stun",
 	]:
 		category_weights[category] = search_rng.randf_range(0.75, 1.25)
 	var policy := {
@@ -381,7 +425,10 @@ func simulate_run(policy: Dictionary, profile_data: Dictionary, run_seed: int) -
 		state["money"] = float(state["money"]) + float(outcome["kill_income"])
 		if float(state["lives"]) <= 0.0:
 			break
-		var round_reward := float(20 + round_number * 5) * float(profile_data["round_income"])
+		var round_reward := float(
+			GameStats.ROUND_REWARD_BASE
+			+ round_number * GameStats.ROUND_REWARD_PER_WAVE
+		) * float(profile_data["round_income"])
 		if relic_count(state, &"dividends") > 0:
 			round_reward += minf(float(state["money"]) * GameStats.DIVIDENDS_INTEREST_RATE, float(GameStats.DIVIDENDS_INTEREST_CAP))
 		state["money"] = float(state["money"]) + round_reward
@@ -417,7 +464,9 @@ func build_round_mix(
 	var threat_rate := (float(mode["threat_rate_base"]) + float(round_number) * float(mode["threat_rate_growth"]) + float(round_number * round_number) * float(mode["threat_rate_curve"])) * 1.40
 	var density_variation := run_rng.randf_range(0.92, 1.08)
 	var threat_budget := duration * threat_rate * float(profile_data["enemy_density"]) * density_variation
-	if round_number in [6, 11]:
+	if round_number == 6:
+		threat_budget *= GameStats.ROUND_SIX_THREAT_MULTIPLIER * run_rng.randf_range(1.0, 1.45)
+	elif round_number == 11:
 		threat_budget *= run_rng.randf_range(1.0, 1.45)
 	elif round_number == 16:
 		threat_budget *= 1.55
@@ -459,14 +508,15 @@ func make_mix_entry(
 	var health := (float(enemy["health"]) + float(enemy.get("health_per_wave", 0.0)) * float(round_number - 1))
 	health *= float(mode["enemy_health_multiplier_base"]) + float(round_number - 1) * float(mode["enemy_health_multiplier_growth"])
 	health *= GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER if not bool(enemy.get("boss", false)) else 1.0
+	health *= GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
 	health *= float(profile_data["enemy_health"])
 	var extra_health := 0.0
 	if int(enemy.get("split_count", 0)) > 0:
 		var child := GameStats.get_enemy(StringName(enemy["split_enemy_id"]))
-		extra_health += float(enemy["split_count"]) * (float(child["health"]) + float(child.get("health_per_wave", 0.0)) * float(round_number - 1)) * GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
+		extra_health += float(enemy["split_count"]) * (float(child["health"]) + float(child.get("health_per_wave", 0.0)) * float(round_number - 1)) * GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER * GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
 	if int(enemy.get("summon_limit", 0)) > 0:
 		var summoned := GameStats.get_enemy(StringName(enemy["summon_enemy_id"]))
-		extra_health += float(enemy["summon_limit"]) * (float(summoned["health"]) + float(summoned.get("health_per_wave", 0.0)) * float(round_number - 1)) * GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
+		extra_health += float(enemy["summon_limit"]) * (float(summoned["health"]) + float(summoned.get("health_per_wave", 0.0)) * float(round_number - 1)) * GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER * GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
 	var speed := float(enemy["move_speed"]) * GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER * float(profile_data["enemy_speed"])
 	return {
 		"enemy_id": enemy_id,
@@ -476,7 +526,7 @@ func make_mix_entry(
 		"armor": float(enemy.get("armor", 0.0)) * float(profile_data["enemy_armor"]),
 		"speed": speed,
 		"duration": duration,
-		"reward": float(enemy.get("cash_reward", 0.0)),
+		"reward": float(enemy.get("cash_reward", 0.0)) * GameStats.KILL_REWARD_MULTIPLIER,
 		"leak": float(enemy.get("base_damage", 1.0)),
 	}
 
@@ -488,7 +538,10 @@ func purchase_for_round(
 	profile_data: Dictionary,
 	round_number: int
 ) -> void:
-	var reserve := float(policy["reserve"]) * float(20 + round_number * 5)
+	var reserve := float(policy["reserve"]) * float(
+		GameStats.ROUND_REWARD_BASE
+		+ round_number * GameStats.ROUND_REWARD_PER_WAVE
+	)
 	for _purchase in 64:
 		var actions := get_purchase_actions(state, profile_data, round_number)
 		if actions.is_empty():
@@ -778,8 +831,7 @@ func resolve_round(
 
 func resolve_tower_draft(state: Dictionary, policy: Dictionary, run_rng: RandomNumberGenerator) -> void:
 	var available: Array[StringName] = []
-	for tower_key in GameStats.TOWERS:
-		var tower_id := StringName(tower_key)
+	for tower_id in get_test_tower_ids():
 		if not state["roster"].has(tower_id):
 			available.append(tower_id)
 	var offers: Array[StringName] = []
@@ -819,8 +871,7 @@ func resolve_relic_draft(state: Dictionary, policy: Dictionary, round_number: in
 	state["relics"][best] = int(state["relics"].get(best, 0)) + best_quantity
 	if best == &"contraband_blueprint":
 		var outside: Array[StringName] = []
-		for tower_key in GameStats.TOWERS:
-			var tower_id := StringName(tower_key)
+		for tower_id in get_test_tower_ids():
 			if not state["roster"].has(tower_id):
 				outside.append(tower_id)
 		if not outside.is_empty():
@@ -831,6 +882,8 @@ func get_available_relics(state: Dictionary) -> Array[StringName]:
 	var result: Array[StringName] = []
 	for relic_key in GameStats.RELICS:
 		var relic_id := StringName(relic_key)
+		if EXCLUDED_RELICS.has(relic_id):
+			continue
 		var relic := GameStats.get_relic(relic_id)
 		if not bool(relic.get("enabled", true)):
 			continue
@@ -990,19 +1043,138 @@ func get_relic_signature(relics: Dictionary) -> String:
 	return "+".join(parts)
 
 
-func evaluate_finalists(finalists: Array[Dictionary]) -> void:
-	final_results.clear()
+func evaluate_finalists(
+	finalists: Array[Dictionary],
+	start_index: int,
+	ranked: Array[Dictionary]
+) -> void:
 	var total := finalists.size() * sensitivity_profiles.size() * final_runs_per_profile
-	var completed := 0
-	for policy in finalists:
-		for profile_data in sensitivity_profiles:
-			for run_index in final_runs_per_profile:
-				var run_seed := seed_value + 900000001 + int(policy["id"]) * 100003 + String(profile_data["id"]).hash() + run_index * 97
-				var result := simulate_run(policy, profile_data, run_seed)
-				final_results.append(result)
-				completed += 1
-		if completed % maxi(total / 10, 1) == 0:
+	if start_index <= 0:
+		final_results.clear()
+	else:
+		start_index = mini(start_index, final_results.size())
+		if final_results.size() > start_index:
+			final_results.resize(start_index)
+	var checkpoint_interval := maxi(floori(float(total) / 40.0), 25)
+	var progress_interval := maxi(floori(float(total) / 10.0), 1)
+	for flat_index in range(start_index, total):
+		var runs_per_policy := sensitivity_profiles.size() * final_runs_per_profile
+		var policy_index := floori(float(flat_index) / float(runs_per_policy))
+		var within_policy := flat_index % runs_per_policy
+		var profile_index := floori(float(within_policy) / float(final_runs_per_profile))
+		var run_index := within_policy % final_runs_per_profile
+		var policy: Dictionary = finalists[policy_index]
+		var profile_data: Dictionary = sensitivity_profiles[profile_index]
+		var run_seed := seed_value + 900000001 + int(policy["id"]) * 100003 + String(profile_data["id"]).hash() + run_index * 97
+		final_results.append(simulate_run(policy, profile_data, run_seed))
+		var completed := flat_index + 1
+		if completed % progress_interval == 0 or completed == total:
 			print("Final evaluation: %d/%d" % [completed, total])
+		if completed % checkpoint_interval == 0 or completed == total:
+			save_checkpoint("finalists", [], ranked, finalists, generations, completed)
+
+
+func get_checkpoint_configuration() -> Dictionary:
+	return {
+		"version": CHECKPOINT_VERSION,
+		"preset": preset,
+		"seed": seed_value,
+		"population": population_size,
+		"generations": generations,
+		"runs_per_policy": runs_per_policy,
+		"final_runs_per_profile": final_runs_per_profile,
+		"finalists": finalist_count,
+		"combat_samples": combat_samples,
+		"included_towers": get_test_tower_ids(),
+		"excluded_towers": EXCLUDED_TOWERS,
+		"excluded_relics": EXCLUDED_RELICS,
+		"balance_values": get_balance_values(),
+		"sensitivity_profiles": sensitivity_profiles,
+	}
+
+
+func get_balance_values() -> Dictionary:
+	var mode := GameStats.get_mode(&"easy")
+	return {
+		"kill_reward_multiplier": GameStats.KILL_REWARD_MULTIPLIER,
+		"round_reward_base": GameStats.ROUND_REWARD_BASE,
+		"round_reward_per_wave": GameStats.ROUND_REWARD_PER_WAVE,
+		"round_six_threat_multiplier": GameStats.ROUND_SIX_THREAT_MULTIPLIER,
+		"global_enemy_health_multiplier": GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER,
+		"standard_enemy_health_multiplier": GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER,
+		"enemy_health_multiplier_base": mode["enemy_health_multiplier_base"],
+		"enemy_health_multiplier_growth": mode["enemy_health_multiplier_growth"],
+	}
+
+
+func get_checkpoint_paths() -> Array[String]:
+	return [
+		output_dir.path_join(CHECKPOINT_FILE_A),
+		output_dir.path_join(CHECKPOINT_FILE_B),
+	]
+
+
+func save_checkpoint(
+	stage: String,
+	population: Array[Dictionary],
+	ranked: Array[Dictionary],
+	finalists: Array[Dictionary],
+	next_generation: int,
+	next_final_index: int
+) -> void:
+	checkpoint_sequence += 1
+	var payload := {
+		"configuration": get_checkpoint_configuration(),
+		"sequence": checkpoint_sequence,
+		"stage": stage,
+		"next_generation": next_generation,
+		"next_final_index": next_final_index,
+		"next_policy_id": next_policy_id,
+		"search_rng_state": search_rng.state,
+		"population": population,
+		"ranked": ranked,
+		"finalists": finalists,
+		"final_results": final_results,
+	}
+	var paths := get_checkpoint_paths()
+	var path := paths[checkpoint_sequence % paths.size()]
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		push_warning("Could not write optimizer checkpoint: %s" % path)
+		return
+	file.store_var(payload)
+	file.close()
+	print("Checkpoint saved: %s (%d)" % [stage, checkpoint_sequence])
+
+
+func load_checkpoint() -> Dictionary:
+	var best: Dictionary = {}
+	for path in get_checkpoint_paths():
+		if not FileAccess.file_exists(path):
+			continue
+		var file := FileAccess.open(path, FileAccess.READ)
+		if file == null:
+			continue
+		var value: Variant = file.get_var()
+		file.close()
+		if not value is Dictionary:
+			continue
+		var candidate: Dictionary = value
+		if candidate.get("configuration", {}) != get_checkpoint_configuration():
+			continue
+		if int(candidate.get("sequence", -1)) > int(best.get("sequence", -1)):
+			best = candidate
+	if not best.is_empty():
+		checkpoint_sequence = int(best["sequence"])
+		next_policy_id = int(best.get("next_policy_id", next_policy_id))
+		search_rng.state = int(best.get("search_rng_state", search_rng.state))
+	return best
+
+
+func clear_checkpoints() -> void:
+	for path in get_checkpoint_paths():
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 func write_all_reports(ranked: Array[Dictionary]) -> void:
@@ -1047,6 +1219,10 @@ func write_manifest() -> void:
 		"final_runs_per_profile": final_runs_per_profile,
 		"finalists": finalist_count,
 		"combat_samples": combat_samples,
+		"included_towers": get_test_tower_ids(),
+		"excluded_towers": EXCLUDED_TOWERS,
+		"excluded_relics": EXCLUDED_RELICS,
+		"balance_values": get_balance_values(),
 		"sensitivity_profiles": sensitivity_profiles,
 		"model": {
 			"rounds": 20,
@@ -1147,6 +1323,8 @@ func write_relic_report() -> void:
 	var file := open_report("relic_value.csv", "relic,present_runs,present_win_rate,absent_win_rate,win_rate_delta,selection_rate,clear_choice_flag")
 	for relic_key in GameStats.RELICS:
 		var relic_id := StringName(relic_key)
+		if EXCLUDED_RELICS.has(relic_id):
+			continue
 		if not bool(GameStats.get_relic(relic_id).get("enabled", true)):
 			continue
 		var present_runs := 0
@@ -1173,8 +1351,7 @@ func write_relic_report() -> void:
 
 func write_tower_report() -> void:
 	var file := open_report("tower_value.csv", "tower,present_runs,present_win_rate,absent_win_rate,win_rate_delta,usage_rate,clear_choice_flag")
-	for tower_key in GameStats.TOWERS:
-		var tower_id := StringName(tower_key)
+	for tower_id in get_test_tower_ids():
 		var present_runs := 0
 		var present_wins := 0
 		var absent_runs := 0
@@ -1251,7 +1428,7 @@ func write_recommendation_report() -> void:
 		"starting_cash": float(GameStats.get_mode(&"easy")["starting_cash"]),
 		"kill_income": 1.0,
 		"round_income": 1.0,
-		"enemy_health": GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER,
+		"enemy_health": GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER * GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER,
 		"enemy_armor": 1.0,
 		"enemy_speed": GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER,
 		"enemy_density": 1.0,

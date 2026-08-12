@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://370tiwaj6ocr" path="res://map_visuals.gd" id="3_map_visuals"]
 [ext_resource type="PackedScene" path="res://between_round_shop.tscn" id="4_shop"]
 [ext_resource type="PackedScene" path="res://pause_menu.tscn" id="5_pause"]
+[ext_resource type="PackedScene" path="res://sandbox_panel.tscn" id="6_sandbox"]
 [ext_resource type="Texture2D" uid="uid://gvxmglab031y" path="res://assets/maps/farm.png" id="7_272bh"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1bvp3"]
@@ -297,6 +298,9 @@ layout_mode = 3
 [node name="PauseMenu" parent="MainUI" unique_id=637602489 instance=ExtResource("5_pause")]
 layout_mode = 3
 
+[node name="SandboxPanel" parent="MainUI" instance=ExtResource("6_sandbox")]
+layout_mode = 3
+
 [node name="endscreen" type="PanelContainer" parent="MainUI" unique_id=168830448]
 visible = false
 anchors_preset = 15
@@ -319,7 +323,7 @@ text = "Restart"
 
 [node name="quitbutton" type="Button" parent="MainUI/endscreen/VBoxContainer" unique_id=887233883]
 layout_mode = 2
-text = "Quit"
+text = "Main Menu"
 
 [connection signal="pressed" from="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton" to="." method="_on_pause_button_pressed"]
 [connection signal="pressed" from="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/SpeedButton" to="." method="_on_speed_button_pressed"]

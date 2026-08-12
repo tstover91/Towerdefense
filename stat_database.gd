@@ -22,8 +22,16 @@ const EXPLOSION_INNER_RADIUS_RATIO := 0.50
 const EXPLOSION_OUTER_DAMAGE_MULTIPLIER := 0.50
 const EXPLOSIVE_ARMOR_MULTIPLIER := 1.25
 
+# Economy redistribution: kills pay less while a larger share of income is
+# guaranteed at the end of each completed round.
+const KILL_REWARD_MULTIPLIER := 0.80
+const ROUND_REWARD_BASE := 30
+const ROUND_REWARD_PER_WAVE := 7
+const ROUND_SIX_THREAT_MULTIPLIER := 1.10
+
 # Initial enemy pacing test pass. Bosses bypass the standard-archetype
 # multipliers; weakened and elite variants use their own centralized values.
+const GLOBAL_ENEMY_HEALTH_MULTIPLIER := 1.10
 const STANDARD_ENEMY_HEALTH_MULTIPLIER := 1.80
 const STANDARD_ENEMY_SPEED_MULTIPLIER := 0.70
 const HORDE_ENEMY_HEALTH_MULTIPLIER := 0.55
@@ -204,6 +212,23 @@ const TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER := 3
 const TRADE_AGREEMENT_SPAWN_INTERVAL_MULTIPLIER := 1.5
 const TRADE_AGREEMENT_BUILD_COST_MULTIPLIER := 2.0
 
+const TOWER_TEXTURES := {
+	&"invader": preload("res://assets/towers/invader.png"),
+	&"gauss_repeater": preload("res://assets/towers/gauss_repeater.png"),
+	&"beholder": preload("res://assets/towers/beholder.png"),
+	&"reaver": preload("res://assets/towers/reaver.png"),
+	&"brainiac": preload("res://assets/towers/brainiac.png"),
+	&"longshot": preload("res://assets/towers/longshot.png"),
+	&"slinger": preload("res://assets/towers/slinger.png"),
+	&"voidcaller": preload("res://assets/towers/voidcaller.png"),
+	&"orbitalcannon": preload("res://assets/towers/orbitalcannon.png"),
+	&"energycore": preload("res://assets/towers/energycore.png"),
+	&"saucer": preload("res://assets/towers/saucer.png"),
+	&"hivemother": preload("res://assets/towers/hivemother.png"),
+	&"dronedepot": preload("res://assets/towers/dronedepot.png"),
+	&"mechbay": preload("res://assets/towers/mechbay.png"),
+}
+
 # Fixed upgraded sell values preserve the previous normal-price economy without
 # allowing temporary build-price effects to alter refunds. Level 0 is handled
 # separately using the price actually paid for that tower instance.
@@ -218,7 +243,7 @@ const TOWER_UPGRADED_SELL_VALUES := {
 	&"voidcaller": [350, 408, 533, 750],
 	&"orbitalcannon": [700, 816, 950, 1133],
 	&"energycore": [300, 383, 500, 650],
-	&"saucer": [525, 650, 950, 2250],
+	&"saucer": [525, 758, 1008, 1491],
 	&"hivemother": [250, 308, 450, 1083],
 	&"dronedepot": [550, 683, 1000, 2400],
 	&"mechbay": [500, 616, 900, 2133],
@@ -235,7 +260,7 @@ const TOWER_PATH_SELL_VALUE_ADDITIONS := {
 	&"voidcaller": {&"a": 533, &"b": 400},
 	&"orbitalcannon": {&"a": 400, &"b": 533},
 	&"energycore": {&"a": 333, &"b": 466},
-	&"saucer": 1400,
+	&"saucer": 900,
 	&"hivemother": 733,
 	&"dronedepot": 1600,
 	&"mechbay": 1433,
@@ -470,11 +495,11 @@ const TOWERS := {
 	"paths": {
 		"a": {
 			"display_name": "Dual Pistols",
-			"description": "Adds a second pistol, increasing attack speed and granting Critical while preserving Invader's general-purpose role.",
+			"description": "Adds a second pistol, increasing attack speed and granting Reveal while preserving Invader's Critical attacks.",
 			"cost": 700,
 			"unlock_level": 3,
 
-			"add_bonus_tags": [&"critical"],
+			"add_bonus_tags": [&"reveal"],
 
 			"stat_multipliers": {
 				"firerate": 0.65,
@@ -495,7 +520,7 @@ const TOWERS := {
 			"pierce_count_add": 1,
 
 			"stat_multipliers": {
-				"damage": 2.25,
+				"damage": 1.5,
 				"firerate": 1.8,
 			},
 		},
@@ -519,7 +544,7 @@ const TOWERS := {
 			"damage": 70,
 			"firerate": 0.42,
 			"range": 12.5,
-			"add_bonus_tags": [&"reveal"],
+			"add_bonus_tags": [&"critical"],
 		},
 		{
 			"upgrade_cost": 400,
@@ -1302,12 +1327,12 @@ const TOWERS := {
 		"primary_damage_type": &"electric",
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
-		"bonus_tags": [&"reveal"],
+		"bonus_tags": [],
 		"paths": {
 			"a": {
 				"display_name": "Homing Rockets",
 				"description": "Adds Explosive. Launches two powerful homing rockets every three seconds while continuing to fire the Electric gun.",
-				"cost": 4200,
+				"cost": 2700,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
 				"behavior_flags": {"saucer_twin_rockets": true},
@@ -1319,7 +1344,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Specimen Deployment",
 				"description": "Successful abductions deploy a mobile melee monster for 10 seconds. Limited to one active monster per saucer.",
-				"cost": 4200,
+				"cost": 2700,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"spawner"],
 				"behavior_flags": {"saucer_monster_drop": true},
@@ -1337,53 +1362,54 @@ const TOWERS := {
 				"flyer_attack_radius": 5.0,
 				"abduction_cooldown": 16.0,
 				"abduction_radius": 1.5,
-				"abduction_health_threshold": 0.35,
-				"monster_stats": {"damage": 160, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
+				"abduction_health_threshold": 0.0,
+				"monster_stats": {"damage": 400, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 375,
-				"damage": 90,
-				"projectile_speed": 700.0,
+				"upgrade_cost": 700,
+				"damage": 120,
+				"projectile_speed": 760.0,
 				"firerate": 0.60,
 				"range": 21.0,
-				"splash_radius": 2.5,
-				"flyer_move_speed": 175.0,
-				"flyer_attack_radius": 5.25,
-				"abduction_cooldown": 15.0,
-				"abduction_radius": 1.5,
-				"abduction_health_threshold": 0.35,
-				"monster_stats": {"damage": 230, "attack_interval": 0.95, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
-				"hidden_detection": false,
-			},
-			{
-				"upgrade_cost": 900,
-				"damage": 140,
-				"projectile_speed": 760.0,
-				"firerate": 0.55,
-				"range": 22.0,
 				"splash_radius": 2.75,
-				"flyer_move_speed": 185.0,
+				"flyer_move_speed": 190.0,
 				"flyer_attack_radius": 5.5,
-				"abduction_cooldown": 14.0,
+				"abduction_cooldown": 16.0,
 				"abduction_radius": 1.5,
-				"abduction_health_threshold": 0.35,
-				"monster_stats": {"damage": 340, "attack_interval": 0.9, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
+				"abduction_health_threshold": 0.0,
+				"monster_stats": {"damage": 400, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
+				"add_bonus_tags": [&"reveal"],
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 3900,
-				"damage": 310,
+				"upgrade_cost": 750,
+				"damage": 120,
+				"projectile_speed": 760.0,
+				"firerate": 0.60,
+				"range": 21.0,
+				"splash_radius": 2.75,
+				"flyer_move_speed": 190.0,
+				"flyer_attack_radius": 5.5,
+				"abduction_cooldown": 13.0,
+				"abduction_radius": 2.0,
+				"abduction_health_threshold": 0.40,
+				"monster_stats": {"damage": 400, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
+				"hidden_detection": false,
+			},
+			{
+				"upgrade_cost": 1450,
+				"damage": 150,
 				"projectile_speed": 920.0,
 				"firerate": 0.45,
-				"range": 24.0,
-				"splash_radius": 3.5,
+				"range": 22.0,
+				"splash_radius": 3.0,
 				"flyer_move_speed": 210.0,
 				"flyer_attack_radius": 6.0,
-				"abduction_cooldown": 12.0,
-				"abduction_radius": 1.5,
-				"abduction_health_threshold": 0.35,
-				"monster_stats": {"damage": 740, "attack_interval": 0.8, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
+				"abduction_cooldown": 10.0,
+				"abduction_radius": 2.25,
+				"abduction_health_threshold": 0.40,
+				"monster_stats": {"damage": 400, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
 				"hidden_detection": false,
 			},
 		],
@@ -1624,7 +1650,7 @@ const MODES := {
 		"threat_chunk_interval": 4.0,
 		"active_enemy_cap": 120,
 		"enemy_health_multiplier_base": 1.15,
-		"enemy_health_multiplier_growth": 0.02,
+		"enemy_health_multiplier_growth": 0.025,
 	},
 }
 
@@ -1636,7 +1662,9 @@ static func get_enemy(enemy_id: StringName) -> Dictionary:
 
 static func get_tower(tower_id: StringName) -> Dictionary:
 	assert(TOWERS.has(tower_id), "Unknown tower ID: %s" % tower_id)
-	return TOWERS[tower_id].duplicate(true)
+	var tower: Dictionary = TOWERS[tower_id].duplicate(true)
+	tower["texture"] = TOWER_TEXTURES.get(tower_id)
+	return tower
 
 
 static func get_spawned_unit(unit_id: StringName) -> Dictionary:
