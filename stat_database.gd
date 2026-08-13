@@ -291,13 +291,13 @@ const TOWER_TEXTURES := {
 # allowing temporary build-price effects to alter refunds. Level 0 is handled
 # separately using the price actually paid for that tower instance.
 const TOWER_UPGRADED_SELL_VALUES := {
-	&"invader": [200, 233, 299, 415],
+	&"invader": [200, 233, 327, 632],
 	&"gauss_repeater": [450, 450, 625, 858],
 	&"beholder": [500, 600, 750, 975],
 	&"reaver": [175, 205, 252, 385],
 	&"brainiac": [325, 408, 525, 675],
 	&"longshot": [350, 425, 558, 1008],
-	&"slinger": [225, 257, 307, 387],
+	&"slinger": [225, 325, 515, 965],
 	&"voidcaller": [350, 408, 533, 750],
 	&"orbitalcannon": [700, 816, 950, 1133],
 	&"energycore": [300, 383, 500, 650],
@@ -308,13 +308,13 @@ const TOWER_UPGRADED_SELL_VALUES := {
 }
 
 const TOWER_PATH_SELL_VALUE_ADDITIONS := {
-	&"invader": { &"a": 233, &"b": 233,},
+	&"invader": {&"a": 900, &"b": 883},
 	&"gauss_repeater": {&"a": 367, &"b": 250,},
 	&"beholder": {&"a": 533, &"b": 466},
 	&"reaver": {&"a": 400, &"b": 233},
 	&"brainiac": {&"a": 333, &"b": 466},
 	&"longshot": {&"a": 633, &"b": 500},
-	&"slinger": {&"a": 500, &"b": 250},
+	&"slinger": {&"a": 1250, &"b": 1250},
 	&"voidcaller": {&"a": 533, &"b": 400},
 	&"orbitalcannon": {&"a": 400, &"b": 533},
 	&"energycore": {&"a": 333, &"b": 466},
@@ -417,6 +417,24 @@ const ENEMIES := {
 		"color": Color(0.65, 0.25, 0.9),
 		"visual_scale": 1.1,
 	},
+	"hidden": {
+		"display_name": "Hidden",
+		"health": 90,
+		"health_per_wave": 10.0,
+		"move_speed": 110.0,
+		"cash_reward": 15,
+		"base_damage": 6,
+		"armor": 0,
+		"first_wave": 9,
+		"threat_cost": 5,
+		"spawn_cost": 3,
+		"spawn_weight": 24,
+		"spawn_style": &"burst",
+		"role": &"pressure",
+		"traits": [&"hidden"],
+		"color": Color(0.42, 0.32, 0.62),
+		"visual_scale": 0.9,
+	},
 	"armored": {
 		"display_name": "Armored",
 		"health": 300,
@@ -424,8 +442,8 @@ const ENEMIES := {
 		"move_speed": 75.0,
 		"cash_reward": 38,
 		"base_damage": 12,
-		"armor": 10,
-		"first_wave": 9,
+		"armor": 20,
+		"first_wave": 5,
 		"threat_cost": 10,
 		"spawn_cost": 6,
 		"spawn_weight": 30,
@@ -540,7 +558,7 @@ const TOWERS := {
 	"invader": {
 	"display_name": "Invader",
 	"placement_cost": 200,
-	"footprint_cells": Vector2i(1, 1),
+	"footprint_cells": Vector2i(2, 2),
 	"type_tags": [&"biological"],
 	"damage_tags": [&"ballistic"],
 	"primary_damage_type": &"ballistic",
@@ -554,13 +572,13 @@ const TOWERS := {
 		"a": {
 			"display_name": "Dual Pistols",
 			"description": "Adds a second pistol, increasing attack speed and granting Reveal while preserving Invader's Critical attacks.",
-			"cost": 900,
+			"cost": 2700,
 			"unlock_level": 3,
 
 			"add_bonus_tags": [&"reveal"],
 
 			"stat_multipliers": {
-				"firerate": 0.65,
+				"firerate": 0.42,
 			},
 
 			"behavior_flags": {
@@ -570,16 +588,16 @@ const TOWERS := {
 
 		"b": {
 			"display_name": "Piercing Blaster",
-			"description": "Fires slower, heavier shots that pierce through an additional enemy.",
-			"cost": 900,
+			"description": "Fires slower, heavier shots that bypass armor and pierce through an additional enemy.",
+			"cost": 2650,
 			"unlock_level": 3,
 
 			"add_bonus_tags": [&"pierce"],
 			"pierce_count_add": 1,
 
 			"stat_multipliers": {
-				"damage": 1.5,
-				"firerate": 1.8,
+				"damage": 1.7,
+				"firerate": 1.2,
 			},
 		},
 	},
@@ -593,20 +611,20 @@ const TOWERS := {
 		},
 		{
 			"upgrade_cost": 100,
-			"damage": 40,
+			"damage": 36,
 			"firerate": 0.462,
 			"range": 9.775,
 		},
 		{
-			"upgrade_cost": 200,
-			"damage": 70,
+			"upgrade_cost": 283,
+			"damage": 65,
 			"firerate": 0.462,
 			"range": 10.625,
 			"add_bonus_tags": [&"critical"],
 		},
 		{
-			"upgrade_cost": 350,
-			"damage": 110,
+			"upgrade_cost": 917,
+			"damage": 140,
 			"firerate": 0.396,
 			"range": 11.9,
 		},
@@ -615,7 +633,7 @@ const TOWERS := {
 	"gauss_repeater": {
 		"display_name": "Gauss Repeater",
 		"placement_cost": 450,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"electric"],
 		"delivery_type": DELIVERY_PROJECTILE,
@@ -724,7 +742,7 @@ const TOWERS := {
 	"beholder": {
 		"display_name": "Beholder",
 		"placement_cost": 500,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"beam"],
 		"primary_damage_type": &"beam",
@@ -806,7 +824,7 @@ const TOWERS := {
 	"reaver": {
 		"display_name": "Reaver",
 		"placement_cost": 175,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"melee"],
 		"delivery_type": DELIVERY_HITSCAN,
@@ -883,7 +901,7 @@ const TOWERS := {
 	"brainiac": {
 		"display_name": "Brainiac",
 		"placement_cost": 325,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological", &"technology"],
 		"damage_tags": [&"ballistic"],
 		"delivery_type": DELIVERY_PROJECTILE,
@@ -960,7 +978,7 @@ const TOWERS := {
 	"longshot": {
 		"display_name": "Longshot",
 		"placement_cost": 350,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"ballistic"],
 		"delivery_type": DELIVERY_HITSCAN,
@@ -1031,7 +1049,7 @@ const TOWERS := {
 	"slinger": {
 		"display_name": "Slinger",
 		"placement_cost": 225,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"melee"],
 		"primary_damage_type": &"melee",
@@ -1041,10 +1059,13 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Explosive Ricochet",
-				"description": "The initial hit and every bounced impact create an Explosive blast dealing 75% of the impact's damage.",
-				"cost": 1500,
+				"description": "Increases impact damage by 30%. The initial hit and every bounced impact create an Explosive blast dealing 75% of the impact's damage.",
+				"cost": 3750,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
+				"stat_multipliers": {
+					"damage": 1.30,
+				},
 				"behavior_flags": {
 					"slinger_contact_explosions": true,
 				},
@@ -1055,12 +1076,15 @@ const TOWERS := {
 			},
 			"b": {
 				"display_name": "Razor Disc",
-				"description": "The disc hits the first enemy in its line, then pierces every enemy behind it until maximum range.",
-				"cost": 750,
+				"description": "Increases impact damage by 129%. The disc hits the first enemy in its line, then pierces every enemy behind it until maximum range.",
+				"cost": 3750,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"pierce"],
 				"pierce_count_add": 1,
 				"impact_mode": IMPACT_FIRST_CONTACT,
+				"stat_multipliers": {
+					"damage": 2.285714,
+				},
 				"stat_overrides": {"bounce_count": 0},
 				"behavior_flags": {
 					"infinite_pierce": true,
@@ -1071,7 +1095,7 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 70,
+				"damage": 24,
 				"projectile_speed": 480.0,
 				"firerate": 1.0,
 				"range": 12.5,
@@ -1080,31 +1104,31 @@ const TOWERS := {
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 95,
-				"damage": 100,
+				"upgrade_cost": 300,
+				"damage": 48,
 				"projectile_speed": 520.0,
-				"firerate": 0.92,
+				"firerate": 0.666667,
 				"range": 13.0,
 				"bounce_count": 1,
 				"bounce_range": 7.0,
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 150,
-				"damage": 140,
+				"upgrade_cost": 570,
+				"damage": 86,
 				"projectile_speed": 570.0,
-				"firerate": 0.84,
-				"range": 13.5,
+				"firerate": 0.666667,
+				"range": 15.0,
 				"bounce_count": 1,
 				"bounce_range": 7.0,
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 240,
-				"damage": 140,
+				"upgrade_cost": 1350,
+				"damage": 168,
 				"projectile_speed": 570.0,
-				"firerate": 0.84,
-				"range": 13.5,
+				"firerate": 0.666667,
+				"range": 15.0,
 				"bounce_count": 2,
 				"bounce_range": 7.0,
 				"hidden_detection": false,
@@ -1114,7 +1138,7 @@ const TOWERS := {
 	"voidcaller": {
 		"display_name": "Void Caller",
 		"placement_cost": 350,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"explosive"],
 		"delivery_type": DELIVERY_PROJECTILE,
@@ -1208,7 +1232,7 @@ const TOWERS := {
 	"orbitalcannon": {
 		"display_name": "Orbital Cannon",
 		"placement_cost": 700,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"explosive"],
 		"delivery_type": DELIVERY_PROJECTILE,
@@ -1303,7 +1327,7 @@ const TOWERS := {
 	"energycore": {
 		"display_name": "Energy Core",
 		"placement_cost": 300,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"electric"],
 		"delivery_type": DELIVERY_HITSCAN,
@@ -1379,7 +1403,7 @@ const TOWERS := {
 	"saucer": {
 		"display_name": "Saucer",
 		"placement_cost": 525,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"electric"],
 		"primary_damage_type": &"electric",
@@ -1475,7 +1499,7 @@ const TOWERS := {
 	"hivemother": {
 		"display_name": "Hive Mother",
 		"placement_cost": 250,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"ballistic"],
 		"delivery_type": DELIVERY_PROJECTILE,
@@ -1541,7 +1565,7 @@ const TOWERS := {
 	"dronedepot": {
 		"display_name": "Drone Depot",
 		"placement_cost": 550,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"ballistic"],
 		"delivery_type": DELIVERY_HITSCAN,
@@ -1610,7 +1634,7 @@ const TOWERS := {
 	"mechbay": {
 		"display_name": "Mech Bay",
 		"placement_cost": 500,
-		"footprint_cells": Vector2i(1, 1),
+		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"melee"],
 		"delivery_type": DELIVERY_HITSCAN,

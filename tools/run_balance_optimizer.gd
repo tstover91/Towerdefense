@@ -11,7 +11,7 @@ const TARGET_WIN_RATE := 0.60
 const ACCEPTABLE_WIN_LOW := 0.42
 const ACCEPTABLE_WIN_HIGH := 0.78
 const DEFAULT_OUTPUT_DIR := "res://balance_reports/overnight"
-const CHECKPOINT_VERSION := 7
+const CHECKPOINT_VERSION := 9
 const RELIC_REFRESH_BASE_COST := 75
 const RELIC_REFRESH_COST_INCREASE := 50
 const MAX_SIMULATED_RELIC_REFRESHES := 64
@@ -28,11 +28,12 @@ const FUTURE_FUNDING_DISCOUNT := 0.80
 const MAP_VIEWPORT_SIZE := Vector2(1152.0, 648.0)
 const MAP_PLAYABLE_WIDTH := 960.0
 const MAP_PLACEMENT_SNAP := 16.0
-const MAP_PATH_NO_BUILD_RADIUS := 46.0
+const MAP_PATH_NO_BUILD_RADIUS := 30.0
 const MAP_RANGE_PIXELS_PER_UNIT := 12.9
 const MAP_PATH_SAMPLE_INTERVAL := 8.0
-const MAP_COMBAT_SEGMENT_STRIDE := 8
-const MAP_COMBAT_TIME_STEP := 1.00
+const MAP_COMBAT_SEGMENT_STRIDE := 4
+const MAP_COMBAT_TIME_STEP := 0.25
+const MIDWAVE_PURCHASE_INTERVAL := 1.0
 const MAP_COMBAT_MAX_EXTRA_TIME := 4.0
 const MAP_COMBAT_EPSILON := 0.0001
 const COMBAT_HEALTH_MULTIPLIERS: Array[float] = [
@@ -77,6 +78,7 @@ var focused_early_test := false
 var simulation_round_limit := 20
 var record_round_history := false
 var source_policy_path := "res://balance_reports/overnight/top_policies.json"
+var source_policy_limit := 0
 var focused_starter_tower: StringName = &"invader"
 var focused_starter_pool: Array[StringName] = []
 var evolve_focused_test := false
@@ -89,7 +91,9 @@ var map_placements: Array[Dictionary] = []
 var placement_rankings: Dictionary = {}
 var placement_coverages: Dictionary = {}
 var starter_calibration := false
+var live_build_benchmark := false
 var disable_relics := false
+var director_count_templates: Dictionary = {}
 
 
 func _ready() -> void:
@@ -111,8 +115,12 @@ func run_optimizer() -> void:
 		preset, population_size, generations, worker_count, starting_rosters.size(),
 	])
 	prepare_combat_lookup()
+	prepare_director_count_templates()
 	if use_map_geometry:
 		prepare_map_geometry()
+	if live_build_benchmark:
+		run_live_build_benchmark()
+		return
 	if starter_calibration:
 		run_starter_calibration()
 		return
@@ -218,6 +226,50 @@ func run_starter_calibration() -> void:
 	finish_optimizer()
 
 
+func run_live_build_benchmark() -> void:
+	var policies: Array[Dictionary] = []
+	for third_invader_level in [2, 3]:
+		var policy := create_policy("generalist")
+		policy["name"] = "live_invader_l%d" % third_invader_level
+		policy["live_build_third_invader_level"] = third_invader_level
+		policies.append(policy)
+	var challenges: Array[StringName] = [&"horde", &"elite"]
+	var repeats := maxi(final_runs_per_profile, 1)
+	final_results.clear()
+	for policy in policies:
+		for challenge_index in challenges.size():
+			for repeat_index in repeats:
+				var run_seed := (
+					seed_value + 810000001 + challenge_index * 1000003
+					+ repeat_index * 97
+				)
+				final_results.append(simulate_run(
+					policy,
+					sensitivity_profiles[0],
+					run_seed,
+					[&"invader", &"gauss_repeater"],
+					challenges[challenge_index]
+				))
+	var ranked: Array[Dictionary] = []
+	for policy in policies:
+		var totals := new_metric_totals()
+		var count := 0
+		for result in final_results:
+			if int(result["policy_id"]) == int(policy["id"]):
+				accumulate_result(totals, result)
+				count += 1
+		var metrics := finalize_metrics(totals, count)
+		metrics["policy"] = policy
+		ranked.append(metrics)
+	ranked.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["score"]) > float(b["score"])
+	)
+	finalist_count = policies.size()
+	write_all_reports(ranked)
+	print("Live-build benchmark reports: ", ProjectSettings.globalize_path(output_dir))
+	finish_optimizer()
+
+
 func create_starter_calibration_policies() -> Array[Dictionary]:
 	var definitions := [
 		{"name": "build_emphasis", "upgrade": 0.72, "expansion": 1.42, "reserve": 0.05, "patience": 0.70},
@@ -288,6 +340,8 @@ func load_source_policies() -> Array[Dictionary]:
 	for entry in parsed:
 		if entry is Dictionary and entry.has("policy"):
 			policies.append(Dictionary(entry["policy"]).duplicate(true))
+			if source_policy_limit > 0 and policies.size() >= source_policy_limit:
+				break
 	return policies
 
 
@@ -323,6 +377,8 @@ func read_arguments() -> void:
 			simulation_round_limit = clampi(int(argument.get_slice("=", 1)), 1, 20)
 		elif argument.begins_with("--source-policies="):
 			source_policy_path = argument.get_slice("=", 1)
+		elif argument.begins_with("--source-policy-limit="):
+			source_policy_limit = maxi(int(argument.get_slice("=", 1)), 0)
 		elif argument.begins_with("--forced-starter="):
 			focused_starter_tower = StringName(argument.get_slice("=", 1))
 		elif argument.begins_with("--starter-pool="):
@@ -340,6 +396,14 @@ func read_arguments() -> void:
 			focused_early_test = true
 			focused_starter_tower = &""
 			focused_starter_pool = STARTER_CALIBRATION_TOWERS.duplicate()
+			disable_relics = true
+			record_round_history = true
+			simulation_round_limit = 7
+			resume_from_checkpoint = false
+		elif argument == "--live-build-benchmark":
+			live_build_benchmark = true
+			focused_early_test = true
+			focused_starter_tower = &""
 			disable_relics = true
 			record_round_history = true
 			simulation_round_limit = 7
@@ -491,6 +555,40 @@ func prepare_combat_lookup() -> void:
 	])
 
 
+func prepare_director_count_templates() -> void:
+	var director := MainScene.instantiate()
+	const SAMPLE_COUNT := 6
+	for round_number in range(1, 21):
+		var round_types: Array[StringName] = [&"standard"]
+		if round_number in [6, 11]:
+			round_types.append_array([&"horde", &"elite"])
+		elif round_number == 16:
+			round_types.append(&"gauntlet")
+		elif round_number == 17:
+			round_types.append(&"payday")
+		for round_type in round_types:
+			var totals := {}
+			for sample_index in SAMPLE_COUNT:
+				var counts: Dictionary = director.simulate_director_spawn_counts(
+					round_number,
+					round_type,
+					seed_value + round_number * 104729 + sample_index * 7919
+				)
+				for enemy_id in counts:
+					totals[enemy_id] = float(totals.get(enemy_id, 0.0)) + float(counts[enemy_id])
+			var averages := {}
+			for enemy_id in totals:
+				averages[enemy_id] = float(totals[enemy_id]) / float(SAMPLE_COUNT)
+			director_count_templates["%d:%s" % [round_number, round_type]] = averages
+	director.free()
+	print("Director lookup: %d round/type templates using live formation timing" % director_count_templates.size())
+	for key in ["1:standard", "6:horde", "6:elite", "16:gauntlet"]:
+		var total := 0.0
+		for count in Dictionary(director_count_templates.get(key, {})).values():
+			total += float(count)
+		print("Director template %s: %.1f base enemies" % [key, total])
+
+
 func add_combat_candidate(tower_id: StringName, level: int, path: StringName) -> void:
 	var path_ids: Array[StringName] = []
 	if path in [&"a", &"ab"]:
@@ -639,15 +737,32 @@ func prepare_map_geometry() -> void:
 		map_combat_samples.append(map_path_samples[-1])
 	map_combat_segment_length = map_path_length / maxf(float(map_combat_samples.size() - 1), 1.0)
 	map_placements.clear()
+	var footprint_definition: Vector2i = GameStats.get_tower(
+		get_test_tower_ids()[0]
+	).get("footprint_cells", Vector2i.ONE)
+	for tower_id in get_test_tower_ids():
+		assert(
+			GameStats.get_tower(tower_id).get("footprint_cells", Vector2i.ONE)
+				== footprint_definition,
+			"Shared placement lookup requires equal tower footprints"
+		)
+	var footprint_size := Vector2(footprint_definition) * GameStats.BUILD_CELL_SIZE
+	var placement_cell_size := Vector2i(
+		roundi(footprint_size.x / MAP_PLACEMENT_SNAP),
+		roundi(footprint_size.y / MAP_PLACEMENT_SNAP)
+	)
 	var placement_index := 0
-	for origin_y in range(0, int(MAP_VIEWPORT_SIZE.y - GameStats.BUILD_CELL_SIZE) + 1, int(MAP_PLACEMENT_SNAP)):
-		for origin_x in range(0, int(MAP_PLAYABLE_WIDTH - GameStats.BUILD_CELL_SIZE) + 1, int(MAP_PLACEMENT_SNAP)):
-			var center := Vector2(origin_x, origin_y) + Vector2.ONE * GameStats.BUILD_CELL_SIZE * 0.5
+	for origin_y in range(0, int(MAP_VIEWPORT_SIZE.y - footprint_size.y) + 1, int(MAP_PLACEMENT_SNAP)):
+		for origin_x in range(0, int(MAP_PLAYABLE_WIDTH - footprint_size.x) + 1, int(MAP_PLACEMENT_SNAP)):
+			var center := Vector2(origin_x, origin_y) + footprint_size * 0.5
 			var cells: Array[Vector2i] = []
 			var blocked := false
-			for cell_y in 2:
-				for cell_x in 2:
-					var cell := Vector2i(floori(origin_x / 16.0) + cell_x, floori(origin_y / 16.0) + cell_y)
+			for cell_y in placement_cell_size.y:
+				for cell_x in placement_cell_size.x:
+					var cell := Vector2i(
+						floori(origin_x / MAP_PLACEMENT_SNAP) + cell_x,
+						floori(origin_y / MAP_PLACEMENT_SNAP) + cell_y
+					)
 					cells.append(cell)
 					var cell_center := Vector2(cell) * MAP_PLACEMENT_SNAP + Vector2.ONE * MAP_PLACEMENT_SNAP * 0.5
 					if get_closest_sample_distance(cell_center) <= MAP_PATH_NO_BUILD_RADIUS:
@@ -1024,13 +1139,21 @@ func simulate_run(
 			StringName(challenge_rounds.get(round_number, &"standard"))
 		)
 		var starting_money := float(state["money"])
-		purchase_for_round(state, policy, mix, profile_data, round_number)
+		var spent_before_round := float(state["total_spent"])
+		if live_build_benchmark:
+			purchase_live_build_for_round(state, policy, profile_data, round_number)
+		else:
+			purchase_for_round(state, policy, mix, profile_data, round_number)
 		var post_purchase_money := float(state["money"])
-		var outcome := resolve_round(state, mix, profile_data, mode, round_number)
+		var prewave_spent := float(state["total_spent"]) - spent_before_round
+		var outcome := resolve_round(
+			state, mix, profile_data, mode, round_number, policy
+		)
 		state["round_reached"] = round_number
 		state["lives"] = float(state["lives"]) - float(outcome["leak_damage"])
 		state["leak_damage"] = float(state["leak_damage"]) + float(outcome["leak_damage"])
-		state["money"] = float(state["money"]) + float(outcome["kill_income"])
+		if not bool(outcome.get("kill_income_credited", false)):
+			state["money"] = float(state["money"]) + float(outcome["kill_income"])
 		var survived := float(state["lives"]) > 0.0
 		var round_reward := 0.0
 		if survived:
@@ -1049,7 +1172,11 @@ func simulate_run(
 			# full round later, not immediately on the following build phase.
 			roll_holiday_sale_tower(state, run_rng)
 			if TOWER_DRAFT_ROUNDS.has(round_number):
-				resolve_tower_draft(state, policy, run_rng)
+				if live_build_benchmark and round_number == 4:
+					if not state["roster"].has(&"longshot"):
+						state["roster"].append(&"longshot")
+				else:
+					resolve_tower_draft(state, policy, run_rng)
 			if not disable_relics and RELIC_DRAFT_ROUNDS.has(round_number):
 				resolve_relic_draft(state, policy, round_number, run_rng)
 		if record_round_history:
@@ -1057,8 +1184,13 @@ func simulate_run(
 				"round": round_number,
 				"survived": survived,
 				"starting_money": starting_money,
-				"spent": starting_money - post_purchase_money,
+				"spent": prewave_spent,
 				"post_purchase_money": post_purchase_money,
+				"midwave_spent": (
+					float(state["total_spent"])
+					- spent_before_round
+					- prewave_spent
+				),
 				"kill_income": float(outcome["kill_income"]),
 				"round_reward": round_reward,
 				"ending_money": float(state["money"]),
@@ -1169,6 +1301,10 @@ func build_round_mix(
 		enemy_weights[enemy_id] = enemy_weight
 		total_weight += enemy_weight
 	var mix: Array[Dictionary] = []
+	var director_counts: Dictionary = director_count_templates.get(
+		"%d:%s" % [round_number, round_type],
+		{}
+	)
 	var base_variant: StringName = (
 		&"horde" if round_type in [&"horde", &"gauntlet"]
 		else (&"payday" if round_type == &"payday" else &"normal")
@@ -1176,7 +1312,13 @@ func build_round_mix(
 	for enemy_id in eligible:
 		var enemy := GameStats.get_enemy(enemy_id)
 		var share := float(enemy_weights.get(enemy_id, 0.0)) / maxf(total_weight, 1.0)
-		var count := threat_budget * share / maxf(float(enemy.get("spawn_cost", 1.0)), 1.0)
+		var count := (
+			float(director_counts.get(enemy_id, 0.0)) * float(profile_data["enemy_density"])
+			if not director_counts.is_empty()
+			else threat_budget * share / maxf(float(enemy.get("spawn_cost", 1.0)), 1.0)
+		)
+		if count <= 0.0:
+			continue
 		mix.append(make_mix_entry(
 			enemy_id, enemy, count, round_number, profile_data, mode,
 			duration, base_variant
@@ -1519,16 +1661,25 @@ func purchase_for_round(
 	# starting cash while leaking out with an empty map.
 	if state["build"].is_empty():
 		reserve = 0.0
-	var planning_mixes := build_purchase_planning_mixes(
-		mix,
-		profile_data,
-		round_number,
-		state["challenge_rounds"]
-	)
+	var planning_mixes: Array = []
 	for _purchase in 64:
 		var actions := get_purchase_actions(state, profile_data, round_number)
 		if actions.is_empty():
 			return
+		var has_affordable_action := false
+		for action in actions:
+			if float(action["cost"]) <= float(state["money"]) - reserve:
+				has_affordable_action = true
+				break
+		if not has_affordable_action:
+			return
+		if planning_mixes.is_empty():
+			planning_mixes = build_purchase_planning_mixes(
+				mix,
+				profile_data,
+				round_number,
+				state["challenge_rounds"]
+			)
 		var scored: Array[Dictionary] = []
 		for action in actions:
 			var cost := float(action["cost"])
@@ -1752,6 +1903,96 @@ func get_purchase_actions(state: Dictionary, profile_data: Dictionary, round_num
 				var dual: Dictionary = candidates[dual_key]
 				actions.append({"kind": &"dual_path", "tower_id": tower_id, "target_key": dual_key, "cost": float(dual["cost"] - current["cost"]), "instance": index})
 	return actions
+
+
+func purchase_live_build_for_round(
+	state: Dictionary,
+	policy: Dictionary,
+	profile_data: Dictionary,
+	round_number: int
+) -> void:
+	# Replays the player's reported opening. Longshot is selected after round 4,
+	# so its build and first upgrade occur in the round-5 shopping phase.
+	if round_number >= 1:
+		live_build_ensure_count(state, &"invader", 1, profile_data, round_number)
+		live_build_upgrade_copy(state, &"invader", 0, 3)
+	if round_number >= 2:
+		live_build_ensure_count(state, &"invader", 2, profile_data, round_number)
+		live_build_upgrade_copy(state, &"invader", 1, 2)
+	if round_number >= 3:
+		live_build_ensure_count(state, &"invader", 3, profile_data, round_number)
+		live_build_upgrade_copy(
+			state,
+			&"invader",
+			2,
+			int(policy.get("live_build_third_invader_level", 2))
+		)
+		live_build_ensure_count(state, &"gauss_repeater", 1, profile_data, round_number)
+	if round_number >= 5 and state["roster"].has(&"longshot"):
+		live_build_ensure_count(state, &"longshot", 1, profile_data, round_number)
+		live_build_upgrade_copy(state, &"longshot", 0, 2)
+
+
+func live_build_ensure_count(
+	state: Dictionary,
+	tower_id: StringName,
+	target_count: int,
+	profile_data: Dictionary,
+	round_number: int
+) -> void:
+	var current_count := 0
+	for instance in state["build"]:
+		if StringName(instance["tower_id"]) == tower_id:
+			current_count += 1
+	while current_count < target_count:
+		var base: Dictionary = candidates[candidate_key(tower_id, 0, &"")]
+		var cost := get_adjusted_build_cost(
+			state, tower_id, float(base["cost"]), profile_data, round_number
+		)
+		if float(state["money"]) < cost:
+			return
+		var placement_index := get_best_available_placement_index(state, base)
+		if use_map_geometry and placement_index < 0:
+			return
+		apply_purchase_action(state, {
+			"kind": &"build",
+			"tower_id": tower_id,
+			"target_key": base["key"],
+			"cost": cost,
+			"instance": -1,
+			"placement_index": placement_index,
+		})
+		current_count += 1
+
+
+func live_build_upgrade_copy(
+	state: Dictionary,
+	tower_id: StringName,
+	copy_index: int,
+	target_level: int
+) -> void:
+	var matching_indices: Array[int] = []
+	for index in state["build"].size():
+		if StringName(state["build"][index]["tower_id"]) == tower_id:
+			matching_indices.append(index)
+	if copy_index >= matching_indices.size():
+		return
+	var instance_index := matching_indices[copy_index]
+	while int(state["build"][instance_index]["level"]) + 1 < target_level:
+		var instance: Dictionary = state["build"][instance_index]
+		var current: Dictionary = candidates[instance["candidate_key"]]
+		var next_level := int(instance["level"]) + 1
+		var target: Dictionary = candidates[candidate_key(tower_id, next_level, &"")]
+		var cost := float(target["cost"] - current["cost"])
+		if float(state["money"]) < cost:
+			return
+		apply_purchase_action(state, {
+			"kind": &"upgrade",
+			"tower_id": tower_id,
+			"target_key": target["key"],
+			"cost": cost,
+			"instance": instance_index,
+		})
 
 
 func get_best_available_placement_index(state: Dictionary, candidate: Dictionary) -> int:
@@ -2202,10 +2443,13 @@ func resolve_round(
 	mix: Array[Dictionary],
 	profile_data: Dictionary,
 	_mode: Dictionary,
-	_round_number: int
+	round_number: int,
+	policy: Dictionary
 ) -> Dictionary:
 	if use_map_geometry:
-		return resolve_segmented_round(state, mix, profile_data)
+		return resolve_segmented_round(
+			state, mix, profile_data, round_number, policy
+		)
 	var total_health := 0.0
 	var total_reward := 0.0
 	var total_leak := 0.0
@@ -2244,10 +2488,17 @@ func resolve_round(
 func resolve_segmented_round(
 	state: Dictionary,
 	mix: Array[Dictionary],
-	profile_data: Dictionary
+	profile_data: Dictionary,
+	round_number: int,
+	policy: Dictionary
 ) -> Dictionary:
 	if mix.is_empty() or map_combat_samples.size() < 2:
-		return {"leak_damage": 0.0, "kill_income": 0.0, "power_ratio": 0.0}
+		return {
+			"leak_damage": 0.0,
+			"kill_income": 0.0,
+			"kill_income_credited": true,
+			"power_ratio": 0.0,
+		}
 	var segment_count := map_combat_samples.size()
 	var counts_by_enemy: Array[PackedFloat32Array] = []
 	var health_by_enemy: Array[PackedFloat32Array] = []
@@ -2264,21 +2515,6 @@ func resolve_segmented_round(
 		total_spawn_health += float(entry["count"]) * float(entry["health"])
 		slowest_speed = minf(slowest_speed, maxf(float(entry["speed"]), 1.0))
 		spawn_duration = maxf(spawn_duration, float(entry["duration"]))
-	var tower_powers: Array[PackedFloat32Array] = []
-	for instance in state["build"]:
-		var candidate: Dictionary = candidates[instance["candidate_key"]]
-		var placement_index := int(instance.get("placement_index", -1))
-		var powers := PackedFloat32Array()
-		powers.resize(mix.size())
-		for enemy_index in mix.size():
-			powers[enemy_index] = get_candidate_enemy_power(
-				candidate,
-				state,
-				mix[enemy_index],
-				-1.0,
-				placement_index
-			)
-		tower_powers.append(powers)
 	var maximum_time := (
 		spawn_duration
 		+ map_path_length / maxf(slowest_speed, 1.0)
@@ -2287,6 +2523,8 @@ func resolve_segmented_round(
 	var elapsed := 0.0
 	var leak_damage := 0.0
 	var earned_reward := 0.0
+	var credited_kill_income := 0.0
+	var next_purchase_time := MIDWAVE_PURCHASE_INTERVAL
 	var damage_dealt := 0.0
 	while elapsed < maximum_time:
 		var step := minf(MAP_COMBAT_TIME_STEP, maximum_time - elapsed)
@@ -2310,10 +2548,21 @@ func resolve_segmented_round(
 		for tower_index in state["build"].size():
 			var instance: Dictionary = state["build"][tower_index]
 			var placement_index := int(instance.get("placement_index", -1))
+			var candidate: Dictionary = candidates[instance["candidate_key"]]
+			var target_powers := PackedFloat32Array()
+			target_powers.resize(mix.size())
+			for enemy_index in mix.size():
+				target_powers[enemy_index] = get_candidate_enemy_power(
+					candidate,
+					state,
+					mix[enemy_index],
+					-1.0,
+					placement_index
+				)
 			# Relics can change range or depend on neighboring towers, so coverage
 			# must be refreshed for the current build instead of cached forever.
 			var covered_segments := get_covered_combat_segments(
-				candidates[instance["candidate_key"]],
+				candidate,
 				placement_index,
 				state
 			)
@@ -2321,7 +2570,7 @@ func resolve_segmented_round(
 				covered_segments,
 				counts_by_enemy,
 				health_by_enemy,
-				tower_powers[tower_index]
+				target_powers
 			)
 			if target.x >= 0:
 				var target_segment := target.x
@@ -2330,7 +2579,6 @@ func resolve_segmented_round(
 					float(counts_by_enemy[enemy_index][target_segment]),
 					1.0
 				)
-				var candidate: Dictionary = candidates[instance["candidate_key"]]
 				var dps := get_candidate_enemy_power(
 					candidate,
 					state,
@@ -2410,11 +2658,39 @@ func resolve_segmented_round(
 			counts_by_enemy[enemy_index] = moved_counts
 			health_by_enemy[enemy_index] = moved_health
 		elapsed += step
+		if elapsed + MAP_COMBAT_EPSILON >= next_purchase_time:
+			var available_kill_income := floorf(
+				earned_reward * float(profile_data["kill_income"])
+			)
+			var newly_credited := maxf(
+				available_kill_income - credited_kill_income,
+				0.0
+			)
+			if newly_credited > 0.0:
+				state["money"] = float(state["money"]) + newly_credited
+				credited_kill_income += newly_credited
+				if live_build_benchmark:
+					purchase_live_build_for_round(
+						state, policy, profile_data, round_number
+					)
+				else:
+					purchase_for_round(
+						state, policy, mix, profile_data, round_number
+					)
+			next_purchase_time += MIDWAVE_PURCHASE_INTERVAL
 		if elapsed >= spawn_duration and not has_segment_enemies(counts_by_enemy):
 			break
+	var total_kill_income := earned_reward * float(profile_data["kill_income"])
+	# Preserve fractional expected income in aggregate reports and future rounds,
+	# while only allowing whole earned dollars to fund mid-wave purchases.
+	state["money"] = (
+		float(state["money"])
+		+ maxf(total_kill_income - credited_kill_income, 0.0)
+	)
 	return {
 		"leak_damage": leak_damage,
-		"kill_income": earned_reward * float(profile_data["kill_income"]),
+		"kill_income": total_kill_income,
+		"kill_income_credited": true,
 		"power_ratio": damage_dealt / maxf(total_spawn_health, 1.0),
 	}
 
@@ -3214,6 +3490,7 @@ func get_checkpoint_configuration() -> Dictionary:
 		"combat_health_multipliers": COMBAT_HEALTH_MULTIPLIERS,
 		"map_combat_segment_stride": MAP_COMBAT_SEGMENT_STRIDE,
 		"map_combat_time_step": MAP_COMBAT_TIME_STEP,
+		"midwave_purchase_interval": MIDWAVE_PURCHASE_INTERVAL,
 		"starting_rosters": get_starting_roster_signatures(),
 		"included_towers": get_test_tower_ids(),
 		"excluded_towers": EXCLUDED_TOWERS,
@@ -3407,6 +3684,9 @@ func write_manifest() -> void:
 			"map_path_samples": map_path_samples.size(),
 			"map_combat_segments": map_combat_samples.size(),
 			"map_combat_time_step": MAP_COMBAT_TIME_STEP,
+			"midwave_purchase_interval": (
+				MIDWAVE_PURCHASE_INTERVAL if use_map_geometry else 0.0
+			),
 			"map_legal_placements": map_placements.size(),
 			"purchase_lookahead_steps": PURCHASE_LOOKAHEAD_STEPS,
 			"future_power_discount": FUTURE_POWER_DISCOUNT,
@@ -3419,6 +3699,7 @@ func write_manifest() -> void:
 				"Horde, elite, gauntlet, and payday variants and special elite packs are modeled.",
 				"Saucer pursuit, abduction, split prevention, rockets, and specimen uptime are approximated.",
 				"Map combat advances enemy health and count through physical path segments, applies localized control, and limits each tower to covered segments.",
+				"Map combat credits earned kill income and reevaluates affordable purchases once per simulated second.",
 				"Beam and melee range relics and placement-based adjacency relics use the current simulated layout.",
 				"Manual aim skill, individual projectile timing, exact formation spacing, child spawn timing, selling, and some triggered relic effects remain approximations.",
 			],
@@ -3466,7 +3747,7 @@ func write_run_report() -> void:
 func write_early_round_trace_report() -> void:
 	var file := open_report(
 		"early_round_trace.csv",
-		"policy_id,policy_name,run_seed,round_six_type,forced_starter,starting_roster,first_tower,round,survived,starting_money,spent,post_purchase_money,kill_income,round_reward,ending_money,round_leak_damage,lives,build,towers"
+		"policy_id,policy_name,run_seed,round_six_type,forced_starter,starting_roster,first_tower,round,survived,starting_money,spent,post_purchase_money,midwave_spent,kill_income,round_reward,ending_money,round_leak_damage,lives,build,towers"
 	)
 	for result in final_results:
 		for trace in result.get("round_history", []):
@@ -3483,6 +3764,7 @@ func write_early_round_trace_report() -> void:
 				"%.2f" % trace["starting_money"],
 				"%.2f" % trace["spent"],
 				"%.2f" % trace["post_purchase_money"],
+				"%.2f" % trace.get("midwave_spent", 0.0),
 				"%.2f" % trace["kill_income"],
 				"%.2f" % trace["round_reward"],
 				"%.2f" % trace["ending_money"],

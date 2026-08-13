@@ -61,6 +61,22 @@ at the end of the path. It costs substantially more CPU than aggregate combat,
 so use the worker pool and validate optimizer changes with the focused starter
 set before starting an overnight run.
 
+Map combat uses quarter-second movement updates and approximately 32-pixel
+path segments so fast enemies cannot skip short tower coverage between model
+updates. Enemy totals are cached from dry runs of the live wave director, so
+formation spacing, group cooldowns, and unspent threat constrain simulated
+waves the same way they constrain gameplay.
+
+During map combat, whole dollars of earned kill income are credited once per
+simulated second. Policies can immediately build or upgrade with that money,
+and those purchases contribute for the remainder of the wave. Fractional
+expected income is retained after combat but cannot be spent early.
+
+Use `--live-build-benchmark` to replay the recorded Invader/Gauss/Longshot
+opening through round 7. It tests both reported possibilities for the third
+Invader (level 2 or level 3), both round-6 variants, and writes normal trace
+reports for direct comparison with live play.
+
 Use the standard preset for an intermediate result, or the overnight preset
 for the main balance study:
 
@@ -104,8 +120,10 @@ Available overrides are `--population`, `--generations`, `--runs`,
 `--final-runs`, `--finalists`, `--combat-samples`, `--workers`, `--seed`, and
 `--output-dir`. Focused tests also accept `--round-limit`,
 `--source-policies`, `--forced-starter`, `--starter-pool`, `--evolve-focused`,
-`--map-geometry`, and `--record-round-history`. Explicit overrides take
-precedence over preset defaults.
+`--source-policy-limit`, `--map-geometry`, and `--record-round-history`.
+`--source-policy-limit` is useful for small parity checks that should sample
+only the first few saved policies. Explicit overrides take precedence over
+preset defaults.
 
 Reports include:
 

@@ -95,7 +95,7 @@ const DRAFT_RELIC: StringName = &"relic"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const PLACEMENT_SNAP_SIZE := 16.0
 const MIN_SIDEBAR_WIDTH := 192.0
-const PATH_NO_BUILD_RADIUS := 46.0
+const PATH_NO_BUILD_RADIUS := 30.0
 const BUILD_BLOCKER_COLLISION_MASK := 4
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
@@ -1474,6 +1474,74 @@ func get_enemy_health_multiplier(wave: int) -> float:
 	)
 
 
+func simulate_director_spawn_counts(
+	wave: int,
+	round_type: StringName,
+	seed: int
+) -> Dictionary:
+	# Headless balance tools use this dry run so their enemy totals respect the
+	# same threat availability, formation delays, and group cooldowns as play.
+	# It deliberately excludes free elite-event packs; the optimizer models
+	# those separately with their spawned variants.
+	enemy_rng.seed = seed
+	round_number = wave
+	current_round_type = round_type
+	var mode := GameStats.get_mode(mode_id)
+	max_rounds = int(mode["max_rounds"])
+	current_wave_spawn_style = choose_wave_spawn_style(wave)
+	if wave == max_rounds:
+		current_wave_spawn_style = &"boss_escort"
+	var duration := get_wave_duration(wave)
+	var simulated_threat_rate := (
+		get_wave_threat_rate(wave)
+		* STANDARD_THREAT_RATE_MULTIPLIER
+		* GameStats.get_early_round_threat_multiplier(wave)
+	)
+	if wave == 6:
+		simulated_threat_rate *= GameStats.ROUND_SIX_THREAT_MULTIPLIER
+	if round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
+		simulated_threat_rate *= HORDE_THREAT_MULTIPLIER
+	var available_threat := float(mode.get("starting_spawn_threat", 1.0))
+	var continuous_ratio := float(mode.get("threat_continuous_ratio", 1.0))
+	var chunk_ratio := float(mode.get("threat_chunk_ratio", 0.0))
+	var chunk_interval := maxf(float(mode.get("threat_chunk_interval", 4.0)), 0.01)
+	var chunk_elapsed := 0.0
+	var cooldown := 0.0
+	var event_wait := 0.0
+	var schedule: Array[Dictionary] = []
+	if wave == max_rounds:
+		schedule = build_timed_boss_opening()
+	var counts := {}
+	var elapsed := 0.0
+	const DIRECTOR_STEP := 0.05
+	while elapsed < duration:
+		var delta := minf(DIRECTOR_STEP, duration - elapsed)
+		available_threat += simulated_threat_rate * continuous_ratio * delta
+		chunk_elapsed += delta
+		while chunk_elapsed >= chunk_interval:
+			chunk_elapsed -= chunk_interval
+			available_threat += simulated_threat_rate * chunk_interval * chunk_ratio
+		cooldown = maxf(cooldown - delta, 0.0)
+		event_wait = maxf(event_wait - delta, 0.0)
+		if schedule.is_empty() and cooldown <= 0.0 and event_wait <= 0.0:
+			schedule = build_director_group()
+		if not schedule.is_empty() and event_wait <= 0.0:
+			var spawn_event: Dictionary = schedule.front()
+			var enemy_id := StringName(spawn_event["enemy_id"])
+			var spawn_cost := float(get_enemy_spawn_cost(enemy_id))
+			if available_threat >= spawn_cost:
+				schedule.pop_front()
+				available_threat -= spawn_cost
+				counts[enemy_id] = float(counts.get(enemy_id, 0.0)) + 1.0
+				var delay := float(spawn_event.get("delay_after", 0.1))
+				if schedule.is_empty():
+					cooldown = delay
+				else:
+					event_wait = delay
+		elapsed += delta
+	return counts
+
+
 func _process_round_director(delta: float) -> void:
 	if not round_active or not spawning_active:
 		return
@@ -1952,6 +2020,8 @@ func count_role_in_group(group: Array[StringName], role: StringName) -> int:
 
 
 func get_active_enemy_count(enemy_id: StringName) -> int:
+	if not is_inside_tree():
+		return 0
 	var count := 0
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if (
