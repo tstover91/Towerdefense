@@ -2,24 +2,55 @@ extends Node
 
 const GameStats = preload("res://stat_database.gd")
 const CombatSimulator = preload("res://tools/tower_balance_monte_carlo.gd")
+const MainScene = preload("res://main.tscn")
 
 const TOWER_DRAFT_ROUNDS := [4, 9, 14]
 const RELIC_DRAFT_ROUNDS := [1, 6, 11, 16]
-const MAX_TOWERS := 24
+const MAX_TOWERS := 128
 const TARGET_WIN_RATE := 0.60
 const ACCEPTABLE_WIN_LOW := 0.42
 const ACCEPTABLE_WIN_HIGH := 0.78
 const DEFAULT_OUTPUT_DIR := "res://balance_reports/overnight"
-const CHECKPOINT_VERSION := 3
+const CHECKPOINT_VERSION := 7
+const RELIC_REFRESH_BASE_COST := 75
+const RELIC_REFRESH_COST_INCREASE := 50
+const MAX_SIMULATED_RELIC_REFRESHES := 64
 const CHECKPOINT_FILE_A := "optimizer_checkpoint_a.dat"
 const CHECKPOINT_FILE_B := "optimizer_checkpoint_b.dat"
 const TOWER_ENGAGEMENT_COVERAGE := 0.45
-const STARTING_ROSTER: Array[StringName] = [&"invader", &"gauss_repeater"]
+const STARTER_ROSTER_SIZE := 2
+const STARTER_CALIBRATION_TOWERS: Array[StringName] = [
+	&"invader", &"reaver", &"slinger", &"gauss_repeater",
+]
+const PURCHASE_LOOKAHEAD_STEPS := 3
+const FUTURE_POWER_DISCOUNT := 0.82
+const FUTURE_FUNDING_DISCOUNT := 0.80
+const MAP_VIEWPORT_SIZE := Vector2(1152.0, 648.0)
+const MAP_PLAYABLE_WIDTH := 960.0
+const MAP_PLACEMENT_SNAP := 16.0
+const MAP_PATH_NO_BUILD_RADIUS := 46.0
+const MAP_RANGE_PIXELS_PER_UNIT := 12.9
+const MAP_PATH_SAMPLE_INTERVAL := 8.0
+const MAP_COMBAT_SEGMENT_STRIDE := 8
+const MAP_COMBAT_TIME_STEP := 1.00
+const MAP_COMBAT_MAX_EXTRA_TIME := 4.0
+const MAP_COMBAT_EPSILON := 0.0001
+const COMBAT_HEALTH_MULTIPLIERS: Array[float] = [
+	0.50, 1.00, 1.50, 2.00, 3.00, 5.00, 8.00, 12.00,
+]
+const MAP_MINIMUM_ENGAGEMENT := 0.25
+const MAP_MAXIMUM_ENGAGEMENT := 0.70
+const MAP_COVERAGE_ENGAGEMENT_SCALE := 0.85
 const TRADE_TOWERS: Array[StringName] = [&"hivemother", &"dronedepot", &"mechbay"]
 const EXCLUDED_TOWERS: Array[StringName] = [
-	&"saucer", &"hivemother", &"dronedepot", &"mechbay",
+	&"hivemother", &"dronedepot", &"mechbay",
 ]
-const EXCLUDED_RELICS: Array[StringName] = [&"trade_agreement"]
+const EXCLUDED_RELICS: Array[StringName] = [
+	&"trade_agreement",
+	# Runs do not sell towers, so this relic would otherwise be a selectable
+	# no-op that corrupts relic comparisons.
+	&"long_term_investment",
+]
 
 var preset := "standard"
 var population_size := 60
@@ -40,6 +71,25 @@ var sensitivity_profiles: Array[Dictionary] = []
 var next_policy_id := 1
 var final_results: Array[Dictionary] = []
 var checkpoint_sequence := 0
+var worker_count := maxi(OS.get_processor_count() - 1, 1)
+var starting_rosters: Array = []
+var focused_early_test := false
+var simulation_round_limit := 20
+var record_round_history := false
+var source_policy_path := "res://balance_reports/overnight/top_policies.json"
+var focused_starter_tower: StringName = &"invader"
+var focused_starter_pool: Array[StringName] = []
+var evolve_focused_test := false
+var use_map_geometry := false
+var map_path_samples: PackedVector2Array = []
+var map_combat_samples: PackedVector2Array = []
+var map_path_length := 0.0
+var map_combat_segment_length := 1.0
+var map_placements: Array[Dictionary] = []
+var placement_rankings: Dictionary = {}
+var placement_coverages: Dictionary = {}
+var starter_calibration := false
+var disable_relics := false
 
 
 func _ready() -> void:
@@ -49,15 +99,26 @@ func _ready() -> void:
 func run_optimizer() -> void:
 	read_arguments()
 	apply_preset()
+	# Reapply explicit command-line overrides after the preset supplies defaults.
+	read_arguments()
 	search_rng.seed = seed_value
 	build_sensitivity_profiles()
+	build_starting_rosters()
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_dir))
 	if not resume_from_checkpoint:
 		clear_checkpoints()
-	print("Run balance optimizer: preset=%s population=%d generations=%d" % [
-		preset, population_size, generations,
+	print("Run balance optimizer: preset=%s population=%d generations=%d workers=%d starter_rosters=%d" % [
+		preset, population_size, generations, worker_count, starting_rosters.size(),
 	])
 	prepare_combat_lookup()
+	if use_map_geometry:
+		prepare_map_geometry()
+	if starter_calibration:
+		run_starter_calibration()
+		return
+	if focused_early_test and not evolve_focused_test:
+		run_focused_early_test()
+		return
 	var checkpoint := load_checkpoint() if resume_from_checkpoint else {}
 	var population: Array[Dictionary] = []
 	var ranked: Array[Dictionary] = []
@@ -95,7 +156,139 @@ func run_optimizer() -> void:
 	write_all_reports(ranked)
 	clear_checkpoints()
 	print_final_summary()
+	finish_optimizer()
+
+
+func run_focused_early_test() -> void:
+	var finalists := load_source_policies()
+	assert(not finalists.is_empty(), "Focused early test requires at least one source policy")
+	finalist_count = finalists.size()
+	print("Focused early test: %d policies, baseline only, rounds 1-%d" % [
+		finalists.size(), simulation_round_limit,
+	])
+	evaluate_finalists(finalists, 0, [])
+	write_run_report()
+	write_early_round_trace_report()
+	write_manifest()
+	clear_checkpoints()
+	print("Early-round reports: ", ProjectSettings.globalize_path(output_dir))
+	finish_optimizer()
+
+
+func run_starter_calibration() -> void:
+	var policies := create_starter_calibration_policies()
+	var challenges: Array[StringName] = [&"horde", &"elite"]
+	var repeats := maxi(final_runs_per_profile, 1)
+	var jobs_per_policy := starting_rosters.size() * challenges.size() * repeats
+	var total := policies.size() * jobs_per_policy
+	var results: Array = []
+	results.resize(total)
+	print("Starter calibration: %d fixed strategies x %d rosters x 2 round-6 variants x %d repeats = %d runs" % [
+		policies.size(), starting_rosters.size(), repeats, total,
+	])
+	var task_id := WorkerThreadPool.add_group_task(
+		_run_starter_calibration_task.bind(
+			policies, challenges, repeats, jobs_per_policy, results
+		),
+		total,
+		mini(worker_count, total)
+	)
+	WorkerThreadPool.wait_for_group_task_completion(task_id)
+	final_results.clear()
+	for result in results:
+		final_results.append(result)
+	var ranked: Array[Dictionary] = []
+	for policy in policies:
+		var totals := new_metric_totals()
+		var count := 0
+		for result in final_results:
+			if int(result["policy_id"]) == int(policy["id"]):
+				accumulate_result(totals, result)
+				count += 1
+		var metrics := finalize_metrics(totals, count)
+		metrics["policy"] = policy
+		ranked.append(metrics)
+	ranked.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["score"]) > float(b["score"])
+	)
+	finalist_count = policies.size()
+	write_all_reports(ranked)
+	write_starter_calibration_report()
+	print("Starter calibration reports: ", ProjectSettings.globalize_path(output_dir))
+	finish_optimizer()
+
+
+func create_starter_calibration_policies() -> Array[Dictionary]:
+	var definitions := [
+		{"name": "build_emphasis", "upgrade": 0.72, "expansion": 1.42, "reserve": 0.05, "patience": 0.70},
+		{"name": "upgrade_emphasis", "upgrade": 1.42, "expansion": 0.72, "reserve": 0.05, "patience": 0.70},
+		{"name": "balanced", "upgrade": 1.00, "expansion": 1.00, "reserve": 0.10, "patience": 0.78},
+		{"name": "save_future", "upgrade": 1.12, "expansion": 0.88, "reserve": 2.50, "patience": 0.96},
+	]
+	var result: Array[Dictionary] = []
+	for definition in definitions:
+		var policy := create_policy("generalist")
+		policy["name"] = definition["name"]
+		policy["upgrade_bias"] = definition["upgrade"]
+		policy["expansion_bias"] = definition["expansion"]
+		policy["reserve"] = definition["reserve"]
+		policy["patience"] = definition["patience"]
+		policy["diversity"] = 0.50
+		policy["economy_weight"] = 1.0
+		policy["relic_refresh_threshold"] = 1.0
+		for tower_id in policy["tower_weights"]:
+			policy["tower_weights"][tower_id] = 1.0
+		for category in policy["category_weights"]:
+			policy["category_weights"][category] = 1.0
+		result.append(policy)
+	return result
+
+
+func _run_starter_calibration_task(
+	job_index: int,
+	policies: Array[Dictionary],
+	challenges: Array[StringName],
+	repeats: int,
+	jobs_per_policy: int,
+	results: Array
+) -> void:
+	var policy_index := floori(float(job_index) / float(jobs_per_policy))
+	var within_policy := job_index % jobs_per_policy
+	var jobs_per_challenge := starting_rosters.size() * repeats
+	var challenge_index := floori(float(within_policy) / float(jobs_per_challenge))
+	var within_challenge := within_policy % jobs_per_challenge
+	var roster_index := floori(float(within_challenge) / float(repeats))
+	var repeat_index := within_challenge % repeats
+	# Strategies see identical waves for the same roster, challenge, and repeat.
+	var run_seed := (
+		seed_value + 700000001 + challenge_index * 1000003
+		+ roster_index * 3571 + repeat_index * 97
+	)
+	results[job_index] = simulate_run(
+		policies[policy_index],
+		sensitivity_profiles[0],
+		run_seed,
+		starting_rosters[roster_index],
+		challenges[challenge_index]
+	)
+
+
+func finish_optimizer() -> void:
+	if is_instance_valid(combat):
+		combat.free()
+	combat = null
 	get_tree().quit()
+
+
+func load_source_policies() -> Array[Dictionary]:
+	assert(FileAccess.file_exists(source_policy_path), "Missing source policy file: %s" % source_policy_path)
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(source_policy_path))
+	assert(parsed is Array, "Source policy file must contain a JSON array")
+	var policies: Array[Dictionary] = []
+	for entry in parsed:
+		if entry is Dictionary and entry.has("policy"):
+			policies.append(Dictionary(entry["policy"]).duplicate(true))
+	return policies
 
 
 func read_arguments() -> void:
@@ -118,7 +311,38 @@ func read_arguments() -> void:
 			seed_value = int(argument.get_slice("=", 1))
 		elif argument.begins_with("--output-dir="):
 			output_dir = argument.get_slice("=", 1)
+		elif argument.begins_with("--workers="):
+			worker_count = clampi(
+				int(argument.get_slice("=", 1)),
+				1,
+				maxi(OS.get_processor_count(), 1)
+			)
 		elif argument == "--fresh":
+			resume_from_checkpoint = false
+		elif argument.begins_with("--round-limit="):
+			simulation_round_limit = clampi(int(argument.get_slice("=", 1)), 1, 20)
+		elif argument.begins_with("--source-policies="):
+			source_policy_path = argument.get_slice("=", 1)
+		elif argument.begins_with("--forced-starter="):
+			focused_starter_tower = StringName(argument.get_slice("=", 1))
+		elif argument.begins_with("--starter-pool="):
+			focused_starter_pool.clear()
+			for tower_label in argument.get_slice("=", 1).split(",", false):
+				focused_starter_pool.append(StringName(tower_label))
+		elif argument == "--evolve-focused":
+			evolve_focused_test = true
+		elif argument == "--map-geometry":
+			use_map_geometry = true
+		elif argument == "--record-round-history":
+			record_round_history = true
+		elif argument == "--starter-calibration":
+			starter_calibration = true
+			focused_early_test = true
+			focused_starter_tower = &""
+			focused_starter_pool = STARTER_CALIBRATION_TOWERS.duplicate()
+			disable_relics = true
+			record_round_history = true
+			simulation_round_limit = 7
 			resume_from_checkpoint = false
 
 
@@ -131,11 +355,18 @@ func apply_preset() -> void:
 			final_runs_per_profile = 2
 			finalist_count = 4
 			combat_samples = 2
+		"early":
+			focused_early_test = true
+			simulation_round_limit = 10
+			record_round_history = true
+			final_runs_per_profile = 100
+			combat_samples = 8
+			resume_from_checkpoint = false
 		"overnight":
 			population_size = 120
 			generations = 16
-			runs_per_policy = 20
-			final_runs_per_profile = 80
+			runs_per_policy = 110
+			final_runs_per_profile = 220
 			finalist_count = 16
 			combat_samples = 20
 		_:
@@ -144,6 +375,8 @@ func apply_preset() -> void:
 
 func build_sensitivity_profiles() -> void:
 	sensitivity_profiles = [profile("baseline", "baseline", 1.0)]
+	if focused_early_test:
+		return
 	var axis_values := {
 		"starting_cash": [0.65, 0.80, 0.90, 1.10, 1.20, 1.40],
 		"kill_income": [0.65, 0.80, 0.90, 1.10, 1.20, 1.40],
@@ -186,6 +419,54 @@ func get_test_tower_ids() -> Array[StringName]:
 	return result
 
 
+func build_starting_rosters() -> void:
+	starting_rosters.clear()
+	if starter_calibration:
+		for tower_id in STARTER_CALIBRATION_TOWERS:
+			starting_rosters.append([tower_id])
+		for first_index in STARTER_CALIBRATION_TOWERS.size():
+			for second_index in range(first_index + 1, STARTER_CALIBRATION_TOWERS.size()):
+				starting_rosters.append([
+					STARTER_CALIBRATION_TOWERS[first_index],
+					STARTER_CALIBRATION_TOWERS[second_index],
+				])
+		return
+	var tower_ids := get_test_tower_ids()
+	tower_ids.sort()
+	for first_index in tower_ids.size():
+		for second_index in range(first_index + 1, tower_ids.size()):
+			if focused_early_test:
+				if not focused_starter_pool.is_empty():
+					if not focused_starter_pool.has(tower_ids[first_index]) or not focused_starter_pool.has(tower_ids[second_index]):
+						continue
+				elif not focused_starter_tower.is_empty() and tower_ids[first_index] != focused_starter_tower and tower_ids[second_index] != focused_starter_tower:
+					continue
+			starting_rosters.append([
+				tower_ids[first_index],
+				tower_ids[second_index],
+			])
+	assert(
+		not starting_rosters.is_empty(),
+		"At least %d towers are required for starter-roster testing"
+			% STARTER_ROSTER_SIZE
+	)
+
+
+func get_starting_roster_signature(roster: Array) -> String:
+	var labels := PackedStringArray()
+	for tower_id in roster:
+		labels.append(String(tower_id))
+	labels.sort()
+	return "+".join(labels)
+
+
+func get_starting_roster_signatures() -> Array[String]:
+	var result: Array[String] = []
+	for roster in starting_rosters:
+		result.append(get_starting_roster_signature(roster))
+	return result
+
+
 func prepare_combat_lookup() -> void:
 	combat = CombatSimulator.new()
 	combat.duration = 20.0
@@ -220,14 +501,62 @@ func add_combat_candidate(tower_id: StringName, level: int, path: StringName) ->
 	var traits: Dictionary = combat.get_variant_traits(tower_id, level, path_ids)
 	var key := candidate_key(tower_id, level, path)
 	var dps_by_enemy := {}
+	var dps_health_curves := {}
+	var revealed_dps_health_curves := {}
 	var control_by_enemy := {}
+	var saucer_abduction_by_enemy := {}
+	var saucer_abduction_health_curves := {}
 	for enemy_key in enemy_scenarios:
 		var scenario: Dictionary = enemy_scenarios[enemy_key]
-		var total := 0.0
-		for _sample in combat_samples:
-			total += combat.simulate_trial(tower_id, stats, traits, scenario)
-		dps_by_enemy[enemy_key] = total / float(combat_samples)
+		var health_curve := PackedFloat32Array()
+		var revealed_health_curve := PackedFloat32Array()
+		var abduction_curve := PackedFloat32Array()
+		for health_multiplier in COMBAT_HEALTH_MULTIPLIERS:
+			var scaled_scenario := get_health_scaled_scenario(
+				scenario,
+				health_multiplier
+			)
+			var total := 0.0
+			for _sample in combat_samples:
+				total += combat.simulate_trial(
+					tower_id,
+					stats,
+					traits,
+					scaled_scenario
+				)
+			health_curve.append(total / float(combat_samples))
+			if bool(scenario.get("hidden", false)):
+				var revealed_scenario := scaled_scenario.duplicate(true)
+				revealed_scenario["hidden"] = false
+				var revealed_total := 0.0
+				for _sample in combat_samples:
+					revealed_total += combat.simulate_trial(
+						tower_id,
+						stats,
+						traits,
+						revealed_scenario
+					)
+				revealed_health_curve.append(
+					revealed_total / float(combat_samples)
+				)
+			else:
+				revealed_health_curve.append(health_curve[-1])
+			if tower_id == &"saucer":
+				abduction_curve.append(
+					combat.get_saucer_abduction_total(stats, scaled_scenario)
+					/ maxf(float(combat.duration), 1.0)
+				)
+		dps_health_curves[enemy_key] = health_curve
+		revealed_dps_health_curves[enemy_key] = revealed_health_curve
+		dps_by_enemy[enemy_key] = health_curve[
+			COMBAT_HEALTH_MULTIPLIERS.find(1.0)
+		]
 		control_by_enemy[enemy_key] = combat.get_control_value(stats, traits, scenario)
+		if tower_id == &"saucer":
+			saucer_abduction_health_curves[enemy_key] = abduction_curve
+			saucer_abduction_by_enemy[enemy_key] = abduction_curve[
+				COMBAT_HEALTH_MULTIPLIERS.find(1.0)
+			]
 	var entry := {
 		"key": key,
 		"tower_id": tower_id,
@@ -238,10 +567,197 @@ func add_combat_candidate(tower_id: StringName, level: int, path: StringName) ->
 		"traits": traits,
 		"tower": GameStats.get_tower(tower_id),
 		"dps": dps_by_enemy,
+		"dps_health_curves": dps_health_curves,
+		"revealed_dps_health_curves": revealed_dps_health_curves,
 		"control": control_by_enemy,
+		"saucer_abduction": saucer_abduction_by_enemy,
+		"saucer_abduction_health_curves": saucer_abduction_health_curves,
 	}
 	candidates[key] = entry
 	candidates_by_tower[tower_id].append(key)
+
+
+func get_health_scaled_scenario(
+	base_scenario: Dictionary,
+	health_multiplier: float
+) -> Dictionary:
+	var result := base_scenario.duplicate(true)
+	result["health"] = maxf(
+		float(base_scenario.get("health", 1.0)) * health_multiplier,
+		1.0
+	)
+	result["spawned_health_per_primary"] = maxf(
+		float(base_scenario.get("spawned_health_per_primary", 0.0))
+			* health_multiplier,
+		0.0
+	)
+	return result
+
+
+func interpolate_health_curve(
+	curve: PackedFloat32Array,
+	health_multiplier: float
+) -> float:
+	if curve.is_empty():
+		return 0.0
+	if health_multiplier <= COMBAT_HEALTH_MULTIPLIERS[0]:
+		return float(curve[0])
+	for upper_index in range(1, COMBAT_HEALTH_MULTIPLIERS.size()):
+		var upper_multiplier := COMBAT_HEALTH_MULTIPLIERS[upper_index]
+		if health_multiplier <= upper_multiplier:
+			var lower_index := upper_index - 1
+			var lower_multiplier := COMBAT_HEALTH_MULTIPLIERS[lower_index]
+			var weight := inverse_lerp(
+				lower_multiplier,
+				upper_multiplier,
+				health_multiplier
+			)
+			return lerpf(
+				float(curve[lower_index]),
+				float(curve[upper_index]),
+				weight
+			)
+	return float(curve[-1])
+
+
+func prepare_map_geometry() -> void:
+	var scene_instance := MainScene.instantiate()
+	var path_node := scene_instance.get_node("path") as Path2D
+	assert(path_node != null and path_node.curve != null, "Main map requires a Path2D curve")
+	var curve := path_node.curve
+	var path_length := curve.get_baked_length()
+	map_path_length = path_length
+	var distance := 0.0
+	while distance < path_length:
+		map_path_samples.append(curve.sample_baked(distance, true))
+		distance += MAP_PATH_SAMPLE_INTERVAL
+	map_path_samples.append(curve.sample_baked(path_length, true))
+	map_combat_samples.clear()
+	for sample_index in range(0, map_path_samples.size(), MAP_COMBAT_SEGMENT_STRIDE):
+		map_combat_samples.append(map_path_samples[sample_index])
+	if map_combat_samples.is_empty() or map_combat_samples[-1] != map_path_samples[-1]:
+		map_combat_samples.append(map_path_samples[-1])
+	map_combat_segment_length = map_path_length / maxf(float(map_combat_samples.size() - 1), 1.0)
+	map_placements.clear()
+	var placement_index := 0
+	for origin_y in range(0, int(MAP_VIEWPORT_SIZE.y - GameStats.BUILD_CELL_SIZE) + 1, int(MAP_PLACEMENT_SNAP)):
+		for origin_x in range(0, int(MAP_PLAYABLE_WIDTH - GameStats.BUILD_CELL_SIZE) + 1, int(MAP_PLACEMENT_SNAP)):
+			var center := Vector2(origin_x, origin_y) + Vector2.ONE * GameStats.BUILD_CELL_SIZE * 0.5
+			var cells: Array[Vector2i] = []
+			var blocked := false
+			for cell_y in 2:
+				for cell_x in 2:
+					var cell := Vector2i(floori(origin_x / 16.0) + cell_x, floori(origin_y / 16.0) + cell_y)
+					cells.append(cell)
+					var cell_center := Vector2(cell) * MAP_PLACEMENT_SNAP + Vector2.ONE * MAP_PLACEMENT_SNAP * 0.5
+					if get_closest_sample_distance(cell_center) <= MAP_PATH_NO_BUILD_RADIUS:
+						blocked = true
+			if blocked:
+				continue
+			map_placements.append({"index": placement_index, "position": center, "cells": cells})
+			placement_index += 1
+	for candidate_key_value in candidates:
+		var ranking: Array[Dictionary] = []
+		var coverages := PackedFloat32Array()
+		coverages.resize(map_placements.size())
+		var candidate: Dictionary = candidates[candidate_key_value]
+		for placement in map_placements:
+			var coverage := get_map_coverage(candidate, placement["position"])
+			coverages[int(placement["index"])] = coverage
+			ranking.append({
+				"index": placement["index"],
+				"coverage": coverage,
+			})
+		ranking.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return float(a["coverage"]) > float(b["coverage"])
+		)
+		placement_rankings[candidate_key_value] = ranking
+		placement_coverages[candidate_key_value] = coverages
+	scene_instance.free()
+	print("Map geometry: %d path samples, %d combat segments, %d legal placements" % [
+		map_path_samples.size(), map_combat_samples.size(), map_placements.size(),
+	])
+	for tower_id in get_test_tower_ids():
+		var base_key := candidate_key(tower_id, 0, &"")
+		var top_ranking: Array = placement_rankings.get(base_key, [])
+		if not top_ranking.is_empty():
+			print("Map coverage %s: best %.1f%%, engagement %.1f%%" % [
+				tower_id,
+				float(top_ranking[0]["coverage"]) * 100.0,
+				get_map_engagement_from_coverage(float(top_ranking[0]["coverage"])) * 100.0,
+			])
+
+
+func get_closest_sample_distance(position: Vector2) -> float:
+	var closest := INF
+	for sample in map_path_samples:
+		closest = minf(closest, position.distance_to(sample))
+	return closest
+
+
+func get_map_coverage(candidate: Dictionary, position: Vector2) -> float:
+	if map_path_samples.is_empty():
+		return TOWER_ENGAGEMENT_COVERAGE
+	var stats: Dictionary = candidate["stats"]
+	var maximum_range := float(stats.get("range", stats.get("deployment_radius", 8.0))) * MAP_RANGE_PIXELS_PER_UNIT
+	var minimum_range := float(stats.get("minimum_range", candidate["tower"].get("minimum_range", 0.0))) * MAP_RANGE_PIXELS_PER_UNIT
+	var covered := 0
+	for sample in map_path_samples:
+		var distance := position.distance_to(sample)
+		if distance <= maximum_range and distance >= minimum_range:
+			covered += 1
+	return float(covered) / maxf(float(map_path_samples.size()), 1.0)
+
+
+func get_map_engagement_from_coverage(coverage: float) -> float:
+	return clampf(
+		MAP_MINIMUM_ENGAGEMENT
+		+ sqrt(maxf(coverage, 0.0)) * MAP_COVERAGE_ENGAGEMENT_SCALE,
+		MAP_MINIMUM_ENGAGEMENT,
+		MAP_MAXIMUM_ENGAGEMENT
+	)
+
+
+func get_covered_combat_segments(
+	candidate: Dictionary,
+	placement_index: int,
+	state: Dictionary = {}
+) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	if not use_map_geometry or placement_index < 0 or placement_index >= map_placements.size():
+		return result
+	var position: Vector2 = map_placements[placement_index]["position"]
+	var stats: Dictionary = candidate["stats"]
+	var maximum_range := float(stats.get("range", stats.get("deployment_radius", 8.0)))
+	var traits: Dictionary = candidate["traits"]
+	if not state.is_empty() and traits["damage_tags"].has(&"beam"):
+		maximum_range *= pow(
+			GameStats.FOCUSED_LENS_RANGE_MULTIPLIER,
+			float(relic_count(state, &"focused_lens"))
+		)
+		maximum_range *= (
+			1.0
+			+ GameStats.WIDE_LENS_RANGE_PER_STACK
+				* float(relic_count(state, &"wide_lens"))
+		)
+	if (
+		not state.is_empty()
+		and traits["damage_tags"].has(&"melee")
+		and relic_count(state, &"lone_wolf") > 0
+		and not placement_has_nearby_other_tower(
+			state,
+			placement_index,
+			2.5 * GameStats.BUILD_CELL_SIZE
+		)
+	):
+		maximum_range *= GameStats.LONE_WOLF_RANGE_MULTIPLIER
+	maximum_range *= MAP_RANGE_PIXELS_PER_UNIT
+	var minimum_range := float(stats.get("minimum_range", candidate["tower"].get("minimum_range", 0.0))) * MAP_RANGE_PIXELS_PER_UNIT
+	for segment_index in map_combat_samples.size():
+		var distance := position.distance_to(map_combat_samples[segment_index])
+		if distance <= maximum_range and distance >= minimum_range:
+			result.append(segment_index)
+	return result
 
 
 func candidate_key(tower_id: StringName, level: int, path: StringName) -> String:
@@ -286,6 +802,7 @@ func create_policy(archetype: String) -> Dictionary:
 		"reserve": search_rng.randf_range(0.0, 0.45),
 		"patience": search_rng.randf_range(0.55, 0.95),
 		"economy_weight": search_rng.randf_range(0.7, 1.4),
+		"relic_refresh_threshold": search_rng.randf_range(0.35, 0.85),
 		"risk": search_rng.randf_range(0.75, 1.25),
 	}
 	next_policy_id += 1
@@ -311,20 +828,66 @@ func evaluate_population(
 	run_count: int,
 	generation: int
 ) -> Array[Dictionary]:
+	var evaluation_runs := maxi(run_count, starting_rosters.size())
+	var results: Array = []
+	results.resize(population.size())
+	print("Evaluating %d policies x %d runs across %d workers..." % [
+		population.size(), evaluation_runs, worker_count,
+	])
+	var task_id := WorkerThreadPool.add_group_task(
+		_evaluate_policy_task.bind(
+			population,
+			evaluation_runs,
+			generation,
+			results
+		),
+		population.size(),
+		mini(worker_count, population.size())
+	)
+	WorkerThreadPool.wait_for_group_task_completion(task_id)
 	var ranked: Array[Dictionary] = []
-	for policy in population:
-		var totals := new_metric_totals()
-		for run_index in run_count:
-			var profile_data: Dictionary = sensitivity_profiles[
-				(run_index + generation + int(policy["id"])) % sensitivity_profiles.size()
-			]
-			var run_seed := seed_value + generation * 1000003 + int(policy["id"]) * 7919 + run_index * 101
-			accumulate_result(totals, simulate_run(policy, profile_data, run_seed))
-		var metrics := finalize_metrics(totals, run_count)
-		metrics["policy"] = policy
-		ranked.append(metrics)
+	for result in results:
+		ranked.append(result)
 	ranked.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["score"]) > float(b["score"]))
 	return ranked
+
+
+func _evaluate_policy_task(
+	policy_index: int,
+	population: Array[Dictionary],
+	evaluation_runs: int,
+	generation: int,
+	results: Array
+) -> void:
+	var policy: Dictionary = population[policy_index]
+	var totals := new_metric_totals()
+	for run_index in evaluation_runs:
+		var profile_data: Dictionary = sensitivity_profiles[
+			(run_index + generation + int(policy["id"]))
+			% sensitivity_profiles.size()
+		]
+		var roster_index := (
+			run_index + generation + int(policy["id"])
+		) % starting_rosters.size()
+		var run_seed := (
+			seed_value
+			+ generation * 1000003
+			+ int(policy["id"]) * 7919
+			+ run_index * 101
+			+ roster_index * 3571
+		)
+		accumulate_result(
+			totals,
+			simulate_run(
+				policy,
+				profile_data,
+				run_seed,
+				starting_rosters[roster_index]
+			)
+		)
+	var metrics := finalize_metrics(totals, evaluation_runs)
+	metrics["policy"] = policy
+	results[policy_index] = metrics
 
 
 func new_metric_totals() -> Dictionary:
@@ -373,7 +936,7 @@ func crossover_policy(a: Dictionary, b: Dictionary) -> Dictionary:
 	child["id"] = next_policy_id
 	child["name"] = "evolved"
 	next_policy_id += 1
-	for field in ["upgrade_bias", "expansion_bias", "diversity", "reserve", "patience", "economy_weight", "risk"]:
+	for field in ["upgrade_bias", "expansion_bias", "diversity", "reserve", "patience", "economy_weight", "relic_refresh_threshold", "risk"]:
 		child[field] = a[field] if search_rng.randf() < 0.5 else b[field]
 	for key in child["tower_weights"]:
 		if search_rng.randf() < 0.5:
@@ -388,7 +951,7 @@ func mutate_policy(policy: Dictionary) -> Dictionary:
 	for field in ["upgrade_bias", "expansion_bias", "economy_weight", "risk"]:
 		if search_rng.randf() < 0.45:
 			policy[field] = clampf(float(policy[field]) * search_rng.randf_range(0.85, 1.15), 0.4, 2.2)
-	for field in ["diversity", "reserve", "patience"]:
+	for field in ["diversity", "reserve", "patience", "relic_refresh_threshold"]:
 		if search_rng.randf() < 0.45:
 			policy[field] = clampf(float(policy[field]) + search_rng.randf_range(-0.12, 0.12), 0.0, 1.0)
 	for key in policy["tower_weights"]:
@@ -400,46 +963,123 @@ func mutate_policy(policy: Dictionary) -> Dictionary:
 	return policy
 
 
-func simulate_run(policy: Dictionary, profile_data: Dictionary, run_seed: int) -> Dictionary:
+func simulate_run(
+	policy: Dictionary,
+	profile_data: Dictionary,
+	run_seed: int,
+	starting_roster: Array,
+	round_six_override: StringName = &""
+) -> Dictionary:
 	var run_rng := RandomNumberGenerator.new()
 	run_rng.seed = run_seed
 	var mode := GameStats.get_mode(&"easy")
+	var round_six_type: StringName = round_six_override
+	if round_six_type.is_empty():
+		round_six_type = &"horde" if run_rng.randf() < 0.5 else &"elite"
+	var challenge_rounds := {
+		6: round_six_type,
+		11: &"elite" if round_six_type == &"horde" else &"horde",
+		16: &"gauntlet",
+		17: &"payday",
+	}
 	var state := {
 		"money": float(mode["starting_cash"]) * float(profile_data["starting_cash"]),
 		"lives": float(mode["starting_lives"]),
-		"roster": STARTING_ROSTER.duplicate(),
+		"roster": starting_roster.duplicate(),
 		"build": [],
+		"occupied_cells": {},
 		"relics": {},
 		"dual_path_used": {&"technology": false, &"biological": false},
 		"contraband_tower": &"",
+		"holiday_sale_tower": &"",
 		"leak_damage": 0.0,
 		"round_reached": 0,
+		"challenge_rounds": challenge_rounds,
+		"first_tower_built": &"",
+		"upgrade_purchases": 0,
+		"total_spent": 0.0,
 	}
-	for round_number in range(1, int(mode["max_rounds"]) + 1):
-		var mix := build_round_mix(round_number, profile_data, mode, run_rng)
+	if focused_early_test and not focused_starter_tower.is_empty():
+		assert(state["roster"].has(focused_starter_tower), "Focused roster is missing forced starter %s" % focused_starter_tower)
+		var forced_key := candidate_key(focused_starter_tower, 0, &"")
+		var forced_candidate: Dictionary = candidates[forced_key]
+		var forced_cost := float(forced_candidate["cost"])
+		assert(float(state["money"]) >= forced_cost, "Forced starter %s costs more than starting cash" % focused_starter_tower)
+		apply_purchase_action(state, {
+			"kind": &"build",
+			"tower_id": focused_starter_tower,
+			"target_key": forced_key,
+			"cost": forced_cost,
+			"instance": -1,
+			"placement_index": get_best_available_placement_index(state, forced_candidate),
+		})
+	var round_history: Array[Dictionary] = []
+	var round_limit := mini(simulation_round_limit, int(mode["max_rounds"]))
+	for round_number in range(1, round_limit + 1):
+		var mix := build_round_mix(
+			round_number,
+			profile_data,
+			mode,
+			run_rng,
+			StringName(challenge_rounds.get(round_number, &"standard"))
+		)
+		var starting_money := float(state["money"])
 		purchase_for_round(state, policy, mix, profile_data, round_number)
+		var post_purchase_money := float(state["money"])
 		var outcome := resolve_round(state, mix, profile_data, mode, round_number)
 		state["round_reached"] = round_number
 		state["lives"] = float(state["lives"]) - float(outcome["leak_damage"])
 		state["leak_damage"] = float(state["leak_damage"]) + float(outcome["leak_damage"])
 		state["money"] = float(state["money"]) + float(outcome["kill_income"])
-		if float(state["lives"]) <= 0.0:
+		var survived := float(state["lives"]) > 0.0
+		var round_reward := 0.0
+		if survived:
+			round_reward = float(
+				GameStats.ROUND_REWARD_BASE
+				+ round_number * GameStats.ROUND_REWARD_PER_WAVE
+			) * float(profile_data["round_income"])
+			if relic_count(state, &"dividends") > 0:
+				round_reward += minf(
+					floorf(float(state["money"]) * GameStats.DIVIDENDS_INTEREST_RATE),
+					float(GameStats.DIVIDENDS_INTEREST_CAP)
+				)
+			state["money"] = float(state["money"]) + round_reward
+			# Gameplay rolls the next sale before opening this round's draft.
+			# A newly drafted Holiday Sale therefore starts affecting builds one
+			# full round later, not immediately on the following build phase.
+			roll_holiday_sale_tower(state, run_rng)
+			if TOWER_DRAFT_ROUNDS.has(round_number):
+				resolve_tower_draft(state, policy, run_rng)
+			if not disable_relics and RELIC_DRAFT_ROUNDS.has(round_number):
+				resolve_relic_draft(state, policy, round_number, run_rng)
+		if record_round_history:
+			round_history.append({
+				"round": round_number,
+				"survived": survived,
+				"starting_money": starting_money,
+				"spent": starting_money - post_purchase_money,
+				"post_purchase_money": post_purchase_money,
+				"kill_income": float(outcome["kill_income"]),
+				"round_reward": round_reward,
+				"ending_money": float(state["money"]),
+				"round_leak_damage": float(outcome["leak_damage"]),
+				"lives": maxf(float(state["lives"]), 0.0),
+				"build_signature": get_build_signature(state["build"]),
+				"tower_signature": get_tower_signature(state["build"]),
+			})
+		if not survived:
 			break
-		var round_reward := float(
-			GameStats.ROUND_REWARD_BASE
-			+ round_number * GameStats.ROUND_REWARD_PER_WAVE
-		) * float(profile_data["round_income"])
-		if relic_count(state, &"dividends") > 0:
-			round_reward += minf(float(state["money"]) * GameStats.DIVIDENDS_INTEREST_RATE, float(GameStats.DIVIDENDS_INTEREST_CAP))
-		state["money"] = float(state["money"]) + round_reward
-		if TOWER_DRAFT_ROUNDS.has(round_number):
-			resolve_tower_draft(state, policy, run_rng)
-		if RELIC_DRAFT_ROUNDS.has(round_number):
-			resolve_relic_draft(state, policy, round_number, run_rng)
 	return {
 		"policy_id": policy["id"],
+		"policy_name": policy["name"],
+		"run_seed": run_seed,
+		"round_six_type": round_six_type,
+		"forced_starter": focused_starter_tower,
+		"starter_calibration": starter_calibration,
+		"relics_disabled": disable_relics,
+		"starter_pool": focused_starter_pool,
 		"profile": profile_data["id"],
-		"won": int(state["round_reached"]) >= int(mode["max_rounds"]) and float(state["lives"]) > 0.0,
+		"won": int(state["round_reached"]) >= round_limit and float(state["lives"]) > 0.0,
 		"round_reached": state["round_reached"],
 		"lives": maxf(float(state["lives"]), 0.0),
 		"money": float(state["money"]),
@@ -447,6 +1087,13 @@ func simulate_run(policy: Dictionary, profile_data: Dictionary, run_seed: int) -
 		"build_signature": get_build_signature(state["build"]),
 		"relic_signature": get_relic_signature(state["relics"]),
 		"tower_signature": get_tower_signature(state["build"]),
+		"first_tower": state["first_tower_built"],
+		"upgrade_purchases": state["upgrade_purchases"],
+		"total_spent": state["total_spent"],
+		"path_coverage": get_build_path_coverage(state["build"]),
+		"tower_count": state["build"].size(),
+		"starting_roster": get_starting_roster_signature(starting_roster),
+		"round_history": round_history,
 	}
 
 
@@ -454,26 +1101,37 @@ func build_round_mix(
 	round_number: int,
 	profile_data: Dictionary,
 	mode: Dictionary,
-	run_rng: RandomNumberGenerator
+	run_rng: RandomNumberGenerator,
+	round_type: StringName = &"standard"
 ) -> Array[Dictionary]:
 	var duration := (
 		float(mode["final_wave_duration"])
 		if round_number >= int(mode["max_rounds"])
 		else minf(float(mode["wave_duration_start"]) + float(round_number - 1) * float(mode["wave_duration_growth"]), float(mode["wave_duration_max"]))
 	)
-	var threat_rate := (float(mode["threat_rate_base"]) + float(round_number) * float(mode["threat_rate_growth"]) + float(round_number * round_number) * float(mode["threat_rate_curve"])) * 1.40
-	var density_variation := run_rng.randf_range(0.92, 1.08)
-	var threat_budget := duration * threat_rate * float(profile_data["enemy_density"]) * density_variation
+	var threat_rate := (
+		float(mode["threat_rate_base"])
+		+ float(round_number) * float(mode["threat_rate_growth"])
+		+ float(round_number * round_number) * float(mode["threat_rate_curve"])
+	) * 1.40
+	threat_rate *= GameStats.get_early_round_threat_multiplier(round_number)
 	if round_number == 6:
-		threat_budget *= GameStats.ROUND_SIX_THREAT_MULTIPLIER * run_rng.randf_range(1.0, 1.45)
-	elif round_number == 11:
-		threat_budget *= run_rng.randf_range(1.0, 1.45)
-	elif round_number == 16:
-		threat_budget *= 1.55
-	elif round_number == 17:
-		threat_budget *= 1.35
+		threat_rate *= GameStats.ROUND_SIX_THREAT_MULTIPLIER
+	if round_type in [&"horde", &"gauntlet", &"payday"]:
+		threat_rate *= 2.0
+	var chunk_interval := maxf(float(mode.get("threat_chunk_interval", 4.0)), 0.01)
+	var chunk_count := floori(duration / chunk_interval)
+	var generated_threat := threat_rate * (
+		duration * float(mode.get("threat_continuous_ratio", 1.0))
+		+ float(chunk_count)
+			* chunk_interval
+			* float(mode.get("threat_chunk_ratio", 0.0))
+	)
+	var threat_budget := (
+		(float(mode.get("starting_spawn_threat", 1.0)) + generated_threat)
+		* float(profile_data["enemy_density"])
+	)
 	var eligible: Array[StringName] = []
-	var total_weight := 0.0
 	for enemy_key in GameStats.ENEMIES:
 		var enemy_id := StringName(enemy_key)
 		var enemy := GameStats.get_enemy(enemy_id)
@@ -482,18 +1140,225 @@ func build_round_mix(
 		var weight := float(enemy.get("spawn_weight", 0.0))
 		if weight <= 0.0:
 			continue
+		if (
+			round_type == &"payday"
+			and StringName(enemy.get("role", &"fodder")) not in [&"fodder", &"pressure"]
+		):
+			continue
 		eligible.append(enemy_id)
-		total_weight += weight
-	var mix: Array[Dictionary] = []
+	var role_weights := get_expected_director_role_weights(
+		round_number,
+		round_type,
+		eligible
+	)
+	var enemy_weights := {}
+	var total_weight := 0.0
 	for enemy_id in eligible:
 		var enemy := GameStats.get_enemy(enemy_id)
-		var share := float(enemy.get("spawn_weight", 0.0)) / maxf(total_weight, 1.0)
+		var role := StringName(enemy.get("role", &"fodder"))
+		var role_spawn_total := 0.0
+		for peer_id in eligible:
+			var peer := GameStats.get_enemy(peer_id)
+			if StringName(peer.get("role", &"fodder")) == role:
+				role_spawn_total += float(peer.get("spawn_weight", 0.0))
+		var enemy_weight := (
+			float(role_weights.get(role, 0.0))
+			* float(enemy.get("spawn_weight", 0.0))
+			/ maxf(role_spawn_total, 1.0)
+		)
+		enemy_weights[enemy_id] = enemy_weight
+		total_weight += enemy_weight
+	var mix: Array[Dictionary] = []
+	var base_variant: StringName = (
+		&"horde" if round_type in [&"horde", &"gauntlet"]
+		else (&"payday" if round_type == &"payday" else &"normal")
+	)
+	for enemy_id in eligible:
+		var enemy := GameStats.get_enemy(enemy_id)
+		var share := float(enemy_weights.get(enemy_id, 0.0)) / maxf(total_weight, 1.0)
 		var count := threat_budget * share / maxf(float(enemy.get("spawn_cost", 1.0)), 1.0)
-		mix.append(make_mix_entry(enemy_id, enemy, count, round_number, profile_data, mode, duration))
+		mix.append(make_mix_entry(
+			enemy_id, enemy, count, round_number, profile_data, mode,
+			duration, base_variant
+		))
+	if round_type in [&"elite", &"gauntlet"]:
+		append_elite_challenge_entries(
+			mix, eligible, round_number, profile_data, mode, duration,
+			run_rng, round_type == &"gauntlet"
+		)
 	if round_number >= int(mode["max_rounds"]):
 		var boss := GameStats.get_enemy(&"brute")
-		mix.append(make_mix_entry(&"brute", boss, 1.0, round_number, profile_data, mode, duration))
+		mix.append(make_mix_entry(
+			&"brute", boss, 1.0, round_number, profile_data, mode,
+			duration, &"normal"
+		))
 	return mix
+
+
+func get_expected_director_role_weights(
+	round_number: int,
+	round_type: StringName,
+	eligible: Array[StringName]
+) -> Dictionary:
+	var wave_weights: Dictionary = GameStats.WAVE_ROLE_WEIGHTS.back()["weights"]
+	for entry in GameStats.WAVE_ROLE_WEIGHTS:
+		if round_number <= int(entry["maximum_wave"]):
+			wave_weights = entry["weights"]
+			break
+	var styles: Array[StringName] = [&"steady"]
+	if round_type == &"gauntlet":
+		styles = [
+			&"pulses", &"simultaneous_batch", &"convoy",
+			&"sandwich", &"escorted_elite", &"stream",
+		]
+	elif round_type == &"payday":
+		styles = [&"stream", &"pulses", &"simultaneous_batch", &"burst"]
+	else:
+		for style_name in GameStats.WAVE_STYLE_UNLOCKS:
+			if round_number >= int(GameStats.WAVE_STYLE_UNLOCKS[style_name]):
+				styles.append(style_name)
+	var available_roles := {}
+	for enemy_id in eligible:
+		available_roles[StringName(
+			GameStats.get_enemy(enemy_id).get("role", &"fodder")
+		)] = true
+	var result := {}
+	for role in [&"fodder", &"pressure", &"tank", &"support"]:
+		if not available_roles.has(role):
+			continue
+		var formation_average := 0.0
+		for style_name in styles:
+			var recipe_style := &"steady" if style_name == &"standard" else style_name
+			var formation: Dictionary = GameStats.FORMATION_ROLE_WEIGHTS.get(
+				recipe_style,
+				GameStats.FORMATION_ROLE_WEIGHTS[&"steady"]
+			)
+			formation_average += float(formation.get(role, 0.0))
+		formation_average /= maxf(float(styles.size()), 1.0)
+		result[role] = (
+			float(wave_weights.get(role, 0.0)) + formation_average
+		) * 0.5
+	return result
+
+
+func append_elite_challenge_entries(
+	mix: Array[Dictionary],
+	eligible: Array[StringName],
+	round_number: int,
+	profile_data: Dictionary,
+	mode: Dictionary,
+	duration: float,
+	run_rng: RandomNumberGenerator,
+	is_gauntlet: bool
+) -> void:
+	if eligible.is_empty():
+		return
+	var elite_candidates: Array[StringName] = []
+	for enemy_id in eligible:
+		var role: StringName = GameStats.get_enemy(enemy_id).get(
+			"role", &"fodder"
+		)
+		if role in [&"pressure", &"tank"]:
+			elite_candidates.append(enemy_id)
+	if elite_candidates.is_empty():
+		elite_candidates = eligible.duplicate()
+	var event_counts := {}
+	var next_event_time := run_rng.randf_range(
+		10.0 if is_gauntlet else 15.0,
+		18.0 if is_gauntlet else 25.0
+	)
+	var final_event_time := duration * 0.80
+	while next_event_time < final_event_time:
+		var elite_count := (
+			run_rng.randi_range(1, 3)
+			if is_gauntlet
+			else (
+				2 if round_number == 6 and run_rng.randf() < 0.25
+				else (1 if round_number == 6 else run_rng.randi_range(1, 2))
+			)
+		)
+		var escort_count := run_rng.randi_range(
+			4 if is_gauntlet else 3,
+			8 if is_gauntlet else 6
+		)
+		add_challenge_enemy_counts(
+			event_counts, elite_candidates, elite_count, &"elite", run_rng
+		)
+		add_challenge_enemy_counts(
+			event_counts, eligible, escort_count,
+			&"horde" if is_gauntlet else &"normal", run_rng
+		)
+		next_event_time += run_rng.randf_range(
+			10.0 if is_gauntlet else 15.0,
+			18.0 if is_gauntlet else 25.0
+		)
+	add_challenge_enemy_counts(
+		event_counts,
+		elite_candidates,
+		3 if round_number >= 11 else 2,
+		&"elite",
+		run_rng
+	)
+	add_challenge_enemy_counts(
+		event_counts,
+		eligible,
+		run_rng.randi_range(6, 10) if is_gauntlet else run_rng.randi_range(4, 7),
+		&"horde" if is_gauntlet else &"normal",
+		run_rng
+	)
+	for event_key in event_counts:
+		var parts := String(event_key).split(":", false, 1)
+		var variant := StringName(parts[0])
+		var enemy_id := StringName(parts[1])
+		mix.append(make_mix_entry(
+			enemy_id,
+			GameStats.get_enemy(enemy_id),
+			float(event_counts[event_key]),
+			round_number,
+			profile_data,
+			mode,
+			duration,
+			variant
+		))
+
+
+func add_challenge_enemy_counts(
+	counts: Dictionary,
+	candidates_for_event: Array[StringName],
+	amount: int,
+	spawn_variant: StringName,
+	run_rng: RandomNumberGenerator
+) -> void:
+	for _index in amount:
+		var enemy_id := choose_weighted_simulation_enemy(
+			candidates_for_event,
+			run_rng
+		)
+		var key := "%s:%s" % [spawn_variant, enemy_id]
+		counts[key] = int(counts.get(key, 0)) + 1
+
+
+func choose_weighted_simulation_enemy(
+	available: Array[StringName],
+	run_rng: RandomNumberGenerator
+) -> StringName:
+	var total_weight := 0.0
+	for enemy_id in available:
+		total_weight += maxf(
+			float(GameStats.get_enemy(enemy_id).get("spawn_weight", 0.0)),
+			0.0
+		)
+	if total_weight <= 0.0:
+		return available[run_rng.randi_range(0, available.size() - 1)]
+	var roll := run_rng.randf_range(0.0, total_weight)
+	for enemy_id in available:
+		roll -= maxf(
+			float(GameStats.get_enemy(enemy_id).get("spawn_weight", 0.0)),
+			0.0
+		)
+		if roll <= 0.0:
+			return enemy_id
+	return available.back()
 
 
 func make_mix_entry(
@@ -503,32 +1368,139 @@ func make_mix_entry(
 	round_number: int,
 	profile_data: Dictionary,
 	mode: Dictionary,
-	duration: float
+	duration: float,
+	spawn_variant: StringName = &"normal"
 ) -> Dictionary:
-	var health := (float(enemy["health"]) + float(enemy.get("health_per_wave", 0.0)) * float(round_number - 1))
-	health *= float(mode["enemy_health_multiplier_base"]) + float(round_number - 1) * float(mode["enemy_health_multiplier_growth"])
-	health *= GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER if not bool(enemy.get("boss", false)) else 1.0
-	health *= GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
-	health *= float(profile_data["enemy_health"])
+	var unit_health := (
+		float(enemy["health"])
+		+ float(enemy.get("health_per_wave", 0.0))
+			* float(round_number - 1)
+	)
+	var wave_health_multiplier := (
+		float(mode["enemy_health_multiplier_base"])
+		+ float(round_number - 1)
+			* float(mode["enemy_health_multiplier_growth"])
+	)
+	var standard_health_multiplier := (
+		GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
+		if not bool(enemy.get("boss", false))
+		else 1.0
+	)
+	var variant_health_multiplier := 1.0
+	var variant_speed_multiplier := 1.0
+	var variant_reward_multiplier := 1.0
+	var variant_damage_multiplier := 1.0
+	var variant_armor_bonus := 0.0
+	match spawn_variant:
+		&"horde":
+			variant_health_multiplier = GameStats.HORDE_ENEMY_HEALTH_MULTIPLIER
+			variant_reward_multiplier = 0.55
+			variant_damage_multiplier = 0.70
+		&"elite":
+			variant_health_multiplier = GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER
+			variant_speed_multiplier = GameStats.ELITE_ENEMY_SPEED_MULTIPLIER
+			variant_reward_multiplier = 3.0
+			variant_damage_multiplier = 1.50
+			variant_armor_bonus = 6.0
+		&"payday":
+			variant_health_multiplier = GameStats.PAYDAY_ENEMY_HEALTH_MULTIPLIER
+			variant_damage_multiplier = 0.50
+	var spawned_variant_health_multiplier := (
+		1.0 if spawn_variant == &"elite" else variant_health_multiplier
+	)
+	var spawned_variant_reward_multiplier := (
+		1.0 if spawn_variant == &"elite" else variant_reward_multiplier
+	)
+	unit_health = float(maxi(roundi(unit_health * (
+		wave_health_multiplier
+		* standard_health_multiplier
+		* GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
+		* float(profile_data["enemy_health"])
+		* variant_health_multiplier
+	)), 1))
 	var extra_health := 0.0
+	var extra_reward := 0.0
 	if int(enemy.get("split_count", 0)) > 0:
 		var child := GameStats.get_enemy(StringName(enemy["split_enemy_id"]))
-		extra_health += float(enemy["split_count"]) * (float(child["health"]) + float(child.get("health_per_wave", 0.0)) * float(round_number - 1)) * GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER * GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
+		var child_health := float(maxi(roundi(
+			(
+				float(child["health"])
+				+ float(child.get("health_per_wave", 0.0))
+					* float(round_number - 1)
+			)
+			* wave_health_multiplier
+			* GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
+			* GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
+			* float(profile_data["enemy_health"])
+			* spawned_variant_health_multiplier
+		), 1))
+		extra_health += float(enemy["split_count"]) * child_health
+		extra_reward += (
+			float(enemy["split_count"])
+			* get_enemy_kill_reward(child)
+			* spawned_variant_reward_multiplier
+		)
 	if int(enemy.get("summon_limit", 0)) > 0:
 		var summoned := GameStats.get_enemy(StringName(enemy["summon_enemy_id"]))
-		extra_health += float(enemy["summon_limit"]) * (float(summoned["health"]) + float(summoned.get("health_per_wave", 0.0)) * float(round_number - 1)) * GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER * GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
-	var speed := float(enemy["move_speed"]) * GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER * float(profile_data["enemy_speed"])
+		var summoned_health := float(maxi(roundi(
+			(
+				float(summoned["health"])
+				+ float(summoned.get("health_per_wave", 0.0))
+					* float(round_number - 1)
+			)
+			* wave_health_multiplier
+			* GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
+			* GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
+			* float(profile_data["enemy_health"])
+			* spawned_variant_health_multiplier
+		), 1))
+		extra_health += float(enemy["summon_limit"]) * summoned_health
+		extra_reward += (
+			float(enemy["summon_limit"])
+			* get_enemy_kill_reward(summoned)
+			* spawned_variant_reward_multiplier
+		)
+	var standard_speed_multiplier := (
+		1.0 if bool(enemy.get("boss", false))
+		else GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER
+	)
+	var speed := float(enemy["move_speed"]) * standard_speed_multiplier
+	var enemy_traits: Array = enemy.get("traits", [])
+	if enemy_traits.has(&"rushes"):
+		var rush_start := clampf(float(enemy.get("rush_start_ratio", 0.7)), 0.0, 1.0)
+		var rush_multiplier := maxf(float(enemy.get("rush_speed_multiplier", 1.0)), 1.0)
+		speed /= maxf(rush_start + (1.0 - rush_start) / rush_multiplier, 0.01)
+	speed *= float(profile_data["enemy_speed"]) * variant_speed_multiplier
+	var composite_reward := (
+		get_enemy_kill_reward(enemy) * variant_reward_multiplier
+		+ extra_reward
+	)
 	return {
 		"enemy_id": enemy_id,
 		"enemy": enemy,
 		"count": count,
-		"health": health + extra_health,
-		"armor": float(enemy.get("armor", 0.0)) * float(profile_data["enemy_armor"]),
+		"health": unit_health + extra_health,
+		"unit_health": unit_health,
+		"spawned_health": extra_health,
+		"armor": (
+			float(enemy.get("armor", 0.0)) + variant_armor_bonus
+		) * float(profile_data["enemy_armor"]),
 		"speed": speed,
 		"duration": duration,
-		"reward": float(enemy.get("cash_reward", 0.0)) * GameStats.KILL_REWARD_MULTIPLIER,
-		"leak": float(enemy.get("base_damage", 1.0)),
+		"reward": composite_reward,
+		"leak": maxf(roundf(
+			float(enemy.get("base_damage", 1.0))
+			* variant_damage_multiplier
+		), 1.0),
+		"variant": spawn_variant,
 	}
+
+
+func get_enemy_kill_reward(enemy: Dictionary) -> float:
+	return float(maxi(roundi(
+		float(enemy.get("cash_reward", 0.0))
+		* GameStats.KILL_REWARD_MULTIPLIER
+	), 1))
 
 
 func purchase_for_round(
@@ -542,6 +1514,17 @@ func purchase_for_round(
 		GameStats.ROUND_REWARD_BASE
 		+ round_number * GameStats.ROUND_REWARD_PER_WAVE
 	)
+	# A viable saving strategy still establishes an initial defense. Applying
+	# its reserve before the first build can otherwise make it hold affordable
+	# starting cash while leaking out with an empty map.
+	if state["build"].is_empty():
+		reserve = 0.0
+	var planning_mixes := build_purchase_planning_mixes(
+		mix,
+		profile_data,
+		round_number,
+		state["challenge_rounds"]
+	)
 	for _purchase in 64:
 		var actions := get_purchase_actions(state, profile_data, round_number)
 		if actions.is_empty():
@@ -549,13 +1532,18 @@ func purchase_for_round(
 		var scored: Array[Dictionary] = []
 		for action in actions:
 			var cost := float(action["cost"])
-			var gain := get_action_power_gain(state, action, mix)
 			var tower_id: StringName = action["tower_id"]
 			var bias := float(policy["tower_weights"].get(tower_id, 1.0))
 			bias *= float(policy["expansion_bias"] if action["kind"] == &"build" else policy["upgrade_bias"])
 			var copies := count_built_tower(state["build"], tower_id)
 			bias *= pow(1.0 - 0.08 * float(policy["diversity"]), float(copies))
-			scored.append({"action": action, "score": gain * bias / maxf(cost, 1.0), "cost": cost})
+			var planned_efficiency := get_planned_action_efficiency(
+				state,
+				action,
+				planning_mixes,
+				round_number
+			)
+			scored.append({"action": action, "score": planned_efficiency * bias, "cost": cost})
 		scored.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["score"]) > float(b["score"]))
 		var best: Dictionary = scored[0]
 		var affordable: Dictionary = {}
@@ -570,16 +1558,179 @@ func purchase_for_round(
 		apply_purchase_action(state, affordable["action"])
 
 
+func build_purchase_planning_mixes(
+	current_mix: Array[Dictionary],
+	profile_data: Dictionary,
+	round_number: int,
+	challenge_rounds: Dictionary
+) -> Array:
+	var result: Array = [current_mix]
+	var mode := GameStats.get_mode(&"easy")
+	for offset in range(1, PURCHASE_LOOKAHEAD_STEPS):
+		var future_round := round_number + offset
+		if future_round > simulation_round_limit:
+			break
+		var planning_rng := RandomNumberGenerator.new()
+		planning_rng.seed = seed_value + future_round * 104729
+		result.append(build_round_mix(
+			future_round,
+			profile_data,
+			mode,
+			planning_rng,
+			StringName(challenge_rounds.get(future_round, &"standard"))
+		))
+	return result
+
+
+func get_planned_action_efficiency(
+	state: Dictionary,
+	action: Dictionary,
+	planning_mixes: Array,
+	round_number: int
+) -> float:
+	var target: Dictionary = candidates[action["target_key"]]
+	var previous: Dictionary = {}
+	var placement_index := int(action.get("placement_index", -1))
+	if int(action["instance"]) >= 0:
+		var current_instance: Dictionary = state["build"][int(action["instance"])]
+		previous = candidates[current_instance["candidate_key"]]
+		placement_index = int(current_instance.get("placement_index", -1))
+	var immediate_gain := get_positioned_candidate_power(
+		target,
+		state,
+		planning_mixes[0],
+		placement_index
+	) - get_optional_candidate_power(previous, state, planning_mixes[0], placement_index)
+	var immediate_efficiency := maxf(immediate_gain, 0.001) / maxf(float(action["cost"]), 1.0)
+	var expected_income := maxf(
+		float(GameStats.ROUND_REWARD_BASE + round_number * GameStats.ROUND_REWARD_PER_WAVE)
+		+ 100.0,
+		1.0
+	)
+	return maxf(
+		immediate_efficiency,
+		get_best_upgrade_chain_efficiency(
+			state,
+			target,
+			previous,
+			float(action["cost"]),
+			maxf(immediate_gain, 0.001),
+			planning_mixes,
+			1,
+			expected_income,
+			placement_index
+		)
+	)
+
+
+func get_best_upgrade_chain_efficiency(
+	state: Dictionary,
+	current: Dictionary,
+	previous: Dictionary,
+	total_cost: float,
+	discounted_gain: float,
+	planning_mixes: Array,
+	step: int,
+	expected_income: float,
+	placement_index: int
+) -> float:
+	var funding_gap := maxf(total_cost - float(state["money"]), 0.0)
+	var funding_rounds := funding_gap / expected_income
+	var best := (
+		discounted_gain
+		/ maxf(total_cost, 1.0)
+		* pow(FUTURE_FUNDING_DISCOUNT, funding_rounds)
+	)
+	if step >= PURCHASE_LOOKAHEAD_STEPS:
+		return best
+	var next_candidates := get_candidate_upgrade_options(current)
+	for next_candidate in next_candidates:
+		var future_mix: Array = planning_mixes[mini(step, planning_mixes.size() - 1)]
+		var incremental_gain := maxf(
+			get_positioned_candidate_power(next_candidate, state, future_mix, placement_index)
+			- get_positioned_candidate_power(current, state, future_mix, placement_index),
+			0.001
+		)
+		var incremental_cost := maxf(
+			float(next_candidate["cost"]) - float(current["cost"]),
+			1.0
+		)
+		best = maxf(best, get_best_upgrade_chain_efficiency(
+			state,
+			next_candidate,
+			current,
+			total_cost + incremental_cost,
+			discounted_gain + incremental_gain * pow(FUTURE_POWER_DISCOUNT, float(step)),
+			planning_mixes,
+			step + 1,
+			expected_income,
+			placement_index
+		))
+	return best
+
+
+func get_candidate_upgrade_options(current: Dictionary) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var tower_id: StringName = current["tower_id"]
+	var level := int(current["level"])
+	var path := StringName(current["path"])
+	if level < 3:
+		result.append(candidates[candidate_key(tower_id, level + 1, &"")])
+	elif path.is_empty():
+		for next_path in [&"a", &"b"]:
+			var key := candidate_key(tower_id, 3, next_path)
+			if candidates.has(key):
+				result.append(candidates[key])
+	return result
+
+
+func get_optional_candidate_power(
+	candidate: Dictionary,
+	state: Dictionary,
+	mix: Array[Dictionary],
+	placement_index: int
+) -> float:
+	if candidate.is_empty():
+		return 0.0
+	return get_positioned_candidate_power(candidate, state, mix, placement_index)
+
+
+func get_positioned_candidate_power(
+	candidate: Dictionary,
+	state: Dictionary,
+	mix: Array[Dictionary],
+	placement_index: int
+) -> float:
+	var power := get_candidate_mix_power(candidate, state, mix, placement_index)
+	if not use_map_geometry or placement_index < 0:
+		return power
+	var covered_segments := get_covered_combat_segments(
+		candidate,
+		placement_index,
+		state
+	)
+	var coverage := (
+		float(covered_segments.size())
+		/ maxf(float(map_combat_samples.size()), 1.0)
+	)
+	return power * get_map_engagement_from_coverage(coverage)
+
+
 func get_purchase_actions(state: Dictionary, profile_data: Dictionary, round_number: int) -> Array[Dictionary]:
 	var actions: Array[Dictionary] = []
 	if state["build"].size() < MAX_TOWERS:
 		for tower_id in state["roster"]:
 			var base: Dictionary = candidates[candidate_key(tower_id, 0, &"")]
 			var cost := get_adjusted_build_cost(state, tower_id, float(base["cost"]), profile_data, round_number)
-			actions.append({"kind": &"build", "tower_id": tower_id, "target_key": base["key"], "cost": cost, "instance": -1})
+			var placement_index := get_best_available_placement_index(state, base)
+			if not use_map_geometry or placement_index >= 0:
+				actions.append({"kind": &"build", "tower_id": tower_id, "target_key": base["key"], "cost": cost, "instance": -1, "placement_index": placement_index})
 		if not StringName(state["contraband_tower"]).is_empty():
 			var contraband_id: StringName = state["contraband_tower"]
-			actions.append({"kind": &"build", "tower_id": contraband_id, "target_key": candidate_key(contraband_id, 0, &""), "cost": 0.0, "instance": -1, "contraband": true})
+			var contraband_candidate: Dictionary = candidates[candidate_key(contraband_id, 0, &"")]
+			var contraband_placement := get_best_available_placement_index(state, contraband_candidate)
+			if not use_map_geometry or contraband_placement >= 0:
+				actions.append({"kind": &"build", "tower_id": contraband_id, "target_key": contraband_candidate["key"], "cost": 0.0, "instance": -1, "contraband": true, "placement_index": contraband_placement})
 	for index in state["build"].size():
 		var instance: Dictionary = state["build"][index]
 		var tower_id: StringName = instance["tower_id"]
@@ -603,21 +1754,115 @@ func get_purchase_actions(state: Dictionary, profile_data: Dictionary, round_num
 	return actions
 
 
+func get_best_available_placement_index(state: Dictionary, candidate: Dictionary) -> int:
+	if not use_map_geometry:
+		return -1
+	var traits: Dictionary = candidate["traits"]
+	var tower: Dictionary = candidate["tower"]
+	var needs_dynamic_ranking: bool = (
+		(traits["damage_tags"].has(&"beam") and (
+			relic_count(state, &"focused_lens") > 0
+			or relic_count(state, &"wide_lens") > 0
+		))
+		or (traits["damage_tags"].has(&"melee") and (
+			relic_count(state, &"lone_wolf") > 0
+			or relic_count(state, &"strength_in_numbers") > 0
+		))
+		or (tower.get("type_tags", []).has(&"technology")
+			and relic_count(state, &"network_upgrade") > 0)
+	)
+	var best_index := -1
+	var best_score := -INF
+	var available_checked := 0
+	for ranked in placement_rankings.get(candidate["key"], []):
+		var placement_index := int(ranked["index"])
+		var placement: Dictionary = map_placements[placement_index]
+		var available := true
+		for cell in placement["cells"]:
+			if state["occupied_cells"].has(cell):
+				available = false
+				break
+		if available:
+			if not needs_dynamic_ranking:
+				return placement_index
+			var covered := get_covered_combat_segments(
+				candidate,
+				placement_index,
+				state
+			)
+			var score := get_map_engagement_from_coverage(
+				float(covered.size())
+				/ maxf(float(map_combat_samples.size()), 1.0)
+			)
+			if tower.get("type_tags", []).has(&"technology"):
+				score *= (
+					1.0
+					+ GameStats.NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK
+						* float(count_cardinal_adjacent_towers(
+							state, placement_index, &"technology"
+						))
+						* float(relic_count(state, &"network_upgrade"))
+				)
+			if traits["damage_tags"].has(&"melee"):
+				score *= (
+					1.0
+					+ GameStats.STRENGTH_IN_NUMBERS_DAMAGE_PER_NEIGHBOR
+						* float(mini(
+							count_nearby_towers(
+								state, placement_index,
+								1.5 * GameStats.BUILD_CELL_SIZE, &"melee"
+							),
+							GameStats.STRENGTH_IN_NUMBERS_MAXIMUM_NEIGHBORS
+						))
+						* float(mini(relic_count(state, &"strength_in_numbers"), 1))
+				)
+				if (
+					relic_count(state, &"lone_wolf") > 0
+					and not placement_has_nearby_other_tower(
+						state, placement_index,
+						2.5 * GameStats.BUILD_CELL_SIZE
+					)
+				):
+					score *= (
+						GameStats.LONE_WOLF_DAMAGE_MULTIPLIER
+						* GameStats.LONE_WOLF_ATTACK_SPEED_MULTIPLIER
+					)
+			if score > best_score:
+				best_score = score
+				best_index = placement_index
+			available_checked += 1
+			if available_checked >= 256:
+				break
+	return best_index
+
+
 func get_adjusted_build_cost(
 	state: Dictionary,
 	tower_id: StringName,
 	base_cost: float,
 	_profile_data: Dictionary,
-	round_number: int
+	_round_number: int
 ) -> float:
 	var result := base_cost
 	if relic_count(state, &"holiday_sale") > 0:
-		var roster: Array = state["roster"]
-		var sale_id: StringName = roster[round_number % roster.size()]
+		var sale_id := StringName(state.get("holiday_sale_tower", &""))
 		result *= GameStats.HOLIDAY_SALE_DISCOUNT_MULTIPLIER if tower_id == sale_id else GameStats.HOLIDAY_SALE_OTHER_COST_MULTIPLIER
 	if relic_count(state, &"trade_agreement") > 0 and TRADE_TOWERS.has(tower_id):
 		result *= GameStats.TRADE_AGREEMENT_BUILD_COST_MULTIPLIER
 	return maxf(roundf(result), 0.0)
+
+
+func roll_holiday_sale_tower(
+	state: Dictionary,
+	run_rng: RandomNumberGenerator
+) -> void:
+	state["holiday_sale_tower"] = &""
+	var roster: Array = state["roster"]
+	if relic_count(state, &"holiday_sale") <= 0 or roster.is_empty():
+		return
+	state["holiday_sale_tower"] = roster[
+		run_rng.randi_range(0, roster.size() - 1)
+	]
 
 
 func can_buy_dual_path(state: Dictionary, current: Dictionary) -> bool:
@@ -631,18 +1876,32 @@ func can_buy_dual_path(state: Dictionary, current: Dictionary) -> bool:
 
 func apply_purchase_action(state: Dictionary, action: Dictionary) -> void:
 	state["money"] = float(state["money"]) - float(action["cost"])
+	state["total_spent"] = float(state.get("total_spent", 0.0)) + float(action["cost"])
 	var target: Dictionary = candidates[action["target_key"]]
 	if action["kind"] == &"build":
+		if StringName(state.get("first_tower_built", &"")).is_empty():
+			state["first_tower_built"] = target["tower_id"]
+		var placement_index := int(action.get("placement_index", -1))
 		state["build"].append({
 			"tower_id": target["tower_id"], "level": target["level"], "path": target["path"], "candidate_key": target["key"],
+			"placement_index": placement_index,
+			"covered_segments": get_covered_combat_segments(target, placement_index),
 		})
+		if placement_index >= 0:
+			for cell in map_placements[placement_index]["cells"]:
+				state["occupied_cells"][cell] = true
 		if bool(action.get("contraband", false)):
 			state["contraband_tower"] = &""
 	else:
+		state["upgrade_purchases"] = int(state.get("upgrade_purchases", 0)) + 1
 		var instance: Dictionary = state["build"][int(action["instance"])]
 		instance["level"] = target["level"]
 		instance["path"] = target["path"]
 		instance["candidate_key"] = target["key"]
+		instance["covered_segments"] = get_covered_combat_segments(
+			target,
+			int(instance.get("placement_index", -1))
+		)
 		state["build"][int(action["instance"])] = instance
 		if action["kind"] == &"dual_path":
 			var types: Array = target["tower"].get("type_tags", [])
@@ -650,34 +1909,86 @@ func apply_purchase_action(state: Dictionary, action: Dictionary) -> void:
 			state["dual_path_used"][category] = true
 
 
-func get_action_power_gain(state: Dictionary, action: Dictionary, mix: Array[Dictionary]) -> float:
-	var target: Dictionary = candidates[action["target_key"]]
-	var gain := get_candidate_mix_power(target, state, mix)
-	if int(action["instance"]) >= 0:
-		var current_instance: Dictionary = state["build"][int(action["instance"])]
-		gain -= get_candidate_mix_power(candidates[current_instance["candidate_key"]], state, mix)
-	return maxf(gain, 0.001)
-
-
-func get_candidate_mix_power(candidate: Dictionary, state: Dictionary, mix: Array[Dictionary]) -> float:
+func get_candidate_mix_power(
+	candidate: Dictionary,
+	state: Dictionary,
+	mix: Array[Dictionary],
+	placement_index: int = -1
+) -> float:
 	var total_health := 0.0
 	var weighted_power := 0.0
 	for entry in mix:
 		var demand := float(entry["count"]) * float(entry["health"])
 		total_health += demand
-		weighted_power += demand * get_candidate_enemy_power(candidate, state, entry)
+		weighted_power += demand * get_candidate_enemy_power(
+			candidate,
+			state,
+			entry,
+			-1.0,
+			placement_index
+		)
 	return weighted_power / maxf(total_health, 1.0)
 
 
-func get_candidate_enemy_power(candidate: Dictionary, state: Dictionary, entry: Dictionary) -> float:
+func get_candidate_enemy_power(
+	candidate: Dictionary,
+	state: Dictionary,
+	entry: Dictionary,
+	engagement_count: float = -1.0,
+	placement_index: int = -1
+) -> float:
 	var enemy_id: StringName = entry["enemy_id"]
 	var base_scenario: Dictionary = enemy_scenarios[enemy_id]
-	var power := float(candidate["dps"].get(enemy_id, 0.0))
 	var stats: Dictionary = candidate["stats"]
 	var traits: Dictionary = candidate["traits"]
 	var primary_type: StringName = traits["primary_type"]
-	var range_units := float(stats.get("range", stats.get("deployment_radius", 8.0)))
-	power *= clampf(range_units / 10.0, 0.55, 1.30)
+	var can_attack_hidden: bool = (
+		traits["bonus_tags"].has(&"reveal")
+		or (
+			traits["damage_tags"].has(&"explosive")
+			and relic_count(state, &"charred_clothes") > 0
+		)
+		or (
+			build_has_reveal(state["build"])
+			and (
+				relic_count(state, &"spotter") > 0
+				or relic_count(state, &"perfect_intelligence") > 0
+			)
+		)
+	)
+	var curve_map: Dictionary = (
+		candidate["revealed_dps_health_curves"]
+		if can_attack_hidden
+		else candidate["dps_health_curves"]
+	)
+	var curve: PackedFloat32Array = curve_map.get(
+		enemy_id,
+		PackedFloat32Array()
+	)
+	var base_health := maxf(float(base_scenario.get("health", 1.0)), 1.0)
+	var health_multiplier := float(entry.get("unit_health", entry["health"])) / base_health
+	var power := interpolate_health_curve(curve, health_multiplier)
+	var target_count := (
+		engagement_count
+		if engagement_count >= 0.0
+		else minf(
+			float(entry.get("count", 1.0)),
+			float(base_scenario.get("enemies", 1))
+		)
+	)
+	target_count = maxf(target_count, 1.0)
+	if candidate["tower_id"] == &"saucer":
+		var abduction_curves: Dictionary = candidate[
+			"saucer_abduction_health_curves"
+		]
+		power -= interpolate_health_curve(
+			abduction_curves.get(enemy_id, PackedFloat32Array()),
+			health_multiplier
+		)
+		power += get_saucer_abduction_power(candidate, entry)
+	if not use_map_geometry:
+		var range_units := float(stats.get("range", stats.get("deployment_radius", 8.0)))
+		power *= clampf(range_units / 10.0, 0.55, 1.30)
 	var ignores_armor: bool = (
 		primary_type == &"beam"
 		or int(stats.get("pierce_count", 0)) > 0
@@ -698,38 +2009,81 @@ func get_candidate_enemy_power(candidate: Dictionary, state: Dictionary, entry: 
 	if traits["delivery"] == GameStats.DELIVERY_PROJECTILE:
 		var speed_ratio := float(entry["speed"]) / maxf(float(base_scenario.get("speed", entry["speed"])), 1.0)
 		power *= clampf(pow(speed_ratio, -0.35), 0.65, 1.35)
-	var density_ratio := float(entry["count"]) / maxf(float(base_scenario.get("primary_enemies", 1)), 1.0)
-	var crowd_factor := get_crowd_scaling_factor(candidate)
-	power *= 1.0 + (clampf(density_ratio, 0.5, 2.0) - 1.0) * crowd_factor
-	power *= get_relic_combat_multiplier(candidate, state, entry)
-	var control := float(candidate["control"].get(enemy_id, 0.0))
-	power += control * float(entry["health"]) * 0.04
+	power *= get_relic_combat_multiplier(
+		candidate,
+		state,
+		entry,
+		target_count,
+		placement_index
+	)
+	if not use_map_geometry:
+		var control := float(candidate["control"].get(enemy_id, 0.0))
+		power += control * float(entry["health"]) * 0.04
 	return maxf(power, 0.0)
 
 
-func get_crowd_scaling_factor(candidate: Dictionary) -> float:
-	var traits: Dictionary = candidate["traits"]
+func get_saucer_abduction_power(
+	candidate: Dictionary,
+	entry: Dictionary
+) -> float:
 	var stats: Dictionary = candidate["stats"]
-	var factor := 0.0
-	if traits["primary_type"] == &"explosive":
-		factor += clampf(float(stats.get("splash_radius", 0.0)) * 0.10, 0.15, 0.65)
-	factor += clampf(float(stats.get("bounce_count", 0)) * 0.10, 0.0, 0.30)
-	factor += clampf(float(stats.get("pierce_count", 0)) * 0.10, 0.0, 0.35)
-	factor += clampf(float(stats.get("projectile_count", 1) - 1) * 0.08, 0.0, 0.35)
-	return clampf(factor, 0.0, 0.85)
+	var threshold := float(stats.get("abduction_health_threshold", 0.0))
+	var enemy: Dictionary = entry["enemy"]
+	if threshold <= 0.0 or bool(enemy.get("boss", false)):
+		return 0.0
+	var duration := maxf(float(entry.get("duration", 1.0)), 1.0)
+	var cooldown := maxf(float(stats.get("abduction_cooldown", 16.0)), 0.1)
+	var possible_uses := floori(duration / cooldown)
+	var eligible_targets := maxi(floori(float(entry.get("count", 0.0))), 0)
+	var pursuit_uptime := clampf(
+		0.55
+		+ float(stats.get("flyer_attack_radius", 5.0)) * 0.04
+		+ float(stats.get("flyer_move_speed", 165.0)) / 1000.0
+		- float(entry.get("speed", 75.0)) / 1000.0,
+		0.55,
+		0.96
+	)
+	var expected_uses: float = (
+		float(mini(possible_uses, eligible_targets))
+		* pursuit_uptime
+		* 0.80
+	)
+	var removed_health: float = (
+		float(entry.get("unit_health", 1.0)) * threshold
+		+ float(entry.get("spawned_health", 0.0))
+	)
+	return expected_uses * removed_health / duration
 
 
-func get_relic_combat_multiplier(candidate: Dictionary, state: Dictionary, entry: Dictionary) -> float:
+func get_relic_combat_multiplier(
+	candidate: Dictionary,
+	state: Dictionary,
+	entry: Dictionary,
+	engagement_count: float,
+	placement_index: int = -1
+) -> float:
 	var relics: Dictionary = state["relics"]
 	var traits: Dictionary = candidate["traits"]
 	var tower: Dictionary = candidate["tower"]
+	var stats: Dictionary = candidate["stats"]
+	var primary_type: StringName = traits["primary_type"]
 	var damage_tags: Array = traits["damage_tags"]
 	var bonus_tags: Array = traits["bonus_tags"]
 	var types: Array = tower.get("type_tags", [])
 	var enemy: Dictionary = entry["enemy"]
 	var multiplier := 1.0
 	if types.has(&"technology"):
-		multiplier *= 1.0 + GameStats.NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK * 2.0 * float(relics.get(&"network_upgrade", 0))
+		var adjacent_technology := count_cardinal_adjacent_towers(
+			state,
+			placement_index,
+			&"technology"
+		)
+		multiplier *= (
+			1.0
+			+ GameStats.NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK
+				* float(adjacent_technology)
+				* float(relics.get(&"network_upgrade", 0))
+		)
 	if types.has(&"biological") and count_built_type(state["build"], &"biological") >= 2:
 		multiplier *= 1.0 + GameStats.PACK_HUNTER_DAMAGE_PER_STACK * float(relics.get(&"pack_hunter", 0))
 	if types.has(&"biological"):
@@ -739,10 +2093,10 @@ func get_relic_combat_multiplier(candidate: Dictionary, state: Dictionary, entry
 		multiplier *= pow(GameStats.WIDE_LENS_DAMAGE_MULTIPLIER * 1.08, float(relics.get(&"wide_lens", 0)))
 		if int(relics.get(&"interference_beam", 0)) > 0 and build_has_control(state["build"]):
 			multiplier *= GameStats.INTERFERENCE_BEAM_DAMAGE_MULTIPLIER
-		if int(relics.get(&"microwave", 0)) > 0 and float(entry["count"]) >= 3.0:
+		if int(relics.get(&"microwave", 0)) > 0 and engagement_count >= 3.0:
 			multiplier *= 1.18
 		if int(relics.get(&"death_ray", 0)) > 0:
-			multiplier *= 1.0 + minf(float(entry["count"]) - 1.0, 4.0) * 0.16
+			multiplier *= 1.0 + minf(engagement_count - 1.0, 4.0) * 0.16
 	if damage_tags.has(&"ballistic"):
 		multiplier *= pow(GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER / GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER, float(relics.get(&"heavy_rounds", 0)))
 		multiplier *= pow(GameStats.LIGHTWEIGHT_AMMO_DAMAGE_MULTIPLIER / GameStats.LIGHTWEIGHT_AMMO_INTERVAL_MULTIPLIER, float(relics.get(&"lightweight_ammo", 0)))
@@ -750,40 +2104,90 @@ func get_relic_combat_multiplier(candidate: Dictionary, state: Dictionary, entry
 		multiplier *= 1.0 + 0.5 * GameStats.LONG_BARREL_MAX_DAMAGE_PER_STACK * float(relics.get(&"long_barrel", 0))
 		multiplier *= 1.0 + 0.5 * GameStats.POINT_BLANK_MAX_DAMAGE_PER_STACK * float(relics.get(&"point_blank", 0))
 		if int(relics.get(&"armor_piercing", 0)) > 0:
-			multiplier *= 1.0 + minf(float(entry["count"]) - 1.0, 2.0) * 0.20
-		if int(relics.get(&"rubber_bullets", 0)) > 0 and float(entry["count"]) > 1.0:
+			multiplier *= 1.0 + minf(engagement_count - 1.0, 2.0) * 0.20
+		if int(relics.get(&"rubber_bullets", 0)) > 0 and engagement_count > 1.0:
 			multiplier *= 1.65
-		if int(relics.get(&"experimental_munitions", 0)) > 0 and not bonus_tags.has(&"critical"):
-			multiplier *= 1.10
 	if damage_tags.has(&"melee"):
-		multiplier *= 1.0 + 0.20 * float(relics.get(&"frenzy", 0))
-		multiplier *= 1.0 + 0.18 * float(relics.get(&"duelist", 0))
+		multiplier *= (
+			1.0
+			+ GameStats.FRENZY_SPEED_PER_ENEMY_PER_STACK
+				* minf(engagement_count, float(GameStats.FRENZY_MAXIMUM_ENEMY_COUNT))
+				* float(relics.get(&"frenzy", 0))
+		)
+		var duelist_stacks := float(relics.get(&"duelist", 0))
+		if engagement_count <= 1.5:
+			multiplier *= 1.0 + GameStats.DUELIST_ONE_ENEMY_DAMAGE_PER_STACK * duelist_stacks
+		elif engagement_count <= 2.5:
+			multiplier *= 1.0 + GameStats.DUELIST_TWO_ENEMY_DAMAGE_PER_STACK * duelist_stacks
 		if int(relics.get(&"relentless", 0)) > 0:
 			multiplier *= 1.25
 		if int(relics.get(&"giant_killer", 0)) > 0:
-			multiplier *= GameStats.GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER if bool(enemy.get("boss", false)) or enemy.get("traits", []).has(&"elite") else GameStats.GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER
+			var special_target := (
+				bool(enemy.get("boss", false))
+				or StringName(entry.get("variant", &"normal")) == &"elite"
+			)
+			multiplier *= GameStats.GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER if special_target else GameStats.GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER
 		if int(relics.get(&"strength_in_numbers", 0)) > 0:
-			multiplier *= 1.0 + GameStats.STRENGTH_IN_NUMBERS_DAMAGE_PER_NEIGHBOR * float(mini(count_built_damage_tag(state["build"], &"melee") - 1, 4))
-		if int(relics.get(&"lone_wolf", 0)) > 0 and count_built_damage_tag(state["build"], &"melee") <= 1:
+			multiplier *= (
+				1.0
+				+ GameStats.STRENGTH_IN_NUMBERS_DAMAGE_PER_NEIGHBOR
+					* float(mini(
+						count_nearby_towers(
+							state,
+							placement_index,
+							1.5 * GameStats.BUILD_CELL_SIZE,
+							&"melee"
+						),
+						GameStats.STRENGTH_IN_NUMBERS_MAXIMUM_NEIGHBORS
+					))
+			)
+		if (
+			int(relics.get(&"lone_wolf", 0)) > 0
+			and not placement_has_nearby_other_tower(
+				state,
+				placement_index,
+				2.5 * GameStats.BUILD_CELL_SIZE
+			)
+		):
 			multiplier *= GameStats.LONE_WOLF_DAMAGE_MULTIPLIER * GameStats.LONE_WOLF_ATTACK_SPEED_MULTIPLIER
 	if damage_tags.has(&"explosive"):
 		multiplier *= pow(GameStats.HIGH_YIELD_DAMAGE_MULTIPLIER * 1.12, float(relics.get(&"high_yield", 0)))
 		multiplier *= pow(GameStats.CONCENTRATED_CHARGE_DAMAGE_MULTIPLIER * 0.92, float(relics.get(&"concentrated_charge", 0)))
 		if int(relics.get(&"crowd_pleaser", 0)) > 0:
-			multiplier *= 1.0 + minf(GameStats.CROWD_PLEASER_DAMAGE_PER_ENEMY * float(entry["count"]), GameStats.CROWD_PLEASER_MAXIMUM_DAMAGE_BONUS)
+			multiplier *= 1.0 + minf(GameStats.CROWD_PLEASER_DAMAGE_PER_ENEMY * engagement_count, GameStats.CROWD_PLEASER_MAXIMUM_DAMAGE_BONUS)
 		if int(relics.get(&"direct_hit", 0)) > 0:
-			multiplier *= 1.60 if float(entry["count"]) <= 1.5 else (1.30 if float(entry["count"]) <= 2.5 else 1.15)
+			multiplier *= 1.60 if engagement_count <= 1.5 else (1.30 if engagement_count <= 2.5 else (1.15 if engagement_count <= 3.5 else 1.0))
 		if int(relics.get(&"thermite_bombs", 0)) > 0 and float(entry["armor"]) > 0.0:
 			multiplier *= GameStats.THERMITE_BOMBS_DAMAGE_MULTIPLIER
 	if damage_tags.has(&"electric") and int(relics.get(&"conductive", 0)) > 0 and float(entry["armor"]) > 0.0:
 		var damage := maxf(float(candidate["stats"].get("damage", 1.0)), 1.0)
 		multiplier *= (damage + float(entry["armor"])) / maxf(damage - float(entry["armor"]), 1.0)
-	var has_critical := bonus_tags.has(&"critical") or int(relics.get(&"experimental_munitions", 0)) > 0
+	var base_has_critical := bonus_tags.has(&"critical")
+	var has_critical := base_has_critical or int(relics.get(&"experimental_munitions", 0)) > 0
 	if has_critical:
 		var chance := clampf(GameStats.DEFAULT_CRITICAL_CHANCE + GameStats.LUCKY_SHOT_CHANCE_PER_STACK * float(relics.get(&"lucky_shot", 0)) + 0.5 * GameStats.OPENING_SHOT_CHANCE_PER_STACK * float(relics.get(&"opening_shot", 0)), 0.0, 1.0)
 		var crit_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER + GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"glass_cannon", 0)) + GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"deadeye", 0))
 		var noncrit := GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER if int(relics.get(&"glass_cannon", 0)) > 0 else 1.0
-		multiplier *= chance * crit_multiplier + (1.0 - chance) * noncrit
+		var modified_critical_average := chance * crit_multiplier + (1.0 - chance) * noncrit
+		var baseline_critical_average := (
+			GameStats.DEFAULT_CRITICAL_CHANCE * GameStats.DEFAULT_CRITICAL_MULTIPLIER
+			+ (1.0 - GameStats.DEFAULT_CRITICAL_CHANCE)
+			if base_has_critical
+			else 1.0
+		)
+		multiplier *= modified_critical_average / baseline_critical_average
+		if int(relics.get(&"pressure_point", 0)) > 0 and float(entry["armor"]) > 0.0:
+			var raw_damage := maxf(float(stats.get("damage", 1.0)), 1.0)
+			var pressure_armor := float(entry["armor"])
+			if primary_type == &"explosive":
+				pressure_armor *= GameStats.EXPLOSIVE_ARMOR_MULTIPLIER
+			var armored_damage := maxf(raw_damage - pressure_armor, 1.0)
+			var without_pressure := modified_critical_average * armored_damage
+			var with_pressure := (
+				chance * crit_multiplier * raw_damage
+				+ (1.0 - chance) * noncrit * armored_damage
+			)
+			multiplier *= with_pressure / maxf(without_pressure, 1.0)
 	if bonus_tags.has(&"pierce"):
 		multiplier *= 1.0 + 0.12 * float(relics.get(&"deep_penetration", 0))
 		if int(relics.get(&"follow_through", 0)) > 0:
@@ -800,6 +2204,8 @@ func resolve_round(
 	_mode: Dictionary,
 	_round_number: int
 ) -> Dictionary:
+	if use_map_geometry:
+		return resolve_segmented_round(state, mix, profile_data)
 	var total_health := 0.0
 	var total_reward := 0.0
 	var total_leak := 0.0
@@ -811,8 +2217,14 @@ func resolve_round(
 		duration = float(entry["duration"])
 	var mixed_dps := 0.0
 	for instance in state["build"]:
-		mixed_dps += get_candidate_mix_power(candidates[instance["candidate_key"]], state, mix)
-	mixed_dps *= TOWER_ENGAGEMENT_COVERAGE
+		mixed_dps += get_positioned_candidate_power(
+			candidates[instance["candidate_key"]],
+			state,
+			mix,
+			int(instance.get("placement_index", -1))
+		)
+	if not use_map_geometry:
+		mixed_dps *= TOWER_ENGAGEMENT_COVERAGE
 	var average_speed_pressure := 1.0
 	if not mix.is_empty():
 		var speed_total := 0.0
@@ -829,9 +2241,322 @@ func resolve_round(
 	}
 
 
+func resolve_segmented_round(
+	state: Dictionary,
+	mix: Array[Dictionary],
+	profile_data: Dictionary
+) -> Dictionary:
+	if mix.is_empty() or map_combat_samples.size() < 2:
+		return {"leak_damage": 0.0, "kill_income": 0.0, "power_ratio": 0.0}
+	var segment_count := map_combat_samples.size()
+	var counts_by_enemy: Array[PackedFloat32Array] = []
+	var health_by_enemy: Array[PackedFloat32Array] = []
+	var total_spawn_health := 0.0
+	var slowest_speed := INF
+	var spawn_duration := 1.0
+	for entry in mix:
+		var counts := PackedFloat32Array()
+		var health := PackedFloat32Array()
+		counts.resize(segment_count)
+		health.resize(segment_count)
+		counts_by_enemy.append(counts)
+		health_by_enemy.append(health)
+		total_spawn_health += float(entry["count"]) * float(entry["health"])
+		slowest_speed = minf(slowest_speed, maxf(float(entry["speed"]), 1.0))
+		spawn_duration = maxf(spawn_duration, float(entry["duration"]))
+	var tower_powers: Array[PackedFloat32Array] = []
+	for instance in state["build"]:
+		var candidate: Dictionary = candidates[instance["candidate_key"]]
+		var placement_index := int(instance.get("placement_index", -1))
+		var powers := PackedFloat32Array()
+		powers.resize(mix.size())
+		for enemy_index in mix.size():
+			powers[enemy_index] = get_candidate_enemy_power(
+				candidate,
+				state,
+				mix[enemy_index],
+				-1.0,
+				placement_index
+			)
+		tower_powers.append(powers)
+	var maximum_time := (
+		spawn_duration
+		+ map_path_length / maxf(slowest_speed, 1.0)
+		+ MAP_COMBAT_MAX_EXTRA_TIME
+	)
+	var elapsed := 0.0
+	var leak_damage := 0.0
+	var earned_reward := 0.0
+	var damage_dealt := 0.0
+	while elapsed < maximum_time:
+		var step := minf(MAP_COMBAT_TIME_STEP, maximum_time - elapsed)
+		var control_by_enemy: Array[PackedFloat32Array] = []
+		for _enemy_index in mix.size():
+			var control_segments := PackedFloat32Array()
+			control_segments.resize(segment_count)
+			control_by_enemy.append(control_segments)
+		if elapsed < spawn_duration:
+			var spawning_time := minf(step, spawn_duration - elapsed)
+			for enemy_index in mix.size():
+				var entry: Dictionary = mix[enemy_index]
+				var spawned_count := (
+					float(entry["count"])
+					/ maxf(float(entry["duration"]), MAP_COMBAT_TIME_STEP)
+					* minf(spawning_time, maxf(float(entry["duration"]) - elapsed, 0.0))
+				)
+				if spawned_count > 0.0:
+					counts_by_enemy[enemy_index][0] += spawned_count
+					health_by_enemy[enemy_index][0] += spawned_count * float(entry["health"])
+		for tower_index in state["build"].size():
+			var instance: Dictionary = state["build"][tower_index]
+			var placement_index := int(instance.get("placement_index", -1))
+			# Relics can change range or depend on neighboring towers, so coverage
+			# must be refreshed for the current build instead of cached forever.
+			var covered_segments := get_covered_combat_segments(
+				candidates[instance["candidate_key"]],
+				placement_index,
+				state
+			)
+			var target := find_segment_target(
+				covered_segments,
+				counts_by_enemy,
+				health_by_enemy,
+				tower_powers[tower_index]
+			)
+			if target.x >= 0:
+				var target_segment := target.x
+				var enemy_index := target.y
+				var local_count := maxf(
+					float(counts_by_enemy[enemy_index][target_segment]),
+					1.0
+				)
+				var candidate: Dictionary = candidates[instance["candidate_key"]]
+				var dps := get_candidate_enemy_power(
+					candidate,
+					state,
+					mix[enemy_index],
+					local_count,
+					placement_index
+				)
+				var available_health := float(health_by_enemy[enemy_index][target_segment])
+				var applied_damage := minf(dps * step, available_health)
+				var health_per_count := available_health / maxf(
+					float(counts_by_enemy[enemy_index][target_segment]),
+					MAP_COMBAT_EPSILON
+				)
+				var killed_count := minf(
+					float(counts_by_enemy[enemy_index][target_segment]),
+					applied_damage / maxf(health_per_count, 1.0)
+				)
+				health_by_enemy[enemy_index][target_segment] -= applied_damage
+				counts_by_enemy[enemy_index][target_segment] -= killed_count
+				earned_reward += killed_count * float(mix[enemy_index]["reward"])
+				damage_dealt += applied_damage
+				control_by_enemy[enemy_index][target_segment] += (
+					get_candidate_control_power(
+						candidate,
+						state,
+						mix[enemy_index],
+						local_count
+					)
+				)
+				if health_by_enemy[enemy_index][target_segment] <= MAP_COMBAT_EPSILON:
+					health_by_enemy[enemy_index][target_segment] = 0.0
+					counts_by_enemy[enemy_index][target_segment] = 0.0
+		for enemy_index in mix.size():
+			var moved_counts := PackedFloat32Array()
+			var moved_health := PackedFloat32Array()
+			moved_counts.resize(segment_count)
+			moved_health.resize(segment_count)
+			for source_segment in segment_count:
+				var source_count := float(counts_by_enemy[enemy_index][source_segment])
+				if source_count <= MAP_COMBAT_EPSILON:
+					continue
+				var source_health := float(health_by_enemy[enemy_index][source_segment])
+				var controlled_fraction := clampf(
+					float(control_by_enemy[enemy_index][source_segment])
+						/ maxf(source_count, MAP_COMBAT_EPSILON),
+					0.0,
+					0.85
+				)
+				var aura_multiplier := get_segment_speed_aura_multiplier(
+					enemy_index,
+					source_segment,
+					mix,
+					counts_by_enemy
+				)
+				var movement := (
+					float(mix[enemy_index]["speed"])
+					* aura_multiplier
+					* step
+					/ maxf(map_combat_segment_length, 1.0)
+					* (1.0 - controlled_fraction)
+				)
+				var destination := float(source_segment) + movement
+				var lower_segment := floori(destination)
+				var upper_fraction := destination - float(lower_segment)
+				var lower_fraction := 1.0 - upper_fraction
+				if lower_segment < segment_count:
+					moved_counts[lower_segment] += source_count * lower_fraction
+					moved_health[lower_segment] += source_health * lower_fraction
+				else:
+					leak_damage += source_count * lower_fraction * float(mix[enemy_index]["leak"])
+				if upper_fraction > MAP_COMBAT_EPSILON:
+					if lower_segment + 1 < segment_count:
+						moved_counts[lower_segment + 1] += source_count * upper_fraction
+						moved_health[lower_segment + 1] += source_health * upper_fraction
+					else:
+						leak_damage += source_count * upper_fraction * float(mix[enemy_index]["leak"])
+			counts_by_enemy[enemy_index] = moved_counts
+			health_by_enemy[enemy_index] = moved_health
+		elapsed += step
+		if elapsed >= spawn_duration and not has_segment_enemies(counts_by_enemy):
+			break
+	return {
+		"leak_damage": leak_damage,
+		"kill_income": earned_reward * float(profile_data["kill_income"]),
+		"power_ratio": damage_dealt / maxf(total_spawn_health, 1.0),
+	}
+
+
+func get_segment_speed_aura_multiplier(
+	enemy_index: int,
+	segment_index: int,
+	mix: Array[Dictionary],
+	counts_by_enemy: Array[PackedFloat32Array]
+) -> float:
+	var result := 1.0
+	for aura_index in mix.size():
+		var aura_enemy: Dictionary = mix[aura_index]["enemy"]
+		if not aura_enemy.get("traits", []).has(&"speed_aura"):
+			continue
+		var aura_count := 0.0
+		var aura_radius := float(aura_enemy.get("speed_aura_radius", 0.0))
+		for aura_segment in map_combat_samples.size():
+			if (
+				map_combat_samples[segment_index].distance_to(
+					map_combat_samples[aura_segment]
+				) <= aura_radius
+			):
+				aura_count += float(
+					counts_by_enemy[aura_index][aura_segment]
+				)
+		if aura_count <= MAP_COMBAT_EPSILON:
+			continue
+		# A buffer does not buff itself, but two or more buffers can buff one
+		# another just as separate Mob instances do in gameplay.
+		if aura_index == enemy_index and aura_count <= 1.0:
+			continue
+		result = maxf(
+			result,
+			float(aura_enemy.get("speed_aura_multiplier", 1.0))
+		)
+	return result
+
+
+func get_candidate_control_power(
+	candidate: Dictionary,
+	state: Dictionary,
+	entry: Dictionary,
+	engagement_count: float
+) -> float:
+	var enemy_id: StringName = entry["enemy_id"]
+	var base_scenario: Dictionary = enemy_scenarios[enemy_id]
+	var base_count := maxf(float(base_scenario.get("enemies", 1)), 1.0)
+	var control := float(candidate["control"].get(enemy_id, 0.0))
+	control *= clampf(engagement_count / base_count, 0.0, 1.0)
+	var traits: Dictionary = candidate["traits"]
+	var stats: Dictionary = candidate["stats"]
+	if (
+		traits["damage_tags"].has(&"ballistic")
+		and relic_count(state, &"suppressive_fire") > 0
+	):
+		var interval := maxf(float(stats.get("firerate", 1.0)), 0.01)
+		var targets := minf(
+			float(combat.get_expected_targets_per_attack(
+				stats,
+				traits,
+				base_scenario
+			)),
+			engagement_count
+		)
+		control += (
+			minf(GameStats.SUPPRESSIVE_FIRE_DURATION / interval, 1.0)
+			* targets
+			* (1.0 - GameStats.SLOW_SPEED_MULTIPLIER)
+		)
+	var psionic_stacks := int(state["relics"].get(&"lingering_thoughts", 0))
+	if psionic_stacks > 0 and candidate_has_category(candidate, &"psionic"):
+		control *= pow(1.0 + 0.25, float(psionic_stacks))
+	var enemy: Dictionary = entry["enemy"]
+	var stun_stacks := int(state["relics"].get(&"big_game_control", 0))
+	if stun_stacks > 0 and candidate_has_category(candidate, &"stun"):
+		var special_enemy := (
+			bool(enemy.get("boss", false))
+			or StringName(entry.get("variant", &"normal")) == &"elite"
+		)
+		control *= pow(
+			1.25 if special_enemy else 0.75,
+			float(stun_stacks)
+		)
+	var brake_stacks := int(state["relics"].get(&"emergency_brake", 0))
+	if (
+		brake_stacks > 0
+		and candidate_has_category(candidate, &"stun")
+		and float(entry["speed"]) >= 130.0
+	):
+		control *= pow(1.35, float(brake_stacks))
+	if (
+		bool(enemy.get("boss", false))
+		and candidate_has_category(candidate, &"stun")
+		and relic_count(state, &"youre_not_special") > 0
+		and control <= MAP_COMBAT_EPSILON
+	):
+		var boss_scenario := base_scenario.duplicate(true)
+		boss_scenario["boss"] = false
+		control = (
+			combat.get_control_value(stats, traits, boss_scenario)
+			* 0.5
+			* clampf(engagement_count / base_count, 0.0, 1.0)
+		)
+	return maxf(control, 0.0)
+
+
+func find_segment_target(
+	covered_segments: PackedInt32Array,
+	counts_by_enemy: Array[PackedFloat32Array],
+	health_by_enemy: Array[PackedFloat32Array],
+	tower_power: PackedFloat32Array
+) -> Vector2i:
+	for coverage_offset in range(covered_segments.size() - 1, -1, -1):
+		var segment_index := int(covered_segments[coverage_offset])
+		var best_enemy := -1
+		var best_health := 0.0
+		for enemy_index in counts_by_enemy.size():
+			if float(tower_power[enemy_index]) <= MAP_COMBAT_EPSILON:
+				continue
+			var count := float(counts_by_enemy[enemy_index][segment_index])
+			var health := float(health_by_enemy[enemy_index][segment_index])
+			if count > MAP_COMBAT_EPSILON and health > best_health:
+				best_enemy = enemy_index
+				best_health = health
+		if best_enemy >= 0:
+			return Vector2i(segment_index, best_enemy)
+	return Vector2i(-1, -1)
+
+
+func has_segment_enemies(counts_by_enemy: Array[PackedFloat32Array]) -> bool:
+	for counts in counts_by_enemy:
+		for count in counts:
+			if count > MAP_COMBAT_EPSILON:
+				return true
+	return false
+
+
 func resolve_tower_draft(state: Dictionary, policy: Dictionary, run_rng: RandomNumberGenerator) -> void:
 	var available: Array[StringName] = []
-	for tower_id in get_test_tower_ids():
+	var draft_pool := STARTER_CALIBRATION_TOWERS if starter_calibration else get_test_tower_ids()
+	for tower_id in draft_pool:
 		if not state["roster"].has(tower_id):
 			available.append(tower_id)
 	var offers: Array[StringName] = []
@@ -845,20 +2570,40 @@ func resolve_tower_draft(state: Dictionary, policy: Dictionary, run_rng: RandomN
 
 
 func resolve_relic_draft(state: Dictionary, policy: Dictionary, round_number: int, run_rng: RandomNumberGenerator) -> void:
-	var offer_count := 4 if round_number == 16 else 3
-	var offers: Array[StringName] = []
-	var available := get_available_relics(state)
-	while offers.size() < offer_count and not available.is_empty():
-		var rarity := roll_relic_rarity(round_number, run_rng)
-		var matching: Array[StringName] = []
-		for relic_id in available:
-			if GameStats.get_relic(relic_id)["rarity"] == rarity:
-				matching.append(relic_id)
-		if matching.is_empty():
-			matching = available.duplicate()
-		var chosen: StringName = matching[run_rng.randi_range(0, matching.size() - 1)]
-		offers.append(chosen)
-		available.erase(chosen)
+	var offers := roll_relic_offer_set(state, round_number, run_rng)
+	if offers.is_empty():
+		return
+	var refresh_count := 0
+	while refresh_count < MAX_SIMULATED_RELIC_REFRESHES:
+		var best_offer_score := get_best_relic_offer_score(
+			state,
+			policy,
+			offers,
+			round_number
+		)
+		var best_possible_score := get_best_possible_relic_score(
+			state,
+			policy,
+			round_number
+		)
+		var refresh_cost := (
+			RELIC_REFRESH_BASE_COST
+			+ refresh_count * RELIC_REFRESH_COST_INCREASE
+		)
+		if (
+			float(state["money"]) < float(refresh_cost)
+			or best_offer_score
+				>= best_possible_score
+					* float(policy.get("relic_refresh_threshold", 0.55))
+		):
+			break
+		state["money"] = float(state["money"]) - float(refresh_cost)
+		var previous_offers := offers.duplicate()
+		for _attempt in 24:
+			offers = roll_relic_offer_set(state, round_number, run_rng)
+			if not relic_offer_sets_match(previous_offers, offers):
+				break
+		refresh_count += 1
 	var best := offers[0]
 	var best_score := -INF
 	for relic_id in offers:
@@ -878,6 +2623,75 @@ func resolve_relic_draft(state: Dictionary, policy: Dictionary, round_number: in
 			state["contraband_tower"] = outside[run_rng.randi_range(0, outside.size() - 1)]
 
 
+func get_best_relic_offer_score(
+	state: Dictionary,
+	policy: Dictionary,
+	offers: Array[StringName],
+	round_number: int
+) -> float:
+	var best := 0.0
+	for relic_id in offers:
+		var quantity := 2 if round_number == 16 and relic_id == offers.back() else 1
+		best = maxf(best, get_relic_choice_score(
+			state,
+			policy,
+			relic_id,
+			quantity,
+			round_number
+		))
+	return best
+
+
+func get_best_possible_relic_score(
+	state: Dictionary,
+	policy: Dictionary,
+	round_number: int
+) -> float:
+	var best := 0.0
+	for relic_id in get_available_relics(state):
+		var relic := GameStats.get_relic(relic_id)
+		var rarity: StringName = relic["rarity"]
+		var allowed := (
+			(round_number == 1 and rarity == &"common")
+			or (round_number == 6 and rarity in [&"common", &"rare"])
+			or (round_number == 11 and rarity in [&"common", &"rare", &"legendary"])
+			or (round_number == 16 and rarity in [&"rare", &"legendary"])
+		)
+		if allowed:
+			best = maxf(best, get_relic_choice_score(
+				state,
+				policy,
+				relic_id,
+				1,
+				round_number
+			))
+		if (
+			round_number == 16
+			and rarity == &"common"
+			and bool(relic.get("stackable", false))
+		):
+			best = maxf(best, get_relic_choice_score(
+				state,
+				policy,
+				relic_id,
+				2,
+				round_number
+			))
+	return best
+
+
+func relic_offer_sets_match(
+	first: Array[StringName],
+	second: Array[StringName]
+) -> bool:
+	if first.size() != second.size():
+		return false
+	for relic_id in first:
+		if not second.has(relic_id):
+			return false
+	return true
+
+
 func get_available_relics(state: Dictionary) -> Array[StringName]:
 	var result: Array[StringName] = []
 	for relic_key in GameStats.RELICS:
@@ -889,30 +2703,129 @@ func get_available_relics(state: Dictionary) -> Array[StringName]:
 			continue
 		if not bool(relic.get("stackable", false)) and relic_count(state, relic_id) > 0:
 			continue
+		if (
+			relic_id in [&"singularity_core", &"perfect_mutation"]
+			and not has_eligible_dual_path_tower(state, relic_id)
+		):
+			continue
 		result.append(relic_id)
 	return result
 
 
-func roll_relic_rarity(round_number: int, run_rng: RandomNumberGenerator) -> StringName:
+func roll_relic_offer_set(
+	state: Dictionary,
+	round_number: int,
+	run_rng: RandomNumberGenerator
+) -> Array[StringName]:
+	var available := get_available_relics(state)
+	var minimum_rare_plus := 1 if round_number == 6 else (2 if round_number == 11 else 0)
+	var offers: Array[StringName] = []
+	for _attempt in 256:
+		offers.clear()
+		var remaining := available.duplicate()
+		while offers.size() < 3 and not remaining.is_empty():
+			var chosen := choose_weighted_relic_for_round(
+				remaining,
+				round_number,
+				run_rng
+			)
+			if chosen.is_empty():
+				break
+			offers.append(chosen)
+			remaining.erase(chosen)
+		if offers.size() < 3:
+			continue
+		var rare_plus := 0
+		var applicable := 0
+		for relic_id in offers:
+			if GameStats.get_relic(relic_id)["rarity"] in [&"rare", &"legendary"]:
+				rare_plus += 1
+			if relic_is_applicable_to_state(state, relic_id):
+				applicable += 1
+		if rare_plus < minimum_rare_plus or applicable < 2:
+			continue
+		if round_number == 16:
+			var common_choices: Array[StringName] = []
+			for relic_id in remaining:
+				var relic := GameStats.get_relic(relic_id)
+				if (
+					relic["rarity"] == &"common"
+					and bool(relic.get("stackable", false))
+				):
+					common_choices.append(relic_id)
+			if common_choices.is_empty():
+				continue
+			offers.append(common_choices[
+				run_rng.randi_range(0, common_choices.size() - 1)
+			])
+		return offers
+	return offers
+
+
+func choose_weighted_relic_for_round(
+	available: Array[StringName],
+	round_number: int,
+	run_rng: RandomNumberGenerator
+) -> StringName:
 	var weights_by_round: Dictionary = {
 		1: {&"common": 100.0},
 		6: {&"common": 70.0, &"rare": 30.0},
 		11: {&"common": 35.0, &"rare": 55.0, &"legendary": 10.0},
 		16: {&"rare": 70.0, &"legendary": 30.0},
 	}
-	var weights: Dictionary = weights_by_round.get(
-		round_number,
-		{&"common": 1.0}
-	)
-	var total := 0.0
-	for value in weights.values():
-		total += float(value)
-	var roll := run_rng.randf_range(0.0, total)
-	for rarity in weights:
-		roll -= float(weights[rarity])
+	var weights: Dictionary = weights_by_round.get(round_number, {})
+	if weights.is_empty():
+		return available[run_rng.randi_range(0, available.size() - 1)]
+	var eligible_by_rarity := {}
+	var total_weight := 0.0
+	for rarity_key in weights:
+		var rarity := StringName(rarity_key)
+		var matching: Array[StringName] = []
+		for relic_id in available:
+			if GameStats.get_relic(relic_id)["rarity"] == rarity:
+				matching.append(relic_id)
+		if matching.is_empty():
+			continue
+		eligible_by_rarity[rarity] = matching
+		total_weight += float(weights[rarity_key])
+	if total_weight <= 0.0:
+		return &""
+	var roll := run_rng.randf_range(0.0, total_weight)
+	for rarity_key in weights:
+		var rarity := StringName(rarity_key)
+		if not eligible_by_rarity.has(rarity):
+			continue
+		roll -= float(weights[rarity_key])
 		if roll <= 0.0:
-			return rarity
-	return weights.keys().back()
+			var matching: Array[StringName] = eligible_by_rarity[rarity]
+			return matching[run_rng.randi_range(0, matching.size() - 1)]
+	var fallback: Array[StringName] = eligible_by_rarity.values().back()
+	return fallback[run_rng.randi_range(0, fallback.size() - 1)]
+
+
+func relic_is_applicable_to_state(
+	state: Dictionary,
+	relic_id: StringName
+) -> bool:
+	var relic := GameStats.get_relic(relic_id)
+	var category: StringName = relic["category"]
+	if category == &"global":
+		return true
+	for instance in state["build"]:
+		if candidate_has_category(
+			candidates[instance["candidate_key"]],
+			category
+		):
+			return true
+	for tower_id in state["roster"]:
+		var tower := GameStats.get_tower(tower_id)
+		if (
+			tower.get("type_tags", []).has(category)
+			or tower.get("damage_tags", []).has(category)
+			or tower.get("bonus_tags", []).has(category)
+		):
+			return true
+	return false
 
 
 func get_relic_choice_score(
@@ -956,9 +2869,16 @@ func candidate_has_category(candidate: Dictionary, category: StringName) -> bool
 
 func has_eligible_dual_path_tower(state: Dictionary, relic_id: StringName) -> bool:
 	var category := &"technology" if relic_id == &"singularity_core" else &"biological"
+	if bool(state["dual_path_used"].get(category, false)):
+		return false
 	for instance in state["build"]:
 		var candidate: Dictionary = candidates[instance["candidate_key"]]
-		if int(instance["level"]) >= 3 and candidate["tower"].get("type_tags", []).has(category):
+		var paths: Dictionary = candidate["tower"].get("paths", {})
+		if (
+			candidate["tower"].get("type_tags", []).has(category)
+			and paths.has("a")
+			and paths.has("b")
+		):
 			return true
 	return false
 
@@ -983,10 +2903,97 @@ func count_built_type(build: Array, tag: StringName) -> int:
 	return count
 
 
-func count_built_damage_tag(build: Array, tag: StringName) -> int:
+func placement_has_nearby_other_tower(
+	state: Dictionary,
+	placement_index: int,
+	radius: float
+) -> bool:
+	if placement_index < 0 or placement_index >= map_placements.size():
+		return state["build"].size() > 1
+	var origin: Vector2 = map_placements[placement_index]["position"]
+	for instance in state["build"]:
+		var other_index := int(instance.get("placement_index", -1))
+		if (
+			other_index < 0
+			or other_index >= map_placements.size()
+			or other_index == placement_index
+		):
+			continue
+		if origin.distance_to(map_placements[other_index]["position"]) <= radius:
+			return true
+	return false
+
+
+func count_nearby_towers(
+	state: Dictionary,
+	placement_index: int,
+	radius: float,
+	required_category: StringName
+) -> int:
+	if placement_index < 0 or placement_index >= map_placements.size():
+		var fallback := 0
+		for instance in state["build"]:
+			if candidate_has_category(
+				candidates[instance["candidate_key"]],
+				required_category
+			):
+				fallback += 1
+		return maxi(fallback - 1, 0)
+	var origin: Vector2 = map_placements[placement_index]["position"]
 	var count := 0
-	for instance in build:
-		if candidates[instance["candidate_key"]]["traits"]["damage_tags"].has(tag):
+	for instance in state["build"]:
+		var other_index := int(instance.get("placement_index", -1))
+		if (
+			other_index < 0
+			or other_index >= map_placements.size()
+			or other_index == placement_index
+		):
+			continue
+		if not candidate_has_category(
+			candidates[instance["candidate_key"]],
+			required_category
+		):
+			continue
+		if origin.distance_to(map_placements[other_index]["position"]) <= radius:
+			count += 1
+	return count
+
+
+func count_cardinal_adjacent_towers(
+	state: Dictionary,
+	placement_index: int,
+	required_category: StringName
+) -> int:
+	if placement_index < 0 or placement_index >= map_placements.size():
+		return mini(
+			count_nearby_towers(state, placement_index, INF, required_category),
+			4
+		)
+	var origin: Vector2 = map_placements[placement_index]["position"]
+	var count := 0
+	for instance in state["build"]:
+		var other_index := int(instance.get("placement_index", -1))
+		if (
+			other_index < 0
+			or other_index >= map_placements.size()
+			or other_index == placement_index
+		):
+			continue
+		if not candidate_has_category(
+			candidates[instance["candidate_key"]],
+			required_category
+		):
+			continue
+		var offset: Vector2 = map_placements[other_index]["position"] - origin
+		var horizontal := (
+			absf(absf(offset.x) - GameStats.BUILD_CELL_SIZE) <= 1.0
+			and absf(offset.y) <= 1.0
+		)
+		var vertical := (
+			absf(absf(offset.y) - GameStats.BUILD_CELL_SIZE) <= 1.0
+			and absf(offset.x) <= 1.0
+		)
+		if horizontal or vertical:
 			count += 1
 	return count
 
@@ -998,6 +3005,14 @@ func build_has_control(build: Array) -> bool:
 			return true
 		var stats: Dictionary = candidates[instance["candidate_key"]]["stats"]
 		if float(stats.get("slow_duration", 0.0)) > 0.0 or float(stats.get("stun_duration", 0.0)) > 0.0:
+			return true
+	return false
+
+
+func build_has_reveal(build: Array) -> bool:
+	for instance in build:
+		var traits: Dictionary = candidates[instance["candidate_key"]]["traits"]
+		if traits["bonus_tags"].has(&"reveal"):
 			return true
 	return false
 
@@ -1025,8 +3040,11 @@ func get_build_signature(build: Array) -> String:
 func get_tower_signature(build: Array) -> String:
 	var counts := {}
 	for instance in build:
-		counts[instance["tower_id"]] = int(counts.get(instance["tower_id"], 0)) + 1
-	var labels: Array = counts.keys()
+		var label := String(instance["tower_id"])
+		counts[label] = int(counts.get(label, 0)) + 1
+	var labels: Array[String] = []
+	for label in counts:
+		labels.append(String(label))
 	labels.sort()
 	var parts: Array[String] = []
 	for label in labels:
@@ -1034,12 +3052,26 @@ func get_tower_signature(build: Array) -> String:
 	return "+".join(parts)
 
 
+func get_build_path_coverage(build: Array) -> float:
+	if build.is_empty():
+		return 0.0
+	if not use_map_geometry or map_combat_samples.is_empty():
+		return TOWER_ENGAGEMENT_COVERAGE
+	var covered := {}
+	for instance in build:
+		for segment_index in instance.get("covered_segments", []):
+			covered[int(segment_index)] = true
+	return float(covered.size()) / maxf(float(map_combat_samples.size()), 1.0)
+
+
 func get_relic_signature(relics: Dictionary) -> String:
-	var labels: Array = relics.keys()
+	var labels: Array[String] = []
+	for relic_id in relics:
+		labels.append(String(relic_id))
 	labels.sort()
 	var parts: Array[String] = []
 	for label in labels:
-		parts.append("%sx%s" % [label, relics[label]])
+		parts.append("%sx%s" % [label, relics[StringName(label)]])
 	return "+".join(parts)
 
 
@@ -1048,30 +3080,109 @@ func evaluate_finalists(
 	start_index: int,
 	ranked: Array[Dictionary]
 ) -> void:
-	var total := finalists.size() * sensitivity_profiles.size() * final_runs_per_profile
+	var effective_runs_per_profile := maxi(
+		final_runs_per_profile,
+		starting_rosters.size()
+	)
+	var total := (
+		finalists.size()
+		* sensitivity_profiles.size()
+		* effective_runs_per_profile
+	)
 	if start_index <= 0:
 		final_results.clear()
 	else:
 		start_index = mini(start_index, final_results.size())
 		if final_results.size() > start_index:
 			final_results.resize(start_index)
-	var checkpoint_interval := maxi(floori(float(total) / 40.0), 25)
+	var checkpoint_interval := maxi(floori(float(total) / 20.0), 25)
 	var progress_interval := maxi(floori(float(total) / 10.0), 1)
-	for flat_index in range(start_index, total):
-		var runs_per_policy := sensitivity_profiles.size() * final_runs_per_profile
-		var policy_index := floori(float(flat_index) / float(runs_per_policy))
-		var within_policy := flat_index % runs_per_policy
-		var profile_index := floori(float(within_policy) / float(final_runs_per_profile))
-		var run_index := within_policy % final_runs_per_profile
-		var policy: Dictionary = finalists[policy_index]
-		var profile_data: Dictionary = sensitivity_profiles[profile_index]
-		var run_seed := seed_value + 900000001 + int(policy["id"]) * 100003 + String(profile_data["id"]).hash() + run_index * 97
-		final_results.append(simulate_run(policy, profile_data, run_seed))
-		var completed := flat_index + 1
-		if completed % progress_interval == 0 or completed == total:
+	var batch_size := maxi(worker_count * 32, 32)
+	var next_progress := (
+		(floori(float(start_index) / float(progress_interval)) + 1)
+		* progress_interval
+	)
+	var next_checkpoint := (
+		(floori(float(start_index) / float(checkpoint_interval)) + 1)
+		* checkpoint_interval
+	)
+	print("Final evaluation: %d runs (%d per profile, %d starter pairs)" % [
+		total, effective_runs_per_profile, starting_rosters.size(),
+	])
+	var batch_start := start_index
+	while batch_start < total:
+		var batch_count := mini(batch_size, total - batch_start)
+		var batch_results: Array = []
+		batch_results.resize(batch_count)
+		var task_id := WorkerThreadPool.add_group_task(
+			_evaluate_finalist_task.bind(
+				batch_start,
+				finalists,
+				effective_runs_per_profile,
+				batch_results
+			),
+			batch_count,
+			mini(worker_count, batch_count)
+		)
+		WorkerThreadPool.wait_for_group_task_completion(task_id)
+		for result in batch_results:
+			final_results.append(result)
+		var completed := batch_start + batch_count
+		if completed >= next_progress or completed == total:
 			print("Final evaluation: %d/%d" % [completed, total])
-		if completed % checkpoint_interval == 0 or completed == total:
-			save_checkpoint("finalists", [], ranked, finalists, generations, completed)
+			while next_progress <= completed:
+				next_progress += progress_interval
+		if completed >= next_checkpoint or completed == total:
+			save_checkpoint(
+				"finalists",
+				[],
+				ranked,
+				finalists,
+				generations,
+				completed
+			)
+			while next_checkpoint <= completed:
+				next_checkpoint += checkpoint_interval
+		batch_start = completed
+
+
+func _evaluate_finalist_task(
+	job_index: int,
+	batch_start: int,
+	finalists: Array[Dictionary],
+	effective_runs_per_profile: int,
+	batch_results: Array
+) -> void:
+	var flat_index := batch_start + job_index
+	var runs_per_policy := (
+		sensitivity_profiles.size() * effective_runs_per_profile
+	)
+	var policy_index := floori(float(flat_index) / float(runs_per_policy))
+	var within_policy := flat_index % runs_per_policy
+	var profile_index := floori(
+		float(within_policy) / float(effective_runs_per_profile)
+	)
+	var run_index := within_policy % effective_runs_per_profile
+	var roster_index := run_index % starting_rosters.size()
+	var roster_repeat := floori(
+		float(run_index) / float(starting_rosters.size())
+	)
+	var policy: Dictionary = finalists[policy_index]
+	var profile_data: Dictionary = sensitivity_profiles[profile_index]
+	var run_seed := (
+		seed_value
+		+ 900000001
+		+ int(policy["id"]) * 100003
+		+ String(profile_data["id"]).hash()
+		+ roster_index * 3571
+		+ roster_repeat * 97
+	)
+	batch_results[job_index] = simulate_run(
+		policy,
+		profile_data,
+		run_seed,
+		starting_rosters[roster_index]
+	)
 
 
 func get_checkpoint_configuration() -> Dictionary:
@@ -1082,12 +3193,32 @@ func get_checkpoint_configuration() -> Dictionary:
 		"population": population_size,
 		"generations": generations,
 		"runs_per_policy": runs_per_policy,
+		"effective_runs_per_policy": maxi(
+			runs_per_policy,
+			starting_rosters.size()
+		),
 		"final_runs_per_profile": final_runs_per_profile,
+		"effective_final_runs_per_profile": maxi(
+			final_runs_per_profile,
+			starting_rosters.size()
+		),
 		"finalists": finalist_count,
 		"combat_samples": combat_samples,
+		"simulation_round_limit": simulation_round_limit,
+		"use_map_geometry": use_map_geometry,
+		"focused_early_test": focused_early_test,
+		"starter_calibration": starter_calibration,
+		"disable_relics": disable_relics,
+		"evolve_focused_test": evolve_focused_test,
+		"purchase_lookahead_steps": PURCHASE_LOOKAHEAD_STEPS,
+		"combat_health_multipliers": COMBAT_HEALTH_MULTIPLIERS,
+		"map_combat_segment_stride": MAP_COMBAT_SEGMENT_STRIDE,
+		"map_combat_time_step": MAP_COMBAT_TIME_STEP,
+		"starting_rosters": get_starting_roster_signatures(),
 		"included_towers": get_test_tower_ids(),
 		"excluded_towers": EXCLUDED_TOWERS,
 		"excluded_relics": EXCLUDED_RELICS,
+		"gameplay_data_fingerprint": get_gameplay_data_fingerprint(),
 		"balance_values": get_balance_values(),
 		"sensitivity_profiles": sensitivity_profiles,
 	}
@@ -1100,11 +3231,31 @@ func get_balance_values() -> Dictionary:
 		"round_reward_base": GameStats.ROUND_REWARD_BASE,
 		"round_reward_per_wave": GameStats.ROUND_REWARD_PER_WAVE,
 		"round_six_threat_multiplier": GameStats.ROUND_SIX_THREAT_MULTIPLIER,
+		"early_round_threat_multipliers": GameStats.EARLY_ROUND_THREAT_MULTIPLIERS,
 		"global_enemy_health_multiplier": GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER,
 		"standard_enemy_health_multiplier": GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER,
+		"standard_enemy_speed_multiplier": GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER,
+		"horde_enemy_health_multiplier": GameStats.HORDE_ENEMY_HEALTH_MULTIPLIER,
+		"elite_enemy_health_multiplier": GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER,
+		"elite_enemy_speed_multiplier": GameStats.ELITE_ENEMY_SPEED_MULTIPLIER,
+		"payday_enemy_health_multiplier": GameStats.PAYDAY_ENEMY_HEALTH_MULTIPLIER,
+		"explosive_armor_multiplier": GameStats.EXPLOSIVE_ARMOR_MULTIPLIER,
 		"enemy_health_multiplier_base": mode["enemy_health_multiplier_base"],
 		"enemy_health_multiplier_growth": mode["enemy_health_multiplier_growth"],
 	}
+
+
+func get_gameplay_data_fingerprint() -> int:
+	return hash([
+		GameStats.TOWERS,
+		GameStats.ENEMIES,
+		GameStats.RELICS,
+		GameStats.MODES,
+		GameStats.WAVE_STYLE_UNLOCKS,
+		GameStats.WAVE_ROLE_WEIGHTS,
+		GameStats.FORMATION_ROLE_WEIGHTS,
+		get_balance_values(),
+	])
 
 
 func get_checkpoint_paths() -> Array[String]:
@@ -1183,7 +3334,11 @@ func write_all_reports(ranked: Array[Dictionary]) -> void:
 	write_policy_json(ranked)
 	write_manifest()
 	write_run_report()
+	if record_round_history:
+		write_early_round_trace_report()
 	write_dominance_report()
+	write_starter_roster_report()
+	write_starter_tower_report()
 	write_relic_report()
 	write_tower_report()
 	write_sensitivity_report()
@@ -1210,6 +3365,9 @@ func write_policy_json(ranked: Array[Dictionary]) -> void:
 
 
 func write_manifest() -> void:
+	var starter_signatures: Array[String] = []
+	for roster in starting_rosters:
+		starter_signatures.append(get_starting_roster_signature(roster))
 	var manifest := {
 		"preset": preset,
 		"seed": seed_value,
@@ -1217,23 +3375,52 @@ func write_manifest() -> void:
 		"generations": generations,
 		"runs_per_policy": runs_per_policy,
 		"final_runs_per_profile": final_runs_per_profile,
+		"effective_runs_per_policy": maxi(
+			runs_per_policy,
+			starting_rosters.size()
+		),
+		"effective_final_runs_per_profile": maxi(
+			final_runs_per_profile,
+			starting_rosters.size()
+		),
 		"finalists": finalist_count,
 		"combat_samples": combat_samples,
+		"workers": worker_count,
+		"starter_roster_size": "1_or_2" if starter_calibration else STARTER_ROSTER_SIZE,
+		"starter_roster_count": starting_rosters.size(),
+		"starter_rosters": starter_signatures,
+		"forced_starter": focused_starter_tower,
+		"starter_calibration": starter_calibration,
+		"relics_disabled": disable_relics,
 		"included_towers": get_test_tower_ids(),
 		"excluded_towers": EXCLUDED_TOWERS,
 		"excluded_relics": EXCLUDED_RELICS,
+		"gameplay_data_fingerprint": get_gameplay_data_fingerprint(),
 		"balance_values": get_balance_values(),
 		"sensitivity_profiles": sensitivity_profiles,
 		"model": {
-			"rounds": 20,
-			"starting_roster": STARTING_ROSTER,
+			"rounds": simulation_round_limit,
+			"starting_rosters": starter_signatures,
 			"maximum_towers": MAX_TOWERS,
 			"engagement_coverage": TOWER_ENGAGEMENT_COVERAGE,
+			"map_geometry": use_map_geometry,
+			"map_path_samples": map_path_samples.size(),
+			"map_combat_segments": map_combat_samples.size(),
+			"map_combat_time_step": MAP_COMBAT_TIME_STEP,
+			"map_legal_placements": map_placements.size(),
+			"purchase_lookahead_steps": PURCHASE_LOOKAHEAD_STEPS,
+			"future_power_discount": FUTURE_POWER_DISCOUNT,
+			"future_funding_discount": FUTURE_FUNDING_DISCOUNT,
 			"notes": [
-				"Combat coefficients come from the tower Monte Carlo model.",
+				"Combat coefficients come from health-scaled tower Monte Carlo curves.",
 				"Purchases are staged as builds, upgrades, and paths.",
-				"Relic drafts and major combat/economy effects are modeled.",
-				"Map geometry, manual aim skill, selling, and exact spawn timing remain approximations.",
+				"Relic drafts, paid refresh decisions, and major combat/economy effects are modeled.",
+				"Round role mixes use the same shared wave and formation weights as gameplay.",
+				"Horde, elite, gauntlet, and payday variants and special elite packs are modeled.",
+				"Saucer pursuit, abduction, split prevention, rockets, and specimen uptime are approximated.",
+				"Map combat advances enemy health and count through physical path segments, applies localized control, and limits each tower to covered segments.",
+				"Beam and melee range relics and placement-based adjacency relics use the current simulated layout.",
+				"Manual aim skill, individual projectile timing, exact formation spacing, child spawn timing, selling, and some triggered relic effects remain approximations.",
 			],
 		},
 	}
@@ -1257,21 +3444,212 @@ func csv(value: Variant) -> String:
 
 
 func write_strategy_report(ranked: Array[Dictionary]) -> void:
-	var file := open_report("strategy_results.csv", "rank,policy_id,name,score,win_rate,average_round,average_lives,average_money,average_leaks,upgrade_bias,expansion_bias,diversity,reserve,patience,economy_weight")
+	var file := open_report("strategy_results.csv", "rank,policy_id,name,score,win_rate,average_round,average_lives,average_money,average_leaks,upgrade_bias,expansion_bias,diversity,reserve,patience,economy_weight,relic_refresh_threshold")
 	for index in ranked.size():
 		var row: Dictionary = ranked[index]
 		var policy: Dictionary = row["policy"]
 		file.store_line(",".join(PackedStringArray([
-			str(index + 1), str(policy["id"]), csv(policy["name"]), "%.4f" % row["score"], "%.4f" % row["win_rate"], "%.3f" % row["average_round"], "%.3f" % row["average_lives"], "%.2f" % row["average_money"], "%.2f" % row["average_leaks"], "%.3f" % policy["upgrade_bias"], "%.3f" % policy["expansion_bias"], "%.3f" % policy["diversity"], "%.3f" % policy["reserve"], "%.3f" % policy["patience"], "%.3f" % policy["economy_weight"],
+			str(index + 1), str(policy["id"]), csv(policy["name"]), "%.4f" % row["score"], "%.4f" % row["win_rate"], "%.3f" % row["average_round"], "%.3f" % row["average_lives"], "%.2f" % row["average_money"], "%.2f" % row["average_leaks"], "%.3f" % policy["upgrade_bias"], "%.3f" % policy["expansion_bias"], "%.3f" % policy["diversity"], "%.3f" % policy["reserve"], "%.3f" % policy["patience"], "%.3f" % policy["economy_weight"], "%.3f" % float(policy.get("relic_refresh_threshold", 0.55)),
 		])))
 	file.close()
 
 
 func write_run_report() -> void:
-	var file := open_report("finalist_runs.csv", "policy_id,profile,won,round_reached,lives,money,leak_damage,build,relics,towers")
+	var file := open_report("finalist_runs.csv", "policy_id,policy_name,profile,round_six_type,starting_roster,first_tower,won,round_reached,lives,money,leak_damage,total_spent,path_coverage,upgrade_purchases,tower_count,build,relics,towers")
 	for row in final_results:
 		file.store_line(",".join(PackedStringArray([
-			str(row["policy_id"]), str(row["profile"]), str(int(row["won"])), str(row["round_reached"]), "%.3f" % row["lives"], "%.2f" % row["money"], "%.2f" % row["leak_damage"], csv(row["build_signature"]), csv(row["relic_signature"]), csv(row["tower_signature"]),
+			str(row["policy_id"]), csv(row.get("policy_name", "")), str(row["profile"]), csv(row.get("round_six_type", "")), csv(row["starting_roster"]), csv(row.get("first_tower", "")), str(int(row["won"])), str(row["round_reached"]), "%.3f" % row["lives"], "%.2f" % row["money"], "%.2f" % row["leak_damage"], "%.2f" % row.get("total_spent", 0.0), "%.4f" % row.get("path_coverage", 0.0), str(row.get("upgrade_purchases", 0)), str(row.get("tower_count", 0)), csv(row["build_signature"]), csv(row["relic_signature"]), csv(row["tower_signature"]),
+		])))
+	file.close()
+
+
+func write_early_round_trace_report() -> void:
+	var file := open_report(
+		"early_round_trace.csv",
+		"policy_id,policy_name,run_seed,round_six_type,forced_starter,starting_roster,first_tower,round,survived,starting_money,spent,post_purchase_money,kill_income,round_reward,ending_money,round_leak_damage,lives,build,towers"
+	)
+	for result in final_results:
+		for trace in result.get("round_history", []):
+			file.store_line(",".join(PackedStringArray([
+				str(result["policy_id"]),
+				csv(result.get("policy_name", "")),
+				str(result.get("run_seed", 0)),
+				csv(result.get("round_six_type", "")),
+				csv(result.get("forced_starter", "")),
+				csv(result["starting_roster"]),
+				csv(result.get("first_tower", "")),
+				str(trace["round"]),
+				str(int(bool(trace["survived"]))),
+				"%.2f" % trace["starting_money"],
+				"%.2f" % trace["spent"],
+				"%.2f" % trace["post_purchase_money"],
+				"%.2f" % trace["kill_income"],
+				"%.2f" % trace["round_reward"],
+				"%.2f" % trace["ending_money"],
+				"%.3f" % trace["round_leak_damage"],
+				"%.3f" % trace["lives"],
+				csv(trace["build_signature"]),
+				csv(trace["tower_signature"]),
+			])))
+	file.close()
+
+
+func write_starter_calibration_report() -> void:
+	var groups := {}
+	for row in final_results:
+		var key := "%s|%s|%s" % [
+			row.get("policy_name", ""), row.get("round_six_type", ""), row["starting_roster"],
+		]
+		if not groups.has(key):
+			groups[key] = {
+				"strategy": row.get("policy_name", ""),
+				"challenge": row.get("round_six_type", ""),
+				"roster": row["starting_roster"],
+				"runs": 0, "wins": 0, "round": 0.0, "lives": 0.0,
+				"money": 0.0, "leaks": 0.0, "spent": 0.0,
+				"coverage": 0.0, "upgrades": 0.0, "towers": 0.0,
+				"first_towers": {}, "builds": {},
+			}
+		var group: Dictionary = groups[key]
+		group["runs"] += 1
+		group["wins"] += int(row["won"])
+		group["round"] += float(row["round_reached"])
+		group["lives"] += float(row["lives"])
+		group["money"] += float(row["money"])
+		group["leaks"] += float(row["leak_damage"])
+		group["spent"] += float(row.get("total_spent", 0.0))
+		group["coverage"] += float(row.get("path_coverage", 0.0))
+		group["upgrades"] += float(row.get("upgrade_purchases", 0))
+		group["towers"] += float(row.get("tower_count", 0))
+		var first := String(row.get("first_tower", "none"))
+		group["first_towers"][first] = int(group["first_towers"].get(first, 0)) + 1
+		group["builds"][row["build_signature"]] = int(group["builds"].get(row["build_signature"], 0)) + 1
+	var rows: Array = groups.values()
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var left := "%s|%s|%s" % [a["strategy"], a["challenge"], a["roster"]]
+		var right := "%s|%s|%s" % [b["strategy"], b["challenge"], b["roster"]]
+		return left < right
+	)
+	var file := open_report(
+		"starter_calibration.csv",
+		"strategy,round_6_variant,starting_roster,runs,win_rate,average_round,average_lives,average_leaks,average_money,average_spent,average_path_coverage,average_upgrade_purchases,average_tower_count,first_tower_counts,most_common_final_build"
+	)
+	for row in rows:
+		var count := maxf(float(row["runs"]), 1.0)
+		var most_common_build := ""
+		var most_common_count := -1
+		for build in row["builds"]:
+			if int(row["builds"][build]) > most_common_count:
+				most_common_count = int(row["builds"][build])
+				most_common_build = String(build)
+		file.store_line(",".join(PackedStringArray([
+			csv(row["strategy"]), csv(row["challenge"]), csv(row["roster"]), str(row["runs"]),
+			"%.4f" % (float(row["wins"]) / count), "%.3f" % (float(row["round"]) / count),
+			"%.3f" % (float(row["lives"]) / count), "%.3f" % (float(row["leaks"]) / count),
+			"%.2f" % (float(row["money"]) / count), "%.2f" % (float(row["spent"]) / count),
+			"%.4f" % (float(row["coverage"]) / count), "%.3f" % (float(row["upgrades"]) / count),
+			"%.3f" % (float(row["towers"]) / count), csv(JSON.stringify(row["first_towers"])),
+			csv(most_common_build),
+		])))
+	file.close()
+
+
+func get_starter_roster_rows() -> Array[Dictionary]:
+	var totals := {}
+	var all_wins := 0
+	for row in final_results:
+		var signature: String = row["starting_roster"]
+		if not totals.has(signature):
+			totals[signature] = {
+				"signature": signature,
+				"runs": 0,
+				"wins": 0,
+				"round": 0.0,
+				"lives": 0.0,
+				"profiles": {},
+				"winning_builds": {},
+			}
+		var entry: Dictionary = totals[signature]
+		entry["runs"] += 1
+		entry["wins"] += int(row["won"])
+		entry["round"] += float(row["round_reached"])
+		entry["lives"] += float(row["lives"])
+		entry["profiles"][row["profile"]] = true
+		if bool(row["won"]):
+			entry["winning_builds"][row["build_signature"]] = true
+		all_wins += int(row["won"])
+	var global_win_rate := (
+		float(all_wins) / maxf(float(final_results.size()), 1.0)
+	)
+	var result: Array[Dictionary] = []
+	for entry in totals.values():
+		var runs := maxf(float(entry["runs"]), 1.0)
+		entry["win_rate"] = float(entry["wins"]) / runs
+		entry["win_rate_delta"] = float(entry["win_rate"]) - global_win_rate
+		entry["average_round"] = float(entry["round"]) / runs
+		entry["average_lives"] = float(entry["lives"]) / runs
+		entry["profile_count"] = entry["profiles"].size()
+		entry["winning_build_count"] = entry["winning_builds"].size()
+		result.append(entry)
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["win_rate"]) > float(b["win_rate"])
+	)
+	return result
+
+
+func write_starter_roster_report() -> void:
+	var file := open_report(
+		"starter_roster_value.csv",
+		"rank,starting_roster,runs,wins,win_rate,win_rate_delta,average_round,average_lives,profiles_seen,unique_winning_builds,clear_choice_flag"
+	)
+	var rows := get_starter_roster_rows()
+	for index in rows.size():
+		var row: Dictionary = rows[index]
+		var flag := (
+			"CLEAR_START"
+			if float(row["win_rate_delta"]) >= 0.08
+				and int(row["profile_count"]) == sensitivity_profiles.size()
+			else ""
+		)
+		file.store_line(",".join(PackedStringArray([
+			str(index + 1), csv(row["signature"]), str(row["runs"]),
+			str(row["wins"]), "%.4f" % row["win_rate"],
+			"%.4f" % row["win_rate_delta"], "%.3f" % row["average_round"],
+			"%.3f" % row["average_lives"], str(row["profile_count"]),
+			str(row["winning_build_count"]), flag,
+		])))
+	file.close()
+
+
+func write_starter_tower_report() -> void:
+	var file := open_report(
+		"starter_tower_value.csv",
+		"tower,present_runs,present_win_rate,absent_win_rate,win_rate_delta,clear_choice_flag"
+	)
+	for tower_id in get_test_tower_ids():
+		var present_runs := 0
+		var present_wins := 0
+		var absent_runs := 0
+		var absent_wins := 0
+		for row in final_results:
+			var starter_ids := String(row["starting_roster"]).split("+", false)
+			if starter_ids.has(String(tower_id)):
+				present_runs += 1
+				present_wins += int(row["won"])
+			else:
+				absent_runs += 1
+				absent_wins += int(row["won"])
+		var present_rate := (
+			float(present_wins) / maxf(float(present_runs), 1.0)
+		)
+		var absent_rate := (
+			float(absent_wins) / maxf(float(absent_runs), 1.0)
+		)
+		var delta := present_rate - absent_rate
+		var flag := "CLEAR_START_PICK" if delta >= 0.08 else ""
+		file.store_line(",".join(PackedStringArray([
+			str(tower_id), str(present_runs), "%.4f" % present_rate,
+			"%.4f" % absent_rate, "%.4f" % delta, flag,
 		])))
 	file.close()
 
@@ -1477,6 +3855,20 @@ func write_summary_report() -> void:
 	for index in mini(10, builds.size()):
 		var row: Dictionary = builds[index]
 		file.store_line("%d. %s | win %.1f%% | runs %d | profiles %d" % [index + 1, row["signature"], float(row["win_rate"]) * 100.0, row["runs"], row["profile_count"]])
+	file.store_line("")
+	file.store_line("Top starting tower pairs:")
+	var starter_rows := get_starter_roster_rows()
+	for index in mini(10, starter_rows.size()):
+		var starter: Dictionary = starter_rows[index]
+		file.store_line(
+			"%d. %s | win %.1f%% | delta %.1f%% | runs %d" % [
+				index + 1,
+				starter["signature"],
+				float(starter["win_rate"]) * 100.0,
+				float(starter["win_rate_delta"]) * 100.0,
+				starter["runs"],
+			]
+		)
 	file.store_line("")
 	file.store_line("Sensitivity:")
 	for row in get_sensitivity_rows():

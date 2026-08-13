@@ -1,8 +1,10 @@
 param(
-    [ValidateSet("smoke", "standard", "overnight")]
-    [string]$Preset = "overnight",
-    [string]$GodotPath = "",
-    [switch]$Fresh
+	[ValidateSet("smoke", "standard", "overnight")]
+	[string]$Preset = "overnight",
+	[string]$GodotPath = "",
+	[ValidateRange(1, 256)]
+	[int]$Workers = [Math]::Max([Environment]::ProcessorCount - 1, 1),
+	[switch]$Fresh
 )
 
 $projectPath = Split-Path -Parent $PSScriptRoot
@@ -26,8 +28,10 @@ $godotArguments = @(
     "--log-file", $logPath,
     "res://tools/run_balance_optimizer.tscn",
     "--",
-    "--preset=$Preset",
-    "--output-dir=res://balance_reports/overnight"
+	"--preset=$Preset",
+	"--workers=$Workers",
+	"--map-geometry",
+	"--output-dir=res://balance_reports/overnight"
 )
 
 if ($Fresh) {
@@ -35,6 +39,7 @@ if ($Fresh) {
 }
 
 Write-Host "Starting the $Preset balance run."
+Write-Host "CPU workers: $Workers of $([Environment]::ProcessorCount) logical processors."
 Write-Host "Reports: $reportPath"
 Write-Host "Progress log: $logPath"
 Write-Host "Leave this window open until the run finishes."

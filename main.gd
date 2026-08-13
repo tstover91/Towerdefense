@@ -28,13 +28,7 @@ const SPAWN_STYLES := {
 		"gap_after_group": 0.8,
 	},
 }
-const WAVE_STYLE_UNLOCKS := {
-	&"pulses": 3,
-	&"simultaneous_batch": 4,
-	&"convoy": 6,
-	&"sandwich": 7,
-	&"escorted_elite": 9,
-}
+const WAVE_STYLE_UNLOCKS := GameStats.WAVE_STYLE_UNLOCKS
 const ROLE_FODDER := &"fodder"
 const ROLE_PRESSURE := &"pressure"
 const ROLE_TANK := &"tank"
@@ -85,100 +79,8 @@ const RELIC_ROLL_MAX_ATTEMPTS := 256
 const RELIC_REFRESH_BASE_COST := 75
 const RELIC_REFRESH_COST_INCREASE := 50
 const RELIC_REFRESH_DIFFERENT_ROLL_ATTEMPTS := 24
-const WAVE_ROLE_WEIGHTS := [
-	{
-		"maximum_wave": 3,
-		"weights": {
-			ROLE_FODDER: 80.0,
-			ROLE_PRESSURE: 20.0,
-			ROLE_TANK: 0.0,
-			ROLE_SUPPORT: 0.0,
-		},
-	},
-	{
-		"maximum_wave": 8,
-		"weights": {
-			ROLE_FODDER: 60.0,
-			ROLE_PRESSURE: 25.0,
-			ROLE_TANK: 15.0,
-			ROLE_SUPPORT: 0.0,
-		},
-	},
-	{
-		"maximum_wave": 13,
-		"weights": {
-			ROLE_FODDER: 50.0,
-			ROLE_PRESSURE: 20.0,
-			ROLE_TANK: 20.0,
-			ROLE_SUPPORT: 10.0,
-		},
-	},
-	{
-		"maximum_wave": 999,
-		"weights": {
-			ROLE_FODDER: 45.0,
-			ROLE_PRESSURE: 25.0,
-			ROLE_TANK: 20.0,
-			ROLE_SUPPORT: 10.0,
-		},
-	},
-]
-const FORMATION_ROLE_WEIGHTS := {
-	&"steady": {
-		ROLE_FODDER: 60.0,
-		ROLE_PRESSURE: 20.0,
-		ROLE_TANK: 15.0,
-		ROLE_SUPPORT: 5.0,
-	},
-	&"stream": {
-		ROLE_FODDER: 75.0,
-		ROLE_PRESSURE: 20.0,
-		ROLE_TANK: 0.0,
-		ROLE_SUPPORT: 5.0,
-	},
-	&"burst": {
-		ROLE_FODDER: 40.0,
-		ROLE_PRESSURE: 50.0,
-		ROLE_TANK: 10.0,
-		ROLE_SUPPORT: 0.0,
-	},
-	&"spaced": {
-		ROLE_FODDER: 25.0,
-		ROLE_PRESSURE: 20.0,
-		ROLE_TANK: 45.0,
-		ROLE_SUPPORT: 10.0,
-	},
-	&"pulses": {
-		ROLE_FODDER: 65.0,
-		ROLE_PRESSURE: 25.0,
-		ROLE_TANK: 10.0,
-		ROLE_SUPPORT: 0.0,
-	},
-	&"simultaneous_batch": {
-		ROLE_FODDER: 70.0,
-		ROLE_PRESSURE: 20.0,
-		ROLE_TANK: 10.0,
-		ROLE_SUPPORT: 0.0,
-	},
-	&"convoy": {
-		ROLE_FODDER: 50.0,
-		ROLE_PRESSURE: 30.0,
-		ROLE_TANK: 15.0,
-		ROLE_SUPPORT: 5.0,
-	},
-	&"escorted_elite": {
-		ROLE_FODDER: 45.0,
-		ROLE_PRESSURE: 30.0,
-		ROLE_TANK: 20.0,
-		ROLE_SUPPORT: 5.0,
-	},
-	&"sandwich": {
-		ROLE_FODDER: 45.0,
-		ROLE_PRESSURE: 30.0,
-		ROLE_TANK: 20.0,
-		ROLE_SUPPORT: 5.0,
-	},
-}
+const WAVE_ROLE_WEIGHTS := GameStats.WAVE_ROLE_WEIGHTS
+const FORMATION_ROLE_WEIGHTS := GameStats.FORMATION_ROLE_WEIGHTS
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
 const TOWER_SLOT_COUNT := 5
@@ -552,6 +454,7 @@ func start_round() -> void:
 	threat_per_second = (
 		get_wave_threat_rate(round_number)
 		* STANDARD_THREAT_RATE_MULTIPLIER
+		* GameStats.get_early_round_threat_multiplier(round_number)
 	)
 	if round_number == 6:
 		threat_per_second *= GameStats.ROUND_SIX_THREAT_MULTIPLIER

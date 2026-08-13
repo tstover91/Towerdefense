@@ -9,6 +9,7 @@ const DEFAULT_REPORT_PATH := "res://balance_reports/tower_monte_carlo.csv"
 const BALANCED_TOWERS: Array[StringName] = [
 	&"invader", &"gauss_repeater", &"beholder", &"reaver", &"brainiac",
 	&"longshot", &"slinger", &"voidcaller", &"orbitalcannon", &"energycore",
+	&"saucer",
 ]
 
 var rng := RandomNumberGenerator.new()
@@ -95,18 +96,35 @@ func build_enemy_scenarios() -> void:
 		var enemy_traits: Array = enemy.get("traits", []).duplicate()
 		var enemy_count := get_enemy_pack_size(enemy)
 		var spawned_count := 0
+		var spawned_health_per_primary := 0.0
 		if int(enemy.get("split_count", 0)) > 0:
-			spawned_count += enemy_count * int(enemy.get("split_count", 0))
+			var split_count := int(enemy.get("split_count", 0))
+			var split_enemy := GameStats.get_enemy(
+				StringName(enemy["split_enemy_id"])
+			)
+			spawned_count += enemy_count * split_count
+			spawned_health_per_primary += float(split_count) * (
+				float(split_enemy.get("health", 1.0))
+				+ float(split_enemy.get("health_per_wave", 0.0))
+					* float(maxi(int(enemy.get("first_wave", 1)) - 1, 0))
+			)
 		if int(enemy.get("summon_limit", 0)) > 0:
-			spawned_count += enemy_count * int(enemy.get("summon_limit", 0))
+			var summon_count := int(enemy.get("summon_limit", 0))
+			var summon_enemy := GameStats.get_enemy(
+				StringName(enemy["summon_enemy_id"])
+			)
+			spawned_count += enemy_count * summon_count
+			spawned_health_per_primary += float(summon_count) * (
+				float(summon_enemy.get("health", 1.0))
+				+ float(summon_enemy.get("health_per_wave", 0.0))
+					* float(maxi(int(enemy.get("first_wave", 1)) - 1, 0))
+			)
 		var first_wave := maxi(int(enemy.get("first_wave", 1)), 1)
 		var health := (
 			float(enemy.get("health", 1))
 			+ float(enemy.get("health_per_wave", 0.0)) * float(first_wave - 1)
 		)
 		var speed := float(enemy.get("move_speed", 70.0))
-		if enemy_traits.has(&"speed_aura"):
-			speed *= float(enemy.get("speed_aura_multiplier", 1.0))
 		if enemy_traits.has(&"rushes"):
 			var rush_start := clampf(float(enemy.get("rush_start_ratio", 0.7)), 0.0, 1.0)
 			var rush_multiplier := maxf(float(enemy.get("rush_speed_multiplier", 1.0)), 1.0)
@@ -117,6 +135,7 @@ func build_enemy_scenarios() -> void:
 			"enemies": enemy_count + spawned_count,
 			"primary_enemies": enemy_count,
 			"spawned_enemies": spawned_count,
+			"spawned_health_per_primary": spawned_health_per_primary,
 			"armor": float(enemy.get("armor", 0.0)),
 			"health": maxf(health, 1.0),
 			"speed": speed,
@@ -306,6 +325,12 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		)
 		interval /= 1.0 + average_bonus
 	var attacks := floori((duration + rng.randf() * interval) / interval)
+	if tower_id == &"saucer":
+		var active_duration := duration * get_saucer_pursuit_uptime(
+			stats,
+			scenario
+		)
+		attacks = floori((active_duration + rng.randf() * interval) / interval)
 	var total := 0.0
 	var flags: Dictionary = traits["flags"]
 	var values: Dictionary = traits["values"]
@@ -390,6 +415,8 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 			* float(int(scenario["enemies"]) - 1)
 			* link_coverage
 		)
+	if tower_id == &"saucer":
+		total += get_saucer_abduction_total(stats, scenario)
 	total += simulate_periodic_specials(tower_id, damage, stats, traits, scenario)
 	var regeneration := float(scenario.get("regeneration", 0.0))
 	if regeneration > 0.0:
@@ -826,12 +853,75 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 		)
 	if tower_id == &"saucer" and flags.get("saucer_twin_rockets", false):
 		var count := floori(duration / maxf(float(values.get("saucer_rocket_interval", 3.0)), 0.1))
-		total += float(count * 2) * apply_armor(damage * float(values.get("saucer_rocket_damage_multiplier", 3.0)), &"explosive", armor, false) * minf(float(enemies), 2.5)
+		total += (
+			float(count * 2)
+			* apply_armor(
+				damage * float(values.get("saucer_rocket_damage_multiplier", 3.0)),
+				&"explosive",
+				armor,
+				false
+			)
+			* minf(float(enemies), 2.5)
+			* get_saucer_pursuit_uptime(stats, scenario)
+		)
 	if tower_id == &"saucer" and flags.get("saucer_monster_drop", false):
 		var monster: Dictionary = stats.get("monster_stats", {})
-		var uptime := minf(float(monster.get("lifetime", 10.0)), duration)
+		var uptime := minf(
+			float(monster.get("lifetime", 10.0))
+				* get_saucer_expected_abductions(stats, scenario),
+			duration
+		)
 		total += uptime / maxf(float(monster.get("attack_interval", 1.0)), 0.01) * apply_armor(float(monster.get("damage", 0)), &"melee", armor, false)
 	return total
+
+
+func get_saucer_pursuit_uptime(
+	stats: Dictionary,
+	scenario: Dictionary
+) -> float:
+	var attack_radius := float(stats.get("flyer_attack_radius", 5.0))
+	var movement_speed := float(stats.get("flyer_move_speed", 165.0))
+	var enemy_speed := float(scenario.get("speed", 75.0))
+	return clampf(
+		0.55
+		+ attack_radius * 0.04
+		+ movement_speed / 1000.0
+		- enemy_speed / 1000.0,
+		0.55,
+		0.96
+	)
+
+
+func get_saucer_expected_abductions(
+	stats: Dictionary,
+	scenario: Dictionary
+) -> float:
+	var threshold := float(stats.get("abduction_health_threshold", 0.0))
+	if threshold <= 0.0 or bool(scenario.get("boss", false)):
+		return 0.0
+	var cooldown := maxf(float(stats.get("abduction_cooldown", 16.0)), 0.1)
+	var possible_uses := floori(duration / cooldown)
+	var eligible_targets := maxi(int(scenario.get("primary_enemies", 1)), 0)
+	return (
+		float(mini(possible_uses, eligible_targets))
+		* get_saucer_pursuit_uptime(stats, scenario)
+		* 0.80
+	)
+
+
+func get_saucer_abduction_total(
+	stats: Dictionary,
+	scenario: Dictionary
+) -> float:
+	var threshold := float(stats.get("abduction_health_threshold", 0.0))
+	var expected_abductions := get_saucer_expected_abductions(stats, scenario)
+	if expected_abductions <= 0.0:
+		return 0.0
+	var removed_health := (
+		float(scenario.get("health", 1.0)) * threshold
+		+ float(scenario.get("spawned_health_per_primary", 0.0))
+	)
+	return expected_abductions * removed_health
 
 
 func simulate_spawner_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary, scenario: Dictionary) -> float:
@@ -886,7 +976,7 @@ func get_model_note(tower_id: StringName) -> String:
 		&"voidcaller": return "orb geometry; simultaneous Barrage and Singularity coverage modeled"
 		&"orbitalcannon": return "accurate manual placement assumed; area; stun; Lance ramp and Slow modeled"
 		&"energycore": return "distinct primary targets; Slow; Shockwave and Branching Current modeled"
-		&"saucer": return "travel and abduction removal excluded"
+		&"saucer": return "pursuit uptime; abduction execution; split prevention; rockets and specimen uptime modeled"
 		&"hivemother", &"dronedepot", &"mechbay": return "spawn ramp and combat uptime approximated"
 		_: return "generic event model"
 

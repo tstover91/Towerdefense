@@ -8,6 +8,57 @@ const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "invader"
 const BUILD_CELL_SIZE := 32.0
 
+# Shared wave-director recipe data. Keeping this here lets gameplay and the
+# balance optimizer consume the same role and formation weights.
+const WAVE_STYLE_UNLOCKS := {
+	&"pulses": 3,
+	&"simultaneous_batch": 4,
+	&"convoy": 6,
+	&"sandwich": 7,
+	&"escorted_elite": 9,
+}
+const WAVE_ROLE_WEIGHTS := [
+	{
+		"maximum_wave": 3,
+		"weights": {
+			&"fodder": 80.0, &"pressure": 20.0,
+			&"tank": 0.0, &"support": 0.0,
+		},
+	},
+	{
+		"maximum_wave": 8,
+		"weights": {
+			&"fodder": 60.0, &"pressure": 25.0,
+			&"tank": 15.0, &"support": 0.0,
+		},
+	},
+	{
+		"maximum_wave": 13,
+		"weights": {
+			&"fodder": 50.0, &"pressure": 20.0,
+			&"tank": 20.0, &"support": 10.0,
+		},
+	},
+	{
+		"maximum_wave": 999,
+		"weights": {
+			&"fodder": 45.0, &"pressure": 25.0,
+			&"tank": 20.0, &"support": 10.0,
+		},
+	},
+]
+const FORMATION_ROLE_WEIGHTS := {
+	&"steady": {&"fodder": 60.0, &"pressure": 20.0, &"tank": 15.0, &"support": 5.0},
+	&"stream": {&"fodder": 75.0, &"pressure": 20.0, &"tank": 0.0, &"support": 5.0},
+	&"burst": {&"fodder": 40.0, &"pressure": 50.0, &"tank": 10.0, &"support": 0.0},
+	&"spaced": {&"fodder": 25.0, &"pressure": 20.0, &"tank": 45.0, &"support": 10.0},
+	&"pulses": {&"fodder": 65.0, &"pressure": 25.0, &"tank": 10.0, &"support": 0.0},
+	&"simultaneous_batch": {&"fodder": 70.0, &"pressure": 20.0, &"tank": 10.0, &"support": 0.0},
+	&"convoy": {&"fodder": 50.0, &"pressure": 30.0, &"tank": 15.0, &"support": 5.0},
+	&"escorted_elite": {&"fodder": 45.0, &"pressure": 30.0, &"tank": 20.0, &"support": 5.0},
+	&"sandwich": {&"fodder": 45.0, &"pressure": 30.0, &"tank": 20.0, &"support": 5.0},
+}
+
 const DELIVERY_PROJECTILE: StringName = &"projectile"
 const DELIVERY_HITSCAN: StringName = &"hitscan"
 const IMPACT_PRIMARY: StringName = &"primary"
@@ -27,7 +78,14 @@ const EXPLOSIVE_ARMOR_MULTIPLIER := 1.25
 const KILL_REWARD_MULTIPLIER := 0.80
 const ROUND_REWARD_BASE := 30
 const ROUND_REWARD_PER_WAVE := 7
-const ROUND_SIX_THREAT_MULTIPLIER := 1.10
+const ROUND_SIX_THREAT_MULTIPLIER := 1.00
+const EARLY_ROUND_THREAT_MULTIPLIERS := {
+	1: 0.75,
+	2: 0.80,
+	3: 0.85,
+	4: 0.90,
+	5: 0.95,
+}
 
 # Initial enemy pacing test pass. Bosses bypass the standard-archetype
 # multipliers; weakened and elite variants use their own centralized values.
@@ -233,13 +291,13 @@ const TOWER_TEXTURES := {
 # allowing temporary build-price effects to alter refunds. Level 0 is handled
 # separately using the price actually paid for that tower instance.
 const TOWER_UPGRADED_SELL_VALUES := {
-	&"invader": [125, 150, 203, 336],
+	&"invader": [200, 233, 299, 415],
 	&"gauss_repeater": [450, 450, 625, 858],
 	&"beholder": [500, 600, 750, 975],
-	&"reaver": [150, 183, 236, 370],
+	&"reaver": [175, 205, 252, 385],
 	&"brainiac": [325, 408, 525, 675],
 	&"longshot": [350, 425, 558, 1008],
-	&"slinger": [175, 215, 281, 374],
+	&"slinger": [225, 257, 307, 387],
 	&"voidcaller": [350, 408, 533, 750],
 	&"orbitalcannon": [700, 816, 950, 1133],
 	&"energycore": [300, 383, 500, 650],
@@ -481,7 +539,7 @@ const ENEMIES := {
 const TOWERS := {
 	"invader": {
 	"display_name": "Invader",
-	"placement_cost": 125,
+	"placement_cost": 200,
 	"footprint_cells": Vector2i(1, 1),
 	"type_tags": [&"biological"],
 	"damage_tags": [&"ballistic"],
@@ -496,7 +554,7 @@ const TOWERS := {
 		"a": {
 			"display_name": "Dual Pistols",
 			"description": "Adds a second pistol, increasing attack speed and granting Reveal while preserving Invader's Critical attacks.",
-			"cost": 700,
+			"cost": 900,
 			"unlock_level": 3,
 
 			"add_bonus_tags": [&"reveal"],
@@ -513,7 +571,7 @@ const TOWERS := {
 		"b": {
 			"display_name": "Piercing Blaster",
 			"description": "Fires slower, heavier shots that pierce through an additional enemy.",
-			"cost": 700,
+			"cost": 900,
 			"unlock_level": 3,
 
 			"add_bonus_tags": [&"pierce"],
@@ -531,26 +589,26 @@ const TOWERS := {
 			"upgrade_cost": 0,
 			"damage": 30,
 			"firerate": 0.50,
-			"range": 11.0,
+			"range": 9.35,
 		},
 		{
-			"upgrade_cost": 75,
+			"upgrade_cost": 100,
 			"damage": 40,
-			"firerate": 0.42,
-			"range": 11.5,
+			"firerate": 0.462,
+			"range": 9.775,
 		},
 		{
-			"upgrade_cost": 160,
+			"upgrade_cost": 200,
 			"damage": 70,
-			"firerate": 0.42,
-			"range": 12.5,
+			"firerate": 0.462,
+			"range": 10.625,
 			"add_bonus_tags": [&"critical"],
 		},
 		{
-			"upgrade_cost": 400,
-			"damage": 120,
-			"firerate": 0.36,
-			"range": 14.0,
+			"upgrade_cost": 350,
+			"damage": 110,
+			"firerate": 0.396,
+			"range": 11.9,
 		},
 	],
 },
@@ -611,8 +669,8 @@ const TOWERS := {
 				"projectile_speed": 900.0,
 				"firerate": 0.080,
 				"range": 14.0,
-				"maximum_spread_degrees": 20.0,
-				"minimum_spread_degrees": 5.0,
+				"maximum_spread_degrees": 18.0,
+				"minimum_spread_degrees": 4.5,
 				"spread_tighten_duration": 5.0,
 				"spread_recovery_delay": 1.0,
 				"spread_recovery_per_second": 10.0,
@@ -747,7 +805,7 @@ const TOWERS := {
 	},
 	"reaver": {
 		"display_name": "Reaver",
-		"placement_cost": 150,
+		"placement_cost": 175,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"melee"],
@@ -794,7 +852,7 @@ const TOWERS := {
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 100,
+				"upgrade_cost": 90,
 				"damage": 100,
 				"firerate": 1.05,
 				"range": 5.75,
@@ -803,7 +861,7 @@ const TOWERS := {
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 160,
+				"upgrade_cost": 140,
 				"damage": 140,
 				"firerate": 0.95,
 				"range": 6.0,
@@ -972,7 +1030,7 @@ const TOWERS := {
 	},
 	"slinger": {
 		"display_name": "Slinger",
-		"placement_cost": 175,
+		"placement_cost": 225,
 		"footprint_cells": Vector2i(1, 1),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"melee"],
@@ -1022,7 +1080,7 @@ const TOWERS := {
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 120,
+				"upgrade_cost": 95,
 				"damage": 100,
 				"projectile_speed": 520.0,
 				"firerate": 0.92,
@@ -1032,7 +1090,7 @@ const TOWERS := {
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 200,
+				"upgrade_cost": 150,
 				"damage": 140,
 				"projectile_speed": 570.0,
 				"firerate": 0.84,
@@ -1042,7 +1100,7 @@ const TOWERS := {
 				"hidden_detection": false,
 			},
 			{
-				"upgrade_cost": 280,
+				"upgrade_cost": 240,
 				"damage": 140,
 				"projectile_speed": 570.0,
 				"firerate": 0.84,
@@ -1658,6 +1716,10 @@ const MODES := {
 static func get_enemy(enemy_id: StringName) -> Dictionary:
 	assert(ENEMIES.has(enemy_id), "Unknown enemy ID: %s" % enemy_id)
 	return ENEMIES[enemy_id].duplicate(true)
+
+
+static func get_early_round_threat_multiplier(round_number: int) -> float:
+	return float(EARLY_ROUND_THREAT_MULTIPLIERS.get(round_number, 1.0))
 
 
 static func get_tower(tower_id: StringName) -> Dictionary:
