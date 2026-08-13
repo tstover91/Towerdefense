@@ -1,0 +1,4 @@
+rank,build,runs,wins,win_rate,average_round,average_lives,profiles_seen,clear_choice_flag
+1,slinger-L1x2,3,3,1.0000,1.000,99.942,1,DOMINANT
+2,reaver-L1x3,2,2,1.0000,1.000,99.677,1,DOMINANT
+3,reaver-L1x1+slinger-L1x1,1,1,1.0000,1.000,96.741,1,

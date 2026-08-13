@@ -1,0 +1,24 @@
+RUN-LEVEL BALANCE OPTIMIZER
+Seed: 884271 | preset: early | finalist runs: 2400
+
+Top build signatures:
+1. slinger-L1x16+slinger-L2x8 | win 100.0% | runs 42 | profiles 1
+2. slinger-L1x15+slinger-L2x9 | win 100.0% | runs 34 | profiles 1
+3. invader-L1x1+invader-L2x23 | win 100.0% | runs 28 | profiles 1
+4. invader-L2x23 | win 100.0% | runs 27 | profiles 1
+5. invader-L2x10+slinger-L1x10+slinger-L2x4 | win 100.0% | runs 25 | profiles 1
+6. invader-L2x10+slinger-L1x9+slinger-L2x5 | win 100.0% | runs 23 | profiles 1
+7. invader-L2x6+slinger-L1x12+slinger-L2x6 | win 100.0% | runs 19 | profiles 1
+8. invader-L2x5+slinger-L1x12+slinger-L2x7 | win 100.0% | runs 18 | profiles 1
+9. slinger-L1x2+slinger-L2x16 | win 100.0% | runs 16 | profiles 1
+10. invader-L2x7+slinger-L1x12+slinger-L2x5 | win 100.0% | runs 16 | profiles 1
+
+Top starting tower pairs:
+1. invader+slinger | win 97.6% | delta 10.4% | runs 800
+2. invader+reaver | win 86.9% | delta -0.3% | runs 800
+3. reaver+slinger | win 77.1% | delta -10.1% | runs 800
+
+Sensitivity:
+baseline: win 87.2%, average round 9.50, winning builds 1071
+
+Interpretation: a clear choice should combine high win rate, high winning-run share, and success across many sensitivity profiles. Correlation is not causation; validate flagged finalists in live Godot playtests.

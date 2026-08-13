@@ -1,0 +1,49 @@
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+
+Run balance optimizer: preset=early population=40 generations=5 workers=11 starter_pairs=55
+Combat lookup: 77 variants x 11 enemy archetypes
+Map geometry: 281 path samples, 36 combat segments, 1391 legal placements
+Map coverage invader: best 22.1%, engagement 64.9%
+Map coverage gauss_repeater: best 37.4%, engagement 70.0%
+Map coverage beholder: best 15.3%, engagement 58.3%
+Map coverage reaver: best 7.5%, engagement 48.2%
+Map coverage brainiac: best 20.6%, engagement 63.6%
+Map coverage longshot: best 68.0%, engagement 70.0%
+Map coverage slinger: best 34.2%, engagement 70.0%
+Map coverage voidcaller: best 17.4%, engagement 60.5%
+Map coverage orbitalcannon: best 79.7%, engagement 70.0%
+Map coverage energycore: best 15.3%, engagement 58.3%
+Map coverage saucer: best 61.6%, engagement 70.0%
+Checkpoint saved: evolution (1)
+Evaluating 40 policies x 55 runs across 11 workers...
+Generation 1/5: best policy 8 score 23.51 win 12.7% round 4.45
+Breeding generation 2...
+Breeding complete: 40 policies
+Checkpoint saved: evolution (2)
+Evaluating 40 policies x 55 runs across 11 workers...
+Generation 2/5: best policy 54 score 27.13 win 16.4% round 4.42
+Breeding generation 3...
+Breeding complete: 40 policies
+Checkpoint saved: evolution (3)
+Evaluating 40 policies x 55 runs across 11 workers...
+Generation 3/5: best policy 86 score 27.28 win 16.4% round 4.47
+Breeding generation 4...
+Breeding complete: 40 policies
+Checkpoint saved: evolution (4)
+Evaluating 40 policies x 55 runs across 11 workers...
+Generation 4/5: best policy 84 score 33.13 win 21.8% round 4.51
+Breeding generation 5...
+Breeding complete: 40 policies
+Checkpoint saved: evolution (5)
+Evaluating 40 policies x 55 runs across 11 workers...
+Generation 5/5: best policy 148 score 31.56 win 20.0% round 4.58
+Checkpoint saved: finalists (6)
+Final evaluation: 880 runs (110 per profile, 55 starter pairs)
+Final evaluation: 352/880
+Checkpoint saved: finalists (7)
+Final evaluation: 704/880
+Checkpoint saved: finalists (8)
+Final evaluation: 880/880
+Checkpoint saved: finalists (9)
+Optimizer reports: C:/Users/poops/OneDrive/Desktop/Towerdefense/balance_reports/round7_repaired
+Top discovered build: reaver-L1x15 | win rate 100.0%

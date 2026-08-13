@@ -1,0 +1,386 @@
+[
+  {
+    "metrics": {
+      "average_round": 4.58181818181818,
+      "score": 31.5607100172257,
+      "win_rate": 0.2
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 1.1290944814682,
+        "beam": 0.991598665714264,
+        "biological": 1.23293447494507,
+        "critical": 1.0602234769711,
+        "electric": 1.01687916507873,
+        "explosive": 1.20486903190613,
+        "global": 0.897514676209539,
+        "melee": 1.01584272117821,
+        "pierce": 0.997857499388459,
+        "psionic": 0.847496992986123,
+        "reveal": 0.745189501541716,
+        "stun": 0.884943357707016,
+        "technology": 1.02911555767059
+      },
+      "diversity": 0.00561768561601639,
+      "economy_weight": 1.14642529122194,
+      "expansion_bias": 1.39016007572397,
+      "id": 148,
+      "name": "evolved",
+      "patience": 0.793153643608093,
+      "relic_refresh_threshold": 0.516172893345356,
+      "reserve": 0.0711386129260063,
+      "risk": 1.1596143245697,
+      "tower_weights": {
+        "beholder": 0.976394176483154,
+        "brainiac": 1.01799967021485,
+        "energycore": 1.13617253303528,
+        "gauss_repeater": 0.912815153598785,
+        "invader": 0.927599105107674,
+        "longshot": 0.868050277233124,
+        "orbitalcannon": 1.13459157943726,
+        "reaver": 1.03781080245972,
+        "saucer": 0.76606297492981,
+        "slinger": 1.36673600163698,
+        "voidcaller": 0.750329852104187
+      },
+      "upgrade_bias": 0.8026537410223
+    },
+    "rank": 1
+  },
+  {
+    "metrics": {
+      "average_round": 4.47272727272727,
+      "score": 29.2350773228339,
+      "win_rate": 0.181818181818182
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 0.893736779689789,
+        "beam": 0.935844471009574,
+        "biological": 1.23293447494507,
+        "critical": 1.21877882539627,
+        "electric": 1.01687916507873,
+        "explosive": 0.984656929969788,
+        "global": 0.818730354309082,
+        "melee": 1.10442741375834,
+        "pierce": 0.773993293038828,
+        "psionic": 1.05057001113892,
+        "reveal": 1.24343878605987,
+        "stun": 0.916808304682206,
+        "technology": 0.853551983833313
+      },
+      "diversity": 0.194679476320744,
+      "economy_weight": 0.823396288723472,
+      "expansion_bias": 1.14975159903128,
+      "id": 126,
+      "name": "evolved",
+      "patience": 0.880718305706978,
+      "relic_refresh_threshold": 0.476992391049862,
+      "reserve": 0.155001014471054,
+      "risk": 1.19871580600739,
+      "tower_weights": {
+        "beholder": 0.976394176483154,
+        "brainiac": 1.20484566688538,
+        "energycore": 0.84161180705587,
+        "gauss_repeater": 0.820327499422369,
+        "invader": 0.765986859798431,
+        "longshot": 0.867706954479218,
+        "orbitalcannon": 0.857455510822696,
+        "reaver": 1.14315543895765,
+        "saucer": 0.907141923904419,
+        "slinger": 1.07211099176638,
+        "voidcaller": 1.093593144964
+      },
+      "upgrade_bias": 0.702711023324454
+    },
+    "rank": 2
+  },
+  {
+    "metrics": {
+      "average_round": 4.47272727272727,
+      "score": 27.3081076252362,
+      "win_rate": 0.163636363636364
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 1.10799264907837,
+        "beam": 1.08986037428117,
+        "biological": 1.23168396949768,
+        "critical": 0.926874986730247,
+        "electric": 0.950999460062349,
+        "explosive": 1.13118097470849,
+        "global": 0.827552734961159,
+        "melee": 1.1257449388504,
+        "pierce": 0.632906383903144,
+        "psionic": 0.784740507602692,
+        "reveal": 1.21608728935456,
+        "stun": 0.884943357707016,
+        "technology": 0.792391356747274
+      },
+      "diversity": 0.332239270210266,
+      "economy_weight": 1.10809464686979,
+      "expansion_bias": 1.15186786651611,
+      "id": 174,
+      "name": "evolved",
+      "patience": 0.666092298924923,
+      "relic_refresh_threshold": 0.53466359525919,
+      "reserve": 0.397571690380573,
+      "risk": 1.30349391625531,
+      "tower_weights": {
+        "beholder": 0.976394176483154,
+        "brainiac": 1.29432507015281,
+        "energycore": 0.660283110419478,
+        "gauss_repeater": 0.803753554821014,
+        "invader": 1.22885096073151,
+        "longshot": 1.11773920059204,
+        "orbitalcannon": 1.0823675913382,
+        "reaver": 1.28207381550021,
+        "saucer": 0.921111404895782,
+        "slinger": 1.1712498664856,
+        "voidcaller": 1.0067765712738
+      },
+      "upgrade_bias": 0.86791799116989
+    },
+    "rank": 3
+  },
+  {
+    "metrics": {
+      "average_round": 4.72727272727273,
+      "score": 26.1824861382617,
+      "win_rate": 0.145454545454545
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 1.19275956659305,
+        "beam": 1.03356218338013,
+        "biological": 1.23293447494507,
+        "critical": 0.926874986730247,
+        "electric": 0.950999460062349,
+        "explosive": 0.930757880210876,
+        "global": 0.827552734961159,
+        "melee": 0.996604263782501,
+        "pierce": 0.934563544673586,
+        "psionic": 1.05057001113892,
+        "reveal": 1.21608728935456,
+        "stun": 1.14119434356689,
+        "technology": 1.02911555767059
+      },
+      "diversity": 0.0428261905908585,
+      "economy_weight": 1.28958177566528,
+      "expansion_bias": 1.30167755527214,
+      "id": 150,
+      "name": "evolved",
+      "patience": 0.917934149503708,
+      "relic_refresh_threshold": 0.593213349580765,
+      "reserve": 0.0,
+      "risk": 0.743864906939362,
+      "tower_weights": {
+        "beholder": 1.2315063763765,
+        "brainiac": 1.16376709661901,
+        "energycore": 0.798091530799866,
+        "gauss_repeater": 0.803753554821014,
+        "invader": 1.17108143648464,
+        "longshot": 1.11773920059204,
+        "orbitalcannon": 1.0823675913382,
+        "reaver": 1.03781080245972,
+        "saucer": 1.18333828449249,
+        "slinger": 0.953585869274789,
+        "voidcaller": 1.0067765712738
+      },
+      "upgrade_bias": 0.86791799116989
+    },
+    "rank": 4
+  },
+  {
+    "metrics": {
+      "average_round": 4.63636363636364,
+      "score": 25.95387076048,
+      "win_rate": 0.145454545454545
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 1.1290944814682,
+        "beam": 1.06898437849902,
+        "biological": 0.910296837024362,
+        "critical": 1.0602234769711,
+        "electric": 1.01687916507873,
+        "explosive": 1.20486903190613,
+        "global": 1.02885580062866,
+        "melee": 0.93831717896828,
+        "pierce": 0.766199052333832,
+        "psionic": 0.814104317667272,
+        "reveal": 1.23314142227173,
+        "stun": 0.884943357707016,
+        "technology": 0.963740122333149
+      },
+      "diversity": 0.145124167203903,
+      "economy_weight": 1.45185299510234,
+      "expansion_bias": 1.15186786651611,
+      "id": 110,
+      "name": "evolved",
+      "patience": 0.793153643608093,
+      "relic_refresh_threshold": 0.476325571537018,
+      "reserve": 0.0,
+      "risk": 1.19871580600739,
+      "tower_weights": {
+        "beholder": 0.976394176483154,
+        "brainiac": 1.2445422410965,
+        "energycore": 0.555072796643306,
+        "gauss_repeater": 0.803753554821014,
+        "invader": 1.01743602752686,
+        "longshot": 0.867706954479218,
+        "orbitalcannon": 0.760677874088287,
+        "reaver": 1.34491008537333,
+        "saucer": 1.00955069065094,
+        "slinger": 0.848409712314606,
+        "voidcaller": 1.0049821138382
+      },
+      "upgrade_bias": 0.759545097472653
+    },
+    "rank": 5
+  },
+  {
+    "metrics": {
+      "average_round": 4.49090909090909,
+      "score": 25.5445235058108,
+      "win_rate": 0.145454545454545
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 1.04605902019125,
+        "beam": 1.09645456738456,
+        "biological": 0.913773417472839,
+        "critical": 1.13138234401243,
+        "electric": 1.15541354124036,
+        "explosive": 1.20486903190613,
+        "global": 1.2034170627594,
+        "melee": 1.12455943630656,
+        "pierce": 0.97548109292984,
+        "psionic": 0.98815381526947,
+        "reveal": 1.23314142227173,
+        "stun": 0.884943357707016,
+        "technology": 1.23774099349976
+      },
+      "diversity": 0.0623784509953111,
+      "economy_weight": 0.823396288723472,
+      "expansion_bias": 1.14975159903128,
+      "id": 149,
+      "name": "evolved",
+      "patience": 0.85085005313158,
+      "relic_refresh_threshold": 0.446525007486343,
+      "reserve": 0.0711386129260063,
+      "risk": 1.27234023822443,
+      "tower_weights": {
+        "beholder": 0.809330403804779,
+        "brainiac": 1.12529606599494,
+        "energycore": 1.13617253303528,
+        "gauss_repeater": 0.62033532309421,
+        "invader": 0.887173533439636,
+        "longshot": 0.868050277233124,
+        "orbitalcannon": 1.13459157943726,
+        "reaver": 0.942340724969881,
+        "saucer": 1.07856659922757,
+        "slinger": 1.03043353557587,
+        "voidcaller": 1.10050220800488
+      },
+      "upgrade_bias": 0.75198781838797
+    },
+    "rank": 6
+  },
+  {
+    "metrics": {
+      "average_round": 4.6,
+      "score": 23.9648378790928,
+      "win_rate": 0.127272727272727
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 1.10799264907837,
+        "beam": 0.949500598242736,
+        "biological": 0.913773417472839,
+        "critical": 1.0602234769711,
+        "electric": 1.01687916507873,
+        "explosive": 1.20486903190613,
+        "global": 0.818730354309082,
+        "melee": 0.996604263782501,
+        "pierce": 0.961226538115127,
+        "psionic": 0.784740507602692,
+        "reveal": 1.23314142227173,
+        "stun": 0.777467138992884,
+        "technology": 1.02268263021944
+      },
+      "diversity": 0.265551179647446,
+      "economy_weight": 0.998522162437439,
+      "expansion_bias": 1.14975159903128,
+      "id": 145,
+      "name": "evolved",
+      "patience": 0.793153643608093,
+      "relic_refresh_threshold": 0.468491949141026,
+      "reserve": 0.0,
+      "risk": 1.05420220552507,
+      "tower_weights": {
+        "beholder": 1.21699976921082,
+        "brainiac": 0.91731470823288,
+        "energycore": 0.867336360849663,
+        "gauss_repeater": 0.74598685330772,
+        "invader": 1.01743602752686,
+        "longshot": 0.867706954479218,
+        "orbitalcannon": 1.25311956312589,
+        "reaver": 1.03781080245972,
+        "saucer": 0.882464411080395,
+        "slinger": 1.20467615127563,
+        "voidcaller": 1.35154165371969
+      },
+      "upgrade_bias": 0.700479399030496
+    },
+    "rank": 7
+  },
+  {
+    "metrics": {
+      "average_round": 4.43636363636364,
+      "score": 23.4439518666537,
+      "win_rate": 0.127272727272727
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 1.19275956659305,
+        "beam": 1.25379620836599,
+        "biological": 1.23293447494507,
+        "critical": 0.897931635379791,
+        "electric": 1.26228736179796,
+        "explosive": 0.930757880210876,
+        "global": 0.818730354309082,
+        "melee": 0.996604263782501,
+        "pierce": 0.997857499388459,
+        "psionic": 0.952972173690796,
+        "reveal": 0.984450727121955,
+        "stun": 1.14119434356689,
+        "technology": 1.02911555767059
+      },
+      "diversity": 0.147744163870811,
+      "economy_weight": 1.20404026043564,
+      "expansion_bias": 1.15186786651611,
+      "id": 157,
+      "name": "evolved",
+      "patience": 0.793153643608093,
+      "relic_refresh_threshold": 0.53466359525919,
+      "reserve": 0.372234083712101,
+      "risk": 0.743864906939362,
+      "tower_weights": {
+        "beholder": 0.976394176483154,
+        "brainiac": 1.11037274568168,
+        "energycore": 0.917512305564685,
+        "gauss_repeater": 0.803753554821014,
+        "invader": 0.964809037330249,
+        "longshot": 0.867706954479218,
+        "orbitalcannon": 1.04665184020996,
+        "reaver": 1.03781080245972,
+        "saucer": 0.921111404895782,
+        "slinger": 1.01122592044394,
+        "voidcaller": 1.0049821138382
+      },
+      "upgrade_bias": 0.841689348220825
+    },
+    "rank": 8
+  }
+]

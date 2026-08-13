@@ -1,0 +1,11 @@
+rank,starting_roster,runs,wins,win_rate,win_rate_delta,average_round,average_lives,profiles_seen,unique_winning_builds,clear_choice_flag
+1,slinger,8,3,0.3750,0.1125,5.875,26.035,1,2,CLEAR_START
+2,invader+slinger,8,3,0.3750,0.1125,6.000,29.498,1,3,CLEAR_START
+3,reaver+slinger,8,3,0.3750,0.1125,5.875,25.209,1,3,CLEAR_START
+4,gauss_repeater+slinger,8,3,0.3750,0.1125,5.875,24.765,1,3,CLEAR_START
+5,invader,8,2,0.2500,-0.0125,5.000,16.037,1,2,
+6,reaver,8,2,0.2500,-0.0125,6.125,19.073,1,2,
+7,invader+reaver,8,2,0.2500,-0.0125,5.000,18.510,1,2,
+8,gauss_repeater+reaver,8,2,0.2500,-0.0125,5.250,17.153,1,2,
+9,gauss_repeater+invader,8,1,0.1250,-0.1375,4.875,7.327,1,1,
+10,gauss_repeater,8,0,0.0000,-0.2625,4.250,0.000,1,0,

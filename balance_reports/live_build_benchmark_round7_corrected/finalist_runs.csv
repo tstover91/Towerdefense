@@ -1,0 +1,13 @@
+policy_id,policy_name,profile,round_six_type,starting_roster,first_tower,won,round_reached,lives,money,leak_damage,total_spent,path_coverage,upgrade_purchases,tower_count,build,relics,towers
+1,live_invader_l2,baseline,horde,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+1,live_invader_l2,baseline,horde,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+1,live_invader_l2,baseline,horde,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+1,live_invader_l2,baseline,elite,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+1,live_invader_l2,baseline,elite,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+1,live_invader_l2,baseline,elite,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+2,live_invader_l3,baseline,horde,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+2,live_invader_l3,baseline,horde,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+2,live_invader_l3,baseline,horde,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+2,live_invader_l3,baseline,elite,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+2,live_invader_l3,baseline,elite,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2
+2,live_invader_l3,baseline,elite,gauss_repeater+invader,invader,0,4,0.000,310.92,105.09,800.00,0.4507,3,2,invader-L2x1+invader-L3x1,,invaderx2

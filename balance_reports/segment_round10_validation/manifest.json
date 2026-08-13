@@ -1,0 +1,92 @@
+{
+  "balance_values": {
+    "enemy_health_multiplier_base": 1.15,
+    "enemy_health_multiplier_growth": 0.025,
+    "global_enemy_health_multiplier": 1.1,
+    "kill_reward_multiplier": 0.8,
+    "round_reward_base": 30,
+    "round_reward_per_wave": 7,
+    "round_six_threat_multiplier": 1.0,
+    "standard_enemy_health_multiplier": 1.8
+  },
+  "combat_samples": 2,
+  "effective_final_runs_per_profile": 12,
+  "effective_runs_per_policy": 6,
+  "excluded_relics": [
+    "trade_agreement"
+  ],
+  "excluded_towers": [
+    "hivemother",
+    "dronedepot",
+    "mechbay"
+  ],
+  "final_runs_per_profile": 12,
+  "finalists": 4,
+  "forced_starter": "",
+  "generations": 2,
+  "included_towers": [
+    "invader",
+    "gauss_repeater",
+    "beholder",
+    "reaver",
+    "brainiac",
+    "longshot",
+    "slinger",
+    "voidcaller",
+    "orbitalcannon",
+    "energycore",
+    "saucer"
+  ],
+  "model": {
+    "engagement_coverage": 0.45,
+    "future_funding_discount": 0.8,
+    "future_power_discount": 0.82,
+    "map_combat_segments": 36,
+    "map_combat_time_step": 1.0,
+    "map_geometry": true,
+    "map_legal_placements": 1391,
+    "map_path_samples": 281,
+    "maximum_towers": 24,
+    "notes": [
+      "Combat coefficients come from the tower Monte Carlo model.",
+      "Purchases are staged as builds, upgrades, and paths.",
+      "Relic drafts and major combat/economy effects are modeled.",
+      "Saucer pursuit, abduction, split prevention, rockets, and specimen uptime are approximated.",
+      "Map combat advances enemy health and count through physical path segments and limits each tower to covered segments.",
+      "Manual aim skill, individual projectile timing, per-unit overkill, selling, and crowd-control movement remain approximations."
+    ],
+    "purchase_lookahead_steps": 3,
+    "rounds": 10,
+    "starting_rosters": [
+      "invader+slinger",
+      "invader+reaver",
+      "reaver+slinger"
+    ]
+  },
+  "population": 10,
+  "preset": "early",
+  "runs_per_policy": 6,
+  "seed": 884271,
+  "sensitivity_profiles": [
+    {
+      "axis": "baseline",
+      "enemy_armor": 1.0,
+      "enemy_density": 1.0,
+      "enemy_health": 1.0,
+      "enemy_speed": 1.0,
+      "id": "baseline",
+      "kill_income": 1.0,
+      "round_income": 1.0,
+      "starting_cash": 1.0,
+      "value": 1.0
+    }
+  ],
+  "starter_roster_count": 3,
+  "starter_roster_size": 2,
+  "starter_rosters": [
+    "invader+slinger",
+    "invader+reaver",
+    "reaver+slinger"
+  ],
+  "workers": 11
+}

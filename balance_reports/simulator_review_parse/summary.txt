@@ -1,0 +1,17 @@
+RUN-LEVEL BALANCE OPTIMIZER
+Seed: 884271 | preset: early | finalist runs: 6
+
+Top build signatures:
+1. slinger-L1x2 | win 100.0% | runs 3 | profiles 1
+2. reaver-L1x3 | win 100.0% | runs 2 | profiles 1
+3. reaver-L1x1+slinger-L1x1 | win 100.0% | runs 1 | profiles 1
+
+Top starting tower pairs:
+1. invader+slinger | win 100.0% | delta 0.0% | runs 2
+2. invader+reaver | win 100.0% | delta 0.0% | runs 2
+3. reaver+slinger | win 100.0% | delta 0.0% | runs 2
+
+Sensitivity:
+baseline: win 100.0%, average round 1.00, winning builds 3
+
+Interpretation: a clear choice should combine high win rate, high winning-run share, and success across many sensitivity profiles. Correlation is not causation; validate flagged finalists in live Godot playtests.

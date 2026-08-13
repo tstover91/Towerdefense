@@ -1,0 +1,11 @@
+rank,starting_roster,runs,wins,win_rate,win_rate_delta,average_round,average_lives,profiles_seen,unique_winning_builds,clear_choice_flag
+1,invader,160,0,0.0000,0.0000,4.425,0.000,1,0,
+2,reaver,160,0,0.0000,0.0000,5.063,0.000,1,0,
+3,slinger,160,0,0.0000,0.0000,4.750,0.000,1,0,
+4,gauss_repeater,160,0,0.0000,0.0000,4.000,0.000,1,0,
+5,invader+reaver,160,0,0.0000,0.0000,4.250,0.000,1,0,
+6,invader+slinger,160,0,0.0000,0.0000,4.750,0.000,1,0,
+7,gauss_repeater+invader,160,0,0.0000,0.0000,4.000,0.000,1,0,
+8,reaver+slinger,160,0,0.0000,0.0000,4.750,0.000,1,0,
+9,gauss_repeater+reaver,160,0,0.0000,0.0000,4.000,0.000,1,0,
+10,gauss_repeater+slinger,160,0,0.0000,0.0000,4.750,0.000,1,0,

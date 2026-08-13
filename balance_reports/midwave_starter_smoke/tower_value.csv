@@ -1,0 +1,12 @@
+tower,present_runs,present_win_rate,absent_win_rate,win_rate_delta,usage_rate,clear_choice_flag
+invader,37,0.3784,0.1628,0.2156,0.4625,
+gauss_repeater,26,0.1923,0.2963,-0.1040,0.3250,
+beholder,0,0.0000,0.2625,-0.2625,0.0000,UNDERUSED
+reaver,20,0.4500,0.2000,0.2500,0.2500,
+brainiac,0,0.0000,0.2625,-0.2625,0.0000,UNDERUSED
+longshot,0,0.0000,0.2625,-0.2625,0.0000,UNDERUSED
+slinger,43,0.3721,0.1351,0.2370,0.5375,
+voidcaller,0,0.0000,0.2625,-0.2625,0.0000,UNDERUSED
+orbitalcannon,0,0.0000,0.2625,-0.2625,0.0000,UNDERUSED
+energycore,0,0.0000,0.2625,-0.2625,0.0000,UNDERUSED
+saucer,0,0.0000,0.2625,-0.2625,0.0000,UNDERUSED

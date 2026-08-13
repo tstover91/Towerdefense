@@ -1,0 +1,8 @@
+axis,current_value,recommended_low,recommended_high,status,evidence
+starting_cash,500.000,500.000,500.000,NARROW_ESTIMATE,closest tested win rate 0.6%; 1 winning builds
+kill_income,1.000,1.000,1.000,NARROW_ESTIMATE,closest tested win rate 0.6%; 1 winning builds
+round_income,1.000,1.000,1.000,NARROW_ESTIMATE,closest tested win rate 0.6%; 1 winning builds
+enemy_health,1.980,1.980,1.980,NARROW_ESTIMATE,closest tested win rate 0.6%; 1 winning builds
+enemy_armor,1.000,1.000,1.000,NARROW_ESTIMATE,closest tested win rate 0.6%; 1 winning builds
+enemy_speed,0.700,0.700,0.700,NARROW_ESTIMATE,closest tested win rate 0.6%; 1 winning builds
+enemy_density,1.000,1.000,1.000,NARROW_ESTIMATE,closest tested win rate 0.6%; 1 winning builds

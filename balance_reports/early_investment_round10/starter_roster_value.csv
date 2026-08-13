@@ -1,0 +1,4 @@
+rank,starting_roster,runs,wins,win_rate,win_rate_delta,average_round,average_lives,profiles_seen,unique_winning_builds,clear_choice_flag
+1,reaver+slinger,1600,53,0.0331,0.0135,3.801,0.245,1,35,
+2,invader+slinger,1600,41,0.0256,0.0060,3.882,0.212,1,29,
+3,invader+reaver,1600,0,0.0000,-0.0196,3.806,0.000,1,0,

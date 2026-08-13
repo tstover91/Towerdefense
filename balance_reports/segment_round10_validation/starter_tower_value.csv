@@ -1,0 +1,12 @@
+tower,present_runs,present_win_rate,absent_win_rate,win_rate_delta,clear_choice_flag
+invader,32,1.0000,0.8750,0.1250,CLEAR_START_PICK
+gauss_repeater,0,0.0000,0.9583,-0.9583,
+beholder,0,0.0000,0.9583,-0.9583,
+reaver,32,0.9375,1.0000,-0.0625,
+brainiac,0,0.0000,0.9583,-0.9583,
+longshot,0,0.0000,0.9583,-0.9583,
+slinger,32,0.9375,1.0000,-0.0625,
+voidcaller,0,0.0000,0.9583,-0.9583,
+orbitalcannon,0,0.0000,0.9583,-0.9583,
+energycore,0,0.0000,0.9583,-0.9583,
+saucer,0,0.0000,0.9583,-0.9583,

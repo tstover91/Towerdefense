@@ -1,0 +1,100 @@
+[
+  {
+    "metrics": {
+      "average_round": 4.0,
+      "score": 9.57094160021668,
+      "win_rate": 0.0
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 1.10142052173615,
+        "beam": 0.89994215965271,
+        "biological": 0.932559907436371,
+        "critical": 1.12916743755341,
+        "electric": 0.899069786071777,
+        "explosive": 0.921133995056152,
+        "global": 0.9441037774086,
+        "melee": 0.945832908153534,
+        "pierce": 1.13345050811768,
+        "psionic": 1.01568329334259,
+        "reveal": 0.955384969711304,
+        "stun": 1.08525347709656,
+        "technology": 0.76962798833847
+      },
+      "diversity": 0.844978213310242,
+      "economy_weight": 1.30117511749268,
+      "expansion_bias": 0.982655167579651,
+      "id": 1,
+      "live_build_third_invader_level": 2,
+      "name": "live_invader_l2",
+      "patience": 0.910828649997711,
+      "relic_refresh_threshold": 0.451626479625702,
+      "reserve": 0.0122366715222597,
+      "risk": 1.1557092666626,
+      "tower_weights": {
+        "beholder": 0.806988298892975,
+        "brainiac": 0.971720457077026,
+        "energycore": 1.22618210315704,
+        "gauss_repeater": 0.790839314460754,
+        "invader": 0.758142590522766,
+        "longshot": 1.09606683254242,
+        "orbitalcannon": 0.79137110710144,
+        "reaver": 1.24254834651947,
+        "saucer": 0.758039951324463,
+        "slinger": 0.816633939743042,
+        "voidcaller": 1.215540766716
+      },
+      "upgrade_bias": 1.16781687736511
+    },
+    "rank": 1
+  },
+  {
+    "metrics": {
+      "average_round": 4.0,
+      "score": 9.57094160021668,
+      "win_rate": 0.0
+    },
+    "policy": {
+      "category_weights": {
+        "ballistic": 1.04396653175354,
+        "beam": 1.18514478206635,
+        "biological": 0.984182357788086,
+        "critical": 0.781356811523438,
+        "electric": 1.16240119934082,
+        "explosive": 1.07690620422363,
+        "global": 1.14670741558075,
+        "melee": 1.07602143287659,
+        "pierce": 0.777434170246124,
+        "psionic": 0.956637322902679,
+        "reveal": 1.16250503063202,
+        "stun": 1.17308378219604,
+        "technology": 1.08915317058563
+      },
+      "diversity": 0.333200067281723,
+      "economy_weight": 1.09120273590088,
+      "expansion_bias": 0.935313582420349,
+      "id": 2,
+      "live_build_third_invader_level": 3,
+      "name": "live_invader_l3",
+      "patience": 0.899233818054199,
+      "relic_refresh_threshold": 0.82965099811554,
+      "reserve": 0.217779248952866,
+      "risk": 0.83023601770401,
+      "tower_weights": {
+        "beholder": 0.871725559234619,
+        "brainiac": 1.14368867874146,
+        "energycore": 1.08239424228668,
+        "gauss_repeater": 0.783992826938629,
+        "invader": 0.767587602138519,
+        "longshot": 1.2115752696991,
+        "orbitalcannon": 1.14708566665649,
+        "reaver": 0.850341975688934,
+        "saucer": 1.01719796657562,
+        "slinger": 0.755905151367188,
+        "voidcaller": 0.891998648643494
+      },
+      "upgrade_bias": 0.987342715263367
+    },
+    "rank": 2
+  }
+]
