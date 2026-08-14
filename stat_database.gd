@@ -73,11 +73,28 @@ const EXPLOSION_INNER_RADIUS_RATIO := 0.50
 const EXPLOSION_OUTER_DAMAGE_MULTIPLIER := 0.50
 const EXPLOSIVE_ARMOR_MULTIPLIER := 1.25
 
-# Economy redistribution: kills pay less while a larger share of income is
-# guaranteed at the end of each completed round.
-const KILL_REWARD_MULTIPLIER := 0.80
-const ROUND_REWARD_BASE := 30
-const ROUND_REWARD_PER_WAVE := 7
+const ROUND_CASH_REWARDS := {
+	1: 500,
+	2: 600,
+	3: 750,
+	4: 900,
+	5: 1050,
+	6: 1300,
+	7: 1400,
+	8: 1550,
+	9: 1700,
+	10: 1900,
+	11: 2200,
+	12: 2300,
+	13: 2500,
+	14: 2700,
+	15: 3000,
+	16: 3400,
+	17: 5000,
+	18: 4000,
+	19: 4500,
+	20: 0,
+}
 const ROUND_SIX_THREAT_MULTIPLIER := 1.00
 const EARLY_ROUND_THREAT_MULTIPLIERS := {
 	1: 0.75,
@@ -1723,7 +1740,7 @@ const TOWERS := {
 const MODES := {
 	"easy": {
 		"display_name": "Easy",
-		"starting_cash": 500,
+		"starting_cash": 750,
 		"starting_lives": 100,
 		"max_rounds": 20,
 		"wave_duration_start": 20.0,
@@ -1848,3 +1865,6 @@ static func get_relic(relic_id: StringName) -> Dictionary:
 	var relic: Dictionary = RELICS[relic_id].duplicate(true)
 	relic["id"] = relic_id
 	return relic
+
+static func get_round_cash_reward(round_number: int) -> int:
+	return int(ROUND_CASH_REWARDS.get(round_number, 0))
