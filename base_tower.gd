@@ -2176,7 +2176,11 @@ func clear_solar_lances() -> void:
 
 
 func attack(current_target: Node2D) -> void:
-	if not is_instance_valid(current_target):
+	# Revalidate at the firing boundary. Target selection normally performs this
+	# check already, but reveal can be lost between targeting updates and an
+	# attack callback. In that case Hidden enemies must not produce a shot that
+	# will only be rejected later by the projectile damage gate.
+	if not is_valid_target(current_target):
 		return
 	if uses_continuous_beam():
 		var beam_offsets: Array[float] = [0.0]
@@ -2630,6 +2634,8 @@ func apply_reaver_combo_hit(
 func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
 	if projectile_scene == null:
 		push_error("Projectile tower %s has no projectile scene." % tower_id)
+		return
+	if not is_valid_target(current_target):
 		return
 
 	var impact_radius := splash_radius_pixels if damage_type == DAMAGE_EXPLOSIVE else 0.0

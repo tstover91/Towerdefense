@@ -731,6 +731,7 @@ const TOWERS := {
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"electric"],
+		"primary_damage_type": &"electric",
 		"delivery_type": DELIVERY_PROJECTILE,
 		"impact_mode": IMPACT_FIRST_CONTACT,
 		"bonus_tags": [],
@@ -1652,10 +1653,13 @@ const TOWERS := {
 			},
 			"b": {
 				"display_name": "Final Payload",
-				"description": "Adds Explosive. When a drone exhausts its damage budget, it self-destructs and the depot must replace it.",
+				"description": "Adds Explosive and triples each drone's damage budget. When that budget is exhausted, the drone self-destructs and the depot must replace it.",
 				"cost": 5500,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
+				"unit_stat_multipliers": {
+					"damage_budget": 3.0,
+				},
 				"unit_stat_overrides": {
 					"additional_damage_tags": [&"explosive"],
 					"explode_on_damage_budget": true,

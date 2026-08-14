@@ -488,14 +488,14 @@ func apply_damage(
 	var link_center := global_position
 
 	var conductive_armor := (
-		not ignores_armor
-		and damage_type == &"electric"
+		damage_type == &"electric"
 		and attack_context != null
 		and int(attack_context.metadata.get("conductive", 0)) > 0
+		and armor > 0.0
 	)
 	var armor_reduction := (
 		0.0
-		if ignores_armor
+		if ignores_armor and not conductive_armor
 		else GameStats.get_armor_damage_reduction(armor, damage_type)
 	)
 	var final_damage := maxi(
