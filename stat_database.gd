@@ -15,6 +15,7 @@ const BUILD_CELL_SIZE := 32.0
 # mechanics onto the same round or allowing counters before they are affordable.
 const FIXED_ENEMY_DEBUT_ROUNDS := {
 	&"normal": 1,
+	&"swat_enforcer": 13,
 	&"brute": 24,
 }
 const ENEMY_DEBUT_GROUPS := [
@@ -191,6 +192,7 @@ const ENEMY_LATE_HEALTH_FACTORS := {
 	&"regenerator": 1.15,
 	&"rusher": 0.85,
 	&"summoner": 1.00,
+	&"swat_enforcer": 1.20,
 	&"brute": 1.00,
 }
 
@@ -664,6 +666,24 @@ const ENEMIES := {
 		"color": Color(0.8, 0.2, 1.0),
 		"visual_scale": 1.3,
 	},
+	"swat_enforcer": {
+	"display_name": "SWAT Enforcer",
+	"health": 900,
+	"health_per_wave": 0.0,
+	"move_speed": 55.0,
+	"cash_reward": 80,
+	"base_damage": 30,
+	"armor": 25,
+	"earliest_debut_round": 13,
+	"formation_strength": 30,
+	"director_cost": 22,
+	"spawn_weight": 8,
+	"spawn_style": &"spaced",
+	"role": &"tank",
+	"traits": [&"armored", &"high_health"],
+	"color": Color(0.18, 0.22, 0.28),
+	"visual_scale": 1.45,
+},
 	"brute": {
 		"display_name": "Brute",
 		"health": 90000,

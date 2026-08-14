@@ -1907,6 +1907,7 @@ func _on_round_started(_round_number: int) -> void:
 	if energy_shockwave_enabled:
 		energy_shockwave_remaining = energy_shockwave_cooldown
 	if is_placed and uses_standard_spawner_system():
+		_spawn_unit()
 		damage_timer.start()
 
 
