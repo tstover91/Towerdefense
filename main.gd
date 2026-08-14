@@ -28,7 +28,6 @@ const SPAWN_STYLES := {
 		"gap_after_group": 0.8,
 	},
 }
-const WAVE_STYLE_UNLOCKS := GameStats.WAVE_STYLE_UNLOCKS
 const ROLE_FODDER := &"fodder"
 const ROLE_PRESSURE := &"pressure"
 const ROLE_TANK := &"tank"
@@ -136,6 +135,8 @@ var mobs_alive := 0
 var spawn_schedule: Array[Dictionary] = []
 var enemy_rng := RandomNumberGenerator.new()
 var shop_rng := RandomNumberGenerator.new()
+var enemy_debut_plan: Dictionary = {}
+var round_style_plan: Dictionary = {}
 var current_wave_spawn_style: StringName = &"standard"
 var current_round_type: StringName = ROUND_STANDARD
 var round_six_type: StringName = ROUND_HORDE
@@ -190,6 +191,7 @@ func _ready() -> void:
 	update_speed_button()
 	enemy_rng.randomize()
 	shop_rng.randomize()
+	generate_run_director_plan()
 	roll_challenge_round_order()
 	_align_sidebar_to_build_grid()
 	get_viewport().size_changed.connect(_align_sidebar_to_build_grid)
@@ -417,6 +419,14 @@ func roll_challenge_round_order() -> void:
 		round_eleven_type = ROUND_HORDE
 
 
+func generate_run_director_plan() -> void:
+	enemy_debut_plan = GameStats.build_enemy_debut_plan(enemy_rng)
+	round_style_plan = GameStats.build_round_style_plan(
+		enemy_rng,
+		enemy_debut_plan
+	)
+
+
 func get_round_type(wave: int) -> StringName:
 	match wave:
 		6:
@@ -483,6 +493,8 @@ func start_round() -> void:
 	if round_number == max_rounds:
 		current_wave_spawn_style = &"boss_escort"
 		spawn_schedule = build_timed_boss_opening()
+	else:
+		spawn_schedule = build_debut_opening(round_number)
 	mobs_left_to_spawn = spawn_schedule.size()
 	round_active = true
 	round_started.emit(round_number)
@@ -1199,7 +1211,7 @@ func _spawn_mob():
 		return
 
 	var enemy_id: StringName = spawn_event["enemy_id"]
-	var spawn_cost := get_enemy_director_cost(enemy_id)
+	var spawn_cost := get_spawn_event_director_cost(spawn_event)
 	var free_spawn: bool = spawn_event.get("free_spawn", false)
 	if not free_spawn and spawn_threat < spawn_cost:
 		spawntimer.start(0.1)
@@ -1423,14 +1435,13 @@ func flush_pending_enemy_spawns() -> void:
 
 
 func choose_wave_spawn_style(wave: int) -> StringName:
-	var available_styles: Array[StringName] = [&"standard"]
-	for style_name in WAVE_STYLE_UNLOCKS:
-		if wave >= WAVE_STYLE_UNLOCKS[style_name]:
-			available_styles.append(style_name)
-
-	return available_styles[
-		enemy_rng.randi_range(0, available_styles.size() - 1)
-	]
+	if round_style_plan.has(wave):
+		return StringName(round_style_plan[wave])
+	var available := get_available_enemies(wave)
+	return GameStats.choose_weighted_wave_style(
+		GameStats.get_eligible_wave_styles(wave, available),
+		enemy_rng
+	)
 
 
 func get_wave_duration(wave: int) -> float:
@@ -1462,6 +1473,7 @@ func simulate_director_spawn_counts(
 	# It deliberately excludes free elite-event packs; the optimizer models
 	# those separately with their spawned variants.
 	enemy_rng.seed = seed
+	generate_run_director_plan()
 	round_number = wave
 	current_round_type = round_type
 	var mode := GameStats.get_mode(mode_id)
@@ -1483,6 +1495,8 @@ func simulate_director_spawn_counts(
 	var schedule: Array[Dictionary] = []
 	if wave == max_rounds:
 		schedule = build_timed_boss_opening()
+	else:
+		schedule = build_debut_opening(wave)
 	var counts := {}
 	var elapsed := 0.0
 	const DIRECTOR_STEP := 0.05
@@ -1500,11 +1514,16 @@ func simulate_director_spawn_counts(
 		if not schedule.is_empty() and event_wait <= 0.0:
 			var spawn_event: Dictionary = schedule.front()
 			var enemy_id := StringName(spawn_event["enemy_id"])
-			var spawn_cost := float(get_enemy_director_cost(enemy_id))
+			var spawn_cost := get_spawn_event_director_cost(spawn_event)
 			if available_threat >= spawn_cost:
 				schedule.pop_front()
 				available_threat -= spawn_cost
-				counts[enemy_id] = float(counts.get(enemy_id, 0.0)) + 1.0
+				var spawn_variant := StringName(spawn_event.get(
+					"variant",
+					VARIANT_NORMAL
+				))
+				var count_key := "%s|%s" % [enemy_id, spawn_variant]
+				counts[count_key] = float(counts.get(count_key, 0.0)) + 1.0
 				var delay := float(spawn_event.get("delay_after", 0.1))
 				if schedule.is_empty():
 					cooldown = delay
@@ -1560,13 +1579,9 @@ func stop_timed_spawning() -> void:
 
 
 func get_available_enemies(wave: int) -> Array[StringName]:
-	var available: Array[StringName] = []
-	for enemy_key in GameStats.ENEMIES:
-		var enemy_id := StringName(enemy_key)
-		var stats: Dictionary = GameStats.get_enemy(enemy_id)
-		if not stats.get("boss", false) and stats.get("first_wave", 1) <= wave:
-			available.append(enemy_id)
-	return available
+	if enemy_debut_plan.is_empty():
+		generate_run_director_plan()
+	return GameStats.get_available_enemy_ids(wave, enemy_debut_plan)
 
 
 func process_special_round_events() -> void:
@@ -1741,14 +1756,28 @@ func build_director_group() -> Array[Dictionary]:
 	match group_style:
 		&"pulses":
 			schedule = build_pulse_schedule(enemy_queue)
-		&"simultaneous_batch":
-			schedule = build_simultaneous_batch_schedule(enemy_queue)
+		&"swarm_batch":
+			schedule = build_swarm_batch_schedule(enemy_queue)
 		&"convoy":
 			schedule = build_convoy_schedule(enemy_queue)
-		&"sandwich":
-			schedule = build_sandwich_schedule(enemy_queue)
-		&"escorted_elite":
-			schedule = build_escorted_elite_schedule(enemy_queue)
+		&"hidden_probe":
+			schedule = build_hidden_probe_schedule(enemy_queue)
+		&"splitter_pack":
+			schedule = build_splitter_pack_schedule(enemy_queue)
+		&"support_column":
+			schedule = build_support_column_schedule(enemy_queue)
+		&"rush_screen":
+			schedule = build_rush_screen_schedule(enemy_queue)
+		&"summoner_escort":
+			schedule = build_summoner_escort_schedule(enemy_queue)
+		&"elite_escort":
+			schedule = build_elite_escort_schedule(enemy_queue)
+		&"layered_assault":
+			schedule = build_layered_assault_schedule(enemy_queue)
+		&"boss_rehearsal":
+			schedule = build_boss_rehearsal_schedule(enemy_queue)
+		&"stream", &"burst", &"spaced":
+			schedule = build_fixed_style_schedule(enemy_queue, group_style)
 		_:
 			schedule = build_standard_schedule(enemy_queue)
 	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
@@ -1768,10 +1797,10 @@ func build_director_group() -> Array[Dictionary]:
 func choose_gauntlet_spawn_style() -> StringName:
 	var styles: Array[StringName] = [
 		&"pulses",
-		&"simultaneous_batch",
+		&"swarm_batch",
 		&"convoy",
-		&"sandwich",
-		&"escorted_elite",
+		&"layered_assault",
+		&"elite_escort",
 		&"stream",
 	]
 	if gauntlet_style_repeat_count >= 2:
@@ -1789,7 +1818,7 @@ func choose_payday_spawn_style() -> StringName:
 	var styles: Array[StringName] = [
 		&"stream",
 		&"pulses",
-		&"simultaneous_batch",
+		&"swarm_batch",
 		&"burst",
 	]
 	return styles[enemy_rng.randi_range(0, styles.size() - 1)]
@@ -1801,7 +1830,8 @@ func apply_spawn_schedule_variant(
 	delay_multiplier: float
 ) -> void:
 	for spawn_event in schedule:
-		spawn_event["variant"] = spawn_variant
+		if not spawn_event.has("variant"):
+			spawn_event["variant"] = spawn_variant
 		spawn_event["delay_after"] = maxf(
 			float(spawn_event.get("delay_after", 0.1)) * delay_multiplier,
 			0.01
@@ -1820,10 +1850,12 @@ func build_role_based_enemy_queue(
 
 	var forced_roles: Array[StringName] = []
 	match style_name:
-		&"convoy", &"escorted_elite":
+		&"convoy", &"elite_escort":
 			forced_roles = [ROLE_TANK]
-		&"sandwich":
-			forced_roles = [ROLE_TANK, ROLE_TANK]
+		&"support_column":
+			forced_roles = [ROLE_SUPPORT]
+		&"rush_screen", &"layered_assault":
+			forced_roles = [ROLE_TANK, ROLE_PRESSURE]
 
 	for forced_role in forced_roles:
 		var forced_enemy := choose_enemy_for_role(
@@ -1834,6 +1866,21 @@ func build_role_based_enemy_queue(
 		)
 		if not forced_enemy.is_empty():
 			group.append(forced_enemy)
+	var forced_enemy_id: StringName = &""
+	match style_name:
+		&"hidden_probe":
+			forced_enemy_id = &"hidden"
+		&"splitter_pack":
+			forced_enemy_id = &"splitter"
+		&"rush_screen":
+			forced_enemy_id = &"rusher"
+		&"summoner_escort":
+			forced_enemy_id = &"summoner"
+		&"boss_rehearsal":
+			forced_enemy_id = &"summoner" if &"summoner" in available else &"regenerator"
+	if not forced_enemy_id.is_empty() and forced_enemy_id in available:
+		if forced_enemy_id not in group and group.size() < group_size:
+			group.append(forced_enemy_id)
 
 	if style_name == &"standard" or style_name == &"boss_escort":
 		var leader_role := choose_formation_role(
@@ -1904,10 +1951,11 @@ func choose_formation_role(
 		).is_empty():
 			continue
 
-		var weight: float = (
-			float(wave_weights.get(role, 0.0))
-			+ float(formation_weights.get(role, 0.0))
-		) * 0.5
+		var wave_weight := float(wave_weights.get(role, 0.0))
+		var formation_weight := float(formation_weights.get(role, 0.0))
+		# A zero in either table is an intentional exclusion. Multiplication keeps
+		# formation identities intact while still respecting round progression.
+		var weight := wave_weight * formation_weight / 100.0
 		if weight <= 0.0:
 			continue
 		candidates.append(role)
@@ -2010,17 +2058,37 @@ func get_director_group_size(style_name: StringName) -> int:
 	match style_name:
 		&"pulses":
 			base_size = enemy_rng.randi_range(7, 12)
-		&"simultaneous_batch":
+		&"swarm_batch":
 			base_size = enemy_rng.randi_range(8, 14)
 		&"convoy":
 			base_size = 8
-		&"sandwich":
-			base_size = enemy_rng.randi_range(10, 14)
-		&"escorted_elite":
+		&"elite_escort", &"support_column", &"summoner_escort":
 			base_size = 9
+		&"hidden_probe", &"splitter_pack", &"rush_screen":
+			base_size = enemy_rng.randi_range(8, 12)
+		&"layered_assault", &"boss_rehearsal":
+			base_size = enemy_rng.randi_range(10, 14)
 		_:
 			base_size = enemy_rng.randi_range(6, 10)
 	return maxi(1, roundi(float(base_size) * STANDARD_GROUP_SIZE_MULTIPLIER))
+
+
+func build_debut_opening(wave: int) -> Array[Dictionary]:
+	var schedule: Array[Dictionary] = []
+	var debuts := GameStats.get_debut_enemy_ids(wave, enemy_debut_plan)
+	debuts.erase(&"normal")
+	if debuts.is_empty():
+		return schedule
+	var available := get_available_enemies(wave)
+	for debut_id in debuts:
+		var escort_pool := available.duplicate()
+		escort_pool.erase(debut_id)
+		var group: Array[StringName] = [debut_id]
+		for _index in mini(2, escort_pool.size()):
+			group.append(choose_weighted_enemy(escort_pool))
+		GameStats.shuffle_with_rng(group, enemy_rng)
+		append_enemy_group(schedule, group, 0.22, 1.0, &"debut")
+	return schedule
 
 
 func build_timed_boss_opening() -> Array[Dictionary]:
@@ -2036,23 +2104,30 @@ func build_timed_boss_opening() -> Array[Dictionary]:
 		)
 		return boss_only_schedule
 
-	var cheapest: Array[StringName] = []
-	var cheapest_cost := 2147483647
+	var front_candidates: Array[StringName] = []
+	var rear_candidates: Array[StringName] = []
 	for enemy_id in available:
-		var cost := get_enemy_formation_strength(enemy_id)
-		if cost < cheapest_cost:
-			cheapest_cost = cost
-			cheapest = [enemy_id]
-		elif cost == cheapest_cost:
-			cheapest.append(enemy_id)
-
-	var escorts: Array[StringName] = []
-	for _index in 4:
-		escorts.append(choose_weighted_enemy(cheapest))
-
-	var boss_group: Array[StringName] = [escorts[0], escorts[1], &"brute"]
-	boss_group.append(escorts[2])
-	boss_group.append(escorts[3])
+		if get_enemy_formation_strength(enemy_id) < 8:
+			continue
+		var role: StringName = GameStats.get_enemy(enemy_id).get(
+			"role",
+			ROLE_FODDER
+		)
+		if role == ROLE_TANK:
+			front_candidates.append(enemy_id)
+		elif role in [ROLE_PRESSURE, ROLE_SUPPORT]:
+			rear_candidates.append(enemy_id)
+	if front_candidates.is_empty():
+		front_candidates = available.duplicate()
+	if rear_candidates.is_empty():
+		rear_candidates = available.duplicate()
+	var boss_group: Array[StringName] = [
+		choose_weighted_enemy(front_candidates),
+		choose_weighted_enemy(front_candidates),
+		&"brute",
+		choose_weighted_enemy(rear_candidates),
+		choose_weighted_enemy(rear_candidates),
+	]
 	var schedule: Array[Dictionary] = []
 	append_enemy_group(schedule, boss_group, 0.2, 2.0, &"boss_escort")
 	return schedule
@@ -2097,14 +2172,14 @@ func build_pulse_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
 	return schedule
 
 
-func build_simultaneous_batch_schedule(
+func build_swarm_batch_schedule(
 	enemy_queue: Array[StringName]
 ) -> Array[Dictionary]:
 	var schedule: Array[Dictionary] = []
 	while not enemy_queue.is_empty():
 		var group_size := mini(enemy_rng.randi_range(8, 14), enemy_queue.size())
 		var group := take_front_group(enemy_queue, group_size)
-		append_enemy_group(schedule, group, 0.05, 1.2, &"simultaneous_batch")
+		append_enemy_group(schedule, group, 0.05, 1.2, &"swarm_batch")
 	return schedule
 
 
@@ -2119,39 +2194,175 @@ func build_convoy_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
 	return schedule
 
 
-func build_escorted_elite_schedule(
-	enemy_queue: Array[StringName]
+func build_fixed_style_schedule(
+	enemy_queue: Array[StringName],
+	style_name: StringName
 ) -> Array[Dictionary]:
+	var style: Dictionary = SPAWN_STYLES.get(
+		style_name,
+		SPAWN_STYLES[&"steady"]
+	)
 	var schedule: Array[Dictionary] = []
-	while not enemy_queue.is_empty():
-		var elite := take_enemy_by_role(enemy_queue, ROLE_TANK)
-		var escorts: Array[StringName] = []
-		var escort_count := mini(8, enemy_queue.size())
-		for _index in escort_count:
-			escorts.append(take_weakest_enemy(enemy_queue))
-
-		var group: Array[StringName] = []
-		var front_count := ceili(escorts.size() / 2.0)
-		for _index in front_count:
-			group.append(escorts.pop_front())
-		group.append(elite)
-		group.append_array(escorts)
-		append_enemy_group(schedule, group, 0.16, 1.3, &"escorted_elite")
+	append_enemy_group(
+		schedule,
+		enemy_queue,
+		float(style["interval"]),
+		float(style["gap_after_group"]),
+		style_name
+	)
 	return schedule
 
 
-func build_sandwich_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
-	if enemy_queue.size() < 3:
-		return build_standard_schedule(enemy_queue)
-
-	var first_elite := take_enemy_by_role(enemy_queue, ROLE_TANK)
-	var last_elite := take_enemy_by_role(enemy_queue, ROLE_TANK)
-	var group: Array[StringName] = [first_elite]
+func build_hidden_probe_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var hidden_enemies := take_all_enemy_id(enemy_queue, &"hidden")
+	var front := take_front_group(
+		enemy_queue,
+		ceili(float(enemy_queue.size()) * 0.5)
+	)
+	var group := front
+	group.append_array(hidden_enemies)
 	group.append_array(enemy_queue)
-	group.append(last_elite)
-
 	var schedule: Array[Dictionary] = []
-	append_enemy_group(schedule, group, 0.3, 0.8, &"sandwich")
+	append_enemy_group(schedule, group, 0.16, 1.1, &"hidden_probe")
+	return schedule
+
+
+func build_splitter_pack_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var splitters := take_all_enemy_id(enemy_queue, &"splitter")
+	var group: Array[StringName] = []
+	while not splitters.is_empty() or not enemy_queue.is_empty():
+		if not enemy_queue.is_empty():
+			group.append(take_weakest_enemy(enemy_queue))
+		if not splitters.is_empty():
+			group.append(splitters.pop_front())
+	var schedule: Array[Dictionary] = []
+	append_enemy_group(schedule, group, 0.12, 1.2, &"splitter_pack")
+	return schedule
+
+
+func build_support_column_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var support := take_enemy_by_role(enemy_queue, ROLE_SUPPORT)
+	var tank := take_enemy_by_role(enemy_queue, ROLE_TANK)
+	var group: Array[StringName] = []
+	append_if_valid(group, tank)
+	var front := take_front_group(enemy_queue, mini(2, enemy_queue.size()))
+	group.append_array(front)
+	append_if_valid(group, support)
+	group.append_array(enemy_queue)
+	var schedule: Array[Dictionary] = []
+	append_enemy_group(schedule, group, 0.18, 1.3, &"support_column")
+	return schedule
+
+
+func build_rush_screen_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var rushers := take_all_enemy_id(enemy_queue, &"rusher")
+	var screen := take_enemy_by_role(enemy_queue, ROLE_TANK)
+	var group: Array[StringName] = []
+	append_if_valid(group, screen)
+	group.append_array(take_front_group(enemy_queue, mini(2, enemy_queue.size())))
+	group.append_array(rushers)
+	group.append_array(enemy_queue)
+	var schedule: Array[Dictionary] = []
+	append_enemy_group(schedule, group, 0.10, 1.2, &"rush_screen")
+	return schedule
+
+
+func build_summoner_escort_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var summoner := take_enemy_by_id(enemy_queue, &"summoner")
+	var tank := take_enemy_by_role(enemy_queue, ROLE_TANK)
+	return build_centerpiece_escort_schedule(
+		enemy_queue,
+		summoner,
+		tank,
+		&"summoner_escort",
+		false
+	)
+
+
+func build_elite_escort_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var elite := take_enemy_by_role(enemy_queue, ROLE_TANK)
+	return build_centerpiece_escort_schedule(
+		enemy_queue,
+		elite,
+		&"",
+		&"elite_escort",
+		true
+	)
+
+
+func build_layered_assault_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var fodder: Array[StringName] = []
+	var pressure: Array[StringName] = []
+	var finishers: Array[StringName] = []
+	for enemy_id in enemy_queue:
+		var role: StringName = GameStats.get_enemy(enemy_id).get(
+			"role",
+			ROLE_FODDER
+		)
+		if role == ROLE_FODDER:
+			fodder.append(enemy_id)
+		elif role == ROLE_PRESSURE:
+			pressure.append(enemy_id)
+		else:
+			finishers.append(enemy_id)
+	var schedule: Array[Dictionary] = []
+	append_enemy_group(schedule, fodder, 0.10, 0.9, &"layered_assault")
+	append_enemy_group(schedule, pressure, 0.08, 1.0, &"layered_assault")
+	append_enemy_group(schedule, finishers, 0.28, 1.3, &"layered_assault")
+	return schedule
+
+
+func build_boss_rehearsal_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var centerpiece := take_enemy_by_id(enemy_queue, &"summoner")
+	if centerpiece.is_empty():
+		centerpiece = take_enemy_by_id(enemy_queue, &"regenerator")
+	return build_centerpiece_escort_schedule(
+		enemy_queue,
+		centerpiece,
+		&"",
+		&"boss_rehearsal",
+		true
+	)
+
+
+func build_centerpiece_escort_schedule(
+	enemy_queue: Array[StringName],
+	centerpiece: StringName,
+	frontliner: StringName,
+	style_name: StringName,
+	make_centerpiece_elite: bool
+) -> Array[Dictionary]:
+	var escorts := enemy_queue.duplicate()
+	var group: Array[StringName] = []
+	append_if_valid(group, frontliner)
+	var front_count := ceili(float(escorts.size()) * 0.5)
+	group.append_array(take_front_group(escorts, front_count))
+	var centerpiece_index := group.size()
+	append_if_valid(group, centerpiece)
+	group.append_array(escorts)
+	var schedule: Array[Dictionary] = []
+	append_enemy_group(schedule, group, 0.16, 1.3, style_name)
+	if make_centerpiece_elite and centerpiece_index < schedule.size():
+		schedule[centerpiece_index]["variant"] = VARIANT_ELITE
+		schedule[centerpiece_index]["director_cost_multiplier"] = (
+			GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER
+		)
 	return schedule
 
 
@@ -2163,6 +2374,36 @@ func take_front_group(
 	for _index in mini(count, enemy_queue.size()):
 		group.append(enemy_queue.pop_front())
 	return group
+
+
+func take_enemy_by_id(
+	enemy_queue: Array[StringName],
+	enemy_id: StringName
+) -> StringName:
+	var index := enemy_queue.find(enemy_id)
+	if index < 0:
+		return &""
+	enemy_queue.remove_at(index)
+	return enemy_id
+
+
+func take_all_enemy_id(
+	enemy_queue: Array[StringName],
+	enemy_id: StringName
+) -> Array[StringName]:
+	var selected: Array[StringName] = []
+	while enemy_id in enemy_queue:
+		take_enemy_by_id(enemy_queue, enemy_id)
+		selected.append(enemy_id)
+	return selected
+
+
+func append_if_valid(
+	group: Array[StringName],
+	enemy_id: StringName
+) -> void:
+	if not enemy_id.is_empty():
+		group.append(enemy_id)
 
 
 func append_enemy_group(
@@ -2240,6 +2481,13 @@ func get_enemy_formation_strength(enemy_id: StringName) -> int:
 
 func get_enemy_director_cost(enemy_id: StringName) -> int:
 	return GameStats.get_enemy(enemy_id).get("director_cost", 1)
+
+
+func get_spawn_event_director_cost(spawn_event: Dictionary) -> float:
+	return (
+		float(get_enemy_director_cost(StringName(spawn_event["enemy_id"])))
+		* float(spawn_event.get("director_cost_multiplier", 1.0))
+	)
 
 
 func choose_weighted_enemy(available: Array[StringName]) -> StringName:

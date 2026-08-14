@@ -1259,7 +1259,10 @@ func build_round_mix(
 	for enemy_key in GameStats.ENEMIES:
 		var enemy_id := StringName(enemy_key)
 		var enemy := GameStats.get_enemy(enemy_id)
-		if bool(enemy.get("boss", false)) or int(enemy.get("first_wave", 1)) > round_number:
+		if (
+			bool(enemy.get("boss", false))
+			or int(enemy.get("earliest_debut_round", 1)) > round_number
+		):
 			continue
 		var weight := float(enemy.get("spawn_weight", 0.0))
 		if weight <= 0.0:
@@ -1301,20 +1304,47 @@ func build_round_mix(
 		&"horde" if round_type in [&"horde", &"gauntlet"]
 		else (&"payday" if round_type == &"payday" else &"normal")
 	)
-	for enemy_id in eligible:
-		var enemy := GameStats.get_enemy(enemy_id)
-		var share := float(enemy_weights.get(enemy_id, 0.0)) / maxf(total_weight, 1.0)
-		var count := (
-			float(director_counts.get(enemy_id, 0.0)) * float(profile_data["enemy_density"])
-			if not director_counts.is_empty()
-			else threat_budget * share / maxf(float(enemy.get("director_cost", 1.0)), 1.0)
-		)
-		if count <= 0.0:
-			continue
-		mix.append(make_mix_entry(
-			enemy_id, enemy, count, round_number, profile_data, mode,
-			duration, base_variant
-		))
+	if not director_counts.is_empty():
+		for director_key in director_counts:
+			var key_parts := String(director_key).split("|", false, 1)
+			var enemy_id := StringName(key_parts[0])
+			if not GameStats.ENEMIES.has(enemy_id):
+				continue
+			var enemy := GameStats.get_enemy(enemy_id)
+			if bool(enemy.get("boss", false)):
+				continue
+			var spawn_variant := (
+				StringName(key_parts[1])
+				if key_parts.size() > 1
+				else base_variant
+			)
+			var count := (
+				float(director_counts[director_key])
+				* float(profile_data["enemy_density"])
+			)
+			if count <= 0.0:
+				continue
+			mix.append(make_mix_entry(
+				enemy_id, enemy, count, round_number, profile_data, mode,
+				duration, spawn_variant
+			))
+	else:
+		for enemy_id in eligible:
+			var enemy := GameStats.get_enemy(enemy_id)
+			var share := (
+				float(enemy_weights.get(enemy_id, 0.0))
+				/ maxf(total_weight, 1.0)
+			)
+			var count := (
+				threat_budget * share
+				/ maxf(float(enemy.get("director_cost", 1.0)), 1.0)
+			)
+			if count <= 0.0:
+				continue
+			mix.append(make_mix_entry(
+				enemy_id, enemy, count, round_number, profile_data, mode,
+				duration, base_variant
+			))
 	if round_type in [&"elite", &"gauntlet"]:
 		append_elite_challenge_entries(
 			mix, eligible, round_number, profile_data, mode, duration,
@@ -1342,15 +1372,13 @@ func get_expected_director_role_weights(
 	var styles: Array[StringName] = [&"steady"]
 	if round_type == &"gauntlet":
 		styles = [
-			&"pulses", &"simultaneous_batch", &"convoy",
-			&"sandwich", &"escorted_elite", &"stream",
+			&"pulses", &"swarm_batch", &"convoy",
+			&"layered_assault", &"elite_escort", &"stream",
 		]
 	elif round_type == &"payday":
-		styles = [&"stream", &"pulses", &"simultaneous_batch", &"burst"]
+		styles = [&"stream", &"pulses", &"swarm_batch", &"burst"]
 	else:
-		for style_name in GameStats.WAVE_STYLE_UNLOCKS:
-			if round_number >= int(GameStats.WAVE_STYLE_UNLOCKS[style_name]):
-				styles.append(style_name)
+		styles = GameStats.get_eligible_wave_styles(round_number, eligible)
 	var available_roles := {}
 	for enemy_id in eligible:
 		available_roles[StringName(
@@ -1370,8 +1398,8 @@ func get_expected_director_role_weights(
 			formation_average += float(formation.get(role, 0.0))
 		formation_average /= maxf(float(styles.size()), 1.0)
 		result[role] = (
-			float(wave_weights.get(role, 0.0)) + formation_average
-		) * 0.5
+			float(wave_weights.get(role, 0.0)) * formation_average / 100.0
+		)
 	return result
 
 
@@ -3491,6 +3519,9 @@ func get_balance_values() -> Dictionary:
 		"kill_reward_multiplier": GameStats.KILL_REWARD_MULTIPLIER,
 		"round_cash_rewards": GameStats.ROUND_CASH_REWARDS,
 		"round_profiles": GameStats.ROUND_PROFILES,
+		"enemy_debut_groups": GameStats.ENEMY_DEBUT_GROUPS,
+		"fixed_enemy_debut_rounds": GameStats.FIXED_ENEMY_DEBUT_ROUNDS,
+		"wave_style_rules": GameStats.WAVE_STYLE_RULES,
 		"standard_enemy_speed_multiplier": GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER,
 		"horde_enemy_health_multiplier": GameStats.HORDE_ENEMY_HEALTH_MULTIPLIER,
 		"elite_enemy_health_multiplier": GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER,
@@ -3507,7 +3538,9 @@ func get_gameplay_data_fingerprint() -> int:
 		GameStats.RELICS,
 		GameStats.MODES,
 		GameStats.ROUND_PROFILES,
-		GameStats.WAVE_STYLE_UNLOCKS,
+		GameStats.ENEMY_DEBUT_GROUPS,
+		GameStats.FIXED_ENEMY_DEBUT_ROUNDS,
+		GameStats.WAVE_STYLE_RULES,
 		GameStats.WAVE_ROLE_WEIGHTS,
 		GameStats.FORMATION_ROLE_WEIGHTS,
 		get_balance_values(),

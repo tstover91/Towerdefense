@@ -49,8 +49,10 @@ func _init() -> void:
 		var enemy: Dictionary = GameStats.ENEMIES[enemy_id]
 		assert(enemy.has("director_cost"))
 		assert(enemy.has("formation_strength"))
+		assert(enemy.has("earliest_debut_round"))
 		assert(not enemy.has("spawn_cost"))
 		assert(not enemy.has("threat_cost"))
+		assert(not enemy.has("first_wave"))
 
 	print("Round scaling smoke checks passed.")
 	quit(0)

@@ -106,7 +106,7 @@ func build_enemy_scenarios() -> void:
 			spawned_health_per_primary += float(split_count) * (
 				float(split_enemy.get("health", 1.0))
 				+ float(split_enemy.get("health_per_wave", 0.0))
-					* float(maxi(int(enemy.get("first_wave", 1)) - 1, 0))
+					* float(maxi(int(enemy.get("earliest_debut_round", 1)) - 1, 0))
 			)
 		if int(enemy.get("summon_limit", 0)) > 0:
 			var summon_count := int(enemy.get("summon_limit", 0))
@@ -117,12 +117,12 @@ func build_enemy_scenarios() -> void:
 			spawned_health_per_primary += float(summon_count) * (
 				float(summon_enemy.get("health", 1.0))
 				+ float(summon_enemy.get("health_per_wave", 0.0))
-					* float(maxi(int(enemy.get("first_wave", 1)) - 1, 0))
+					* float(maxi(int(enemy.get("earliest_debut_round", 1)) - 1, 0))
 			)
-		var first_wave := maxi(int(enemy.get("first_wave", 1)), 1)
+		var debut_round := maxi(int(enemy.get("earliest_debut_round", 1)), 1)
 		var health := (
 			float(enemy.get("health", 1))
-			+ float(enemy.get("health_per_wave", 0.0)) * float(first_wave - 1)
+			+ float(enemy.get("health_per_wave", 0.0)) * float(debut_round - 1)
 		)
 		var speed := float(enemy.get("move_speed", 70.0))
 		if enemy_traits.has(&"rushes"):

@@ -10,12 +10,44 @@ const BUILD_CELL_SIZE := 32.0
 
 # Shared wave-director recipe data. Keeping this here lets gameplay and the
 # balance optimizer consume the same role and formation weights.
-const WAVE_STYLE_UNLOCKS := {
-	&"pulses": 3,
-	&"simultaneous_batch": 4,
-	&"convoy": 6,
-	&"sandwich": 7,
-	&"escorted_elite": 9,
+# Enemy introductions are shuffled inside fair progression bands for each run.
+# Each slot is used exactly once, so runs vary without stacking several new
+# mechanics onto the same round or allowing counters before they are affordable.
+const FIXED_ENEMY_DEBUT_ROUNDS := {
+	&"normal": 1,
+	&"brute": 20,
+}
+const ENEMY_DEBUT_GROUPS := [
+	{"enemies": [&"runner", &"swarmling"], "rounds": [2, 3]},
+	{"enemies": [&"bruiser", &"armored"], "rounds": [4, 5]},
+	{
+		"enemies": [&"hidden", &"splitter", &"buffer"],
+		"rounds": [7, 8, 9],
+	},
+	{
+		"enemies": [&"rusher", &"regenerator", &"summoner"],
+		"rounds": [10, 11, 13],
+	},
+]
+
+# Set pieces are eligible only when their required roster is already revealed.
+# Their lower weights keep them memorable without making every group scripted.
+const WAVE_STYLE_RULES := {
+	&"standard": {"minimum_round": 1, "weight": 1.5},
+	&"burst": {"minimum_round": 2, "required_any": [&"runner", &"rusher"], "weight": 1.0},
+	&"stream": {"minimum_round": 3, "required_any": [&"swarmling", &"normal"], "weight": 1.0},
+	&"pulses": {"minimum_round": 3, "weight": 1.0},
+	&"spaced": {"minimum_round": 4, "required_any": [&"bruiser", &"armored", &"regenerator"], "weight": 1.0},
+	&"swarm_batch": {"minimum_round": 4, "required_any": [&"swarmling", &"normal"], "weight": 0.9},
+	&"convoy": {"minimum_round": 4, "required_any": [&"bruiser", &"armored", &"regenerator"], "weight": 0.9},
+	&"elite_escort": {"minimum_round": 4, "required_any": [&"bruiser", &"armored", &"regenerator"], "weight": 0.45},
+	&"hidden_probe": {"minimum_round": 7, "required_all": [&"hidden"], "weight": 0.75},
+	&"splitter_pack": {"minimum_round": 7, "required_all": [&"splitter"], "weight": 0.75},
+	&"support_column": {"minimum_round": 7, "required_any": [&"buffer", &"regenerator", &"summoner"], "weight": 0.75},
+	&"rush_screen": {"minimum_round": 10, "required_all": [&"rusher"], "weight": 0.75},
+	&"summoner_escort": {"minimum_round": 10, "required_all": [&"summoner"], "weight": 0.65},
+	&"layered_assault": {"minimum_round": 14, "weight": 0.9},
+	&"boss_rehearsal": {"minimum_round": 18, "maximum_round": 19, "required_any": [&"regenerator", &"summoner"], "weight": 0.8},
 }
 const WAVE_ROLE_WEIGHTS := [
 	{
@@ -53,10 +85,16 @@ const FORMATION_ROLE_WEIGHTS := {
 	&"burst": {&"fodder": 40.0, &"pressure": 50.0, &"tank": 10.0, &"support": 0.0},
 	&"spaced": {&"fodder": 25.0, &"pressure": 20.0, &"tank": 45.0, &"support": 10.0},
 	&"pulses": {&"fodder": 65.0, &"pressure": 25.0, &"tank": 10.0, &"support": 0.0},
-	&"simultaneous_batch": {&"fodder": 70.0, &"pressure": 20.0, &"tank": 10.0, &"support": 0.0},
+	&"swarm_batch": {&"fodder": 70.0, &"pressure": 20.0, &"tank": 10.0, &"support": 0.0},
 	&"convoy": {&"fodder": 50.0, &"pressure": 30.0, &"tank": 15.0, &"support": 5.0},
-	&"escorted_elite": {&"fodder": 45.0, &"pressure": 30.0, &"tank": 20.0, &"support": 5.0},
-	&"sandwich": {&"fodder": 45.0, &"pressure": 30.0, &"tank": 20.0, &"support": 5.0},
+	&"elite_escort": {&"fodder": 45.0, &"pressure": 25.0, &"tank": 25.0, &"support": 5.0},
+	&"hidden_probe": {&"fodder": 45.0, &"pressure": 45.0, &"tank": 10.0, &"support": 0.0},
+	&"splitter_pack": {&"fodder": 55.0, &"pressure": 35.0, &"tank": 10.0, &"support": 0.0},
+	&"support_column": {&"fodder": 35.0, &"pressure": 20.0, &"tank": 25.0, &"support": 20.0},
+	&"rush_screen": {&"fodder": 25.0, &"pressure": 55.0, &"tank": 20.0, &"support": 0.0},
+	&"summoner_escort": {&"fodder": 35.0, &"pressure": 15.0, &"tank": 25.0, &"support": 25.0},
+	&"layered_assault": {&"fodder": 35.0, &"pressure": 30.0, &"tank": 25.0, &"support": 10.0},
+	&"boss_rehearsal": {&"fodder": 20.0, &"pressure": 25.0, &"tank": 30.0, &"support": 25.0},
 }
 
 const DELIVERY_PROJECTILE: StringName = &"projectile"
@@ -374,7 +412,7 @@ const ENEMIES := {
 		"cash_reward": 4,
 		"base_damage": 4,
 		"armor": 0,
-		"first_wave": 1,
+		"earliest_debut_round": 1,
 		"formation_strength": 1,
 		"director_cost": 1,
 		"spawn_weight": 100,
@@ -392,7 +430,7 @@ const ENEMIES := {
 		"cash_reward": 8,
 		"base_damage": 3,
 		"armor": 0,
-		"first_wave": 2,
+		"earliest_debut_round": 2,
 		"formation_strength": 2,
 		"director_cost": 1,
 		"spawn_weight": 65,
@@ -410,7 +448,7 @@ const ENEMIES := {
 		"cash_reward": 4,
 		"base_damage": 1,
 		"armor": 0,
-		"first_wave": 3,
+		"earliest_debut_round": 2,
 		"formation_strength": 1,
 		"director_cost": 1,
 		"spawn_weight": 55,
@@ -428,7 +466,7 @@ const ENEMIES := {
 		"cash_reward": 23,
 		"base_damage": 10,
 		"armor": 0,
-		"first_wave": 4,
+		"earliest_debut_round": 4,
 		"formation_strength": 6,
 		"director_cost": 4,
 		"spawn_weight": 45,
@@ -446,7 +484,7 @@ const ENEMIES := {
 		"cash_reward": 19,
 		"base_damage": 8,
 		"armor": 0,
-		"first_wave": 7,
+		"earliest_debut_round": 7,
 		"formation_strength": 7,
 		"director_cost": 4,
 		"spawn_weight": 35,
@@ -466,7 +504,7 @@ const ENEMIES := {
 		"cash_reward": 15,
 		"base_damage": 6,
 		"armor": 0,
-		"first_wave": 9,
+		"earliest_debut_round": 7,
 		"formation_strength": 5,
 		"director_cost": 3,
 		"spawn_weight": 24,
@@ -484,7 +522,7 @@ const ENEMIES := {
 		"cash_reward": 38,
 		"base_damage": 12,
 		"armor": 20,
-		"first_wave": 5,
+		"earliest_debut_round": 4,
 		"formation_strength": 10,
 		"director_cost": 6,
 		"spawn_weight": 30,
@@ -502,7 +540,7 @@ const ENEMIES := {
 		"cash_reward": 30,
 		"base_damage": 7,
 		"armor": 0,
-		"first_wave": 11,
+		"earliest_debut_round": 7,
 		"formation_strength": 8,
 		"director_cost": 5,
 		"spawn_weight": 24,
@@ -522,7 +560,7 @@ const ENEMIES := {
 		"cash_reward": 45,
 		"base_damage": 15,
 		"armor": 0,
-		"first_wave": 13,
+		"earliest_debut_round": 10,
 		"formation_strength": 12,
 		"director_cost": 7,
 		"spawn_weight": 20,
@@ -541,7 +579,7 @@ const ENEMIES := {
 		"cash_reward": 38,
 		"base_damage": 15,
 		"armor": 0,
-		"first_wave": 15,
+		"earliest_debut_round": 10,
 		"formation_strength": 10,
 		"director_cost": 6,
 		"spawn_weight": 22,
@@ -561,7 +599,7 @@ const ENEMIES := {
 		"cash_reward": 56,
 		"base_damage": 20,
 		"armor": 0,
-		"first_wave": 17,
+		"earliest_debut_round": 10,
 		"formation_strength": 18,
 		"director_cost": 10,
 		"spawn_weight": 15,
@@ -582,7 +620,7 @@ const ENEMIES := {
 		"cash_reward": 375,
 		"base_damage": 100,
 		"armor": 0,
-		"first_wave": 20,
+		"earliest_debut_round": 20,
 		"formation_strength": 0,
 		"director_cost": 0,
 		"spawn_weight": 0,
@@ -1738,6 +1776,127 @@ const MODES := {
 static func get_enemy(enemy_id: StringName) -> Dictionary:
 	assert(ENEMIES.has(enemy_id), "Unknown enemy ID: %s" % enemy_id)
 	return ENEMIES[enemy_id].duplicate(true)
+
+
+static func build_enemy_debut_plan(rng: RandomNumberGenerator) -> Dictionary:
+	var plan := FIXED_ENEMY_DEBUT_ROUNDS.duplicate(true)
+	for group in ENEMY_DEBUT_GROUPS:
+		var enemies: Array = group["enemies"].duplicate()
+		var rounds: Array = group["rounds"].duplicate()
+		shuffle_with_rng(enemies, rng)
+		shuffle_with_rng(rounds, rng)
+		for index in enemies.size():
+			plan[StringName(enemies[index])] = int(rounds[index])
+	return plan
+
+
+static func shuffle_with_rng(values: Array, rng: RandomNumberGenerator) -> void:
+	for index in range(values.size() - 1, 0, -1):
+		var swap_index := rng.randi_range(0, index)
+		var previous: Variant = values[index]
+		values[index] = values[swap_index]
+		values[swap_index] = previous
+
+
+static func get_available_enemy_ids(
+	round_number: int,
+	debut_plan: Dictionary
+) -> Array[StringName]:
+	var available: Array[StringName] = []
+	for enemy_key in ENEMIES:
+		var enemy_id := StringName(enemy_key)
+		if bool(ENEMIES[enemy_key].get("boss", false)):
+			continue
+		if int(debut_plan.get(enemy_id, 999)) <= round_number:
+			available.append(enemy_id)
+	return available
+
+
+static func get_debut_enemy_ids(
+	round_number: int,
+	debut_plan: Dictionary
+) -> Array[StringName]:
+	var debuts: Array[StringName] = []
+	for enemy_key in debut_plan:
+		var enemy_id := StringName(enemy_key)
+		if enemy_id != &"brute" and int(debut_plan[enemy_key]) == round_number:
+			debuts.append(enemy_id)
+	return debuts
+
+
+static func get_eligible_wave_styles(
+	round_number: int,
+	available: Array[StringName]
+) -> Array[StringName]:
+	var styles: Array[StringName] = []
+	for style_key in WAVE_STYLE_RULES:
+		var style_name := StringName(style_key)
+		var rule: Dictionary = WAVE_STYLE_RULES[style_key]
+		if round_number < int(rule.get("minimum_round", 1)):
+			continue
+		if round_number > int(rule.get("maximum_round", 999)):
+			continue
+		var requirements_met := true
+		for required_id in Array(rule.get("required_all", [])):
+			if StringName(required_id) not in available:
+				requirements_met = false
+				break
+		if not requirements_met:
+			continue
+		var required_any: Array = rule.get("required_any", [])
+		if not required_any.is_empty():
+			var found_required_enemy := false
+			for required_id in required_any:
+				if StringName(required_id) in available:
+					found_required_enemy = true
+					break
+			if not found_required_enemy:
+				continue
+		styles.append(style_name)
+	return styles
+
+
+static func choose_weighted_wave_style(
+	styles: Array[StringName],
+	rng: RandomNumberGenerator,
+	previous_style: StringName = &""
+) -> StringName:
+	if styles.is_empty():
+		return &"standard"
+	var candidates := styles.duplicate()
+	if candidates.size() > 1:
+		candidates.erase(previous_style)
+	var total_weight := 0.0
+	for style_name in candidates:
+		total_weight += float(WAVE_STYLE_RULES[style_name].get("weight", 1.0))
+	var roll := rng.randf_range(0.0, total_weight)
+	for style_name in candidates:
+		roll -= float(WAVE_STYLE_RULES[style_name].get("weight", 1.0))
+		if roll <= 0.0:
+			return style_name
+	return candidates.back()
+
+
+static func build_round_style_plan(
+	rng: RandomNumberGenerator,
+	debut_plan: Dictionary
+) -> Dictionary:
+	var plan := {}
+	var previous_style: StringName = &""
+	for round_number in range(1, 21):
+		if round_number == 20:
+			plan[round_number] = &"final_escort"
+			continue
+		var available := get_available_enemy_ids(round_number, debut_plan)
+		var styles := get_eligible_wave_styles(round_number, available)
+		var selected := choose_weighted_wave_style(
+			styles,
+			rng,
+			previous_style
+		)
+		plan[round_number] = selected
+		previous_style = selected
+	return plan
 
 
 static func get_round_profile(round_number: int) -> Dictionary:
