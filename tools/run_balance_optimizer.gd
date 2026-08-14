@@ -1236,19 +1236,11 @@ func build_round_mix(
 	run_rng: RandomNumberGenerator,
 	round_type: StringName = &"standard"
 ) -> Array[Dictionary]:
-	var duration := (
-		float(mode["final_wave_duration"])
-		if round_number >= int(mode["max_rounds"])
-		else minf(float(mode["wave_duration_start"]) + float(round_number - 1) * float(mode["wave_duration_growth"]), float(mode["wave_duration_max"]))
-	)
+	var duration := GameStats.get_round_duration(round_number)
 	var threat_rate := (
-		float(mode["threat_rate_base"])
-		+ float(round_number) * float(mode["threat_rate_growth"])
-		+ float(round_number * round_number) * float(mode["threat_rate_curve"])
-	) * 1.40
-	threat_rate *= GameStats.get_early_round_threat_multiplier(round_number)
-	if round_number == 6:
-		threat_rate *= GameStats.ROUND_SIX_THREAT_MULTIPLIER
+		GameStats.get_round_threat_budget(round_number)
+		/ maxf(duration, 0.01)
+	)
 	if round_type in [&"horde", &"gauntlet", &"payday"]:
 		threat_rate *= 2.0
 	var chunk_interval := maxf(float(mode.get("threat_chunk_interval", 4.0)), 0.01)
@@ -1315,7 +1307,7 @@ func build_round_mix(
 		var count := (
 			float(director_counts.get(enemy_id, 0.0)) * float(profile_data["enemy_density"])
 			if not director_counts.is_empty()
-			else threat_budget * share / maxf(float(enemy.get("spawn_cost", 1.0)), 1.0)
+			else threat_budget * share / maxf(float(enemy.get("director_cost", 1.0)), 1.0)
 		)
 		if count <= 0.0:
 			continue
@@ -1509,7 +1501,7 @@ func make_mix_entry(
 	count: float,
 	round_number: int,
 	profile_data: Dictionary,
-	mode: Dictionary,
+	_mode: Dictionary,
 	duration: float,
 	spawn_variant: StringName = &"normal"
 ) -> Dictionary:
@@ -1518,15 +1510,9 @@ func make_mix_entry(
 		+ float(enemy.get("health_per_wave", 0.0))
 			* float(round_number - 1)
 	)
-	var wave_health_multiplier := (
-		float(mode["enemy_health_multiplier_base"])
-		+ float(round_number - 1)
-			* float(mode["enemy_health_multiplier_growth"])
-	)
-	var standard_health_multiplier := (
-		GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
-		if not bool(enemy.get("boss", false))
-		else 1.0
+	var round_health_multiplier := GameStats.get_round_health_multiplier(
+		round_number,
+		bool(enemy.get("boss", false))
 	)
 	var variant_health_multiplier := 1.0
 	var variant_speed_multiplier := 1.0
@@ -1554,9 +1540,7 @@ func make_mix_entry(
 		1.0 if spawn_variant == &"elite" else variant_reward_multiplier
 	)
 	unit_health = float(maxi(roundi(unit_health * (
-		wave_health_multiplier
-		* standard_health_multiplier
-		* GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
+		round_health_multiplier
 		* float(profile_data["enemy_health"])
 		* variant_health_multiplier
 	)), 1))
@@ -1570,9 +1554,7 @@ func make_mix_entry(
 				+ float(child.get("health_per_wave", 0.0))
 					* float(round_number - 1)
 			)
-			* wave_health_multiplier
-			* GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
-			* GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
+			* GameStats.get_round_health_multiplier(round_number, false)
 			* float(profile_data["enemy_health"])
 			* spawned_variant_health_multiplier
 		), 1))
@@ -1590,9 +1572,7 @@ func make_mix_entry(
 				+ float(summoned.get("health_per_wave", 0.0))
 					* float(round_number - 1)
 			)
-			* wave_health_multiplier
-			* GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
-			* GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
+			* GameStats.get_round_health_multiplier(round_number, false)
 			* float(profile_data["enemy_health"])
 			* spawned_variant_health_multiplier
 		), 1))
@@ -3507,22 +3487,16 @@ func get_checkpoint_configuration() -> Dictionary:
 
 
 func get_balance_values() -> Dictionary:
-	var mode := GameStats.get_mode(&"easy")
 	return {
 		"kill_reward_multiplier": GameStats.KILL_REWARD_MULTIPLIER,
 		"round_cash_rewards": GameStats.ROUND_CASH_REWARDS,
-		"round_six_threat_multiplier": GameStats.ROUND_SIX_THREAT_MULTIPLIER,
-		"early_round_threat_multipliers": GameStats.EARLY_ROUND_THREAT_MULTIPLIERS,
-		"global_enemy_health_multiplier": GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER,
-		"standard_enemy_health_multiplier": GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER,
+		"round_profiles": GameStats.ROUND_PROFILES,
 		"standard_enemy_speed_multiplier": GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER,
 		"horde_enemy_health_multiplier": GameStats.HORDE_ENEMY_HEALTH_MULTIPLIER,
 		"elite_enemy_health_multiplier": GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER,
 		"elite_enemy_speed_multiplier": GameStats.ELITE_ENEMY_SPEED_MULTIPLIER,
 		"payday_enemy_health_multiplier": GameStats.PAYDAY_ENEMY_HEALTH_MULTIPLIER,
 		"explosive_armor_multiplier": GameStats.EXPLOSIVE_ARMOR_MULTIPLIER,
-		"enemy_health_multiplier_base": mode["enemy_health_multiplier_base"],
-		"enemy_health_multiplier_growth": mode["enemy_health_multiplier_growth"],
 	}
 
 
@@ -3532,6 +3506,7 @@ func get_gameplay_data_fingerprint() -> int:
 		GameStats.ENEMIES,
 		GameStats.RELICS,
 		GameStats.MODES,
+		GameStats.ROUND_PROFILES,
 		GameStats.WAVE_STYLE_UNLOCKS,
 		GameStats.WAVE_ROLE_WEIGHTS,
 		GameStats.FORMATION_ROLE_WEIGHTS,
@@ -4092,7 +4067,7 @@ func write_recommendation_report() -> void:
 		"starting_cash": float(GameStats.get_mode(&"easy")["starting_cash"]),
 		"kill_income": 1.0,
 		"round_income": 1.0,
-		"enemy_health": GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER * GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER,
+		"enemy_health": 1.0,
 		"enemy_armor": 1.0,
 		"enemy_speed": GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER,
 		"enemy_density": 1.0,

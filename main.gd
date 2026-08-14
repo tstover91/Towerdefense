@@ -47,9 +47,6 @@ const HORDE_GROUP_SIZE_MULTIPLIER := 2.0
 const HORDE_SPAWN_DELAY_MULTIPLIER := 0.5
 const HORDE_ACTIVE_CAP_MULTIPLIER := 1.5
 const GAUNTLET_ACTIVE_CAP_MULTIPLIER := 1.75
-# Initial pacing test values. These retain the threat director and formation
-# recipes while increasing throughput and compressing ordinary formations.
-const STANDARD_THREAT_RATE_MULTIPLIER := 1.40
 const STANDARD_GROUP_SIZE_MULTIPLIER := 1.25
 const STANDARD_FORMATION_DELAY_MULTIPLIER := 0.70
 const SPACED_FORMATION_DELAY_MULTIPLIER := 0.85
@@ -451,13 +448,7 @@ func start_round() -> void:
 	round_duration = get_wave_duration(round_number)
 	round_time_remaining = round_duration
 	round_elapsed = 0.0
-	threat_per_second = (
-		get_wave_threat_rate(round_number)
-		* STANDARD_THREAT_RATE_MULTIPLIER
-		* GameStats.get_early_round_threat_multiplier(round_number)
-	)
-	if round_number == 6:
-		threat_per_second *= GameStats.ROUND_SIX_THREAT_MULTIPLIER
+	threat_per_second = get_wave_threat_rate(round_number)
 	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
 		threat_per_second *= HORDE_THREAT_MULTIPLIER
 	var mode: Dictionary = GameStats.get_mode(mode_id)
@@ -1208,7 +1199,7 @@ func _spawn_mob():
 		return
 
 	var enemy_id: StringName = spawn_event["enemy_id"]
-	var spawn_cost := get_enemy_spawn_cost(enemy_id)
+	var spawn_cost := get_enemy_director_cost(enemy_id)
 	var free_spawn: bool = spawn_event.get("free_spawn", false)
 	if not free_spawn and spawn_threat < spawn_cost:
 		spawntimer.start(0.1)
@@ -1249,7 +1240,7 @@ func _create_mob(
 	var mob = MOB_SCENE.instantiate()
 	mob.enemy_id = enemy_id
 	mob.wave_number = round_number
-	mob.health_multiplier = get_enemy_health_multiplier(round_number)
+	mob.health_multiplier = get_enemy_health_multiplier(round_number, enemy_id)
 	mob.spawn_variant = spawn_variant
 	mob.mob_killed.connect(_on_mob_killed)
 	mob.reached_end.connect(_on_mob_reached_end)
@@ -1443,31 +1434,21 @@ func choose_wave_spawn_style(wave: int) -> StringName:
 
 
 func get_wave_duration(wave: int) -> float:
-	var mode: Dictionary = GameStats.get_mode(mode_id)
-	if wave >= max_rounds:
-		return mode.get("final_wave_duration", 90.0)
-	return minf(
-		mode.get("wave_duration_start", 20.0)
-		+ float(wave - 1) * mode.get("wave_duration_growth", 5.0),
-		mode.get("wave_duration_max", 60.0)
-	)
+	return GameStats.get_round_duration(wave)
 
 
 func get_wave_threat_rate(wave: int) -> float:
-	var mode: Dictionary = GameStats.get_mode(mode_id)
 	return (
-		mode.get("threat_rate_base", 0.35)
-		+ float(wave) * mode.get("threat_rate_growth", 0.04)
-		+ float(wave * wave) * mode.get("threat_rate_curve", 0.003)
+		GameStats.get_round_threat_budget(wave)
+		/ maxf(GameStats.get_round_duration(wave), 0.01)
 	)
 
 
-func get_enemy_health_multiplier(wave: int) -> float:
-	var mode: Dictionary = GameStats.get_mode(mode_id)
-	return (
-		mode.get("enemy_health_multiplier_base", 1.0)
-		+ float(maxi(wave - 1, 0))
-		* mode.get("enemy_health_multiplier_growth", 0.0)
+func get_enemy_health_multiplier(wave: int, enemy_id: StringName) -> float:
+	var enemy := GameStats.get_enemy(enemy_id)
+	return GameStats.get_round_health_multiplier(
+		wave,
+		bool(enemy.get("boss", false))
 	)
 
 
@@ -1489,13 +1470,7 @@ func simulate_director_spawn_counts(
 	if wave == max_rounds:
 		current_wave_spawn_style = &"boss_escort"
 	var duration := get_wave_duration(wave)
-	var simulated_threat_rate := (
-		get_wave_threat_rate(wave)
-		* STANDARD_THREAT_RATE_MULTIPLIER
-		* GameStats.get_early_round_threat_multiplier(wave)
-	)
-	if wave == 6:
-		simulated_threat_rate *= GameStats.ROUND_SIX_THREAT_MULTIPLIER
+	var simulated_threat_rate := get_wave_threat_rate(wave)
 	if round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
 		simulated_threat_rate *= HORDE_THREAT_MULTIPLIER
 	var available_threat := float(mode.get("starting_spawn_threat", 1.0))
@@ -1525,7 +1500,7 @@ func simulate_director_spawn_counts(
 		if not schedule.is_empty() and event_wait <= 0.0:
 			var spawn_event: Dictionary = schedule.front()
 			var enemy_id := StringName(spawn_event["enemy_id"])
-			var spawn_cost := float(get_enemy_spawn_cost(enemy_id))
+			var spawn_cost := float(get_enemy_director_cost(enemy_id))
 			if available_threat >= spawn_cost:
 				schedule.pop_front()
 				available_threat -= spawn_cost
@@ -2064,7 +2039,7 @@ func build_timed_boss_opening() -> Array[Dictionary]:
 	var cheapest: Array[StringName] = []
 	var cheapest_cost := 2147483647
 	for enemy_id in available:
-		var cost := get_enemy_threat_cost(enemy_id)
+		var cost := get_enemy_formation_strength(enemy_id)
 		if cost < cheapest_cost:
 			cheapest_cost = cost
 			cheapest = [enemy_id]
@@ -2243,10 +2218,10 @@ func take_enemy_by_threat(
 		return &""
 
 	var selected_index := 0
-	var selected_cost := get_enemy_threat_cost(enemy_queue[0])
+	var selected_cost := get_enemy_formation_strength(enemy_queue[0])
 
 	for index in range(1, enemy_queue.size()):
-		var candidate_cost := get_enemy_threat_cost(enemy_queue[index])
+		var candidate_cost := get_enemy_formation_strength(enemy_queue[index])
 		if (
 			(take_strongest and candidate_cost > selected_cost)
 			or (not take_strongest and candidate_cost < selected_cost)
@@ -2259,13 +2234,12 @@ func take_enemy_by_threat(
 	return selected_enemy
 
 
-func get_enemy_threat_cost(enemy_id: StringName) -> int:
-	return GameStats.get_enemy(enemy_id).get("threat_cost", 1)
+func get_enemy_formation_strength(enemy_id: StringName) -> int:
+	return GameStats.get_enemy(enemy_id).get("formation_strength", 1)
 
 
-func get_enemy_spawn_cost(enemy_id: StringName) -> int:
-	var stats: Dictionary = GameStats.get_enemy(enemy_id)
-	return stats.get("spawn_cost", stats.get("threat_cost", 1))
+func get_enemy_director_cost(enemy_id: StringName) -> int:
+	return GameStats.get_enemy(enemy_id).get("director_cost", 1)
 
 
 func choose_weighted_enemy(available: Array[StringName]) -> StringName:

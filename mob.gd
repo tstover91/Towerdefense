@@ -145,17 +145,10 @@ func load_stats() -> void:
 	var base_health: int = stats["health"]
 	var health_per_wave: float = stats.get("health_per_wave", 0.0)
 	var scaled_health := base_health + health_per_wave * maxi(wave_number - 1, 0)
-	var standard_health_multiplier := (
-		1.0
-		if bool(stats.get("boss", false))
-		else GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER
-	)
 	health = maxi(
 		1,
 		roundi(
 			scaled_health
-			* GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER
-			* standard_health_multiplier
 			* health_multiplier
 			* variant_health_multiplier
 		)

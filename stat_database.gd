@@ -99,19 +99,39 @@ const ROUND_CASH_REWARDS := {
 	19: 4500,
 	20: 0,
 }
-const ROUND_SIX_THREAT_MULTIPLIER := 1.00
-const EARLY_ROUND_THREAT_MULTIPLIERS := {
-	1: 0.75,
-	2: 0.80,
-	3: 0.85,
-	4: 0.90,
-	5: 0.95,
+
+# Explicit round scaling profiles. These initially reproduce the previous
+# formulas exactly; future round balance should modify this table instead of
+# stacking new global curves in gameplay code.
+#
+# threat_budget is the nominal amount generated during timed spawning and is
+# used to derive the director's per-second rate. Chunk timing can leave a small
+# reserve unspent. The mode's starting_spawn_threat is a separate reserve.
+const ROUND_PROFILES := {
+	1: {"duration": 20.0, "threat_budget": 23.7090, "standard_health_multiplier": 2.2770, "boss_health_multiplier": 1.2650},
+	2: {"duration": 25.0, "threat_budget": 35.7280, "standard_health_multiplier": 2.3265, "boss_health_multiplier": 1.2925},
+	3: {"duration": 30.0, "threat_budget": 51.4437, "standard_health_multiplier": 2.3760, "boss_health_multiplier": 1.3200},
+	4: {"duration": 35.0, "threat_budget": 71.6184, "standard_health_multiplier": 2.4255, "boss_health_multiplier": 1.3475},
+	5: {"duration": 40.0, "threat_budget": 97.0900, "standard_health_multiplier": 2.4750, "boss_health_multiplier": 1.3750},
+	6: {"duration": 45.0, "threat_budget": 128.7720, "standard_health_multiplier": 2.5245, "boss_health_multiplier": 1.4025},
+	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 2.5740, "boss_health_multiplier": 1.4300},
+	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 2.6235, "boss_health_multiplier": 1.4575},
+	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 2.6730, "boss_health_multiplier": 1.4850},
+	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 2.7225, "boss_health_multiplier": 1.5125},
+	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 2.7720, "boss_health_multiplier": 1.5400},
+	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 2.8215, "boss_health_multiplier": 1.5675},
+	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 2.8710, "boss_health_multiplier": 1.5950},
+	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 2.9205, "boss_health_multiplier": 1.6225},
+	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 2.9700, "boss_health_multiplier": 1.6500},
+	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 3.0195, "boss_health_multiplier": 1.6775},
+	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 3.0690, "boss_health_multiplier": 1.7050},
+	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 3.1185, "boss_health_multiplier": 1.7325},
+	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 3.1680, "boss_health_multiplier": 1.7600},
+	20: {"duration": 90.0, "threat_budget": 882.0000, "standard_health_multiplier": 3.2175, "boss_health_multiplier": 1.7875},
 }
 
-# Initial enemy pacing test pass. Bosses bypass the standard-archetype
-# multipliers; weakened and elite variants use their own centralized values.
-const GLOBAL_ENEMY_HEALTH_MULTIPLIER := 1.10
-const STANDARD_ENEMY_HEALTH_MULTIPLIER := 1.80
+# Variants remain independent layers because they define special-round enemy
+# behavior rather than ordinary round progression.
 const STANDARD_ENEMY_SPEED_MULTIPLIER := 0.70
 const HORDE_ENEMY_HEALTH_MULTIPLIER := 0.55
 const ELITE_ENEMY_HEALTH_MULTIPLIER := 2.25
@@ -355,8 +375,8 @@ const ENEMIES := {
 		"base_damage": 4,
 		"armor": 0,
 		"first_wave": 1,
-		"threat_cost": 1,
-		"spawn_cost": 1,
+		"formation_strength": 1,
+		"director_cost": 1,
 		"spawn_weight": 100,
 		"spawn_style": &"steady",
 		"role": &"fodder",
@@ -373,8 +393,8 @@ const ENEMIES := {
 		"base_damage": 3,
 		"armor": 0,
 		"first_wave": 2,
-		"threat_cost": 2,
-		"spawn_cost": 1,
+		"formation_strength": 2,
+		"director_cost": 1,
 		"spawn_weight": 65,
 		"spawn_style": &"burst",
 		"role": &"pressure",
@@ -391,8 +411,8 @@ const ENEMIES := {
 		"base_damage": 1,
 		"armor": 0,
 		"first_wave": 3,
-		"threat_cost": 1,
-		"spawn_cost": 1,
+		"formation_strength": 1,
+		"director_cost": 1,
 		"spawn_weight": 55,
 		"spawn_style": &"stream",
 		"role": &"fodder",
@@ -409,8 +429,8 @@ const ENEMIES := {
 		"base_damage": 10,
 		"armor": 0,
 		"first_wave": 4,
-		"threat_cost": 6,
-		"spawn_cost": 4,
+		"formation_strength": 6,
+		"director_cost": 4,
 		"spawn_weight": 45,
 		"spawn_style": &"spaced",
 		"role": &"tank",
@@ -427,8 +447,8 @@ const ENEMIES := {
 		"base_damage": 8,
 		"armor": 0,
 		"first_wave": 7,
-		"threat_cost": 7,
-		"spawn_cost": 4,
+		"formation_strength": 7,
+		"director_cost": 4,
 		"spawn_weight": 35,
 		"spawn_style": &"steady",
 		"role": &"pressure",
@@ -447,8 +467,8 @@ const ENEMIES := {
 		"base_damage": 6,
 		"armor": 0,
 		"first_wave": 9,
-		"threat_cost": 5,
-		"spawn_cost": 3,
+		"formation_strength": 5,
+		"director_cost": 3,
 		"spawn_weight": 24,
 		"spawn_style": &"burst",
 		"role": &"pressure",
@@ -465,8 +485,8 @@ const ENEMIES := {
 		"base_damage": 12,
 		"armor": 20,
 		"first_wave": 5,
-		"threat_cost": 10,
-		"spawn_cost": 6,
+		"formation_strength": 10,
+		"director_cost": 6,
 		"spawn_weight": 30,
 		"spawn_style": &"spaced",
 		"role": &"tank",
@@ -483,8 +503,8 @@ const ENEMIES := {
 		"base_damage": 7,
 		"armor": 0,
 		"first_wave": 11,
-		"threat_cost": 8,
-		"spawn_cost": 5,
+		"formation_strength": 8,
+		"director_cost": 5,
 		"spawn_weight": 24,
 		"spawn_style": &"steady",
 		"role": &"support",
@@ -503,8 +523,8 @@ const ENEMIES := {
 		"base_damage": 15,
 		"armor": 0,
 		"first_wave": 13,
-		"threat_cost": 12,
-		"spawn_cost": 7,
+		"formation_strength": 12,
+		"director_cost": 7,
 		"spawn_weight": 20,
 		"spawn_style": &"spaced",
 		"role": &"tank",
@@ -522,8 +542,8 @@ const ENEMIES := {
 		"base_damage": 15,
 		"armor": 0,
 		"first_wave": 15,
-		"threat_cost": 10,
-		"spawn_cost": 6,
+		"formation_strength": 10,
+		"director_cost": 6,
 		"spawn_weight": 22,
 		"spawn_style": &"burst",
 		"role": &"pressure",
@@ -542,8 +562,8 @@ const ENEMIES := {
 		"base_damage": 20,
 		"armor": 0,
 		"first_wave": 17,
-		"threat_cost": 18,
-		"spawn_cost": 10,
+		"formation_strength": 18,
+		"director_cost": 10,
 		"spawn_weight": 15,
 		"spawn_style": &"spaced",
 		"role": &"support",
@@ -563,8 +583,8 @@ const ENEMIES := {
 		"base_damage": 100,
 		"armor": 0,
 		"first_wave": 20,
-		"threat_cost": 0,
-		"spawn_cost": 0,
+		"formation_strength": 0,
+		"director_cost": 0,
 		"spawn_weight": 0,
 		"spawn_style": &"boss",
 		"role": &"boss",
@@ -1706,20 +1726,11 @@ const MODES := {
 		"starting_cash": 750,
 		"starting_lives": 100,
 		"max_rounds": 20,
-		"wave_duration_start": 20.0,
-		"wave_duration_growth": 5.0,
-		"wave_duration_max": 60.0,
-		"final_wave_duration": 90.0,
 		"starting_spawn_threat": 1.0,
-		"threat_rate_base": 1.0,
-		"threat_rate_growth": 0.12,
-		"threat_rate_curve": 0.009,
 		"threat_continuous_ratio": 0.7,
 		"threat_chunk_ratio": 0.3,
 		"threat_chunk_interval": 4.0,
 		"active_enemy_cap": 120,
-		"enemy_health_multiplier_base": 1.15,
-		"enemy_health_multiplier_growth": 0.025,
 	},
 }
 
@@ -1729,8 +1740,24 @@ static func get_enemy(enemy_id: StringName) -> Dictionary:
 	return ENEMIES[enemy_id].duplicate(true)
 
 
-static func get_early_round_threat_multiplier(round_number: int) -> float:
-	return float(EARLY_ROUND_THREAT_MULTIPLIERS.get(round_number, 1.0))
+static func get_round_profile(round_number: int) -> Dictionary:
+	assert(ROUND_PROFILES.has(round_number), "Missing round profile: %d" % round_number)
+	return ROUND_PROFILES[round_number].duplicate(true)
+
+
+static func get_round_duration(round_number: int) -> float:
+	return float(get_round_profile(round_number)["duration"])
+
+
+static func get_round_threat_budget(round_number: int) -> float:
+	return float(get_round_profile(round_number)["threat_budget"])
+
+
+static func get_round_health_multiplier(round_number: int, boss := false) -> float:
+	var profile := get_round_profile(round_number)
+	return float(profile[
+		"boss_health_multiplier" if boss else "standard_health_multiplier"
+	])
 
 
 static func get_tower(tower_id: StringName) -> Dictionary:
