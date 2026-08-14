@@ -190,13 +190,13 @@ var brainiac_link_duration := 2.0
 var brainiac_link_cooldown := 6.0
 var brainiac_link_cooldown_remaining := 0.0
 var brainiac_link_radius_pixels := 0.0
-var brainiac_link_damage_share := 0.5
+var brainiac_link_damage_share := 0.35
 var longshot_distance_damage_enabled := false
 var longshot_distance_minimum_multiplier := 1.0
 var longshot_distance_midpoint_multiplier := 1.0
 var longshot_distance_maximum_multiplier := 1.0
 var longshot_mines_enabled := false
-var longshot_mine_interval := 5.0
+var longshot_mine_interval := 6.0
 var longshot_mine_remaining := 0.0
 var longshot_mine_maximum_count := 3
 var longshot_mine_placement_radius_pixels := 0.0
@@ -205,11 +205,11 @@ var longshot_mine_explosion_radius_pixels := 0.0
 var longshot_mine_damage_multiplier := 1.0
 var active_longshot_mines: Array[Node] = []
 var void_singularity_enabled := false
-var void_singularity_cooldown := 12.0
+var void_singularity_cooldown := 10.0
 var void_singularity_remaining := 0.0
 var void_singularity_pull_duration := 1.0
 var void_singularity_pull_radius_pixels := 0.0
-var void_singularity_pull_speed := 160.0
+var void_singularity_pull_speed := 80.0
 var void_singularity_explosion_radius_pixels := 0.0
 var void_singularity_damage_multiplier := 1.0
 var active_void_singularities: Array[Node] = []
@@ -220,7 +220,7 @@ var orbital_targeting_active := false
 var orbital_preview_position := Vector2.ZERO
 var orbital_preview_valid := false
 var orbital_solar_lance_enabled := false
-var orbital_solar_lance_duration := 2.0
+var orbital_solar_lance_duration := 1.5
 var orbital_solar_lance_tick_interval := 0.2
 var orbital_solar_lance_tick_damage_multiplier := 0.25
 var orbital_solar_lance_tick_end_damage_multiplier := 0.50
@@ -229,14 +229,14 @@ var orbital_bombardment_enabled := false
 var orbital_bombardment_strike_count := 5
 var orbital_bombardment_stagger := 0.15
 var orbital_bombardment_spread_radius_pixels := 0.0
-var orbital_bombardment_damage_multiplier := 0.45
+var orbital_bombardment_damage_multiplier := 0.38
 var orbital_bombardment_radius_multiplier := 0.70
 var active_solar_lances: Array[Node] = []
 var energy_shockwave_enabled := false
-var energy_shockwave_cooldown := 6.0
+var energy_shockwave_cooldown := 5.0
 var energy_shockwave_remaining := 0.0
-var energy_shockwave_damage_multiplier := 0.25
-var energy_shockwave_stun_duration := 0.75
+var energy_shockwave_damage_multiplier := 0.35
+var energy_shockwave_stun_duration := 1.0
 var energy_shockwave_visual_remaining := 0.0
 var energy_branching_current_enabled := false
 var energy_branch_additional_targets := 2
@@ -3512,11 +3512,16 @@ func process_energy_shockwave(delta: float) -> void:
 	if energy_shockwave_remaining > 0.0:
 		return
 	var affected_mobs: Array[Node2D] = []
+	var has_targetable_mob := false
 	for mob in tower_area.get_overlapping_bodies():
-		if not is_valid_target(mob):
+		if not is_valid_area_target(mob):
 			continue
 		affected_mobs.append(mob)
-	if affected_mobs.is_empty():
+		if is_valid_target(mob):
+			has_targetable_mob = true
+	# Hidden enemies can be caught in the pulse, but cannot trigger it by
+	# themselves when this tower lacks Reveal.
+	if not has_targetable_mob:
 		return
 	energy_shockwave_remaining = energy_shockwave_cooldown
 	energy_shockwave_visual_remaining = 0.3
@@ -3527,6 +3532,7 @@ func process_energy_shockwave(delta: float) -> void:
 	var shockwave_context := create_attack_context(
 		&"energy_shockwave", null, &"tower", null, false, true
 	)
+	shockwave_context.metadata["area_damage"] = true
 	for mob in affected_mobs:
 		if mob.has_method("apply_stun"):
 			mob.apply_stun(
@@ -3598,13 +3604,7 @@ func _on_body_exited(body: Node2D) -> void:
 		target = null
 
 func is_valid_target(candidate: Variant) -> bool:
-	var valid_target: bool = (
-		candidate != null
-		and is_instance_valid(candidate)
-		and not candidate.is_queued_for_deletion()
-		and not candidate.finished
-	)
-	if not valid_target:
+	if not is_valid_area_target(candidate):
 		return false
 	if candidate.traits.has(&"hidden"):
 		return (
@@ -3615,6 +3615,15 @@ func is_valid_target(candidate: Variant) -> bool:
 			)
 		)
 	return true
+
+
+func is_valid_area_target(candidate: Variant) -> bool:
+	return (
+		candidate != null
+		and is_instance_valid(candidate)
+		and not candidate.is_queued_for_deletion()
+		and not candidate.finished
+	)
 
 
 func refresh_reveal_relic_coverage() -> void:
@@ -4272,27 +4281,27 @@ func load_path_behaviors() -> void:
 	brainiac_link_duration = 2.0
 	brainiac_link_cooldown = 6.0
 	brainiac_link_radius_pixels = 0.0
-	brainiac_link_damage_share = 0.5
+	brainiac_link_damage_share = 0.35
 	longshot_distance_damage_enabled = false
 	longshot_distance_minimum_multiplier = 1.0
 	longshot_distance_midpoint_multiplier = 1.0
 	longshot_distance_maximum_multiplier = 1.0
 	longshot_mines_enabled = false
-	longshot_mine_interval = 5.0
+	longshot_mine_interval = 6.0
 	longshot_mine_maximum_count = 3
 	longshot_mine_placement_radius_pixels = 0.0
 	longshot_mine_trigger_radius_pixels = 0.0
 	longshot_mine_explosion_radius_pixels = 0.0
 	longshot_mine_damage_multiplier = 1.0
 	void_singularity_enabled = false
-	void_singularity_cooldown = 12.0
+	void_singularity_cooldown = 10.0
 	void_singularity_pull_duration = 1.0
 	void_singularity_pull_radius_pixels = 0.0
-	void_singularity_pull_speed = 160.0
+	void_singularity_pull_speed = 80.0
 	void_singularity_explosion_radius_pixels = 0.0
 	void_singularity_damage_multiplier = 1.0
 	orbital_solar_lance_enabled = false
-	orbital_solar_lance_duration = 2.0
+	orbital_solar_lance_duration = 1.5
 	orbital_solar_lance_tick_interval = 0.2
 	orbital_solar_lance_tick_damage_multiplier = 0.25
 	orbital_solar_lance_tick_end_damage_multiplier = 0.50
@@ -4301,12 +4310,12 @@ func load_path_behaviors() -> void:
 	orbital_bombardment_strike_count = 5
 	orbital_bombardment_stagger = 0.15
 	orbital_bombardment_spread_radius_pixels = 0.0
-	orbital_bombardment_damage_multiplier = 0.45
+	orbital_bombardment_damage_multiplier = 0.38
 	orbital_bombardment_radius_multiplier = 0.70
 	energy_shockwave_enabled = false
-	energy_shockwave_cooldown = 6.0
-	energy_shockwave_damage_multiplier = 0.25
-	energy_shockwave_stun_duration = 0.75
+	energy_shockwave_cooldown = 5.0
+	energy_shockwave_damage_multiplier = 0.35
+	energy_shockwave_stun_duration = 1.0
 	energy_branching_current_enabled = false
 	energy_branch_additional_targets = 2
 	energy_branch_range_pixels = 0.0
@@ -4331,15 +4340,15 @@ func load_path_behaviors() -> void:
 		if flags.get("gauss_heavy_shot", false):
 			gauss_heavy_shot_enabled = true
 			gauss_heavy_shot_interval = maxf(
-				float(values.get("heavy_shot_interval", 3.0)),
+				float(values.get("heavy_shot_interval", 4.0)),
 				0.1
 			)
 			gauss_heavy_shot_damage_multiplier = maxf(
-				float(values.get("heavy_shot_damage_multiplier", 15.0)),
+				float(values.get("heavy_shot_damage_multiplier", 3.0)),
 				1.0
 			)
 			gauss_heavy_shot_speed_multiplier = maxf(
-				float(values.get("heavy_shot_speed_multiplier", 1.25)),
+				float(values.get("heavy_shot_speed_multiplier", 0.60)),
 				0.1
 			)
 		if flags.get("gauss_tracking_cone", false):
@@ -4356,7 +4365,7 @@ func load_path_behaviors() -> void:
 				* RANGE_PIXELS_PER_UNIT
 			)
 			beholder_death_explosion_damage_multiplier = maxf(
-				float(values.get("death_explosion_damage_multiplier", 4.0)),
+				float(values.get("death_explosion_damage_multiplier", 1.0)),
 				0.0
 			)
 		if flags.get("beholder_ramping_beam", false):
@@ -4426,7 +4435,7 @@ func load_path_behaviors() -> void:
 				* RANGE_PIXELS_PER_UNIT
 			)
 			brainiac_link_damage_share = maxf(
-				float(values.get("brainiac_link_damage_share", 0.5)),
+				float(values.get("brainiac_link_damage_share", 0.35)),
 				0.0
 			)
 		if flags.get("longshot_distance_damage", false):
@@ -4447,7 +4456,7 @@ func load_path_behaviors() -> void:
 		if flags.get("longshot_mines", false):
 			longshot_mines_enabled = true
 			longshot_mine_interval = maxf(
-				float(values.get("mine_interval", 5.0)),
+				float(values.get("mine_interval", 6.0)),
 				0.1
 			)
 			longshot_mine_maximum_count = maxi(
@@ -4463,17 +4472,17 @@ func load_path_behaviors() -> void:
 				* RANGE_PIXELS_PER_UNIT
 			)
 			longshot_mine_explosion_radius_pixels = (
-				maxf(float(values.get("mine_explosion_radius", 3.0)), 0.0)
+				maxf(float(values.get("mine_explosion_radius", 2.5)), 0.0)
 				* RANGE_PIXELS_PER_UNIT
 			)
 			longshot_mine_damage_multiplier = maxf(
-				float(values.get("mine_damage_multiplier", 1.5)),
+				float(values.get("mine_damage_multiplier", 1.25)),
 				0.0
 			)
 		if flags.get("void_singularity", false):
 			void_singularity_enabled = true
 			void_singularity_cooldown = maxf(
-				float(values.get("singularity_cooldown", 12.0)),
+				float(values.get("singularity_cooldown", 10.0)),
 				0.1
 			)
 			void_singularity_pull_duration = maxf(
@@ -4481,15 +4490,15 @@ func load_path_behaviors() -> void:
 				0.01
 			)
 			void_singularity_pull_radius_pixels = (
-				maxf(float(values.get("singularity_pull_radius", 5.0)), 0.0)
+				maxf(float(values.get("singularity_pull_radius", 7.0)), 0.0)
 				* RANGE_PIXELS_PER_UNIT
 			)
 			void_singularity_pull_speed = maxf(
-				float(values.get("singularity_pull_speed", 160.0)),
+				float(values.get("singularity_pull_speed", 80.0)),
 				0.0
 			)
 			void_singularity_explosion_radius_pixels = (
-				maxf(float(values.get("singularity_explosion_radius", 4.5)), 0.0)
+				maxf(float(values.get("singularity_explosion_radius", 5.0)), 0.0)
 				* RANGE_PIXELS_PER_UNIT
 			)
 			void_singularity_damage_multiplier = maxf(
@@ -4499,7 +4508,7 @@ func load_path_behaviors() -> void:
 		if flags.get("orbital_solar_lance", false):
 			orbital_solar_lance_enabled = true
 			orbital_solar_lance_duration = maxf(
-				float(values.get("solar_lance_duration", 2.0)),
+				float(values.get("solar_lance_duration", 1.5)),
 				0.01
 			)
 			orbital_solar_lance_tick_interval = maxf(
@@ -4533,7 +4542,7 @@ func load_path_behaviors() -> void:
 				* RANGE_PIXELS_PER_UNIT
 			)
 			orbital_bombardment_damage_multiplier = maxf(
-				float(values.get("bombardment_damage_multiplier", 0.45)),
+				float(values.get("bombardment_damage_multiplier", 0.38)),
 				0.0
 			)
 			orbital_bombardment_radius_multiplier = maxf(
@@ -4543,15 +4552,15 @@ func load_path_behaviors() -> void:
 		if flags.get("energy_shockwave", false):
 			energy_shockwave_enabled = true
 			energy_shockwave_cooldown = maxf(
-				float(values.get("shockwave_cooldown", 6.0)),
+				float(values.get("shockwave_cooldown", 5.0)),
 				0.1
 			)
 			energy_shockwave_damage_multiplier = maxf(
-				float(values.get("shockwave_damage_multiplier", 0.25)),
+				float(values.get("shockwave_damage_multiplier", 0.35)),
 				0.0
 			)
 			energy_shockwave_stun_duration = maxf(
-				float(values.get("shockwave_stun_duration", 0.75)),
+				float(values.get("shockwave_stun_duration", 1.0)),
 				0.0
 			)
 		if flags.get("energy_branching_current", false):

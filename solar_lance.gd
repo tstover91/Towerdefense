@@ -42,6 +42,12 @@ func setup(
 	tick_count = floori(duration / tick_interval) + 1
 	tick_index = 0
 	attack_context = ownership_context
+	if attack_context == null:
+		attack_context = AttackContext.legacy(
+			ORBITAL_CANNON_TOWER_ID,
+			&"solar_lance"
+		)
+	attack_context.metadata["area_damage"] = true
 	tick_remaining = 0.0
 	slow_refresh_remaining = 0.0
 	queue_redraw()
@@ -168,16 +174,9 @@ func cancel() -> void:
 
 
 func is_valid_mob(candidate: Variant) -> bool:
-	var valid_mob: bool = (
+	return (
 		candidate != null
 		and is_instance_valid(candidate)
 		and not candidate.is_queued_for_deletion()
 		and not candidate.finished
-	)
-	return valid_mob and (
-		not candidate.traits.has(&"hidden")
-		or (
-			candidate.has_method("is_revealed_for_all")
-			and candidate.is_revealed_for_all()
-		)
 	)

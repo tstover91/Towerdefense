@@ -580,7 +580,13 @@ func enter_build_phase() -> void:
 
 
 func calculate_end_round_reward() -> int:
-	return GameStats.get_round_cash_reward(round_number)
+	var reward := GameStats.get_round_cash_reward(round_number)
+	if get_relic_count(&"dividends") > 0:
+		reward += mini(
+			floori(float(money) * GameStats.DIVIDENDS_INTEREST_RATE),
+			GameStats.DIVIDENDS_INTEREST_CAP
+		)
+	return reward
 
 
 func clear_active_projectiles() -> void:

@@ -73,6 +73,10 @@ const EXPLOSION_INNER_RADIUS_RATIO := 0.50
 const EXPLOSION_OUTER_DAMAGE_MULTIPLIER := 0.50
 const EXPLOSIVE_ARMOR_MULTIPLIER := 1.25
 
+# Enemy bounties remain composition-dependent; this global multiplier is the
+# single tuning point for their average contribution to the run economy.
+const KILL_REWARD_MULTIPLIER := 0.80
+
 const ROUND_CASH_REWARDS := {
 	1: 500,
 	2: 600,
@@ -261,7 +265,7 @@ const RELICS := {
 	"direct_hit": {"display_name": "Direct Hit", "description": "Explosions gain 60% damage against one target, 30% against two, or 15% against three.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"thermite_bombs": {"display_name": "Thermite Bombs", "description": "Explosions ignore armor and deal 25% more damage to armored enemies.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"maximum_payload": {"display_name": "Maximum Payload", "description": "Explosion damage and radius increase by 50%, but explosive cooldowns take 75% longer.", "rarity": &"rare", "category": &"explosive", "stackable": false, "enabled": false},
-	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions can hit Hidden enemies and permanently remove Hidden from enemies they hit.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions permanently remove Hidden from enemies they hit.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"conductive": {"display_name": "Conductive", "description": "Armor increases Electric damage instead of reducing it.", "rarity": &"common", "category": &"electric", "stackable": false},
 	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 15 percentage points.", "rarity": &"common", "category": &"critical", "stackable": true},
 	"opening_shot": {"display_name": "Opening Shot", "description": "Gain 20 percentage points of critical-hit chance per stack against full-health enemies.", "rarity": &"common", "category": &"critical", "stackable": true},
@@ -588,11 +592,10 @@ const TOWERS := {
 	"paths": {
 		"a": {
 			"display_name": "Dual Pistols",
-			"description": "Adds a second pistol, increasing attack speed and granting Reveal while preserving Invader's Critical attacks.",
+			"description": "Adds a second pistol, greatly increasing attack speed and granting Critical.",
 			"cost": 2700,
 			"unlock_level": 3,
-
-			"add_bonus_tags": [&"reveal"],
+			"add_bonus_tags": [&"critical"],
 
 			"stat_multipliers": {
 				"firerate": 0.42,
@@ -637,7 +640,7 @@ const TOWERS := {
 			"damage": 65,
 			"firerate": 0.462,
 			"range": 10.625,
-			"add_bonus_tags": [&"critical"],
+			"add_bonus_tags": [&"reveal"],
 		},
 		{
 			"upgrade_cost": 917,
@@ -709,7 +712,6 @@ const TOWERS := {
 				"spread_tighten_duration": 5.0,
 				"spread_recovery_delay": 1.0,
 				"spread_recovery_per_second": 10.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 333,
@@ -722,7 +724,6 @@ const TOWERS := {
 				"spread_tighten_duration": 4.25,
 				"spread_recovery_delay": 1.0,
 				"spread_recovery_per_second": 10.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1600,
@@ -735,7 +736,6 @@ const TOWERS := {
 				"spread_tighten_duration": 3.25,
 				"spread_recovery_delay": 1.0,
 				"spread_recovery_per_second": 10.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 4500,
@@ -752,7 +752,6 @@ const TOWERS := {
 				"gauss_overclock_max_speed_bonus": 0.25,
 				"gauss_overclock_ramp_duration": 3.0,
 				"gauss_overclock_decay_duration": 1.0,
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -806,7 +805,6 @@ const TOWERS := {
 				"range": 7.5,
 				"beam_turn_speed_degrees": 480.0,
 				"beam_half_width": 2.5,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 667,
@@ -816,7 +814,6 @@ const TOWERS := {
 				"beam_turn_speed_degrees": 720.0,
 				"beam_half_width": 2.5,
 				"add_bonus_tags": [&"reveal"],
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 2000,
@@ -825,7 +822,6 @@ const TOWERS := {
 				"range": 8.25,
 				"beam_turn_speed_degrees": 720.0,
 				"beam_half_width": 5.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 3833,
@@ -834,7 +830,6 @@ const TOWERS := {
 				"range": 9.0,
 				"beam_turn_speed_degrees": 900.0,
 				"beam_half_width": 5.0,
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -884,7 +879,6 @@ const TOWERS := {
 				"range": 5.5,
 				"combo_hit_count": 3,
 				"combo_stagger": 0.16,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 125,
@@ -893,7 +887,6 @@ const TOWERS := {
 				"range": 5.75,
 				"combo_hit_count": 3,
 				"combo_stagger": 0.16,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 700,
@@ -902,7 +895,6 @@ const TOWERS := {
 				"range": 6.0,
 				"combo_hit_count": 3,
 				"combo_stagger": 0.12,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1450,
@@ -911,7 +903,6 @@ const TOWERS := {
 				"range": 7.0,
 				"combo_hit_count": 3,
 				"combo_stagger": 0.10,
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -961,7 +952,6 @@ const TOWERS := {
 				"range": 9.0,
 				"projectile_count": 3,
 				"volley_width": 5.5,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 225,
@@ -971,7 +961,6 @@ const TOWERS := {
 				"range": 9.5,
 				"projectile_count": 3,
 				"volley_width": 5.5,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 525,
@@ -981,7 +970,6 @@ const TOWERS := {
 				"range": 10.0,
 				"projectile_count": 5,
 				"volley_width": 5.5,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 2000,
@@ -991,7 +979,6 @@ const TOWERS := {
 				"range": 10.75,
 				"projectile_count": 5,
 				"volley_width": 5.5,
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -1041,28 +1028,24 @@ const TOWERS := {
 				"damage": 500,
 				"firerate": 2.20,
 				"range": 23.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 500,
 				"damage": 625,
 				"firerate": 2.10,
 				"range": 23.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1825,
 				"damage": 1050,
 				"firerate": 1.95,
 				"range": 23,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 5250,
 				"damage": 2325,
 				"firerate": 1.65,
 				"range": 23.0,
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -1121,7 +1104,6 @@ const TOWERS := {
 				"range": 12.5,
 				"bounce_count": 1,
 				"bounce_range": 7.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 300,
@@ -1131,7 +1113,6 @@ const TOWERS := {
 				"range": 13.0,
 				"bounce_count": 1,
 				"bounce_range": 7.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 570,
@@ -1141,7 +1122,6 @@ const TOWERS := {
 				"range": 15.0,
 				"bounce_count": 1,
 				"bounce_range": 7.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1350,
@@ -1151,7 +1131,6 @@ const TOWERS := {
 				"range": 15.0,
 				"bounce_count": 2,
 				"bounce_range": 7.0,
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -1209,7 +1188,6 @@ const TOWERS := {
 				"projectile_count": 2,
 				"volley_width": 2.0,
 				"volley_stagger": 0.14,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 200,
@@ -1221,7 +1199,6 @@ const TOWERS := {
 				"projectile_count": 2,
 				"volley_width": 2.0,
 				"volley_stagger": 0.14,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 600,
@@ -1233,7 +1210,6 @@ const TOWERS := {
 				"projectile_count": 2,
 				"volley_width": 2.0,
 				"volley_stagger": 0.14,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 2000,
@@ -1245,7 +1221,6 @@ const TOWERS := {
 				"projectile_count": 2,
 				"volley_width": 2.0,
 				"volley_stagger": 0.14,
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -1309,7 +1284,6 @@ const TOWERS := {
 				"range": 24.0,
 				"splash_radius": 3.5,
 				"stun_duration": 0.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 175,
@@ -1319,7 +1293,6 @@ const TOWERS := {
 				"range": 24.0,
 				"splash_radius": 4.5,
 				"stun_duration": 0.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 750,
@@ -1330,7 +1303,6 @@ const TOWERS := {
 				"splash_radius": 4.5,
 				"stun_duration": 1.25,
 				"add_bonus_tags": [&"stun"],
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 2250,
@@ -1340,7 +1312,6 @@ const TOWERS := {
 				"range": 24.0,
 				"splash_radius": 5.5,
 				"stun_duration": 1.60,
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -1389,7 +1360,6 @@ const TOWERS := {
 				"range": 7.5,
 				"projectile_count": 1,
 				"slow_duration": 0.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 95,
@@ -1398,7 +1368,6 @@ const TOWERS := {
 				"range": 7.5,
 				"projectile_count": 2,
 				"slow_duration": 0.0,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 330,
@@ -1407,7 +1376,6 @@ const TOWERS := {
 				"range": 8.25,
 				"projectile_count": 2,
 				"slow_duration": 0.50,
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 830,
@@ -1416,7 +1384,6 @@ const TOWERS := {
 				"range": 8.25,
 				"projectile_count": 3,
 				"slow_duration": 0.50,
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -1466,7 +1433,6 @@ const TOWERS := {
 				"abduction_radius": 1.5,
 				"abduction_health_threshold": 0.0,
 				"monster_stats": {"damage": 750, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1075,
@@ -1482,7 +1448,6 @@ const TOWERS := {
 				"abduction_health_threshold": 0.0,
 				"monster_stats": {"damage": 400, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
 				"add_bonus_tags": [&"reveal"],
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1000,
@@ -1497,7 +1462,6 @@ const TOWERS := {
 				"abduction_radius": 2.0,
 				"abduction_health_threshold": 0.40,
 				"monster_stats": {"damage": 400, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
-				"hidden_detection": false,
 			},
 			{
 				"upgrade_cost": 1600,
@@ -1512,7 +1476,6 @@ const TOWERS := {
 				"abduction_radius": 2.25,
 				"abduction_health_threshold": 0.40,
 				"monster_stats": {"damage": 400, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
-				"hidden_detection": false,
 			},
 		],
 	},
@@ -1542,7 +1505,7 @@ const TOWERS := {
 			},
 			"b": {
 				"display_name": "Mycelial Network",
-				"description": "Spore Turrets can attack enemies locally targeted by a turret belonging to another Hive Mother, even beyond their own range.",
+				"description": "Reduces Spore Turret attack intervals by 35%. They can attack enemies locally targeted by a turret belonging to another Hive Mother, even beyond their own range.",
 				"cost": 5000,
 				"unlock_level": 3,
 				"unit_stat_multipliers": {
@@ -1597,17 +1560,19 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Laser Drones",
-				"description": "Replaces each drone's Ballistic weapon with a continuous Beam that must remain physically aligned with its primary target to deal tick damage.",
+				"description": "Replaces each drone's Ballistic weapon with a continuous Beam that deals 25% more damage and has a 50% larger damage budget. The Beam must remain physically aligned with its primary target to deal tick damage.",
 				"cost": 5000,
 				"unlock_level": 3,
 				"remove_damage_tags": [&"ballistic"],
 				"add_damage_tags": [&"beam"],
 				"primary_damage_type": &"beam",
+				"unit_stat_multipliers": {
+					"damage": 1.25,
+					"damage_budget": 1.50,
+				},
 				"unit_stat_overrides": {
 					"damage_tags": [&"beam"],
 					"continuous_beam": true,
-					"damage": 1.25,
-					"damage_budget": 1.50,
 				},
 			},
 			"b": {
@@ -1630,28 +1595,28 @@ const TOWERS := {
 				"spawn_interval": 10.0,
 				"spawn_limit": 1,
 				"deployment_radius": 11.0,
-				"unit_stats": {"damage": 40, "attack_interval": 0.35, "aim_radius": 5.0, "move_speed": 120.0, "leash_radius": 14.0, "damage_budget": 600, "recharge_duration": 3.0},
+				"unit_stats": {"damage": 100, "attack_interval": 0.35, "aim_radius": 5.0, "move_speed": 120.0, "leash_radius": 14.0, "damage_budget": 600, "recharge_duration": 3.0},
 			},
 			{
 				"upgrade_cost": 450,
 				"spawn_interval": 9.0,
 				"spawn_limit": 1,
 				"deployment_radius": 12.0,
-				"unit_stats": {"damage": 60, "attack_interval": 0.32, "aim_radius": 5.5, "move_speed": 135.0, "leash_radius": 15.0, "damage_budget": 900, "recharge_duration": 2.8},
+				"unit_stats": {"damage": 145, "attack_interval": 0.32, "aim_radius": 5.5, "move_speed": 135.0, "leash_radius": 15.0, "damage_budget": 900, "recharge_duration": 2.8},
 			},
 			{
 				"upgrade_cost": 1100,
 				"spawn_interval": 8.0,
 				"spawn_limit": 2,
 				"deployment_radius": 13.0,
-				"unit_stats": {"damage": 80, "attack_interval": 0.29, "aim_radius": 6.0, "move_speed": 150.0, "leash_radius": 16.0, "damage_budget": 1200, "recharge_duration": 2.6},
+				"unit_stats": {"damage": 155, "attack_interval": 0.29, "aim_radius": 6.0, "move_speed": 150.0, "leash_radius": 16.0, "damage_budget": 1200, "recharge_duration": 2.6},
 			},
 			{
 				"upgrade_cost": 3000,
 				"spawn_interval": 6.0,
 				"spawn_limit": 3,
 				"deployment_radius": 15.0,
-				"unit_stats": {"damage": 125, "attack_interval": 0.22, "aim_radius": 7.0, "move_speed": 190.0, "leash_radius": 18.0, "damage_budget": 2000, "recharge_duration": 2.0},
+				"unit_stats": {"damage": 340, "attack_interval": 0.22, "aim_radius": 7.0, "move_speed": 190.0, "leash_radius": 18.0, "damage_budget": 2000, "recharge_duration": 2.0},
 			},
 		],
 	},
@@ -1678,7 +1643,6 @@ const TOWERS := {
 					"move_speed": 0.60,
 				},
 				"unit_stat_overrides": {
-					"additional_bonus_tags": [&"stun"],
 					"mech_area_slam": true,
 					"mech_slam_radius": 3.5,
 					"stun_duration": 0.60,
@@ -1696,7 +1660,6 @@ const TOWERS := {
 					"move_speed": 1.60,
 				},
 				"unit_stat_overrides": {
-					"additional_bonus_tags": [&"critical"],
 					"critical_chance": 0.10,
 					"hunter_critical_chance": 0.30,
 					"mech_hunter": true,

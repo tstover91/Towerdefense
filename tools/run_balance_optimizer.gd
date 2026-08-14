@@ -1157,10 +1157,10 @@ func simulate_run(
 		var survived := float(state["lives"]) > 0.0
 		var round_reward := 0.0
 		if survived:
-			round_reward = float(
-				GameStats.ROUND_REWARD_BASE
-				+ round_number * GameStats.ROUND_REWARD_PER_WAVE
-			) * float(profile_data["round_income"])
+			round_reward = (
+				float(GameStats.get_round_cash_reward(round_number))
+				* float(profile_data["round_income"])
+			)
 			if relic_count(state, &"dividends") > 0:
 				round_reward += minf(
 					floorf(float(state["money"]) * GameStats.DIVIDENDS_INTEREST_RATE),
@@ -1652,9 +1652,10 @@ func purchase_for_round(
 	profile_data: Dictionary,
 	round_number: int
 ) -> void:
-	var reserve := float(policy["reserve"]) * float(
-		GameStats.ROUND_REWARD_BASE
-		+ round_number * GameStats.ROUND_REWARD_PER_WAVE
+	var reserve := (
+		float(policy["reserve"])
+		* float(GameStats.get_round_cash_reward(round_number))
+		* float(profile_data["round_income"])
 	)
 	# A viable saving strategy still establishes an initial defense. Applying
 	# its reserve before the first build can otherwise make it hold affordable
@@ -1692,7 +1693,8 @@ func purchase_for_round(
 				state,
 				action,
 				planning_mixes,
-				round_number
+				round_number,
+				profile_data
 			)
 			scored.append({"action": action, "score": planned_efficiency * bias, "cost": cost})
 		scored.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["score"]) > float(b["score"]))
@@ -1737,7 +1739,8 @@ func get_planned_action_efficiency(
 	state: Dictionary,
 	action: Dictionary,
 	planning_mixes: Array,
-	round_number: int
+	round_number: int,
+	profile_data: Dictionary
 ) -> float:
 	var target: Dictionary = candidates[action["target_key"]]
 	var previous: Dictionary = {}
@@ -1753,9 +1756,15 @@ func get_planned_action_efficiency(
 		placement_index
 	) - get_optional_candidate_power(previous, state, planning_mixes[0], placement_index)
 	var immediate_efficiency := maxf(immediate_gain, 0.001) / maxf(float(action["cost"]), 1.0)
+	var expected_kill_income := 0.0
+	for entry in planning_mixes[0]:
+		expected_kill_income += float(entry["count"]) * float(entry["reward"])
 	var expected_income := maxf(
-		float(GameStats.ROUND_REWARD_BASE + round_number * GameStats.ROUND_REWARD_PER_WAVE)
-		+ 100.0,
+		(
+			float(GameStats.get_round_cash_reward(round_number))
+			* float(profile_data["round_income"])
+		)
+		+ expected_kill_income * float(profile_data["kill_income"]),
 		1.0
 	)
 	return maxf(
@@ -2185,10 +2194,6 @@ func get_candidate_enemy_power(
 	var primary_type: StringName = traits["primary_type"]
 	var can_attack_hidden: bool = (
 		traits["bonus_tags"].has(&"reveal")
-		or (
-			traits["damage_tags"].has(&"explosive")
-			and relic_count(state, &"charred_clothes") > 0
-		)
 		or (
 			build_has_reveal(state["build"])
 			and (
@@ -3505,8 +3510,7 @@ func get_balance_values() -> Dictionary:
 	var mode := GameStats.get_mode(&"easy")
 	return {
 		"kill_reward_multiplier": GameStats.KILL_REWARD_MULTIPLIER,
-		"round_reward_base": GameStats.ROUND_REWARD_BASE,
-		"round_reward_per_wave": GameStats.ROUND_REWARD_PER_WAVE,
+		"round_cash_rewards": GameStats.ROUND_CASH_REWARDS,
 		"round_six_threat_multiplier": GameStats.ROUND_SIX_THREAT_MULTIPLIER,
 		"early_round_threat_multipliers": GameStats.EARLY_ROUND_THREAT_MULTIPLIERS,
 		"global_enemy_health_multiplier": GameStats.GLOBAL_ENEMY_HEALTH_MULTIPLIER,

@@ -816,7 +816,7 @@ func perform_mech_area_slam() -> void:
 		slam_zone.global_position = global_position
 		slam_zone.setup(mech_slam_radius_pixels)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_target(mob):
+		if not is_valid_area_target(mob):
 			continue
 		var distance_to_slam: float = global_position.distance_to(mob.global_position)
 		if distance_to_slam > mech_slam_radius_pixels:
@@ -825,6 +825,7 @@ func perform_mech_area_slam() -> void:
 		var slam_context := create_attack_context(
 			&"mech_slam", null, false, true
 		)
+		slam_context.metadata["area_damage"] = true
 		var slam_damage := GameStats.get_explosion_damage(
 			rolled_damage,
 			distance_to_slam,
@@ -1298,13 +1299,7 @@ func select_target(origin: Vector2, maximum_distance: float) -> Node2D:
 
 
 func is_valid_target(candidate: Variant) -> bool:
-	var valid_target: bool = (
-		candidate != null
-		and is_instance_valid(candidate)
-		and not candidate.is_queued_for_deletion()
-		and not candidate.finished
-	)
-	if not valid_target:
+	if not is_valid_area_target(candidate):
 		return false
 	if candidate.traits.has(&"hidden"):
 		return (
@@ -1315,6 +1310,15 @@ func is_valid_target(candidate: Variant) -> bool:
 			)
 		)
 	return true
+
+
+func is_valid_area_target(candidate: Variant) -> bool:
+	return (
+		candidate != null
+		and is_instance_valid(candidate)
+		and not candidate.is_queued_for_deletion()
+		and not candidate.finished
+	)
 
 
 func get_damage_type() -> StringName:

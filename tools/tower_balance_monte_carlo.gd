@@ -350,12 +350,12 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 				attack_damage *= GameStats.DEFAULT_CRITICAL_MULTIPLIER
 		if flags.get("orbital_solar_lance", false):
 			attack_damage *= (
-				float(values.get("solar_lance_duration", 2.0))
+				float(values.get("solar_lance_duration", 1.5))
 				/ maxf(float(values.get("solar_lance_tick_interval", 0.2)), 0.01)
 				* float(values.get("solar_lance_tick_damage_multiplier", 0.25))
 			)
 		elif flags.get("orbital_bombardment", false):
-			attack_damage *= float(values.get("bombardment_damage_multiplier", 0.45))
+			attack_damage *= float(values.get("bombardment_damage_multiplier", 0.38))
 		var distance_ratio := rng.randf_range(float(scenario["distance_min"]), float(scenario["distance_max"]))
 		if flags.get("longshot_distance_damage", false):
 			attack_damage *= get_longshot_distance_multiplier(values, distance_ratio)
@@ -385,7 +385,7 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 	if flags.get("beholder_death_explosion", false) and int(scenario["enemies"]) > 1:
 		var kill_count := total / maxf(float(scenario["health"]), 1.0)
 		var death_damage := apply_armor(
-			damage * float(values.get("death_explosion_damage_multiplier", 2.0)),
+			damage * float(values.get("death_explosion_damage_multiplier", 1.0)),
 			&"explosive",
 			float(scenario["armor"]),
 			false
@@ -461,7 +461,7 @@ func simulate_orbital_path_trial(
 	var base_damage := float(stats.get("damage", 0))
 	if flags.get("orbital_bombardment", false) and not flags.get("orbital_solar_lance", false):
 		base_damage = float(roundi(
-			base_damage * float(values.get("bombardment_damage_multiplier", 0.36))
+			base_damage * float(values.get("bombardment_damage_multiplier", 0.38))
 		))
 	var hit_radius := (
 		GameStats.BUILD_CELL_SIZE / RANGE_PIXELS_PER_UNIT
@@ -471,7 +471,7 @@ func simulate_orbital_path_trial(
 	)
 	var tick_count := 1
 	if flags.get("orbital_solar_lance", false):
-		var lance_duration := float(values.get("solar_lance_duration", 1.25))
+		var lance_duration := float(values.get("solar_lance_duration", 1.5))
 		var tick_interval := maxf(
 			float(values.get("solar_lance_tick_interval", 0.2)),
 			0.01
@@ -657,8 +657,8 @@ func get_control_value(stats: Dictionary, traits: Dictionary, scenario: Dictiona
 		value += bubble_uptime * float(enemies) * (1.0 - GameStats.SLOW_SPEED_MULTIPLIER)
 	if flags.get("energy_shockwave", false) and not bool(scenario["boss"]):
 		value += (
-			float(values.get("shockwave_stun_duration", 0.75))
-			/ maxf(float(values.get("shockwave_cooldown", 6.0)), 0.01)
+			float(values.get("shockwave_stun_duration", 1.0))
+			/ maxf(float(values.get("shockwave_cooldown", 5.0)), 0.01)
 			* float(enemies)
 			* 0.40
 		)
@@ -792,9 +792,9 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 	var enemies := int(scenario["enemies"])
 	var armor := float(scenario["armor"])
 	if flags.get("gauss_heavy_shot", false):
-		var count := floori(duration / maxf(float(values.get("heavy_shot_interval", 3.0)), 0.1))
+		var count := floori(duration / maxf(float(values.get("heavy_shot_interval", 4.0)), 0.1))
 		var heavy_damage := maxi(roundi(
-			damage * float(values.get("heavy_shot_damage_multiplier", 10.0))
+			damage * float(values.get("heavy_shot_damage_multiplier", 3.0))
 		), 1)
 		var heavy_line_damage := 0.0
 		for hit_index in enemies:
@@ -808,18 +808,18 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 			), float(scenario["health"]))
 		total += float(count) * heavy_line_damage
 	if flags.get("longshot_mines", false):
-		var count := floori(duration / maxf(float(values.get("mine_interval", 5.0)), 0.1))
-		total += float(count) * minf(apply_armor(damage * float(values.get("mine_damage_multiplier", 1.5)), &"explosive", armor, false), float(scenario["health"])) * minf(float(enemies), 3.0)
+		var count := floori(duration / maxf(float(values.get("mine_interval", 6.0)), 0.1))
+		total += float(count) * minf(apply_armor(damage * float(values.get("mine_damage_multiplier", 1.25)), &"explosive", armor, false), float(scenario["health"])) * minf(float(enemies), 3.0)
 	if flags.get("void_singularity", false):
 		var count := floori(duration / maxf(float(values.get("singularity_cooldown", 10.0)), 0.1))
 		var coverage_target_cap := maxi(
-			roundi(float(values.get("singularity_explosion_radius", 4.0))) + 2,
+			roundi(float(values.get("singularity_explosion_radius", 5.0))) + 2,
 			1
 		)
 		total += (
 			float(count)
 			* minf(apply_armor(
-				damage * float(values.get("singularity_damage_multiplier", 4.0)),
+				damage * float(values.get("singularity_damage_multiplier", 3.0)),
 				&"explosive",
 				armor,
 				false
@@ -827,9 +827,9 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 			* minf(float(enemies), float(coverage_target_cap))
 		)
 	if flags.get("energy_shockwave", false):
-		var count := floori(duration / maxf(float(values.get("shockwave_cooldown", 6.0)), 0.1))
+		var count := floori(duration / maxf(float(values.get("shockwave_cooldown", 5.0)), 0.1))
 		total += float(count) * minf(apply_armor(
-			maxf(roundf(damage * float(values.get("shockwave_damage_multiplier", 0.25))), 1.0),
+			maxf(roundf(damage * float(values.get("shockwave_damage_multiplier", 0.35))), 1.0),
 			&"electric",
 			armor,
 			false
@@ -856,7 +856,7 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 		total += (
 			float(count * 2)
 			* apply_armor(
-				damage * float(values.get("saucer_rocket_damage_multiplier", 3.0)),
+				damage * float(values.get("saucer_rocket_damage_multiplier", 2.0)),
 				&"explosive",
 				armor,
 				false
@@ -956,7 +956,7 @@ func simulate_spawner_trial(tower_id: StringName, stats: Dictionary, traits: Dic
 		total *= active_time / maxf(active_time + recharge, 0.01)
 		if bool(unit.get("explode_on_damage_budget", false)):
 			var cycles := duration / maxf(active_time + recharge, 0.01)
-			total += cycles * float(spawn_limit) * damage * float(unit.get("budget_explosion_damage_multiplier", 5.0)) * minf(float(int(scenario["enemies"])), 3.0)
+			total += cycles * float(spawn_limit) * damage * float(unit.get("budget_explosion_damage_multiplier", 6.0)) * minf(float(int(scenario["enemies"])), 3.0)
 	return total / duration
 
 

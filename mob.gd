@@ -743,7 +743,20 @@ func apply_damage_from_tower(
 	var resolved_context := attack_context
 	if resolved_context == null and not source_tower_id.is_empty():
 		resolved_context = AttackContext.legacy(source_tower_id)
+	if not can_receive_tower_damage(resolved_context):
+		return 0
 	return apply_damage(amount, damage_type, ignores_armor, true, resolved_context)
+
+
+func can_receive_tower_damage(attack_context: AttackContext) -> bool:
+	if not traits.has(&"hidden") or is_revealed_for_all():
+		return true
+	if attack_context == null:
+		return false
+	return (
+		bool(attack_context.metadata.get("source_can_reveal", false))
+		or bool(attack_context.metadata.get("area_damage", false))
+	)
 
 
 func spread_brainiac_damage(
