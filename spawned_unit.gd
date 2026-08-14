@@ -811,10 +811,15 @@ func perform_mech_area_slam() -> void:
 	if mech_slam_radius_pixels <= 0.0:
 		return
 	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
-		var slam_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
-		get_tree().current_scene.add_child(slam_zone)
-		slam_zone.global_position = global_position
-		slam_zone.setup(mech_slam_radius_pixels)
+		if get_tree().current_scene.has_method("spawn_explosion_visual"):
+			get_tree().current_scene.spawn_explosion_visual(
+				global_position, mech_slam_radius_pixels
+			)
+		else:
+			var slam_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
+			get_tree().current_scene.add_child(slam_zone)
+			slam_zone.global_position = global_position
+			slam_zone.setup(mech_slam_radius_pixels)
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_area_target(mob):
 			continue
@@ -839,10 +844,15 @@ func trigger_budget_explosion() -> void:
 	if budget_explosion_radius_pixels <= 0.0:
 		return
 	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
-		var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
-		get_tree().current_scene.add_child(explosion_zone)
-		explosion_zone.global_position = global_position
-		explosion_zone.setup(budget_explosion_radius_pixels)
+		if get_tree().current_scene.has_method("spawn_explosion_visual"):
+			get_tree().current_scene.spawn_explosion_visual(
+				global_position, budget_explosion_radius_pixels
+			)
+		else:
+			var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
+			get_tree().current_scene.add_child(explosion_zone)
+			explosion_zone.global_position = global_position
+			explosion_zone.setup(budget_explosion_radius_pixels)
 	var explosion_damage := maxi(
 		roundi(float(damage) * budget_explosion_damage_multiplier),
 		1
@@ -1067,6 +1077,11 @@ func spawn_hitscan_effect(
 	attack_type: StringName
 ) -> void:
 	if HITSCAN_EFFECT_SCENE == null or get_tree().current_scene == null:
+		return
+	if get_tree().current_scene.has_method("spawn_hitscan_visual"):
+		get_tree().current_scene.spawn_hitscan_visual(
+			start_position, end_position, attack_type
+		)
 		return
 	var effect := HITSCAN_EFFECT_SCENE.instantiate() as Node2D
 	get_tree().current_scene.add_child(effect)

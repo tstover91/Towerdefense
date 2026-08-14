@@ -106,6 +106,11 @@ func detonate() -> void:
 func spawn_explosion_zone() -> void:
 	if EXPLOSION_ZONE_SCENE == null or get_tree().current_scene == null:
 		return
+	if get_tree().current_scene.has_method("spawn_explosion_visual"):
+		get_tree().current_scene.spawn_explosion_visual(
+			global_position, explosion_radius
+		)
+		return
 	var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
 	get_tree().current_scene.add_child(explosion_zone)
 	explosion_zone.global_position = global_position

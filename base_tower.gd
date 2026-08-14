@@ -3037,6 +3037,11 @@ func spawn_hitscan_effect(
 ) -> void:
 	if HITSCAN_EFFECT_SCENE == null or get_tree().current_scene == null:
 		return
+	if get_tree().current_scene.has_method("spawn_hitscan_visual"):
+		get_tree().current_scene.spawn_hitscan_visual(
+			start_position, end_position, attack_type
+		)
+		return
 	var effect := HITSCAN_EFFECT_SCENE.instantiate() as Node2D
 	get_tree().current_scene.add_child(effect)
 	effect.setup(start_position, end_position, attack_type)
@@ -3993,10 +3998,15 @@ func trigger_beholder_death_explosion(center: Vector2, explosion_damage: int) ->
 		beholder_death_explosion_radius_pixels
 	)
 	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
-		var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
-		get_tree().current_scene.add_child(explosion_zone)
-		explosion_zone.global_position = center
-		explosion_zone.setup(beholder_death_explosion_radius_pixels)
+		if get_tree().current_scene.has_method("spawn_explosion_visual"):
+			get_tree().current_scene.spawn_explosion_visual(
+				center, beholder_death_explosion_radius_pixels
+			)
+		else:
+			var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
+			get_tree().current_scene.add_child(explosion_zone)
+			explosion_zone.global_position = center
+			explosion_zone.setup(beholder_death_explosion_radius_pixels)
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
 			continue

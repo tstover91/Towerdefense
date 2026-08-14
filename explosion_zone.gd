@@ -1,6 +1,8 @@
 class_name ExplosionZone
 extends Node2D
 
+signal recycle_requested(effect: Node2D)
+
 const GameStats = preload("res://stat_database.gd")
 const DISPLAY_DURATION := 0.45
 
@@ -10,6 +12,9 @@ var remaining_duration := DISPLAY_DURATION
 
 
 func setup(explosion_radius: float) -> void:
+	visible = true
+	set_process(true)
+	add_to_group("tower_attack_visuals")
 	outer_radius = maxf(explosion_radius, 0.0)
 	inner_radius = outer_radius * GameStats.EXPLOSION_INNER_RADIUS_RATIO
 	remaining_duration = DISPLAY_DURATION
@@ -19,9 +24,19 @@ func setup(explosion_radius: float) -> void:
 func _process(delta: float) -> void:
 	remaining_duration = maxf(remaining_duration - delta, 0.0)
 	if remaining_duration <= 0.0:
-		queue_free()
+		recycle_requested.emit(self)
 		return
 	queue_redraw()
+
+
+func deactivate_for_pool() -> void:
+	remove_from_group("tower_attack_visuals")
+	visible = false
+	set_process(false)
+
+
+func recycle_now() -> void:
+	recycle_requested.emit(self)
 
 
 func _draw() -> void:

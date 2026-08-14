@@ -5,7 +5,6 @@ const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const STUN_FATIGUE_MULTIPLIERS := [1.0, 0.65, 0.40, 0.25, 0.10]
 const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
-const SPEED_AURA_REFRESH_INTERVAL := 0.15
 
 signal mob_killed(reward: int)
 signal mob_died(mob: Node2D)
@@ -50,8 +49,8 @@ var summon_limit := 0
 var summons_created := 0
 var summon_elapsed := 0.0
 var summon_request_pending := false
-var speed_aura_refresh_remaining := 0.0
 var cached_speed_aura_multiplier := 1.0
+var hide_health_bar_while_full := false
 var slow_remaining := 0.0
 var slow_context: AttackContext
 var stun_remaining := 0.0
@@ -94,7 +93,6 @@ func _process(delta: float) -> void:
 	_process_regeneration(delta)
 	_process_summoning(delta)
 	_process_control_effects(delta)
-	_process_speed_aura(delta)
 	path_follow.progress += get_effective_speed() * delta
 	update_health_bar_position()
 
@@ -116,6 +114,7 @@ func update_health_bar_position() -> void:
 func load_stats() -> void:
 	var stats: Dictionary = GameStats.get_enemy(enemy_id)
 	traits.assign(stats.get("traits", []))
+	hide_health_bar_while_full = StringName(stats.get("role", &"")) == &"fodder"
 	var variant_health_multiplier := 1.0
 	var speed_multiplier := 1.0
 	var reward_multiplier := 1.0
@@ -189,6 +188,7 @@ func load_stats() -> void:
 	sprite.scale = Vector2.ONE * 2.0 * visual_scale
 	health_bar.max_value = health
 	health_bar.value = health
+	update_health_bar_visibility()
 
 
 func get_leak_damage() -> int:
@@ -209,19 +209,21 @@ func get_effective_speed() -> float:
 	return result * cached_speed_aura_multiplier
 
 
-func _process_speed_aura(delta: float) -> void:
-	speed_aura_refresh_remaining -= delta
-	if speed_aura_refresh_remaining > 0.0:
-		return
-	speed_aura_refresh_remaining = SPEED_AURA_REFRESH_INTERVAL
+func reset_cached_speed_aura() -> void:
 	cached_speed_aura_multiplier = 1.0
-	for candidate in get_tree().get_nodes_in_group("speed_buffers"):
-		if candidate == self or not candidate.has_method("get_speed_buff_for"):
-			continue
-		cached_speed_aura_multiplier = maxf(
-			cached_speed_aura_multiplier,
-			candidate.get_speed_buff_for(self)
-		)
+
+
+func apply_cached_speed_aura_from(candidate: Node2D) -> void:
+	if not candidate.has_method("get_speed_buff_for"):
+		return
+	cached_speed_aura_multiplier = maxf(
+		cached_speed_aura_multiplier,
+		candidate.get_speed_buff_for(self)
+	)
+
+
+func update_health_bar_visibility() -> void:
+	health_bar_anchor.visible = not hide_health_bar_while_full or health < max_health
 
 
 func _process_control_effects(delta: float) -> void:
@@ -360,6 +362,7 @@ func _process_regeneration(delta: float) -> void:
 		regeneration_elapsed -= 1.0
 		health = mini(health + regeneration_per_second, max_health)
 		health_bar.value = health
+		update_health_bar_visibility()
 
 
 func _process_summoning(delta: float) -> void:
@@ -490,21 +493,24 @@ func apply_damage(
 		and attack_context != null
 		and int(attack_context.metadata.get("conductive", 0)) > 0
 	)
-	var effective_armor := 0.0 if ignores_armor else armor
-	if damage_type == &"explosive":
-		effective_armor *= GameStats.EXPLOSIVE_ARMOR_MULTIPLIER
+	var armor_reduction := (
+		0.0
+		if ignores_armor
+		else GameStats.get_armor_damage_reduction(armor, damage_type)
+	)
 	var final_damage := maxi(
 		1,
 		roundi(
-			float(amount) + effective_armor
+			float(amount) * (1.0 + armor_reduction)
 			if conductive_armor
-			else float(amount) - effective_armor
+			else float(amount) * (1.0 - armor_reduction)
 		)
 	)
 	var received_damage := mini(final_damage, health)
 
 	health -= final_damage
 	health_bar.value = health
+	update_health_bar_visibility()
 	if health <= 0:
 		if (
 			damage_type == &"beam"

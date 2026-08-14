@@ -35,7 +35,7 @@ const ENEMY_DEBUT_GROUPS := [
 const WAVE_STYLE_RULES := {
 	&"standard": {"minimum_round": 1, "weight": 1.5},
 	&"burst": {"minimum_round": 2, "required_any": [&"runner", &"rusher"], "weight": 1.0},
-	&"stream": {"minimum_round": 3, "required_any": [&"swarmling", &"normal"], "weight": 1.0},
+	&"stream": {"minimum_round": 2, "required_any": [&"swarmling", &"normal"], "weight": 1.0},
 	&"pulses": {"minimum_round": 3, "weight": 1.0},
 	&"spaced": {"minimum_round": 4, "required_any": [&"bruiser", &"armored", &"regenerator"], "weight": 1.0},
 	&"swarm_batch": {"minimum_round": 4, "required_any": [&"swarmling", &"normal"], "weight": 0.9},
@@ -110,10 +110,12 @@ const PIERCE_MINIMUM_DAMAGE_MULTIPLIER := 0.40
 const EXPLOSION_INNER_RADIUS_RATIO := 0.50
 const EXPLOSION_OUTER_DAMAGE_MULTIPLIER := 0.50
 const EXPLOSIVE_ARMOR_MULTIPLIER := 1.25
+const ARMOR_RATING_CONSTANT := 50.0
+const MAXIMUM_ARMOR_DAMAGE_REDUCTION := 0.60
 
 # Enemy bounties remain composition-dependent; this global multiplier is the
 # single tuning point for their average contribution to the run economy.
-const KILL_REWARD_MULTIPLIER := 0.80
+const KILL_REWARD_MULTIPLIER := 0.25
 
 const ROUND_CASH_REWARDS := {
 	1: 500,
@@ -146,26 +148,41 @@ const ROUND_CASH_REWARDS := {
 # used to derive the director's per-second rate. Chunk timing can leave a small
 # reserve unspent. The mode's starting_spawn_threat is a separate reserve.
 const ROUND_PROFILES := {
-	1: {"duration": 20.0, "threat_budget": 23.7090, "standard_health_multiplier": 2.2770, "boss_health_multiplier": 1.2650},
-	2: {"duration": 25.0, "threat_budget": 35.7280, "standard_health_multiplier": 2.3265, "boss_health_multiplier": 1.2925},
-	3: {"duration": 30.0, "threat_budget": 51.4437, "standard_health_multiplier": 2.3760, "boss_health_multiplier": 1.3200},
-	4: {"duration": 35.0, "threat_budget": 71.6184, "standard_health_multiplier": 2.4255, "boss_health_multiplier": 1.3475},
-	5: {"duration": 40.0, "threat_budget": 97.0900, "standard_health_multiplier": 2.4750, "boss_health_multiplier": 1.3750},
-	6: {"duration": 45.0, "threat_budget": 128.7720, "standard_health_multiplier": 2.5245, "boss_health_multiplier": 1.4025},
-	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 2.5740, "boss_health_multiplier": 1.4300},
-	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 2.6235, "boss_health_multiplier": 1.4575},
-	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 2.6730, "boss_health_multiplier": 1.4850},
-	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 2.7225, "boss_health_multiplier": 1.5125},
-	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 2.7720, "boss_health_multiplier": 1.5400},
-	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 2.8215, "boss_health_multiplier": 1.5675},
-	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 2.8710, "boss_health_multiplier": 1.5950},
-	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 2.9205, "boss_health_multiplier": 1.6225},
-	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 2.9700, "boss_health_multiplier": 1.6500},
-	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 3.0195, "boss_health_multiplier": 1.6775},
-	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 3.0690, "boss_health_multiplier": 1.7050},
-	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 3.1185, "boss_health_multiplier": 1.7325},
-	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 3.1680, "boss_health_multiplier": 1.7600},
-	20: {"duration": 90.0, "threat_budget": 882.0000, "standard_health_multiplier": 3.2175, "boss_health_multiplier": 1.7875},
+	1: {"duration": 20.0, "threat_budget": 23.7090, "standard_health_multiplier": 2.30, "boss_health_multiplier": 1.2650},
+	2: {"duration": 25.0, "threat_budget": 35.7280, "standard_health_multiplier": 3.40, "boss_health_multiplier": 1.2925},
+	3: {"duration": 30.0, "threat_budget": 51.4437, "standard_health_multiplier": 4.80, "boss_health_multiplier": 1.3200},
+	4: {"duration": 35.0, "threat_budget": 71.6184, "standard_health_multiplier": 6.00, "boss_health_multiplier": 1.3475},
+	5: {"duration": 40.0, "threat_budget": 97.0900, "standard_health_multiplier": 7.00, "boss_health_multiplier": 1.3750},
+	6: {"duration": 45.0, "threat_budget": 128.7720, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.4025},
+	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 9.00, "boss_health_multiplier": 1.4300},
+	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 10.00, "boss_health_multiplier": 1.4575},
+	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.4850},
+	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 11.80, "boss_health_multiplier": 1.5125},
+	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 12.50, "boss_health_multiplier": 1.5400},
+	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 13.20, "boss_health_multiplier": 1.5675},
+	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 13.80, "boss_health_multiplier": 1.5950},
+	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 14.40, "boss_health_multiplier": 1.6225},
+	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 14.90, "boss_health_multiplier": 1.6500},
+	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 15.50, "boss_health_multiplier": 1.6775},
+	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 16.10, "boss_health_multiplier": 1.7050},
+	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 17.20, "boss_health_multiplier": 1.7325},
+	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 17.80, "boss_health_multiplier": 1.7600},
+	20: {"duration": 90.0, "threat_budget": 882.0000, "standard_health_multiplier": 18.40, "boss_health_multiplier": 1.7875},
+}
+
+const ENEMY_LATE_HEALTH_FACTORS := {
+	&"normal": 0.65,
+	&"runner": 0.75,
+	&"swarmling": 0.45,
+	&"bruiser": 1.20,
+	&"splitter": 0.90,
+	&"hidden": 0.80,
+	&"armored": 1.10,
+	&"buffer": 1.00,
+	&"regenerator": 1.15,
+	&"rusher": 0.85,
+	&"summoner": 1.00,
+	&"brute": 1.00,
 }
 
 # Variants remain independent layers because they define special-round enemy
@@ -406,8 +423,8 @@ const TOWER_PATH_SELL_VALUE_ADDITIONS := {
 const ENEMIES := {
 	"normal": {
 		"display_name": "Normal",
-		"health": 40,
-		"health_per_wave": 2.5,
+		"health": 50,
+		"health_per_wave": 0.0,
 		"move_speed": 100.0,
 		"cash_reward": 4,
 		"base_damage": 4,
@@ -424,8 +441,8 @@ const ENEMIES := {
 	},
 	"runner": {
 		"display_name": "Runner",
-		"health": 30,
-		"health_per_wave": 7.5,
+		"health": 35,
+		"health_per_wave": 0.0,
 		"move_speed": 160.0,
 		"cash_reward": 8,
 		"base_damage": 3,
@@ -442,8 +459,8 @@ const ENEMIES := {
 	},
 	"swarmling": {
 		"display_name": "Swarmling",
-		"health": 10,
-		"health_per_wave": 2.5,
+		"health": 18,
+		"health_per_wave": 0.0,
 		"move_speed": 115.0,
 		"cash_reward": 4,
 		"base_damage": 1,
@@ -460,8 +477,8 @@ const ENEMIES := {
 	},
 	"bruiser": {
 		"display_name": "Bruiser",
-		"health": 180,
-		"health_per_wave": 20.0,
+		"health": 220,
+		"health_per_wave": 0.0,
 		"move_speed": 70.0,
 		"cash_reward": 23,
 		"base_damage": 10,
@@ -478,8 +495,8 @@ const ENEMIES := {
 	},
 	"splitter": {
 		"display_name": "Splitter",
-		"health": 140,
-		"health_per_wave": 15.0,
+		"health": 145,
+		"health_per_wave": 0.0,
 		"move_speed": 95.0,
 		"cash_reward": 19,
 		"base_damage": 8,
@@ -498,8 +515,8 @@ const ENEMIES := {
 	},
 	"hidden": {
 		"display_name": "Hidden",
-		"health": 90,
-		"health_per_wave": 10.0,
+		"health": 100,
+		"health_per_wave": 0.0,
 		"move_speed": 110.0,
 		"cash_reward": 15,
 		"base_damage": 6,
@@ -516,8 +533,8 @@ const ENEMIES := {
 	},
 	"armored": {
 		"display_name": "Armored",
-		"health": 300,
-		"health_per_wave": 30.0,
+		"health": 280,
+		"health_per_wave": 0.0,
 		"move_speed": 75.0,
 		"cash_reward": 38,
 		"base_damage": 12,
@@ -534,8 +551,8 @@ const ENEMIES := {
 	},
 	"buffer": {
 		"display_name": "Buffer",
-		"health": 150,
-		"health_per_wave": 20.0,
+		"health": 190,
+		"health_per_wave": 0.0,
 		"move_speed": 85.0,
 		"cash_reward": 30,
 		"base_damage": 7,
@@ -554,8 +571,8 @@ const ENEMIES := {
 	},
 	"regenerator": {
 		"display_name": "Regenerator",
-		"health": 350,
-		"health_per_wave": 30.0,
+		"health": 320,
+		"health_per_wave": 0.0,
 		"move_speed": 80.0,
 		"cash_reward": 45,
 		"base_damage": 15,
@@ -574,7 +591,7 @@ const ENEMIES := {
 	"rusher": {
 		"display_name": "Rusher",
 		"health": 200,
-		"health_per_wave": 25.0,
+		"health_per_wave": 0.0,
 		"move_speed": 90.0,
 		"cash_reward": 38,
 		"base_damage": 15,
@@ -593,8 +610,8 @@ const ENEMIES := {
 	},
 	"summoner": {
 		"display_name": "Summoner",
-		"health": 500,
-		"health_per_wave": 40.0,
+		"health": 400,
+		"health_per_wave": 0.0,
 		"move_speed": 60.0,
 		"cash_reward": 56,
 		"base_damage": 20,
@@ -614,8 +631,8 @@ const ENEMIES := {
 	},
 	"brute": {
 		"display_name": "Brute",
-		"health": 5000,
-		"health_per_wave": 200.0,
+		"health": 90000,
+		"health_per_wave": 0.0,
 		"move_speed": 40.0,
 		"cash_reward": 375,
 		"base_damage": 100,
@@ -1768,7 +1785,10 @@ const MODES := {
 		"threat_continuous_ratio": 0.7,
 		"threat_chunk_ratio": 0.3,
 		"threat_chunk_interval": 4.0,
-		"active_enemy_cap": 120,
+		"active_enemy_cap": 160,
+		"horde_active_enemy_cap": 200,
+		"gauntlet_active_enemy_cap": 220,
+		"absolute_enemy_cap": 240,
 	},
 }
 
@@ -1917,6 +1937,43 @@ static func get_round_health_multiplier(round_number: int, boss := false) -> flo
 	return float(profile[
 		"boss_health_multiplier" if boss else "standard_health_multiplier"
 	])
+
+
+static func get_enemy_health_multiplier(
+	round_number: int,
+	enemy_id: StringName
+) -> float:
+	var enemy := get_enemy(enemy_id)
+	if bool(enemy.get("boss", false)):
+		return get_round_health_multiplier(round_number, true)
+	var progress := clampf(float(round_number - 1) / 19.0, 0.0, 1.0)
+	var late_factor := float(ENEMY_LATE_HEALTH_FACTORS.get(enemy_id, 1.0))
+	return (
+		get_round_health_multiplier(round_number, false)
+		* lerpf(1.0, late_factor, progress)
+	)
+
+
+static func get_armor_damage_reduction(
+	armor: float,
+	damage_type: StringName = &""
+) -> float:
+	var effective_armor := maxf(armor, 0.0)
+	if damage_type == &"explosive":
+		effective_armor *= EXPLOSIVE_ARMOR_MULTIPLIER
+	if effective_armor <= 0.0:
+		return 0.0
+	return minf(
+		effective_armor / (effective_armor + ARMOR_RATING_CONSTANT),
+		MAXIMUM_ARMOR_DAMAGE_REDUCTION
+	)
+
+
+static func get_armor_damage_multiplier(
+	armor: float,
+	damage_type: StringName = &""
+) -> float:
+	return 1.0 - get_armor_damage_reduction(armor, damage_type)
 
 
 static func get_tower(tower_id: StringName) -> Dictionary:

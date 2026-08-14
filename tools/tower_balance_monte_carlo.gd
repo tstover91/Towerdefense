@@ -766,12 +766,10 @@ func get_slinger_contact_explosion_damage(
 
 func apply_armor(amount: float, damage_type: StringName, armor: float, ignores_armor: bool) -> float:
 	if ignores_armor or damage_type == &"beam": return amount
-	var effective_armor := (
-		armor * GameStats.EXPLOSIVE_ARMOR_MULTIPLIER
-		if damage_type == &"explosive"
-		else armor
+	return maxf(
+		amount * GameStats.get_armor_damage_multiplier(armor, damage_type),
+		1.0
 	)
-	return maxf(amount - effective_armor, 1.0)
 
 
 func get_beholder_ramp_average(values: Dictionary, lock_duration: float) -> float:

@@ -2,6 +2,8 @@ extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
 const MOB_SCENE = preload("res://mob.tscn")
+const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
+const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const SPAWN_STYLES := {
 	&"steady": {
 		"minimum_group_size": 6,
@@ -44,8 +46,9 @@ const VARIANT_PAYDAY: StringName = &"payday"
 const HORDE_THREAT_MULTIPLIER := 2.0
 const HORDE_GROUP_SIZE_MULTIPLIER := 2.0
 const HORDE_SPAWN_DELAY_MULTIPLIER := 0.5
-const HORDE_ACTIVE_CAP_MULTIPLIER := 1.5
-const GAUNTLET_ACTIVE_CAP_MULTIPLIER := 1.75
+const ENEMY_AURA_REFRESH_INTERVAL := 0.15
+const MAX_POOLED_HITSCAN_EFFECTS := 128
+const MAX_POOLED_EXPLOSION_EFFECTS := 64
 const STANDARD_GROUP_SIZE_MULTIPLIER := 1.25
 const STANDARD_FORMATION_DELAY_MULTIPLIER := 0.70
 const SPACED_FORMATION_DELAY_MULTIPLIER := 0.85
@@ -154,7 +157,11 @@ var threat_chunk_elapsed := 0.0
 var threat_continuous_ratio := 1.0
 var threat_chunk_ratio := 0.0
 var threat_chunk_interval := 4.0
-var active_enemy_cap := 120
+var active_enemy_cap := 160
+var absolute_enemy_cap := 240
+var enemy_aura_refresh_remaining := 0.0
+var pooled_hitscan_effects: Array[Node2D] = []
+var pooled_explosion_effects: Array[Node2D] = []
 var spawning_active := false
 var director_cooldown := 0.0
 var round_active := false
@@ -341,6 +348,7 @@ func _process(delta: float) -> void:
 			sprite.modulate = Color(1, 0, 0, 0.5)
 
 	_process_round_director(delta)
+	_process_enemy_speed_auras(delta)
 
 func update_lives() -> void:
 	lives_display.text = "Health: %d/%d" % [lives, max_lives]
@@ -467,11 +475,21 @@ func start_round() -> void:
 	threat_continuous_ratio = mode.get("threat_continuous_ratio", 1.0)
 	threat_chunk_ratio = mode.get("threat_chunk_ratio", 0.0)
 	threat_chunk_interval = mode.get("threat_chunk_interval", 4.0)
-	active_enemy_cap = mode.get("active_enemy_cap", 120)
+	active_enemy_cap = mode.get("active_enemy_cap", 160)
+	absolute_enemy_cap = maxi(
+		int(mode.get("absolute_enemy_cap", 240)),
+		active_enemy_cap
+	)
 	if current_round_type in [ROUND_HORDE, ROUND_PAYDAY]:
-		active_enemy_cap = roundi(active_enemy_cap * HORDE_ACTIVE_CAP_MULTIPLIER)
+		active_enemy_cap = mini(
+			int(mode.get("horde_active_enemy_cap", 200)),
+			absolute_enemy_cap
+		)
 	elif current_round_type == ROUND_GAUNTLET:
-		active_enemy_cap = roundi(active_enemy_cap * GAUNTLET_ACTIVE_CAP_MULTIPLIER)
+		active_enemy_cap = mini(
+			int(mode.get("gauntlet_active_enemy_cap", 220)),
+			absolute_enemy_cap
+		)
 	director_cooldown = 0.0
 	final_elite_pack_spawned = false
 	last_gauntlet_spawn_style = &""
@@ -601,7 +619,10 @@ func clear_active_projectiles() -> void:
 			resolver.queue_free()
 	for effect in get_tree().get_nodes_in_group("tower_attack_visuals"):
 		if is_instance_valid(effect):
-			effect.queue_free()
+			if effect.has_method("recycle_now"):
+				effect.recycle_now()
+			else:
+				effect.queue_free()
 
 
 func get_shared_spore_target(requesting_tower: Node) -> Node2D:
@@ -1405,7 +1426,7 @@ func _on_mob_spawn_requested(
 	requester: Node,
 	request_kind: StringName
 ) -> void:
-	if mobs_alive >= active_enemy_cap:
+	if mobs_alive >= absolute_enemy_cap:
 		if request_kind == &"split":
 			pending_enemy_spawns.append({
 				"enemy_id": enemy_id,
@@ -1423,7 +1444,7 @@ func _on_mob_spawn_requested(
 func flush_pending_enemy_spawns() -> void:
 	while (
 		not pending_enemy_spawns.is_empty()
-		and mobs_alive < active_enemy_cap
+		and mobs_alive < absolute_enemy_cap
 		and not game_ended
 	):
 		var request: Dictionary = pending_enemy_spawns.pop_front()
@@ -1432,6 +1453,80 @@ func flush_pending_enemy_spawns() -> void:
 			request["path_progress"],
 			request["spawn_variant"]
 		)
+
+
+func _process_enemy_speed_auras(delta: float) -> void:
+	enemy_aura_refresh_remaining -= delta
+	if enemy_aura_refresh_remaining > 0.0:
+		return
+	enemy_aura_refresh_remaining = ENEMY_AURA_REFRESH_INTERVAL
+	var mobs := get_tree().get_nodes_in_group("mobs")
+	for mob in mobs:
+		if is_instance_valid(mob) and mob.has_method("reset_cached_speed_aura"):
+			mob.reset_cached_speed_aura()
+	for buffer in get_tree().get_nodes_in_group("speed_buffers"):
+		if not is_instance_valid(buffer) or buffer.is_queued_for_deletion():
+			continue
+		for mob in mobs:
+			if (
+				mob == buffer
+				or not is_instance_valid(mob)
+				or mob.is_queued_for_deletion()
+				or not mob.has_method("apply_cached_speed_aura_from")
+			):
+				continue
+			mob.apply_cached_speed_aura_from(buffer)
+
+
+func spawn_hitscan_visual(
+	start_position: Vector2,
+	end_position: Vector2,
+	attack_type: StringName
+) -> void:
+	var effect: Node2D
+	while not pooled_hitscan_effects.is_empty() and effect == null:
+		var candidate: Node2D = pooled_hitscan_effects.pop_back() as Node2D
+		if is_instance_valid(candidate):
+			effect = candidate
+	if effect == null:
+		effect = HITSCAN_EFFECT_SCENE.instantiate() as Node2D
+		add_child(effect)
+		effect.recycle_requested.connect(_recycle_hitscan_effect)
+	effect.setup(start_position, end_position, attack_type)
+
+
+func spawn_explosion_visual(center: Vector2, radius: float) -> void:
+	var effect: Node2D
+	while not pooled_explosion_effects.is_empty() and effect == null:
+		var candidate: Node2D = pooled_explosion_effects.pop_back() as Node2D
+		if is_instance_valid(candidate):
+			effect = candidate
+	if effect == null:
+		effect = EXPLOSION_ZONE_SCENE.instantiate() as Node2D
+		add_child(effect)
+		effect.recycle_requested.connect(_recycle_explosion_effect)
+	effect.global_position = center
+	effect.setup(radius)
+
+
+func _recycle_hitscan_effect(effect: Node2D) -> void:
+	if not is_instance_valid(effect) or pooled_hitscan_effects.has(effect):
+		return
+	effect.deactivate_for_pool()
+	if pooled_hitscan_effects.size() >= MAX_POOLED_HITSCAN_EFFECTS:
+		effect.queue_free()
+	else:
+		pooled_hitscan_effects.append(effect)
+
+
+func _recycle_explosion_effect(effect: Node2D) -> void:
+	if not is_instance_valid(effect) or pooled_explosion_effects.has(effect):
+		return
+	effect.deactivate_for_pool()
+	if pooled_explosion_effects.size() >= MAX_POOLED_EXPLOSION_EFFECTS:
+		effect.queue_free()
+	else:
+		pooled_explosion_effects.append(effect)
 
 
 func choose_wave_spawn_style(wave: int) -> StringName:
@@ -1456,24 +1551,22 @@ func get_wave_threat_rate(wave: int) -> float:
 
 
 func get_enemy_health_multiplier(wave: int, enemy_id: StringName) -> float:
-	var enemy := GameStats.get_enemy(enemy_id)
-	return GameStats.get_round_health_multiplier(
-		wave,
-		bool(enemy.get("boss", false))
-	)
+	return GameStats.get_enemy_health_multiplier(wave, enemy_id)
 
 
 func simulate_director_spawn_counts(
 	wave: int,
 	round_type: StringName,
-	seed: int
+	seed: int,
+	regenerate_plan := true
 ) -> Dictionary:
 	# Headless balance tools use this dry run so their enemy totals respect the
 	# same threat availability, formation delays, and group cooldowns as play.
 	# It deliberately excludes free elite-event packs; the optimizer models
 	# those separately with their spawned variants.
 	enemy_rng.seed = seed
-	generate_run_director_plan()
+	if regenerate_plan or enemy_debut_plan.is_empty() or round_style_plan.is_empty():
+		generate_run_director_plan()
 	round_number = wave
 	current_round_type = round_type
 	var mode := GameStats.get_mode(mode_id)

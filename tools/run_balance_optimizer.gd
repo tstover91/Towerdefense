@@ -1538,9 +1538,9 @@ func make_mix_entry(
 		+ float(enemy.get("health_per_wave", 0.0))
 			* float(round_number - 1)
 	)
-	var round_health_multiplier := GameStats.get_round_health_multiplier(
+	var round_health_multiplier := GameStats.get_enemy_health_multiplier(
 		round_number,
-		bool(enemy.get("boss", false))
+		enemy_id
 	)
 	var variant_health_multiplier := 1.0
 	var variant_speed_multiplier := 1.0
@@ -1582,7 +1582,10 @@ func make_mix_entry(
 				+ float(child.get("health_per_wave", 0.0))
 					* float(round_number - 1)
 			)
-			* GameStats.get_round_health_multiplier(round_number, false)
+			* GameStats.get_enemy_health_multiplier(
+				round_number,
+				StringName(enemy["split_enemy_id"])
+			)
 			* float(profile_data["enemy_health"])
 			* spawned_variant_health_multiplier
 		), 1))
@@ -1600,7 +1603,10 @@ func make_mix_entry(
 				+ float(summoned.get("health_per_wave", 0.0))
 					* float(round_number - 1)
 			)
-			* GameStats.get_round_health_multiplier(round_number, false)
+			* GameStats.get_enemy_health_multiplier(
+				round_number,
+				StringName(enemy["summon_enemy_id"])
+			)
 			* float(profile_data["enemy_health"])
 			* spawned_variant_health_multiplier
 		), 1))
@@ -2256,9 +2262,12 @@ func get_candidate_enemy_power(
 		var raw_hit := maxf(float(stats.get("damage", 1.0)), 1.0)
 		var base_armor := float(base_scenario.get("armor", 0.0))
 		var new_armor := float(entry["armor"])
-		var armor_factor := GameStats.EXPLOSIVE_ARMOR_MULTIPLIER if primary_type == &"explosive" else 1.0
-		var base_after := maxf(raw_hit - base_armor * armor_factor, 1.0)
-		var new_after := maxf(raw_hit - new_armor * armor_factor, 1.0)
+		var base_after := raw_hit * GameStats.get_armor_damage_multiplier(
+			base_armor, primary_type
+		)
+		var new_after := raw_hit * GameStats.get_armor_damage_multiplier(
+			new_armor, primary_type
+		)
 		power *= clampf(new_after / base_after, 0.10, 2.5)
 	if traits["delivery"] == GameStats.DELIVERY_PROJECTILE:
 		var speed_ratio := float(entry["speed"]) / maxf(float(base_scenario.get("speed", entry["speed"])), 1.0)
@@ -2414,8 +2423,11 @@ func get_relic_combat_multiplier(
 		if int(relics.get(&"thermite_bombs", 0)) > 0 and float(entry["armor"]) > 0.0:
 			multiplier *= GameStats.THERMITE_BOMBS_DAMAGE_MULTIPLIER
 	if damage_tags.has(&"electric") and int(relics.get(&"conductive", 0)) > 0 and float(entry["armor"]) > 0.0:
-		var damage := maxf(float(candidate["stats"].get("damage", 1.0)), 1.0)
-		multiplier *= (damage + float(entry["armor"])) / maxf(damage - float(entry["armor"]), 1.0)
+		var armor_reduction := GameStats.get_armor_damage_reduction(
+			float(entry["armor"]),
+			&"electric"
+		)
+		multiplier *= (1.0 + armor_reduction) / (1.0 - armor_reduction)
 	var base_has_critical := bonus_tags.has(&"critical")
 	var has_critical := base_has_critical or int(relics.get(&"experimental_munitions", 0)) > 0
 	if has_critical:
@@ -2432,10 +2444,10 @@ func get_relic_combat_multiplier(
 		multiplier *= modified_critical_average / baseline_critical_average
 		if int(relics.get(&"pressure_point", 0)) > 0 and float(entry["armor"]) > 0.0:
 			var raw_damage := maxf(float(stats.get("damage", 1.0)), 1.0)
-			var pressure_armor := float(entry["armor"])
-			if primary_type == &"explosive":
-				pressure_armor *= GameStats.EXPLOSIVE_ARMOR_MULTIPLIER
-			var armored_damage := maxf(raw_damage - pressure_armor, 1.0)
+			var armored_damage := raw_damage * GameStats.get_armor_damage_multiplier(
+				float(entry["armor"]),
+				primary_type
+			)
 			var without_pressure := modified_critical_average * armored_damage
 			var with_pressure := (
 				chance * crit_multiplier * raw_damage

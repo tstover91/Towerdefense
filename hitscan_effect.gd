@@ -1,6 +1,8 @@
 class_name HitscanEffect
 extends Node2D
 
+signal recycle_requested(effect: Node2D)
+
 var effect_type: StringName = &"ballistic"
 var endpoint := Vector2.ZERO
 var lifetime := 0.10
@@ -12,6 +14,9 @@ func setup(
 	end_position: Vector2,
 	attack_type: StringName
 ) -> void:
+	elapsed = 0.0
+	visible = true
+	set_process(true)
 	global_position = start_position
 	endpoint = end_position - start_position
 	effect_type = attack_type
@@ -31,9 +36,19 @@ func setup(
 func _process(delta: float) -> void:
 	elapsed += delta
 	if elapsed >= lifetime:
-		queue_free()
+		recycle_requested.emit(self)
 		return
 	queue_redraw()
+
+
+func deactivate_for_pool() -> void:
+	remove_from_group("tower_attack_visuals")
+	visible = false
+	set_process(false)
+
+
+func recycle_now() -> void:
+	recycle_requested.emit(self)
 
 
 func _draw() -> void:

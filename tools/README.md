@@ -165,3 +165,13 @@ Godot.exe --headless --path . res://tools/run_balance_optimizer.tscn -- --starte
 The focused output is `starter_calibration.csv`. It includes survival, leaks,
 money, spending, path coverage, upgrade and tower counts, first purchases, and
 the most common final build for every strategy, roster, and round-6 variant.
+
+## Enemy income audit
+
+Use the live-director income audit after changing enemy rewards, compositions,
+or special-round pacing. It includes shuffled run plans, variants, elite event
+packs, split children, and the full summon allowance:
+
+```powershell
+Godot.exe --headless --path . res://tools/enemy_income_audit.tscn -- --runs=512
+```
