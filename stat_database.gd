@@ -153,12 +153,12 @@ const ROUND_CASH_REWARDS := {
 # used to derive the director's per-second rate. Chunk timing can leave a small
 # reserve unspent. The mode's starting_spawn_threat is a separate reserve.
 const ROUND_PROFILES := {
-	1: {"duration": 20.0, "threat_budget": 23.7090, "standard_health_multiplier": 2.30, "boss_health_multiplier": 1.2650},
-	2: {"duration": 25.0, "threat_budget": 35.7280, "standard_health_multiplier": 3.40, "boss_health_multiplier": 1.2925},
-	3: {"duration": 30.0, "threat_budget": 51.4437, "standard_health_multiplier": 4.80, "boss_health_multiplier": 1.3200},
-	4: {"duration": 35.0, "threat_budget": 71.6184, "standard_health_multiplier": 6.00, "boss_health_multiplier": 1.3475},
-	5: {"duration": 40.0, "threat_budget": 97.0900, "standard_health_multiplier": 7.00, "boss_health_multiplier": 1.3750},
-	6: {"duration": 45.0, "threat_budget": 128.7720, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.4025},
+	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.80, "boss_health_multiplier": 1.2650},
+	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 2.7, "boss_health_multiplier": 1.2925},
+	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 4.0, "boss_health_multiplier": 1.3200},
+	4: {"duration": 35.0, "threat_budget": 63, "standard_health_multiplier": 5.40, "boss_health_multiplier": 1.3475},
+	5: {"duration": 40.0, "threat_budget": 90.0, "standard_health_multiplier": 6.6, "boss_health_multiplier": 1.3750},
+	6: {"duration": 45.0, "threat_budget": 124.0, "standard_health_multiplier": 7.80, "boss_health_multiplier": 1.4025},
 	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 9.00, "boss_health_multiplier": 1.4300},
 	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 10.00, "boss_health_multiplier": 1.4575},
 	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.4850},
