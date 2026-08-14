@@ -181,7 +181,8 @@ var active_draft_offers: Array[StringName] = []
 var active_draft_choice_quantities: Dictionary = {}
 var pending_path_relic_tower_selection: StringName = &""
 var relic_refresh_count := 0
-var tower_roster: Array[StringName] = [&"invader", &"gauss_repeater"]
+var recent_relic_offers: Array[StringName] = []
+var tower_roster: Array[StringName] = []
 var contraband_tower_id: StringName = &""
 var holiday_sale_tower_id: StringName = &""
 var owned_shop_items: Dictionary = {}
@@ -215,6 +216,8 @@ func _ready() -> void:
 		tower_roster.clear()
 		for tower_key in GameStats.TOWERS:
 			tower_roster.append(StringName(tower_key))
+	else:
+		roll_random_starting_towers(2)
 	populate_tower_list()
 	clear_tower_details()
 	update_money()
@@ -828,6 +831,10 @@ func roll_relic_offers() -> Array[StringName]:
 			and int(owned_shop_items.get(item_id, 0)) > 0
 		):
 			continue
+			
+		if recent_relic_offers.has(item_id):
+			continue
+			
 		if (
 			item_id in [&"singularity_core", &"perfect_mutation"]
 			and not has_eligible_built_tower_for_path_relic(item_id)
@@ -859,6 +866,7 @@ func roll_relic_offers() -> Array[StringName]:
 		):
 			if round_number == 16:
 				offers.append(choose_stacked_common_relic(available, offers))
+				remember_relic_offers(offers)
 			return offers
 
 	assert(
@@ -867,7 +875,14 @@ func roll_relic_offers() -> Array[StringName]:
 	)
 	return offers
 
+func remember_relic_offers(offers: Array[StringName]) -> void:
+	for item_id in offers:
+		if not recent_relic_offers.has(item_id):
+			recent_relic_offers.append(item_id)
 
+	while recent_relic_offers.size() > 6:
+		recent_relic_offers.pop_front()
+		
 func roll_weighted_relic_set(
 	available: Array[StringName],
 	rarity_weights: Dictionary,
@@ -1104,7 +1119,19 @@ func get_tower_build_cost(tower_id: StringName, is_contraband := false) -> int:
 		cost *= GameStats.TRADE_AGREEMENT_BUILD_COST_MULTIPLIER
 	return maxi(roundi(cost), 0)
 
+func roll_random_starting_towers(count: int = 2) -> void:
+	tower_roster.clear()
 
+	var available: Array[StringName] = []
+
+	for tower_key in GameStats.TOWERS:
+		available.append(StringName(tower_key))
+
+	for _index in mini(count, available.size()):
+		var random_index := shop_rng.randi_range(0, available.size() - 1)
+		tower_roster.append(available.pop_at(random_index))
+		
+		
 func collect_tower(tower_id: StringName) -> void:
 	if tower_roster.has(tower_id) or tower_roster.size() >= TOWER_SLOT_COUNT:
 		return
