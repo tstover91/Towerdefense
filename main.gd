@@ -63,16 +63,18 @@ const SHOP_CHOICE_COUNT := 3
 const GAUNTLET_RELIC_CHOICE_COUNT := 4
 const MINIMUM_APPLICABLE_RELIC_CHOICES := 2
 const TOWER_DRAFT_ROUNDS: Array[int] = [4, 9, 14]
-const RELIC_DRAFT_ROUNDS: Array[int] = [1, 6, 11, 16]
+const RELIC_DRAFT_ROUNDS: Array[int] = [1, 6, 11, 16, 20]
 const RELIC_RARITY_WEIGHTS_BY_ROUND := {
 	1: {&"common": 100.0},
 	6: {&"common": 70.0, &"rare": 30.0},
-	11: {&"common": 35.0, &"rare": 55.0, &"legendary": 10.0},
-	16: {&"rare": 70.0, &"legendary": 30.0},
+	11: {&"common": 40.0, &"rare": 55.0, &"legendary": 5.0},
+	16: {&"rare": 85.0, &"legendary": 15.0},
+	20: {&"rare": 60.0, &"legendary": 40.0},
 }
 const RELIC_MINIMUM_RARE_PLUS_BY_ROUND := {
 	6: 1,
 	11: 2,
+	20: 3,
 }
 const RELIC_ROLL_MAX_ATTEMPTS := 256
 const RELIC_REFRESH_BASE_COST := 75

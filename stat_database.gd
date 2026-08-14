@@ -15,7 +15,7 @@ const BUILD_CELL_SIZE := 32.0
 # mechanics onto the same round or allowing counters before they are affordable.
 const FIXED_ENEMY_DEBUT_ROUNDS := {
 	&"normal": 1,
-	&"brute": 20,
+	&"brute": 24,
 }
 const ENEMY_DEBUT_GROUPS := [
 	{"enemies": [&"runner", &"swarmling"], "rounds": [2, 3]},
@@ -47,7 +47,7 @@ const WAVE_STYLE_RULES := {
 	&"rush_screen": {"minimum_round": 10, "required_all": [&"rusher"], "weight": 0.75},
 	&"summoner_escort": {"minimum_round": 10, "required_all": [&"summoner"], "weight": 0.65},
 	&"layered_assault": {"minimum_round": 14, "weight": 0.9},
-	&"boss_rehearsal": {"minimum_round": 18, "maximum_round": 19, "required_any": [&"regenerator", &"summoner"], "weight": 0.8},
+	&"boss_rehearsal": {"minimum_round": 22, "maximum_round": 23, "required_any": [&"regenerator", &"summoner"], "weight": 0.8},
 }
 const WAVE_ROLE_WEIGHTS := [
 	{
@@ -136,8 +136,12 @@ const ROUND_CASH_REWARDS := {
 	16: 3400,
 	17: 5000,
 	18: 4000,
-	19: 4500,
-	20: 0,
+	19: 4250,
+	20: 4500,
+	21: 4750,
+	22: 5000,
+	23: 5500,
+	24: 0,
 }
 
 # Explicit round scaling profiles. These initially reproduce the previous
@@ -167,7 +171,12 @@ const ROUND_PROFILES := {
 	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 16.10, "boss_health_multiplier": 1.7050},
 	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 17.20, "boss_health_multiplier": 1.7325},
 	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 17.80, "boss_health_multiplier": 1.7600},
-	20: {"duration": 90.0, "threat_budget": 882.0000, "standard_health_multiplier": 18.40, "boss_health_multiplier": 1.7875},
+	20: {"duration": 60.0, "threat_budget": 600, "standard_health_multiplier": 18.40, "boss_health_multiplier": 1.7875},
+	21: {"duration": 60.0, "threat_budget": 650, "standard_health_multiplier": 19.00, "boss_health_multiplier": 1.8150},
+	22: {"duration": 60.0, "threat_budget": 705, "standard_health_multiplier": 19.60, "boss_health_multiplier": 1.8425},
+	23: {"duration": 60.0, "threat_budget": 765, "standard_health_multiplier": 20.20, "boss_health_multiplier": 1.8700},
+	24: {"duration": 90.0, "threat_budget": 1150, "standard_health_multiplier": 20.80, "boss_health_multiplier": 1.8975},
+	
 }
 
 const ENEMY_LATE_HEALTH_FACTORS := {
@@ -637,7 +646,7 @@ const ENEMIES := {
 		"cash_reward": 375,
 		"base_damage": 100,
 		"armor": 0,
-		"earliest_debut_round": 20,
+		"earliest_debut_round": 24,
 		"formation_strength": 0,
 		"director_cost": 0,
 		"spawn_weight": 0,
@@ -1644,7 +1653,7 @@ const TOWERS := {
 				"primary_damage_type": &"beam",
 				"unit_stat_multipliers": {
 					"damage": 1.25,
-					"damage_budget": 1.50,
+					"damage_budget": 1.25,
 				},
 				"unit_stat_overrides": {
 					"damage_tags": [&"beam"],
@@ -1657,8 +1666,11 @@ const TOWERS := {
 				"cost": 5500,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
+				"stat_multipliers": {
+					"spawn_interval": 0.25,
+				},
 				"unit_stat_multipliers": {
-					"damage_budget": 3.0,
+					"damage_budget": 1.5,
 				},
 				"unit_stat_overrides": {
 					"additional_damage_tags": [&"explosive"],
@@ -1674,28 +1686,28 @@ const TOWERS := {
 				"spawn_interval": 10.0,
 				"spawn_limit": 1,
 				"deployment_radius": 11.0,
-				"unit_stats": {"damage": 100, "attack_interval": 0.35, "aim_radius": 5.0, "move_speed": 120.0, "leash_radius": 14.0, "damage_budget": 600, "recharge_duration": 3.0},
+				"unit_stats": {"damage": 100, "attack_interval": 0.35, "aim_radius": 5.0, "move_speed": 120.0, "leash_radius": 14.0, "damage_budget": 1300, "recharge_duration": 3.0},
 			},
 			{
 				"upgrade_cost": 450,
 				"spawn_interval": 9.0,
 				"spawn_limit": 1,
 				"deployment_radius": 12.0,
-				"unit_stats": {"damage": 145, "attack_interval": 0.32, "aim_radius": 5.5, "move_speed": 135.0, "leash_radius": 15.0, "damage_budget": 900, "recharge_duration": 2.8},
+				"unit_stats": {"damage": 145, "attack_interval": 0.32, "aim_radius": 5.5, "move_speed": 135.0, "leash_radius": 15.0, "damage_budget": 2050, "recharge_duration": 2.8},
 			},
 			{
 				"upgrade_cost": 1100,
 				"spawn_interval": 8.0,
 				"spawn_limit": 2,
 				"deployment_radius": 13.0,
-				"unit_stats": {"damage": 155, "attack_interval": 0.29, "aim_radius": 6.0, "move_speed": 150.0, "leash_radius": 16.0, "damage_budget": 1200, "recharge_duration": 2.6},
+				"unit_stats": {"damage": 155, "attack_interval": 0.29, "aim_radius": 6.0, "move_speed": 150.0, "leash_radius": 16.0, "damage_budget": 2400, "recharge_duration": 2.6},
 			},
 			{
 				"upgrade_cost": 3000,
 				"spawn_interval": 6.0,
 				"spawn_limit": 3,
 				"deployment_radius": 15.0,
-				"unit_stats": {"damage": 340, "attack_interval": 0.22, "aim_radius": 7.0, "move_speed": 190.0, "leash_radius": 18.0, "damage_budget": 2000, "recharge_duration": 2.0},
+				"unit_stats": {"damage": 340, "attack_interval": 0.22, "aim_radius": 7.0, "move_speed": 190.0, "leash_radius": 18.0, "damage_budget": 7000, "recharge_duration": 2.0},
 			},
 		],
 	},
@@ -1784,7 +1796,7 @@ const MODES := {
 		"display_name": "Easy",
 		"starting_cash": 750,
 		"starting_lives": 100,
-		"max_rounds": 20,
+		"max_rounds": 24,
 		"starting_spawn_threat": 1.0,
 		"threat_continuous_ratio": 0.7,
 		"threat_chunk_ratio": 0.3,
@@ -1907,8 +1919,8 @@ static func build_round_style_plan(
 ) -> Dictionary:
 	var plan := {}
 	var previous_style: StringName = &""
-	for round_number in range(1, 21):
-		if round_number == 20:
+	for round_number in range(1, 25):
+		if round_number == 24:
 			plan[round_number] = &"final_escort"
 			continue
 		var available := get_available_enemy_ids(round_number, debut_plan)
@@ -1950,7 +1962,7 @@ static func get_enemy_health_multiplier(
 	var enemy := get_enemy(enemy_id)
 	if bool(enemy.get("boss", false)):
 		return get_round_health_multiplier(round_number, true)
-	var progress := clampf(float(round_number - 1) / 19.0, 0.0, 1.0)
+	var progress := clampf(float(round_number - 1) / 23.0, 0.0, 1.0)
 	var late_factor := float(ENEMY_LATE_HEALTH_FACTORS.get(enemy_id, 1.0))
 	return (
 		get_round_health_multiplier(round_number, false)
