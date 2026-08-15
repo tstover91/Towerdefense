@@ -45,9 +45,6 @@ const EXCLUDED_TOWERS: Array[StringName] = [
 ]
 const EXCLUDED_RELICS: Array[StringName] = [
 	&"trade_agreement",
-	# Runs do not sell towers, so this relic would otherwise be a selectable
-	# no-op that corrupts relic comparisons.
-	&"long_term_investment",
 ]
 
 var preset := "standard"
@@ -2057,7 +2054,7 @@ func get_best_available_placement_index(state: Dictionary, candidate: Dictionary
 				score *= (
 					1.0
 					+ GameStats.NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK
-						* float(count_cardinal_adjacent_towers(
+						* float(count_towers_within_footprint_gap(
 							state, placement_index, &"technology"
 						))
 						* float(relic_count(state, &"network_upgrade"))
@@ -2331,7 +2328,7 @@ func get_relic_combat_multiplier(
 	var enemy: Dictionary = entry["enemy"]
 	var multiplier := 1.0
 	if types.has(&"technology"):
-		var adjacent_technology := count_cardinal_adjacent_towers(
+		var adjacent_technology := count_towers_within_footprint_gap(
 			state,
 			placement_index,
 			&"technology"
@@ -2358,7 +2355,7 @@ func get_relic_combat_multiplier(
 	if damage_tags.has(&"ballistic"):
 		multiplier *= pow(GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER / GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER, float(relics.get(&"heavy_rounds", 0)))
 		multiplier *= pow(GameStats.LIGHTWEIGHT_AMMO_DAMAGE_MULTIPLIER / GameStats.LIGHTWEIGHT_AMMO_INTERVAL_MULTIPLIER, float(relics.get(&"lightweight_ammo", 0)))
-		multiplier *= 1.0 + 0.5 * GameStats.HOLLOW_POINT_DAMAGE_PER_STACK * float(relics.get(&"hollow_point", 0))
+		multiplier *= 1.0 + 0.25 * GameStats.HOLLOW_POINT_DAMAGE_PER_STACK * float(relics.get(&"hollow_point", 0))
 		multiplier *= 1.0 + 0.5 * GameStats.LONG_BARREL_MAX_DAMAGE_PER_STACK * float(relics.get(&"long_barrel", 0))
 		multiplier *= 1.0 + 0.5 * GameStats.POINT_BLANK_MAX_DAMAGE_PER_STACK * float(relics.get(&"point_blank", 0))
 		if int(relics.get(&"armor_piercing", 0)) > 0:
@@ -2426,7 +2423,7 @@ func get_relic_combat_multiplier(
 	var base_has_critical := bonus_tags.has(&"critical")
 	var has_critical := base_has_critical or int(relics.get(&"experimental_munitions", 0)) > 0
 	if has_critical:
-		var chance := clampf(GameStats.DEFAULT_CRITICAL_CHANCE + GameStats.LUCKY_SHOT_CHANCE_PER_STACK * float(relics.get(&"lucky_shot", 0)) + 0.5 * GameStats.OPENING_SHOT_CHANCE_PER_STACK * float(relics.get(&"opening_shot", 0)), 0.0, 1.0)
+		var chance := clampf(GameStats.DEFAULT_CRITICAL_CHANCE + GameStats.LUCKY_SHOT_CHANCE_PER_STACK * float(relics.get(&"lucky_shot", 0)), 0.0, 1.0)
 		var crit_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER + GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"glass_cannon", 0)) + GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"deadeye", 0))
 		var noncrit := GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER if int(relics.get(&"glass_cannon", 0)) > 0 else 1.0
 		var modified_critical_average := chance * crit_multiplier + (1.0 - chance) * noncrit
@@ -3080,11 +3077,9 @@ func get_relic_choice_score(
 		applicability = maxf(applicability, 1.0)
 	var score := maxf(applicability, 0.15) * float(policy["category_weights"].get(category, 1.0)) * float(quantity)
 	if category == &"global":
-		score *= float(policy["economy_weight"]) if relic_id in [&"dividends", &"holiday_sale", &"contraband_blueprint", &"long_term_investment"] else 1.0
+		score *= float(policy["economy_weight"]) if relic_id in [&"dividends", &"holiday_sale", &"contraband_blueprint"] else 1.0
 	if relic_id == &"dividends":
 		score *= 1.0 + float(20 - round_number) * 0.08
-	elif relic_id == &"long_term_investment":
-		score *= 0.55
 	elif relic_id in [&"singularity_core", &"perfect_mutation"]:
 		score *= 1.4 if has_eligible_dual_path_tower(state, relic_id) else 0.05
 	elif relic_id == &"trade_agreement":
@@ -3193,17 +3188,20 @@ func count_nearby_towers(
 	return count
 
 
-func count_cardinal_adjacent_towers(
+func count_towers_within_footprint_gap(
 	state: Dictionary,
 	placement_index: int,
 	required_category: StringName
 ) -> int:
 	if placement_index < 0 or placement_index >= map_placements.size():
-		return mini(
-			count_nearby_towers(state, placement_index, INF, required_category),
-			4
-		)
+		return 0
 	var origin: Vector2 = map_placements[placement_index]["position"]
+	var footprint_cells: Vector2i = GameStats.get_tower(
+		get_test_tower_ids()[0]
+	).get("footprint_cells", Vector2i.ONE)
+	var combined_half_extents := (
+		Vector2(footprint_cells) * GameStats.BUILD_CELL_SIZE
+	)
 	var count := 0
 	for instance in state["build"]:
 		var other_index := int(instance.get("placement_index", -1))
@@ -3218,16 +3216,14 @@ func count_cardinal_adjacent_towers(
 			required_category
 		):
 			continue
-		var offset: Vector2 = map_placements[other_index]["position"] - origin
-		var horizontal := (
-			absf(absf(offset.x) - GameStats.BUILD_CELL_SIZE) <= 1.0
-			and absf(offset.y) <= 1.0
+		var center_offset: Vector2 = (
+			map_placements[other_index]["position"] - origin
+		).abs()
+		var footprint_gap := Vector2(
+			maxf(center_offset.x - combined_half_extents.x, 0.0),
+			maxf(center_offset.y - combined_half_extents.y, 0.0)
 		)
-		var vertical := (
-			absf(absf(offset.y) - GameStats.BUILD_CELL_SIZE) <= 1.0
-			and absf(offset.x) <= 1.0
-		)
-		if horizontal or vertical:
+		if footprint_gap.length() <= GameStats.BUILD_CELL_SIZE + 1.0:
 			count += 1
 	return count
 

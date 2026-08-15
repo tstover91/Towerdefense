@@ -18,7 +18,8 @@ func run_audit() -> void:
 	get_tree().root.add_child(director)
 	var totals: Array[float] = []
 	var round_totals: Array[float] = []
-	round_totals.resize(20)
+	var maximum_rounds := int(GameStats.get_mode(&"easy")["max_rounds"])
+	round_totals.resize(maximum_rounds)
 	round_totals.fill(0.0)
 	for run_index in run_count:
 		var run_seed := 92821 + run_index * 104729
@@ -26,7 +27,7 @@ func run_audit() -> void:
 		director.generate_run_director_plan()
 		director.roll_challenge_round_order()
 		var run_total := 0.0
-		for round_number in range(1, 21):
+		for round_number in range(1, maximum_rounds + 1):
 			var round_type: StringName = director.get_round_type(round_number)
 			var counts: Dictionary = director.simulate_director_spawn_counts(
 				round_number,
@@ -54,7 +55,7 @@ func run_audit() -> void:
 		percentile(totals, 0.10), percentile(totals, 0.90),
 		totals.front(), totals.back(),
 	])
-	for round_index in 20:
+	for round_index in maximum_rounds:
 		print("round_%02d=%.2f" % [
 			round_index + 1,
 			round_totals[round_index] / float(run_count),

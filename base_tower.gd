@@ -105,8 +105,6 @@ var loaded_attack_interval := 1.0
 @onready var path_confirm_button: Button = $pathui/ConfirmPath
 var tower_level := 0
 var purchase_price := -1
-var completed_rounds_active := 0
-var qualified_for_investment_round := false
 var damage: int
 var damage_type: StringName = &""
 var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
@@ -825,19 +823,7 @@ func configure_target_menu() -> void:
 
 
 func get_sell_price() -> int:
-	var normal_sell_price := get_static_sell_price()
-	var investment_stacks := get_owned_relic_count(&"long_term_investment")
-	var investment_bonus := floori(
-		float(normal_sell_price)
-		* GameStats.LONG_TERM_INVESTMENT_RATE_PER_ROUND
-		* float(completed_rounds_active)
-		* float(investment_stacks)
-	)
-	var investment_cap := floori(
-		float(normal_sell_price)
-		* GameStats.LONG_TERM_INVESTMENT_MAXIMUM_INVESTMENT_BONUS
-	)
-	return normal_sell_price + mini(investment_bonus, investment_cap)
+	return get_static_sell_price()
 
 
 func get_static_sell_price() -> int:
@@ -1256,7 +1242,10 @@ func apply_relic_combat_stat_modifiers(
 		if network_stacks > 0:
 			var network_speed_bonus := (
 				GameStats.NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK
-				* float(get_cardinal_adjacent_tower_count(TYPE_TECHNOLOGY))
+				* float(get_nearby_type_tower_count(
+					TYPE_TECHNOLOGY,
+					BUILD_CELL_SIZE
+				))
 				* float(network_stacks)
 			)
 			stats[interval_key] = maxf(
@@ -1906,7 +1895,6 @@ func _on_saucer_monster_exiting(monster: Node) -> void:
 
 
 func _on_round_started(_round_number: int) -> void:
-	qualified_for_investment_round = is_placed
 	brainiac_link_cooldown_remaining = 0.0
 	gauss_overclock_elapsed = 0.0
 	if gauss_heavy_shot_enabled:
@@ -1927,9 +1915,6 @@ func _on_round_started(_round_number: int) -> void:
 
 
 func _on_round_ended(_round_number: int) -> void:
-	if qualified_for_investment_round and is_placed:
-		completed_rounds_active += 1
-	qualified_for_investment_round = false
 	brainiac_link_cooldown_remaining = 0.0
 	gauss_overclock_elapsed = 0.0
 	update_sell_button()
@@ -2463,25 +2448,30 @@ func get_attack_relic_metadata(
 	}
 
 
-func get_cardinal_adjacent_tower_count(required_type_tag: StringName) -> int:
+func get_nearby_type_tower_count(
+	required_type_tag: StringName,
+	maximum_footprint_gap: float
+) -> int:
 	var count := 0
 	for candidate in get_tree().get_nodes_in_group("towers"):
 		if not is_valid_neighbor_tower(candidate):
 			continue
 		if not candidate.has_type_tag(required_type_tag):
 			continue
-		var offset: Vector2 = candidate.global_position - global_position
-		var horizontal := (
-			absf(absf(offset.x) - BUILD_CELL_SIZE) <= 1.0
-			and absf(offset.y) <= 1.0
+		var candidate_footprint := Vector2(candidate.get("footprint_size_pixels"))
+		var combined_half_extents := (
+			footprint_size_pixels + candidate_footprint
+		) * 0.5
+		var center_offset: Vector2 = (
+			candidate.global_position - global_position
+		).abs()
+		var footprint_gap := Vector2(
+			maxf(center_offset.x - combined_half_extents.x, 0.0),
+			maxf(center_offset.y - combined_half_extents.y, 0.0)
 		)
-		var vertical := (
-			absf(absf(offset.y) - BUILD_CELL_SIZE) <= 1.0
-			and absf(offset.x) <= 1.0
-		)
-		if horizontal or vertical:
+		if footprint_gap.length() <= maximum_footprint_gap + 1.0:
 			count += 1
-	return mini(count, 4)
+	return count
 
 
 func get_nearby_tower_count(required_damage_tag: StringName, radius: float) -> int:
@@ -2555,18 +2545,6 @@ func roll_attack_damage(current_target: Node2D = null) -> int:
 func roll_critical_damage(base_damage: int, current_target: Node2D = null) -> int:
 	last_attack_roll_was_critical = false
 	var current_critical_chance := critical_chance
-	if (
-		has_bonus_tag(BONUS_CRITICAL)
-		and is_valid_target(current_target)
-		and current_target.health >= current_target.max_health
-	):
-		current_critical_chance = clampf(
-			current_critical_chance
-			+ GameStats.OPENING_SHOT_CHANCE_PER_STACK
-				* get_owned_relic_count(&"opening_shot"),
-			0.0,
-			1.0
-		)
 	if (
 		has_bonus_tag(BONUS_CRITICAL)
 		and spawn_rng.randf() < current_critical_chance

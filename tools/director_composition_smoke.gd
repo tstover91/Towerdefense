@@ -13,7 +13,7 @@ func run_checks() -> void:
 	get_tree().root.add_child(director)
 	director.enemy_rng.seed = 77331
 	director.generate_run_director_plan()
-	director.round_number = 19
+	director.round_number = 23
 	director.current_round_type = &"standard"
 
 	var styles: Array[StringName] = [
@@ -43,7 +43,7 @@ func run_checks() -> void:
 				return StringName(event.get("variant", &"normal")) == &"elite"
 			))
 
-	for round_number in range(1, 20):
+	for round_number in range(1, 24):
 		var debuts := GameStats.get_debut_enemy_ids(
 			round_number,
 			director.enemy_debut_plan
@@ -58,7 +58,7 @@ func run_checks() -> void:
 			))
 		validate_schedule(opening)
 
-	director.round_number = 20
+	director.round_number = 24
 	var boss_opening: Array[Dictionary] = director.build_timed_boss_opening()
 	validate_schedule(boss_opening)
 	assert(boss_opening.any(func(event: Dictionary) -> bool:

@@ -4,33 +4,22 @@ const GameStats = preload("res://stat_database.gd")
 
 
 func _init() -> void:
-	assert(GameStats.ROUND_PROFILES.size() == 20)
-	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.25))
+	assert(GameStats.ROUND_PROFILES.size() == 24)
+	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.145))
 	var expected_health_multipliers := [
-		2.30, 3.40, 4.80, 6.00, 7.00,
-		8.00, 9.00, 10.00, 11.00, 11.80,
-		12.50, 13.20, 13.80, 14.40, 14.90,
-		15.50, 16.10, 17.20, 17.80, 18.40,
+		1.50, 2.00, 2.50, 3.00, 3.50, 4.00,
+		4.50, 5.00, 5.50, 6.00, 6.50, 7.00,
+		7.40, 7.70, 8.00, 8.30, 8.60, 9.00,
+		9.40, 9.80, 10.20, 10.60, 11.00, 11.00,
 	]
 	var total_duration := 0.0
-	for round_number in range(1, 21):
+	var previous_threat_budget := 0.0
+	for round_number in range(1, 25):
 		var expected_duration := (
 			90.0
-			if round_number == 20
+			if round_number == 24
 			else minf(20.0 + float(round_number - 1) * 5.0, 60.0)
 		)
-		var early_multiplier := 1.0
-		match round_number:
-			1: early_multiplier = 0.75
-			2: early_multiplier = 0.80
-			3: early_multiplier = 0.85
-			4: early_multiplier = 0.90
-			5: early_multiplier = 0.95
-		var legacy_threat_rate := (
-			1.0
-			+ float(round_number) * 0.12
-			+ float(round_number * round_number) * 0.009
-		) * 1.40 * early_multiplier
 		var legacy_boss_health := (
 			1.15 + float(round_number - 1) * 0.025
 		) * 1.10
@@ -39,10 +28,9 @@ func _init() -> void:
 			GameStats.get_round_duration(round_number),
 			expected_duration
 		))
-		assert(is_equal_approx(
-			GameStats.get_round_threat_budget(round_number),
-			legacy_threat_rate * expected_duration
-		))
+		var threat_budget := GameStats.get_round_threat_budget(round_number)
+		assert(threat_budget > previous_threat_budget)
+		previous_threat_budget = threat_budget
 		assert(is_equal_approx(
 			GameStats.get_round_health_multiplier(round_number, false),
 			expected_health_multipliers[round_number - 1]
@@ -53,7 +41,7 @@ func _init() -> void:
 		))
 		total_duration += expected_duration
 
-	assert(is_equal_approx(total_duration, 1050.0))
+	assert(is_equal_approx(total_duration, 1290.0))
 	for enemy_id in GameStats.ENEMIES:
 		var enemy: Dictionary = GameStats.ENEMIES[enemy_id]
 		assert(enemy.has("director_cost"))
@@ -67,19 +55,23 @@ func _init() -> void:
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(1, &"normal")
-	) == 115)
+	) == 75)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
-		* GameStats.get_enemy_health_multiplier(20, &"normal")
-	) == 598)
+		* GameStats.get_enemy_health_multiplier(23, &"normal")
+	) == 366)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"bruiser"]["health"])
-		* GameStats.get_enemy_health_multiplier(20, &"bruiser")
-	) == 4858)
+		* GameStats.get_enemy_health_multiplier(23, &"bruiser")
+	) == 2883)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"brute"]["health"])
-		* GameStats.get_enemy_health_multiplier(20, &"brute")
-	) == 160875)
+		* GameStats.get_enemy_health_multiplier(24, &"brute")
+	) == 170775)
+	assert(int(GameStats.ENEMIES[&"heavy_enforcer"]["health"]) == 1800)
+	assert(int(GameStats.ENEMIES[&"juggernaut"]["health"]) == 3500)
+	assert(int(GameStats.ENEMIES[&"bulwark"]["health"]) == 6000)
+	assert(is_equal_approx(float(GameStats.ENEMIES[&"brute"]["move_speed"]), 18.0))
 	assert(is_equal_approx(
 		GameStats.get_armor_damage_reduction(20.0, &"ballistic"),
 		20.0 / 70.0

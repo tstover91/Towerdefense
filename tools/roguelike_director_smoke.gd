@@ -53,7 +53,10 @@ func _init() -> void:
 func validate_debut_plan(plan: Dictionary) -> void:
 	assert(plan.size() == GameStats.ENEMIES.size())
 	assert(int(plan[&"normal"]) == 1)
-	assert(int(plan[&"brute"]) == 20)
+	assert(int(plan[&"heavy_enforcer"]) == 16)
+	assert(int(plan[&"juggernaut"]) == 19)
+	assert(int(plan[&"bulwark"]) == 22)
+	assert(int(plan[&"brute"]) == 24)
 	for group in GameStats.ENEMY_DEBUT_GROUPS:
 		var assigned_rounds: Array[int] = []
 		for enemy_id in group["enemies"]:
@@ -70,10 +73,10 @@ func validate_style_plan(
 	debut_plan: Dictionary,
 	style_plan: Dictionary
 ) -> void:
-	assert(style_plan.size() == 20)
-	assert(style_plan[20] == &"final_escort")
+	assert(style_plan.size() == 24)
+	assert(style_plan[24] == &"final_escort")
 	var previous_style: StringName = &""
-	for round_number in range(1, 20):
+	for round_number in range(1, 24):
 		var style_name := StringName(style_plan[round_number])
 		var available := GameStats.get_available_enemy_ids(
 			round_number,

@@ -1255,20 +1255,6 @@ func roll_attack_damage(current_target: Node2D = null) -> int:
 	last_attack_roll_was_critical = false
 	var current_critical_chance := critical_chance
 	if (
-		has_bonus_tag(&"critical")
-		and is_valid_target(current_target)
-		and current_target.health >= current_target.max_health
-		and is_instance_valid(parent_tower)
-		and parent_tower.has_method("get_owned_relic_count")
-	):
-		current_critical_chance = clampf(
-			current_critical_chance
-			+ GameStats.OPENING_SHOT_CHANCE_PER_STACK
-				* int(parent_tower.get_owned_relic_count(&"opening_shot")),
-			0.0,
-			1.0
-		)
-	if (
 		mech_hunter
 		and is_valid_target(current_target)
 		and (

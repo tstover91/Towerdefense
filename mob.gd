@@ -630,7 +630,7 @@ func apply_relic_damage_modifiers(
 
 	if damage_type == &"ballistic":
 		var hollow_point_count := int(metadata.get("hollow_point", 0))
-		if hollow_point_count > 0 and health >= max_health:
+		if hollow_point_count > 0 and float(health) > float(max_health) * 0.75:
 			multiplier *= (
 				1.0 + GameStats.HOLLOW_POINT_DAMAGE_PER_STACK * hollow_point_count
 			)

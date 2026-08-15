@@ -16,6 +16,9 @@ const BUILD_CELL_SIZE := 32.0
 const FIXED_ENEMY_DEBUT_ROUNDS := {
 	&"normal": 1,
 	&"swat_enforcer": 13,
+	&"heavy_enforcer": 16,
+	&"juggernaut": 19,
+	&"bulwark": 22,
 	&"brute": 24,
 }
 const ENEMY_DEBUT_GROUPS := [
@@ -68,15 +71,29 @@ const WAVE_ROLE_WEIGHTS := [
 	{
 		"maximum_wave": 13,
 		"weights": {
-			&"fodder": 50.0, &"pressure": 20.0,
+			&"fodder": 45.0, &"pressure": 25.0,
 			&"tank": 20.0, &"support": 10.0,
+		},
+	},
+	{
+		"maximum_wave": 17,
+		"weights": {
+			&"fodder": 35.0, &"pressure": 25.0,
+			&"tank": 30.0, &"support": 10.0,
+		},
+	},
+	{
+		"maximum_wave": 21,
+		"weights": {
+			&"fodder": 25.0, &"pressure": 25.0,
+			&"tank": 40.0, &"support": 10.0,
 		},
 	},
 	{
 		"maximum_wave": 999,
 		"weights": {
-			&"fodder": 45.0, &"pressure": 25.0,
-			&"tank": 20.0, &"support": 10.0,
+			&"fodder": 15.0, &"pressure": 20.0,
+			&"tank": 50.0, &"support": 15.0,
 		},
 	},
 ]
@@ -116,7 +133,7 @@ const MAXIMUM_ARMOR_DAMAGE_REDUCTION := 0.60
 
 # Enemy bounties remain composition-dependent; this global multiplier is the
 # single tuning point for their average contribution to the run economy.
-const KILL_REWARD_MULTIPLIER := 0.25
+const KILL_REWARD_MULTIPLIER := 0.145
 
 const ROUND_CASH_REWARDS := {
 	1: 500,
@@ -145,38 +162,37 @@ const ROUND_CASH_REWARDS := {
 	24: 0,
 }
 
-# Explicit round scaling profiles. These initially reproduce the previous
-# formulas exactly; future round balance should modify this table instead of
-# stacking new global curves in gameplay code.
+# Explicit round scaling profiles. Standard health follows a deliberately flat
+# curve so late enemy identity comes primarily from base stats and composition.
 #
 # threat_budget is the nominal amount generated during timed spawning and is
 # used to derive the director's per-second rate. Chunk timing can leave a small
 # reserve unspent. The mode's starting_spawn_threat is a separate reserve.
 const ROUND_PROFILES := {
-	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.80, "boss_health_multiplier": 1.2650},
-	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 2.7, "boss_health_multiplier": 1.2925},
-	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 4.0, "boss_health_multiplier": 1.3200},
-	4: {"duration": 35.0, "threat_budget": 63, "standard_health_multiplier": 5.40, "boss_health_multiplier": 1.3475},
-	5: {"duration": 40.0, "threat_budget": 90.0, "standard_health_multiplier": 6.6, "boss_health_multiplier": 1.3750},
-	6: {"duration": 45.0, "threat_budget": 124.0, "standard_health_multiplier": 7.80, "boss_health_multiplier": 1.4025},
-	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 9.00, "boss_health_multiplier": 1.4300},
-	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 10.00, "boss_health_multiplier": 1.4575},
-	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.4850},
-	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 11.80, "boss_health_multiplier": 1.5125},
-	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 12.50, "boss_health_multiplier": 1.5400},
-	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 13.20, "boss_health_multiplier": 1.5675},
-	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 13.80, "boss_health_multiplier": 1.5950},
-	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 14.40, "boss_health_multiplier": 1.6225},
-	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 14.90, "boss_health_multiplier": 1.6500},
-	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 15.50, "boss_health_multiplier": 1.6775},
-	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 16.10, "boss_health_multiplier": 1.7050},
-	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 17.20, "boss_health_multiplier": 1.7325},
-	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 17.80, "boss_health_multiplier": 1.7600},
-	20: {"duration": 60.0, "threat_budget": 600, "standard_health_multiplier": 18.40, "boss_health_multiplier": 1.7875},
-	21: {"duration": 60.0, "threat_budget": 650, "standard_health_multiplier": 19.00, "boss_health_multiplier": 1.8150},
-	22: {"duration": 60.0, "threat_budget": 705, "standard_health_multiplier": 19.60, "boss_health_multiplier": 1.8425},
-	23: {"duration": 60.0, "threat_budget": 765, "standard_health_multiplier": 20.20, "boss_health_multiplier": 1.8700},
-	24: {"duration": 90.0, "threat_budget": 1150, "standard_health_multiplier": 20.80, "boss_health_multiplier": 1.8975},
+	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.50, "boss_health_multiplier": 1.2650},
+	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 2.00, "boss_health_multiplier": 1.2925},
+	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 2.50, "boss_health_multiplier": 1.3200},
+	4: {"duration": 35.0, "threat_budget": 63, "standard_health_multiplier": 3.00, "boss_health_multiplier": 1.3475},
+	5: {"duration": 40.0, "threat_budget": 90.0, "standard_health_multiplier": 3.50, "boss_health_multiplier": 1.3750},
+	6: {"duration": 45.0, "threat_budget": 124.0, "standard_health_multiplier": 4.00, "boss_health_multiplier": 1.4025},
+	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 4.50, "boss_health_multiplier": 1.4300},
+	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 5.00, "boss_health_multiplier": 1.4575},
+	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 5.50, "boss_health_multiplier": 1.4850},
+	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 6.00, "boss_health_multiplier": 1.5125},
+	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 6.50, "boss_health_multiplier": 1.5400},
+	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 7.00, "boss_health_multiplier": 1.5675},
+	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 7.40, "boss_health_multiplier": 1.5950},
+	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 7.70, "boss_health_multiplier": 1.6225},
+	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.6500},
+	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 8.30, "boss_health_multiplier": 1.6775},
+	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 8.60, "boss_health_multiplier": 1.7050},
+	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 9.00, "boss_health_multiplier": 1.7325},
+	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 9.40, "boss_health_multiplier": 1.7600},
+	20: {"duration": 60.0, "threat_budget": 600, "standard_health_multiplier": 9.80, "boss_health_multiplier": 1.7875},
+	21: {"duration": 60.0, "threat_budget": 650, "standard_health_multiplier": 10.20, "boss_health_multiplier": 1.8150},
+	22: {"duration": 60.0, "threat_budget": 705, "standard_health_multiplier": 10.60, "boss_health_multiplier": 1.8425},
+	23: {"duration": 60.0, "threat_budget": 765, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8700},
+	24: {"duration": 90.0, "threat_budget": 1150, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8975},
 	
 }
 
@@ -193,6 +209,9 @@ const ENEMY_LATE_HEALTH_FACTORS := {
 	&"rusher": 0.85,
 	&"summoner": 1.00,
 	&"swat_enforcer": 1.20,
+	&"heavy_enforcer": 1.15,
+	&"juggernaut": 1.10,
+	&"bulwark": 1.05,
 	&"brute": 1.00,
 }
 
@@ -243,7 +262,7 @@ const PACK_HUNTER_DAMAGE_PER_STACK := 0.25
 
 const INTERFERENCE_BEAM_DAMAGE_MULTIPLIER := 1.60
 
-const HOLLOW_POINT_DAMAGE_PER_STACK := 0.35
+const HOLLOW_POINT_DAMAGE_PER_STACK := 0.25
 const LONG_BARREL_MAX_DAMAGE_PER_STACK := 0.40
 const POINT_BLANK_MAX_DAMAGE_PER_STACK := 0.40
 
@@ -252,14 +271,9 @@ const GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER := 0.75
 
 const THERMITE_BOMBS_DAMAGE_MULTIPLIER := 1.25
 
-const OPENING_SHOT_CHANCE_PER_STACK := 0.30
-
 const BIG_GAME_CONTROL_ELITE_DURATION_PER_STACK := 1.40
 const BIG_GAME_CONTROL_NORMAL_DURATION_PER_STACK := 0.80
 const EMERGENCY_BRAKE_DURATION_PER_STACK := 1.50
-
-const LONG_TERM_INVESTMENT_RATE_PER_ROUND := 0.05
-const LONG_TERM_INVESTMENT_MAXIMUM_INVESTMENT_BONUS := 0.50
 
 const NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK := 0.12
 
@@ -340,11 +354,10 @@ const SPAWNED_UNITS := {
 }
 
 const RELICS := {
-	"long_term_investment": {"display_name": "Long-Term Investment", "description": "Towers gain 5% of their base sell value per completed round per stack, tracked retroactively and capped at a 50% bonus.", "rarity": &"common", "category": &"global", "stackable": true},
 	"dividends": {"display_name": "Dividends", "description": "Gain 5% interest at the end of each round, up to $500.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"holiday_sale": {"display_name": "Holiday Sale", "description": "Each round, one tower's build price is reduced by 35%; all others increase by 15%.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"contraband_blueprint": {"display_name": "Contraband Blueprint", "description": "Adds one random tower outside your five-tower roster beneath the normal tower slots. It costs $0 to build and is removed after placement.", "rarity": &"legendary", "category": &"global", "stackable": false},
-	"network_upgrade": {"display_name": "Network Upgrade", "description": "Technology towers gain 12% attack speed per stack for each Technology tower directly above, below, left, or right of them.", "rarity": &"common", "category": &"technology", "stackable": true},
+	"network_upgrade": {"display_name": "Network Upgrade", "description": "Technology towers gain 12% attack speed per stack for each other Technology tower within one tile of their footprint.", "rarity": &"common", "category": &"technology", "stackable": true},
 	"singularity_core": {"display_name": "Singularity Core", "description": "Choose one already-built Technology tower. That tower can purchase both final paths.", "rarity": &"legendary", "category": &"technology", "stackable": false},
 	"pack_hunter": {"display_name": "Pack Hunter", "description": "Biological attacks deal 25% more damage per stack when another Biological tower is targeting that enemy.", "rarity": &"common", "category": &"biological", "stackable": true},
 	"predatory_instinct": {"display_name": "Predatory Instinct", "description": "Biological attacks deal 50% more damage per stack to enemies at or below 25% health.", "rarity": &"common", "category": &"biological", "stackable": true},
@@ -354,7 +367,7 @@ const RELICS := {
 	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal 60% more damage to slowed or stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"microwave": {"display_name": "Microwave", "description": "An enemy killed by Beam damage explodes for 30% of its maximum health, capped at five times the killing damage.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"death_ray": {"display_name": "Death Ray", "description": "Beams gain infinite Pierce, but turn speed is reduced to 90 degrees per second.", "rarity": &"legendary", "category": &"beam", "stackable": false},
-	"hollow_point": {"display_name": "Hollow Point", "description": "Ballistic attacks deal 35% more damage per stack to full-health enemies.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"hollow_point": {"display_name": "Hollow Point", "description": "Ballistic attacks deal 25% more damage per stack to enemies above 75% health.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"heavy_rounds": {"display_name": "Heavy Rounds", "description": "Ballistic damage increases by 35% per stack, but attacks take 15% longer per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"lightweight_ammo": {"display_name": "Lightweight Ammo", "description": "Ballistic attacks are 25% faster per stack, but deal 10% less damage per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"long_barrel": {"display_name": "Long Barrel", "description": "Ballistic damage gains up to 40% per stack based on distance from its source.", "rarity": &"common", "category": &"ballistic", "stackable": true},
@@ -378,7 +391,6 @@ const RELICS := {
 	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions permanently remove Hidden from enemies they hit.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"conductive": {"display_name": "Conductive", "description": "Armor increases Electric damage instead of reducing it.", "rarity": &"common", "category": &"electric", "stackable": false},
 	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 20 percentage points per stack.", "rarity": &"common", "category": &"critical", "stackable": true},
-	"opening_shot": {"display_name": "Opening Shot", "description": "Gain 30 percentage points of critical-hit chance per stack against full-health enemies.", "rarity": &"common", "category": &"critical", "stackable": true},
 	"glass_cannon": {"display_name": "Glass Cannon", "description": "Adds +2x critical damage, but non-critical attacks deal 30% less damage.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"pressure_point": {"display_name": "Pressure Point", "description": "Critical hits ignore armor.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"deadeye": {"display_name": "Deadeye", "description": "Adds +2x to the critical-hit multiplier.", "rarity": &"rare", "category": &"critical", "stackable": false},
@@ -665,28 +677,82 @@ const ENEMIES := {
 		"visual_scale": 1.3,
 	},
 	"swat_enforcer": {
-	"display_name": "SWAT Enforcer",
-	"health": 900,
-	"health_per_wave": 0.0,
-	"move_speed": 55.0,
-	"cash_reward": 80,
-	"base_damage": 30,
-	"armor": 25,
-	"earliest_debut_round": 13,
-	"formation_strength": 30,
-	"director_cost": 22,
-	"spawn_weight": 8,
-	"spawn_style": &"spaced",
-	"role": &"tank",
-	"traits": [&"armored", &"high_health"],
-	"color": Color(0.18, 0.22, 0.28),
-	"visual_scale": 1.45,
-},
+		"display_name": "SWAT Enforcer",
+		"health": 900,
+		"health_per_wave": 0.0,
+		"move_speed": 55.0,
+		"cash_reward": 80,
+		"base_damage": 30,
+		"armor": 25,
+		"earliest_debut_round": 13,
+		"formation_strength": 30,
+		"director_cost": 22,
+		"spawn_weight": 8,
+		"spawn_style": &"spaced",
+		"role": &"tank",
+		"traits": [&"armored", &"high_health"],
+		"color": Color(0.18, 0.22, 0.28),
+		"visual_scale": 1.45,
+	},
+	"heavy_enforcer": {
+		"display_name": "Heavy Enforcer",
+		"health": 1800,
+		"health_per_wave": 0.0,
+		"move_speed": 50.0,
+		"cash_reward": 128,
+		"base_damage": 45,
+		"armor": 20,
+		"earliest_debut_round": 16,
+		"formation_strength": 45,
+		"director_cost": 35,
+		"spawn_weight": 6,
+		"spawn_style": &"spaced",
+		"role": &"tank",
+		"traits": [&"armored", &"high_health"],
+		"color": Color(0.28, 0.32, 0.38),
+		"visual_scale": 1.55,
+	},
+	"juggernaut": {
+		"display_name": "Juggernaut",
+		"health": 3500,
+		"health_per_wave": 0.0,
+		"move_speed": 38.0,
+		"cash_reward": 236,
+		"base_damage": 65,
+		"armor": 10,
+		"earliest_debut_round": 19,
+		"formation_strength": 75,
+		"director_cost": 65,
+		"spawn_weight": 4,
+		"spawn_style": &"spaced",
+		"role": &"tank",
+		"traits": [&"armored", &"high_health", &"slow"],
+		"color": Color(0.42, 0.30, 0.22),
+		"visual_scale": 1.7,
+	},
+	"bulwark": {
+		"display_name": "Bulwark",
+		"health": 6000,
+		"health_per_wave": 0.0,
+		"move_speed": 32.0,
+		"cash_reward": 400,
+		"base_damage": 90,
+		"armor": 30,
+		"earliest_debut_round": 22,
+		"formation_strength": 120,
+		"director_cost": 110,
+		"spawn_weight": 2,
+		"spawn_style": &"spaced",
+		"role": &"tank",
+		"traits": [&"armored", &"high_health", &"slow"],
+		"color": Color(0.20, 0.28, 0.42),
+		"visual_scale": 1.9,
+	},
 	"brute": {
 		"display_name": "Brute",
 		"health": 90000,
 		"health_per_wave": 0.0,
-		"move_speed": 40.0,
+		"move_speed": 18.0,
 		"cash_reward": 375,
 		"base_damage": 100,
 		"armor": 0,
@@ -1077,6 +1143,7 @@ const TOWERS := {
 				"range": 9.5,
 				"projectile_count": 3,
 				"volley_width": 5.5,
+				"add_bonus_tags": [&"reveal"],
 			},
 			{
 				"upgrade_cost": 525,
@@ -1512,7 +1579,7 @@ const TOWERS := {
 		"primary_damage_type": &"electric",
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
-		"bonus_tags": [],
+		"bonus_tags": [&"reveal"],
 		"paths": {
 			"a": {
 				"display_name": "Homing Rockets",
@@ -1562,7 +1629,6 @@ const TOWERS := {
 				"abduction_radius": 1.5,
 				"abduction_health_threshold": 0.0,
 				"monster_stats": {"damage": 400, "attack_interval": 1.0, "aim_radius": 1.25, "acquisition_radius": 8.0, "move_speed": 90.0, "lifetime": 10.0},
-				"add_bonus_tags": [&"reveal"],
 			},
 			{
 				"upgrade_cost": 1000,
