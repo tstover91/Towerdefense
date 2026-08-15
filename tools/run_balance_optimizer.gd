@@ -5,16 +5,13 @@ const CombatSimulator = preload("res://tools/tower_balance_monte_carlo.gd")
 const MainScene = preload("res://main.tscn")
 
 const TOWER_DRAFT_ROUNDS := [4, 9, 14]
-const RELIC_DRAFT_ROUNDS := [1, 6, 11, 16]
+const RELIC_DRAFT_ROUNDS := [1, 6, 11, 16, 20]
 const MAX_TOWERS := 128
 const TARGET_WIN_RATE := 0.60
 const ACCEPTABLE_WIN_LOW := 0.42
 const ACCEPTABLE_WIN_HIGH := 0.78
 const DEFAULT_OUTPUT_DIR := "res://balance_reports/overnight"
 const CHECKPOINT_VERSION := 9
-const RELIC_REFRESH_BASE_COST := 75
-const RELIC_REFRESH_COST_INCREASE := 50
-const MAX_SIMULATED_RELIC_REFRESHES := 64
 const CHECKPOINT_FILE_A := "optimizer_checkpoint_a.dat"
 const CHECKPOINT_FILE_B := "optimizer_checkpoint_b.dat"
 const TOWER_ENGAGEMENT_COVERAGE := 0.45
@@ -287,7 +284,6 @@ func create_starter_calibration_policies() -> Array[Dictionary]:
 		policy["patience"] = definition["patience"]
 		policy["diversity"] = 0.50
 		policy["economy_weight"] = 1.0
-		policy["relic_refresh_threshold"] = 1.0
 		for tower_id in policy["tower_weights"]:
 			policy["tower_weights"][tower_id] = 1.0
 		for category in policy["category_weights"]:
@@ -917,7 +913,6 @@ func create_policy(archetype: String) -> Dictionary:
 		"reserve": search_rng.randf_range(0.0, 0.45),
 		"patience": search_rng.randf_range(0.55, 0.95),
 		"economy_weight": search_rng.randf_range(0.7, 1.4),
-		"relic_refresh_threshold": search_rng.randf_range(0.35, 0.85),
 		"risk": search_rng.randf_range(0.75, 1.25),
 	}
 	next_policy_id += 1
@@ -1051,7 +1046,7 @@ func crossover_policy(a: Dictionary, b: Dictionary) -> Dictionary:
 	child["id"] = next_policy_id
 	child["name"] = "evolved"
 	next_policy_id += 1
-	for field in ["upgrade_bias", "expansion_bias", "diversity", "reserve", "patience", "economy_weight", "relic_refresh_threshold", "risk"]:
+	for field in ["upgrade_bias", "expansion_bias", "diversity", "reserve", "patience", "economy_weight", "risk"]:
 		child[field] = a[field] if search_rng.randf() < 0.5 else b[field]
 	for key in child["tower_weights"]:
 		if search_rng.randf() < 0.5:
@@ -1066,7 +1061,7 @@ func mutate_policy(policy: Dictionary) -> Dictionary:
 	for field in ["upgrade_bias", "expansion_bias", "economy_weight", "risk"]:
 		if search_rng.randf() < 0.45:
 			policy[field] = clampf(float(policy[field]) * search_rng.randf_range(0.85, 1.15), 0.4, 2.2)
-	for field in ["diversity", "reserve", "patience", "relic_refresh_threshold"]:
+	for field in ["diversity", "reserve", "patience"]:
 		if search_rng.randf() < 0.45:
 			policy[field] = clampf(float(policy[field]) + search_rng.randf_range(-0.12, 0.12), 0.0, 1.0)
 	for key in policy["tower_weights"]:
@@ -2874,37 +2869,6 @@ func resolve_relic_draft(state: Dictionary, policy: Dictionary, round_number: in
 	var offers := roll_relic_offer_set(state, round_number, run_rng)
 	if offers.is_empty():
 		return
-	var refresh_count := 0
-	while refresh_count < MAX_SIMULATED_RELIC_REFRESHES:
-		var best_offer_score := get_best_relic_offer_score(
-			state,
-			policy,
-			offers,
-			round_number
-		)
-		var best_possible_score := get_best_possible_relic_score(
-			state,
-			policy,
-			round_number
-		)
-		var refresh_cost := (
-			RELIC_REFRESH_BASE_COST
-			+ refresh_count * RELIC_REFRESH_COST_INCREASE
-		)
-		if (
-			float(state["money"]) < float(refresh_cost)
-			or best_offer_score
-				>= best_possible_score
-					* float(policy.get("relic_refresh_threshold", 0.55))
-		):
-			break
-		state["money"] = float(state["money"]) - float(refresh_cost)
-		var previous_offers := offers.duplicate()
-		for _attempt in 24:
-			offers = roll_relic_offer_set(state, round_number, run_rng)
-			if not relic_offer_sets_match(previous_offers, offers):
-				break
-		refresh_count += 1
 	var best := offers[0]
 	var best_score := -INF
 	for relic_id in offers:
@@ -2922,75 +2886,6 @@ func resolve_relic_draft(state: Dictionary, policy: Dictionary, round_number: in
 				outside.append(tower_id)
 		if not outside.is_empty():
 			state["contraband_tower"] = outside[run_rng.randi_range(0, outside.size() - 1)]
-
-
-func get_best_relic_offer_score(
-	state: Dictionary,
-	policy: Dictionary,
-	offers: Array[StringName],
-	round_number: int
-) -> float:
-	var best := 0.0
-	for relic_id in offers:
-		var quantity := 2 if round_number == 16 and relic_id == offers.back() else 1
-		best = maxf(best, get_relic_choice_score(
-			state,
-			policy,
-			relic_id,
-			quantity,
-			round_number
-		))
-	return best
-
-
-func get_best_possible_relic_score(
-	state: Dictionary,
-	policy: Dictionary,
-	round_number: int
-) -> float:
-	var best := 0.0
-	for relic_id in get_available_relics(state):
-		var relic := GameStats.get_relic(relic_id)
-		var rarity: StringName = relic["rarity"]
-		var allowed := (
-			(round_number == 1 and rarity == &"common")
-			or (round_number == 6 and rarity in [&"common", &"rare"])
-			or (round_number == 11 and rarity in [&"common", &"rare", &"legendary"])
-			or (round_number == 16 and rarity in [&"rare", &"legendary"])
-		)
-		if allowed:
-			best = maxf(best, get_relic_choice_score(
-				state,
-				policy,
-				relic_id,
-				1,
-				round_number
-			))
-		if (
-			round_number == 16
-			and rarity == &"common"
-			and bool(relic.get("stackable", false))
-		):
-			best = maxf(best, get_relic_choice_score(
-				state,
-				policy,
-				relic_id,
-				2,
-				round_number
-			))
-	return best
-
-
-func relic_offer_sets_match(
-	first: Array[StringName],
-	second: Array[StringName]
-) -> bool:
-	if first.size() != second.size():
-		return false
-	for relic_id in first:
-		if not second.has(relic_id):
-			return false
-	return true
 
 
 func get_available_relics(state: Dictionary) -> Array[StringName]:
@@ -3019,12 +2914,15 @@ func roll_relic_offer_set(
 	run_rng: RandomNumberGenerator
 ) -> Array[StringName]:
 	var available := get_available_relics(state)
-	var minimum_rare_plus := 1 if round_number == 6 else (2 if round_number == 11 else 0)
+	if round_number == 1:
+		return roll_opening_relic_offer_set(state, available, round_number, run_rng)
+	var minimum_rare_plus := 1 if round_number == 6 else (2 if round_number == 11 else (3 if round_number == 20 else 0))
+	var choice_count := 4 if round_number == 6 else 3
 	var offers: Array[StringName] = []
 	for _attempt in 256:
 		offers.clear()
 		var remaining := available.duplicate()
-		while offers.size() < 3 and not remaining.is_empty():
+		while offers.size() < choice_count and not remaining.is_empty():
 			var chosen := choose_weighted_relic_for_round(
 				remaining,
 				round_number,
@@ -3034,7 +2932,7 @@ func roll_relic_offer_set(
 				break
 			offers.append(chosen)
 			remaining.erase(chosen)
-		if offers.size() < 3:
+		if offers.size() < choice_count:
 			continue
 		var rare_plus := 0
 		var applicable := 0
@@ -3063,6 +2961,40 @@ func roll_relic_offer_set(
 	return offers
 
 
+func roll_opening_relic_offer_set(
+	state: Dictionary,
+	available: Array[StringName],
+	round_number: int,
+	run_rng: RandomNumberGenerator
+) -> Array[StringName]:
+	var commons: Array[StringName] = []
+	var rares: Array[StringName] = []
+	for relic_id in available:
+		var rarity: StringName = GameStats.get_relic(relic_id)["rarity"]
+		if rarity == &"common":
+			commons.append(relic_id)
+		elif rarity == &"rare":
+			rares.append(relic_id)
+	if commons.size() < 4:
+		return []
+	for _attempt in 256:
+		var remaining := commons.duplicate()
+		var offers: Array[StringName] = []
+		while offers.size() < 3:
+			offers.append(remaining.pop_at(run_rng.randi_range(0, remaining.size() - 1)))
+		if not rares.is_empty() and run_rng.randf() < 0.25:
+			offers.append(rares[run_rng.randi_range(0, rares.size() - 1)])
+		else:
+			offers.append(remaining.pop_at(run_rng.randi_range(0, remaining.size() - 1)))
+		var applicable := 0
+		for relic_id in offers:
+			if relic_is_applicable_to_state(state, relic_id):
+				applicable += 1
+		if applicable >= 2:
+			return offers
+	return []
+
+
 func choose_weighted_relic_for_round(
 	available: Array[StringName],
 	round_number: int,
@@ -3073,6 +3005,7 @@ func choose_weighted_relic_for_round(
 		6: {&"common": 70.0, &"rare": 30.0},
 		11: {&"common": 35.0, &"rare": 55.0, &"legendary": 10.0},
 		16: {&"rare": 70.0, &"legendary": 30.0},
+		20: {&"rare": 60.0, &"legendary": 40.0},
 	}
 	var weights: Dictionary = weights_by_round.get(round_number, {})
 	if weights.is_empty():
@@ -3718,7 +3651,7 @@ func write_manifest() -> void:
 			"notes": [
 				"Combat coefficients come from health-scaled tower Monte Carlo curves.",
 				"Purchases are staged as builds, upgrades, and paths.",
-				"Relic drafts, paid refresh decisions, and major combat/economy effects are modeled.",
+				"Relic drafts and major combat/economy effects are modeled.",
 				"Round role mixes use the same shared wave and formation weights as gameplay.",
 				"Horde, elite, gauntlet, and payday variants and special elite packs are modeled.",
 				"Saucer pursuit, abduction, split prevention, rockets, and specimen uptime are approximated.",
@@ -3749,12 +3682,12 @@ func csv(value: Variant) -> String:
 
 
 func write_strategy_report(ranked: Array[Dictionary]) -> void:
-	var file := open_report("strategy_results.csv", "rank,policy_id,name,score,win_rate,average_round,average_lives,average_money,average_leaks,upgrade_bias,expansion_bias,diversity,reserve,patience,economy_weight,relic_refresh_threshold")
+	var file := open_report("strategy_results.csv", "rank,policy_id,name,score,win_rate,average_round,average_lives,average_money,average_leaks,upgrade_bias,expansion_bias,diversity,reserve,patience,economy_weight")
 	for index in ranked.size():
 		var row: Dictionary = ranked[index]
 		var policy: Dictionary = row["policy"]
 		file.store_line(",".join(PackedStringArray([
-			str(index + 1), str(policy["id"]), csv(policy["name"]), "%.4f" % row["score"], "%.4f" % row["win_rate"], "%.3f" % row["average_round"], "%.3f" % row["average_lives"], "%.2f" % row["average_money"], "%.2f" % row["average_leaks"], "%.3f" % policy["upgrade_bias"], "%.3f" % policy["expansion_bias"], "%.3f" % policy["diversity"], "%.3f" % policy["reserve"], "%.3f" % policy["patience"], "%.3f" % policy["economy_weight"], "%.3f" % float(policy.get("relic_refresh_threshold", 0.55)),
+			str(index + 1), str(policy["id"]), csv(policy["name"]), "%.4f" % row["score"], "%.4f" % row["win_rate"], "%.3f" % row["average_round"], "%.3f" % row["average_lives"], "%.2f" % row["average_money"], "%.2f" % row["average_leaks"], "%.3f" % policy["upgrade_bias"], "%.3f" % policy["expansion_bias"], "%.3f" % policy["diversity"], "%.3f" % policy["reserve"], "%.3f" % policy["patience"], "%.3f" % policy["economy_weight"],
 		])))
 	file.close()
 
