@@ -495,7 +495,7 @@ func resolve_contact_explosion(center: Vector2, explosion_damage: int) -> void:
 		)
 		apply_damage_and_effects(
 			mob,
-			pierce_count > 0 or infinite_pierce,
+			false,
 			resolved_damage,
 			&"explosive",
 			explosion_context

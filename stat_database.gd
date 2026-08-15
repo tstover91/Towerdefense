@@ -728,10 +728,6 @@ const TOWERS := {
 			"stat_multipliers": {
 				"firerate": 0.42,
 			},
-
-			"behavior_flags": {
-				"dual_weapons": true,
-			},
 		},
 
 		"b": {
@@ -815,11 +811,6 @@ const TOWERS := {
 				"stat_multipliers": {
 					"firerate": 0.7,
 				},
-
-				"stat_additions": {
-					"range": 1.0,
-				},
-
 				"behavior_flags": {
 					"gauss_tracking_cone": true,
 				},
@@ -835,7 +826,6 @@ const TOWERS := {
 				"damage": 20,
 				"projectile_speed": 900.0,
 				"firerate": 0.080,
-				"range": 14.0,
 				"maximum_spread_degrees": 18.0,
 				"minimum_spread_degrees": 4.5,
 				"spread_tighten_duration": 5.0,
@@ -847,7 +837,6 @@ const TOWERS := {
 				"damage": 20,
 				"projectile_speed": 950.0,
 				"firerate": 0.060,
-				"range": 14.0,
 				"maximum_spread_degrees": 18.0,
 				"minimum_spread_degrees": 4.5,
 				"spread_tighten_duration": 4.25,
@@ -859,7 +848,6 @@ const TOWERS := {
 				"damage": 40,
 				"projectile_speed": 1050.0,
 				"firerate": 0.05,
-				"range": 15.0,
 				"maximum_spread_degrees": 16.0,
 				"minimum_spread_degrees": 4.0,
 				"spread_tighten_duration": 3.25,
@@ -871,7 +859,6 @@ const TOWERS := {
 				"damage": 70,
 				"projectile_speed": 1200.0,
 				"firerate": 0.05,
-				"range": 17.0,
 				"maximum_spread_degrees": 14.0,
 				"minimum_spread_degrees": 3.0,
 				"spread_tighten_duration": 2.0,
@@ -1529,7 +1516,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Homing Rockets",
-				"description": "Adds Explosive. Launches two powerful homing rockets every three seconds while continuing to fire the Electric gun.",
+				"description": "Adds Explosive. Launches two powerful homing rockets with a 3-tile splash radius every three seconds while continuing to fire the single-target Electric gun.",
 				"cost": 3500,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
@@ -1537,6 +1524,7 @@ const TOWERS := {
 				"behavior_values": {
 					"saucer_rocket_damage_multiplier": 2.0,
 					"saucer_rocket_interval": 3.0,
+					"saucer_rocket_splash_radius": 3.0,
 				},
 			},
 			"b": {
@@ -1554,8 +1542,7 @@ const TOWERS := {
 				"damage": 275,
 				"projectile_speed": 650.0,
 				"firerate": 0.65,
-				"range": 20.0,
-				"splash_radius": 2.25,
+				"range": 15.0,
 				"flyer_move_speed": 165.0,
 				"flyer_attack_radius": 5.0,
 				"abduction_cooldown": 16.0,
@@ -1568,8 +1555,7 @@ const TOWERS := {
 				"damage": 390,
 				"projectile_speed": 760.0,
 				"firerate": 0.60,
-				"range": 21.0,
-				"splash_radius": 2.75,
+				"range": 16.0,
 				"flyer_move_speed": 190.0,
 				"flyer_attack_radius": 5.5,
 				"abduction_cooldown": 16.0,
@@ -1583,8 +1569,7 @@ const TOWERS := {
 				"damage": 600,
 				"projectile_speed": 760.0,
 				"firerate": 0.60,
-				"range": 21.0,
-				"splash_radius": 2.75,
+				"range": 16.0,
 				"flyer_move_speed": 190.0,
 				"flyer_attack_radius": 5.5,
 				"abduction_cooldown": 13.0,
@@ -1597,8 +1582,7 @@ const TOWERS := {
 				"damage": 675,
 				"projectile_speed": 920.0,
 				"firerate": 0.45,
-				"range": 22.0,
-				"splash_radius": 3.0,
+				"range": 17.0,
 				"flyer_move_speed": 210.0,
 				"flyer_attack_radius": 6.0,
 				"abduction_cooldown": 10.0,
@@ -1764,7 +1748,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Juggernaut",
-				"description": "Deploys larger, slower mechs whose two-stage area slams damage and stun every enemy around them.",
+				"description": "Deploys larger, slower mechs whose area slams damage and stun every enemy around them.",
 				"cost": 4000,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"stun"],

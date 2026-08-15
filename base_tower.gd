@@ -127,7 +127,6 @@ var beam_aim_direction := Vector2.RIGHT
 var beam_has_aim := false
 var beam_turn_speed_radians := deg_to_rad(DEFAULT_BEAM_TURN_SPEED_DEGREES)
 var beam_hit_half_width_pixels := BEAM_HIT_HALF_WIDTH
-var dual_weapons_enabled := false
 var slinger_contact_explosions_enabled := false
 var slinger_contact_explosion_radius_pixels := 0.0
 var slinger_contact_explosion_damage_multiplier := 1.0
@@ -247,6 +246,7 @@ var energy_branch_visual_remaining := 0.0
 var saucer_twin_rockets_enabled := false
 var saucer_rocket_damage_multiplier := 2.0
 var saucer_rocket_interval := 3.0
+var saucer_rocket_splash_radius_pixels := 0.0
 var saucer_monster_drop_enabled := false
 var saucer_flyer_move_speed := 165.0
 var saucer_attack_radius_pixels := 0.0
@@ -450,18 +450,9 @@ func draw_active_beam() -> void:
 		return
 	var beam_start_world := get_continuous_beam_origin()
 	var beam_direction := beam_aim_direction.normalized()
-	var beam_offsets: Array[float] = [0.0]
-	if uses_dual_continuous_beams():
-		beam_offsets.assign([-4.5, 4.5])
-	var perpendicular := beam_direction.orthogonal()
-	for beam_offset in beam_offsets:
-		var offset_start := beam_start_world + perpendicular * beam_offset
-		var beam_length := get_continuous_beam_length(target, offset_start)
-		var offset_end := offset_start + beam_direction * beam_length
-		draw_beam_segment(
-			to_local(offset_start),
-			to_local(offset_end)
-		)
+	var beam_length := get_continuous_beam_length(target, beam_start_world)
+	var beam_end_world := beam_start_world + beam_direction * beam_length
+	draw_beam_segment(to_local(beam_start_world), to_local(beam_end_world))
 
 
 func draw_beam_segment(beam_start: Vector2, beam_end: Vector2) -> void:
@@ -1001,10 +992,6 @@ func uses_continuous_beam() -> bool:
 	return tower_id == BEHOLDER_TOWER_ID or continuous_beam_enabled
 
 
-func uses_dual_continuous_beams() -> bool:
-	return uses_continuous_beam() and dual_weapons_enabled
-
-
 func _on_main_money_changed(_new_amount: int) -> void:
 	update_menu_buttons()
 
@@ -1209,7 +1196,7 @@ func load_level_stats() -> void:
 		loaded_attack_interval = maxf(float(stats["firerate"]), 0.01)
 		damage_timer.wait_time = loaded_attack_interval
 	var range_shape := $Tower/CollisionShape2D.shape.duplicate() as CircleShape2D
-	range_radius_pixels = stats["range"] * RANGE_PIXELS_PER_UNIT
+	range_radius_pixels = float(stats.get("range", 0.0)) * RANGE_PIXELS_PER_UNIT
 	range_shape.radius = range_radius_pixels
 	$Tower/CollisionShape2D.shape = range_shape
 	refresh_reveal_relic_coverage()
@@ -1249,7 +1236,8 @@ func get_effective_stats_for_level(level: int) -> Dictionary:
 		float(stats["firerate"]) / get_main_multiplier(&"tower_attack_speed"),
 		0.01
 	)
-	stats["range"] = float(stats["range"]) * get_main_multiplier(&"tower_range")
+	if stats.has("range"):
+		stats["range"] = float(stats["range"]) * get_main_multiplier(&"tower_range")
 	stats = apply_relic_combat_stat_modifiers(stats, false)
 	return stats
 
@@ -1287,10 +1275,11 @@ func apply_relic_combat_stat_modifiers(
 			float(stats[interval_key]) / GameStats.LONE_WOLF_ATTACK_SPEED_MULTIPLIER,
 			0.01
 		)
-		stats[range_key] = maxf(
-			float(stats[range_key]) * GameStats.LONE_WOLF_RANGE_MULTIPLIER,
-			0.1
-		)
+		if stats.has(range_key):
+			stats[range_key] = maxf(
+				float(stats[range_key]) * GameStats.LONE_WOLF_RANGE_MULTIPLIER,
+				0.1
+			)
 
 	if primary_type == DAMAGE_BEAM:
 		var focused_count := get_owned_relic_count(&"focused_lens")
@@ -1300,12 +1289,13 @@ func apply_relic_combat_stat_modifiers(
 			* (1.0 + GameStats.FOCUSED_LENS_DAMAGE_PER_STACK * focused_count)
 			* pow(GameStats.WIDE_LENS_DAMAGE_MULTIPLIER, wide_count)
 		), 1)
-		stats[range_key] = maxf(
-			float(stats[range_key])
-			* pow(GameStats.FOCUSED_LENS_RANGE_MULTIPLIER, focused_count)
-			* (1.0 + GameStats.WIDE_LENS_RANGE_PER_STACK * wide_count),
-			0.1
-		)
+		if stats.has(range_key):
+			stats[range_key] = maxf(
+				float(stats[range_key])
+				* pow(GameStats.FOCUSED_LENS_RANGE_MULTIPLIER, focused_count)
+				* (1.0 + GameStats.WIDE_LENS_RANGE_PER_STACK * wide_count),
+				0.1
+			)
 		if get_owned_relic_count(&"death_ray") > 0:
 			stats["beam_turn_speed_degrees"] = GameStats.DEATH_RAY_TURN_SPEED_DEGREES
 			stats["infinite_pierce"] = true
@@ -1829,7 +1819,7 @@ func fire_saucer_homing_rockets(
 			rocket_damage,
 			DAMAGE_EXPLOSIVE,
 			GameStats.IMPACT_PRIMARY,
-			splash_radius_pixels * get_explosion_radius_multiplier(),
+			saucer_rocket_splash_radius_pixels,
 			0,
 			0.0,
 			0.0,
@@ -2209,18 +2199,14 @@ func attack(current_target: Node2D) -> void:
 	if not is_valid_target(current_target):
 		return
 	if uses_continuous_beam():
-		var beam_offsets: Array[float] = [0.0]
-		if uses_dual_continuous_beams():
-			beam_offsets.assign([-4.5, 4.5])
-		for beam_offset in beam_offsets:
-			var beam_damage := damage
-			if beholder_ramping_beam_enabled:
-				beam_damage = get_beholder_ramp_damage()
-			apply_continuous_beam_tick(
-				current_target,
-				roll_critical_damage(beam_damage, current_target),
-				beam_offset
-			)
+		var beam_damage := damage
+		if beholder_ramping_beam_enabled:
+			beam_damage = get_beholder_ramp_damage()
+		apply_continuous_beam_tick(
+			current_target,
+			roll_critical_damage(beam_damage, current_target),
+			0.0
+		)
 		return
 
 	if tower_id == REAVER_TOWER_ID:
@@ -4319,7 +4305,6 @@ func load_path_behaviors() -> void:
 	var previous_brainiac_link_cooldown := brainiac_link_cooldown_remaining
 	infinite_pierce = false
 	continuous_beam_enabled = false
-	dual_weapons_enabled = false
 	gauss_heavy_shot_enabled = false
 	gauss_heavy_shot_interval = 0.0
 	gauss_heavy_shot_damage_multiplier = 1.0
@@ -4390,6 +4375,7 @@ func load_path_behaviors() -> void:
 	saucer_twin_rockets_enabled = false
 	saucer_rocket_damage_multiplier = 2.0
 	saucer_rocket_interval = 3.0
+	saucer_rocket_splash_radius_pixels = 0.0
 	saucer_monster_drop_enabled = false
 	slinger_contact_explosions_enabled = false
 	slinger_contact_explosion_radius_pixels = 0.0
@@ -4402,8 +4388,6 @@ func load_path_behaviors() -> void:
 			infinite_pierce = true
 		if flags.get("continuous_beam", false):
 			continuous_beam_enabled = true
-		if flags.get("dual_weapons", false):
-			dual_weapons_enabled = true
 		if flags.get("gauss_heavy_shot", false):
 			gauss_heavy_shot_enabled = true
 			gauss_heavy_shot_interval = maxf(
@@ -4655,6 +4639,10 @@ func load_path_behaviors() -> void:
 				float(values.get("saucer_rocket_interval", 3.0)),
 				0.1
 			)
+			saucer_rocket_splash_radius_pixels = (
+				maxf(float(values.get("saucer_rocket_splash_radius", 3.0)), 0.0)
+				* RANGE_PIXELS_PER_UNIT
+			)
 		if flags.get("saucer_monster_drop", false):
 			saucer_monster_drop_enabled = true
 		if flags.get("slinger_contact_explosions", false):
@@ -4776,6 +4764,7 @@ func apply_explosive_relic_behavior_modifiers() -> void:
 	longshot_mine_explosion_radius_pixels *= radius_multiplier
 	void_singularity_explosion_radius_pixels *= radius_multiplier
 	slinger_contact_explosion_radius_pixels *= radius_multiplier
+	saucer_rocket_splash_radius_pixels *= radius_multiplier
 
 	longshot_mine_interval *= interval_multiplier
 	void_singularity_cooldown *= interval_multiplier

@@ -62,6 +62,9 @@ const GAUNTLET_EVENT_RESERVED_SLOTS := 20
 const SHOP_CHOICE_COUNT := 3
 const GAUNTLET_RELIC_CHOICE_COUNT := 4
 const MINIMUM_APPLICABLE_RELIC_CHOICES := 2
+const DRAFT_HEALTH_RECOVERY := 20
+const DRAFT_HEALTH_COST_RATIO := 0.30
+const DRAFT_HEALTH_PRICE_INCREMENT := 25
 const TOWER_DRAFT_ROUNDS: Array[int] = [4, 9, 14]
 const RELIC_DRAFT_ROUNDS: Array[int] = [1, 6, 11, 16, 20]
 const RELIC_RARITY_WEIGHTS_BY_ROUND := {
@@ -176,6 +179,7 @@ var shop_open := false
 var active_draft_type: StringName = &""
 var active_draft_offers: Array[StringName] = []
 var active_draft_choice_quantities: Dictionary = {}
+var draft_health_purchased := false
 var pending_path_relic_tower_selection: StringName = &""
 var recent_relic_offers: Array[StringName] = []
 var tower_roster: Array[StringName] = []
@@ -221,6 +225,7 @@ func _ready() -> void:
 	update_round_count()
 	spawntimer.timeout.connect(_spawn_mob)
 	between_round_shop.draft_confirmed.connect(_on_draft_confirmed)
+	between_round_shop.draft_health_requested.connect(_on_draft_health_requested)
 	update_play_pause_button()
 	if sandbox_mode:
 		pause_button.hide()
@@ -738,16 +743,66 @@ func open_between_round_draft(
 	active_draft_type = draft_type
 	active_draft_offers = offers.duplicate()
 	active_draft_choice_quantities = choice_quantities.duplicate()
+	draft_health_purchased = false
 	update_round_count()
 	update_play_pause_button()
+	var health_recovery := get_draft_health_recovery()
+	var health_cost := get_draft_health_cost(health_recovery)
 	between_round_shop.open_draft(
 		round_number,
 		max_rounds,
 		draft_type,
 		offers,
 		owned_items,
-		choice_quantities
+		choice_quantities,
+		health_recovery,
+		health_cost,
+		health_recovery > 0 and (sandbox_mode or money >= health_cost)
 	)
+
+
+func get_draft_health_recovery() -> int:
+	return mini(DRAFT_HEALTH_RECOVERY, maxi(max_lives - lives, 0))
+
+
+func get_draft_health_cost(health_recovery: int) -> int:
+	if health_recovery <= 0:
+		return 0
+	var full_recovery_cost := (
+		float(GameStats.get_round_cash_reward(round_number))
+		* DRAFT_HEALTH_COST_RATIO
+	)
+	var proportional_cost := (
+		full_recovery_cost
+		* float(health_recovery)
+		/ float(DRAFT_HEALTH_RECOVERY)
+	)
+	return maxi(
+		roundi(proportional_cost / float(DRAFT_HEALTH_PRICE_INCREMENT))
+			* DRAFT_HEALTH_PRICE_INCREMENT,
+		DRAFT_HEALTH_PRICE_INCREMENT
+	)
+
+
+func _on_draft_health_requested() -> void:
+	if not shop_open or draft_health_purchased:
+		return
+	var health_recovery := get_draft_health_recovery()
+	if health_recovery <= 0:
+		between_round_shop.update_health_button(0, 0, false)
+		return
+	var health_cost := get_draft_health_cost(health_recovery)
+	if not spend_money(health_cost):
+		between_round_shop.update_health_button(
+			health_recovery,
+			health_cost,
+			false
+		)
+		return
+	draft_health_purchased = true
+	lives = mini(lives + health_recovery, max_lives)
+	update_lives()
+	between_round_shop.mark_health_purchased(health_recovery)
 
 
 func get_relic_choice_quantities(offers: Array[StringName]) -> Dictionary:
@@ -1015,6 +1070,7 @@ func _on_draft_confirmed(item_id: StringName, quantity: int) -> void:
 	active_draft_type = &""
 	active_draft_offers.clear()
 	active_draft_choice_quantities.clear()
+	draft_health_purchased = false
 	between_round_shop.hide()
 	if item_id in [&"singularity_core", &"perfect_mutation"]:
 		begin_path_relic_tower_selection(item_id)
