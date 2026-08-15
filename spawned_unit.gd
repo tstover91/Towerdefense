@@ -11,6 +11,7 @@ const ARRIVAL_DISTANCE := 6.0
 const BEAM_HIT_HALF_WIDTH := 2.5
 const DEFAULT_BEAM_TURN_SPEED_DEGREES := 720.0
 const MOBILE_TARGET_REFRESH_INTERVAL := 0.15
+const DRONE_ATTACK_RADIUS_UNITS := 2.5
 const DRONE_ASSIGNMENT_FRAME_META: StringName = &"drone_assignment_refresh_bucket"
 const DRONE_ASSIGNMENT_CACHE_META: StringName = &"drone_assignment_cache"
 
@@ -71,6 +72,7 @@ var beam_turn_speed_radians := deg_to_rad(DEFAULT_BEAM_TURN_SPEED_DEGREES)
 var explode_on_damage_budget := false
 var budget_explosion_radius_pixels := 0.0
 var budget_explosion_damage_multiplier := 1.0
+var budget_replacement_delay := 0.5
 var mech_area_slam := false
 var mech_slam_radius_pixels := 0.0
 var mech_hunter := false
@@ -210,6 +212,10 @@ func apply_stats(unit_stats: Dictionary) -> void:
 		float(unit_stats.get("budget_explosion_damage_multiplier", 1.0)),
 		0.0
 	)
+	budget_replacement_delay = maxf(
+		float(unit_stats.get("budget_replacement_delay", 0.5)),
+		0.0
+	)
 	mech_area_slam = bool(unit_stats.get("mech_area_slam", false))
 	mech_slam_radius_pixels = (
 		maxf(float(unit_stats.get("mech_slam_radius", 0.0)), 0.0)
@@ -334,12 +340,7 @@ func process_drone(delta: float) -> void:
 			damage_spent = 0
 		return
 
-	var drone_target_eligible := (
-		is_valid_target(target)
-		and parent_tower.global_position.distance_to(target.global_position)
-			
-			
-	)
+	var drone_target_eligible := is_valid_target(target)
 	var distributed_mode := (
 		parent_tower.has_method("get_drone_target_mode")
 		and int(parent_tower.get_drone_target_mode()) == 0
@@ -352,17 +353,15 @@ func process_drone(delta: float) -> void:
 		target = select_drone_command_target()
 		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
 	if is_valid_target(target):
-		var desired_distance := 2.5 * RANGE_PIXELS_PER_UNIT
+		var desired_distance := get_effective_attack_radius() * 0.9
 		var distance_to_target := global_position.distance_to(target.global_position)
-
 		if distance_to_target > desired_distance:
 			move_toward_position(target.global_position, delta)
-
 		try_attack_target()
 		return
 
 	orbit_angle = fmod(orbit_angle + delta * 0.9, TAU)
-	var orbit_radius := minf(leash_radius_pixels * 0.35, 64.0)
+	var orbit_radius := minf(get_drone_command_radius_pixels() * 0.35, 64.0)
 	var orbit_position := (
 		parent_tower.global_position
 		+ Vector2.from_angle(orbit_angle) * orbit_radius
@@ -464,15 +463,8 @@ func get_sorted_drone_targets() -> Array[Node2D]:
 	var candidates: Array[Node2D] = []
 	if not is_instance_valid(parent_tower):
 		return candidates
-	for candidate in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_target(candidate):
-			continue
-		if (
-			parent_tower.global_position.distance_to(candidate.global_position)
-			> leash_radius_pixels
-		):
-			continue
-		candidates.append(candidate)
+	if parent_tower.has_method("get_drone_command_targets"):
+		candidates.assign(parent_tower.get_drone_command_targets())
 	candidates.sort_custom(
 		func(a: Node2D, b: Node2D) -> bool:
 			if a.max_health != b.max_health:
@@ -658,12 +650,21 @@ func perform_attack(current_target: Node2D) -> void:
 		if damage_spent >= damage_budget:
 			if explode_on_damage_budget:
 				trigger_budget_explosion()
+				if (
+					is_instance_valid(parent_tower)
+					and parent_tower.has_method("schedule_spawned_unit_replacement")
+				):
+					parent_tower.schedule_spawned_unit_replacement(
+						budget_replacement_delay
+					)
 				queue_free()
 				return
 			returning_to_base = true
 
 
 func get_effective_attack_radius() -> float:
+	if movement_type == GameStats.MOVEMENT_DRONE:
+		return DRONE_ATTACK_RADIUS_UNITS * RANGE_PIXELS_PER_UNIT
 	if mech_area_slam and mech_slam_radius_pixels > 0.0:
 		return mech_slam_radius_pixels
 	return aim_radius_pixels
@@ -764,7 +765,7 @@ func create_attack_context(
 			),
 			true
 		)
-		metadata["source_can_reveal"] = has_bonus_tag(&"reveal")
+		metadata["source_can_reveal"] = can_source_reveal()
 		var local_enemy_count := 0
 		for mob in get_tree().get_nodes_in_group("mobs"):
 			if (
@@ -1320,6 +1321,12 @@ func select_target(origin: Vector2, maximum_distance: float) -> Node2D:
 func is_valid_target(candidate: Variant) -> bool:
 	if not is_valid_area_target(candidate):
 		return false
+	if (
+		movement_type == GameStats.MOVEMENT_DRONE
+		and is_instance_valid(parent_tower)
+		and parent_tower.has_method("is_valid_drone_command_target")
+	):
+		return parent_tower.is_valid_drone_command_target(candidate)
 	if candidate.traits.has(&"hidden"):
 		return (
 			has_bonus_tag(&"reveal")
@@ -1329,6 +1336,25 @@ func is_valid_target(candidate: Variant) -> bool:
 			)
 		)
 	return true
+
+
+func can_source_reveal() -> bool:
+	if (
+		movement_type == GameStats.MOVEMENT_DRONE
+		and is_instance_valid(parent_tower)
+		and parent_tower.has_method("has_bonus_tag")
+	):
+		return parent_tower.has_bonus_tag(&"reveal")
+	return has_bonus_tag(&"reveal")
+
+
+func get_drone_command_radius_pixels() -> float:
+	if (
+		is_instance_valid(parent_tower)
+		and parent_tower.has_method("get_drone_command_radius_pixels")
+	):
+		return maxf(float(parent_tower.get_drone_command_radius_pixels()), 1.0)
+	return maxf(leash_radius_pixels, 1.0)
 
 
 func is_valid_area_target(candidate: Variant) -> bool:

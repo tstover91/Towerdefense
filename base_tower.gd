@@ -1029,6 +1029,8 @@ func confirm_placement() -> void:
 	ensure_saucer_flyer()
 	refresh_reveal_relic_coverage()
 	damage_timer.start()
+	if uses_standard_spawner_system() and main != null and main.round_active:
+		call_deferred("_spawn_unit")
 
 
 func load_level_stats() -> void:
@@ -1396,6 +1398,8 @@ func apply_relic_combat_stat_modifiers(
 			[]
 		).duplicate()
 		for inherited_tag in [BONUS_CRITICAL, BONUS_PIERCE, BONUS_STUN, BONUS_REVEAL]:
+			if inherited_tag == BONUS_REVEAL and uses_drone_targeting():
+				continue
 			if has_bonus_tag(inherited_tag) and not inherited_bonus_tags.has(inherited_tag):
 				inherited_bonus_tags.append(inherited_tag)
 		stats["additional_bonus_tags"] = inherited_bonus_tags
@@ -1603,6 +1607,27 @@ func prune_spawned_units() -> void:
 
 func _on_spawned_unit_exiting(spawned_unit: Node) -> void:
 	active_spawned_units.erase(spawned_unit)
+
+
+func schedule_spawned_unit_replacement(delay: float) -> void:
+	if not is_placed or not uses_standard_spawner_system():
+		return
+	get_tree().create_timer(maxf(delay, 0.0), false).timeout.connect(
+		_spawn_scheduled_replacement
+	)
+
+
+func _spawn_scheduled_replacement() -> void:
+	if (
+		not is_placed
+		or main == null
+		or not main.round_active
+		or not uses_standard_spawner_system()
+	):
+		return
+	prune_spawned_units()
+	if active_spawned_units.size() < spawn_limit:
+		_spawn_unit()
 
 
 func clear_spawned_units() -> void:
@@ -3285,6 +3310,8 @@ func _process(delta: float) -> void:
 		if uses_directional_aim():
 			rotator.rotation = aim_direction.angle()
 		return
+	if uses_standard_spawner_system():
+		return
 	if uses_directional_aim():
 		rotator.rotation = aim_direction.angle()
 	if uses_manual_ground_targeting():
@@ -4196,6 +4223,29 @@ func uses_drone_targeting() -> bool:
 
 func get_drone_target_mode() -> DroneTargetMode:
 	return drone_target_mode
+
+
+func get_drone_command_radius_pixels() -> float:
+	return range_radius_pixels if uses_drone_targeting() else 0.0
+
+
+func is_valid_drone_command_target(candidate: Variant) -> bool:
+	return (
+		uses_drone_targeting()
+		and is_valid_target(candidate)
+		and global_position.distance_to(candidate.global_position)
+			<= get_drone_command_radius_pixels()
+	)
+
+
+func get_drone_command_targets() -> Array[Node2D]:
+	var candidates: Array[Node2D] = []
+	if not uses_drone_targeting():
+		return candidates
+	for candidate in mobs_in_range:
+		if is_valid_drone_command_target(candidate):
+			candidates.append(candidate)
+	return candidates
 
 
 func add_type_tag(tag: StringName) -> void:

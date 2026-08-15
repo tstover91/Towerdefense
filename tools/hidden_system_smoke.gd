@@ -2,6 +2,8 @@ extends SceneTree
 
 const MOB_SCENE = preload("res://mob.tscn")
 const TOWER_SCENE = preload("res://base_tower.tscn")
+const SPAWNED_UNIT_SCENE = preload("res://spawned_unit.tscn")
+const GameStats = preload("res://stat_database.gd")
 const RelicEffects = preload("res://relic_combat.gd")
 
 
@@ -93,20 +95,74 @@ func run_checks() -> void:
 	depot.main = relic_owner
 	depot.tower_id = &"dronedepot"
 	depot.tower_level = 3
-	depot.purchased_paths.append(&"b")
 	root.add_child(depot)
-	var payload_stats: Dictionary = depot.get_effective_stats_for_level(3)["unit_stats"]
-	assert(int(payload_stats["damage_budget"]) == 6000)
-	assert(
+	depot.is_placed = true
+	for level in 4:
+		var base_unit_stats: Dictionary = depot.get_effective_stats_for_level(level)["unit_stats"]
+		var firing_duration := (
+			float(base_unit_stats["damage_budget"])
+			/ (float(base_unit_stats["damage"]) / float(base_unit_stats["attack_interval"]))
+		)
+		assert(firing_duration >= 4.0 and firing_duration <= 5.0)
+
+	depot.purchased_paths.append(&"b")
+	depot.load_base_tags()
+	var payload_level_stats: Dictionary = depot.get_effective_stats_for_level(3)
+	var payload_stats: Dictionary = payload_level_stats["unit_stats"]
+	assert(int(payload_stats["damage_budget"]) == 7000)
+	assert(is_equal_approx(float(payload_stats["budget_replacement_delay"]), 0.5))
+	assert(is_equal_approx(float(payload_level_stats["spawn_interval"]), 0.5))
+	var payload_duration := (
 		float(payload_stats["damage_budget"])
 		/ (float(payload_stats["damage"]) / float(payload_stats["attack_interval"]))
-		>= 3.8
 	)
+	assert(payload_duration >= 4.0 and payload_duration <= 5.0)
+
 	depot.purchased_paths.append(&"a")
 	depot.load_base_tags()
 	var dual_payload_stats: Dictionary = depot.get_effective_stats_for_level(3)["unit_stats"]
-	assert(int(dual_payload_stats["damage_budget"]) == 9000)
+	assert(int(dual_payload_stats["damage_budget"]) == 8750)
 	assert(int(dual_payload_stats["damage"]) == 425)
+	var dual_payload_duration := (
+		float(dual_payload_stats["damage_budget"])
+		/ (float(dual_payload_stats["damage"]) / float(dual_payload_stats["attack_interval"]))
+	)
+	assert(dual_payload_duration >= 4.0 and dual_payload_duration <= 5.0)
+
+	var drone := SPAWNED_UNIT_SCENE.instantiate()
+	root.add_child(drone)
+	drone.setup(&"drone", payload_stats, depot, null)
+	assert(drone.movement_type == GameStats.MOVEMENT_DRONE)
+	assert(not drone.has_bonus_tag(&"reveal"))
+	assert(is_equal_approx(
+		drone.get_effective_attack_radius(),
+		2.5 * 12.9
+	))
+	mob.global_position = Vector2(100.0, 0.0)
+	if not depot.mobs_in_range.has(mob):
+		depot.mobs_in_range.append(mob)
+	assert(drone.is_valid_target(mob))
+	assert(drone.can_source_reveal())
+	var drone_context: AttackContext = drone.create_attack_context(&"hitscan")
+	assert(bool(drone_context.metadata["source_can_reveal"]))
+	mob.global_position = Vector2(depot.get_drone_command_radius_pixels() + 1.0, 0.0)
+	assert(not drone.is_valid_target(mob))
+
+	armored.global_position = Vector2(100.0, 0.0)
+	if not depot.mobs_in_range.has(armored):
+		depot.mobs_in_range.append(armored)
+	depot.drone_target_mode = depot.DroneTargetMode.FOCUS_MAX_HEALTH
+	drone.target = armored
+	drone.target_refresh_remaining = 1.0
+	drone.global_position = Vector2.ZERO
+	var armored_health_before_approach: int = armored.health
+	drone.process_drone(0.1)
+	assert(drone.global_position.x > 0.0)
+	assert(armored.health == armored_health_before_approach)
+	drone.global_position = armored.global_position - Vector2(20.0, 0.0)
+	drone.attack_cooldown = 0.0
+	drone.process_drone(0.01)
+	assert(armored.health < armored_health_before_approach)
 
 	print("Hidden system smoke checks passed.")
 	quit(0)

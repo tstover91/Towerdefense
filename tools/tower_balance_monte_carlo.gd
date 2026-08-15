@@ -949,10 +949,15 @@ func simulate_spawner_trial(tower_id: StringName, stats: Dictionary, traits: Dic
 	total = apply_armor(total, damage_type, float(scenario["armor"]), int(unit.get("pierce_count", 0)) > 0)
 	if tower_id == &"dronedepot":
 		var budget := float(unit.get("damage_budget", 0))
-		var recharge := float(unit.get("recharge_duration", 0))
+		var explodes_on_budget := bool(unit.get("explode_on_damage_budget", false))
+		var recharge := (
+			float(unit.get("budget_replacement_delay", 0.5))
+			if explodes_on_budget
+			else float(unit.get("recharge_duration", 0))
+		)
 		var active_time := budget / maxf(damage / attack_interval, 0.01)
 		total *= active_time / maxf(active_time + recharge, 0.01)
-		if bool(unit.get("explode_on_damage_budget", false)):
+		if explodes_on_budget:
 			var cycles := duration / maxf(active_time + recharge, 0.01)
 			total += cycles * float(spawn_limit) * damage * float(unit.get("budget_explosion_damage_multiplier", 6.0)) * minf(float(int(scenario["enemies"])), 3.0)
 	return total / duration
