@@ -198,7 +198,7 @@ const ENEMY_LATE_HEALTH_FACTORS := {
 
 # Variants remain independent layers because they define special-round enemy
 # behavior rather than ordinary round progression.
-const STANDARD_ENEMY_SPEED_MULTIPLIER := 0.70
+const STANDARD_ENEMY_SPEED_MULTIPLIER := 0.53
 const HORDE_ENEMY_HEALTH_MULTIPLIER := 0.55
 const ELITE_ENEMY_HEALTH_MULTIPLIER := 2.25
 const ELITE_ENEMY_SPEED_MULTIPLIER := 1.30
@@ -315,7 +315,6 @@ const SPAWNED_UNITS := {
 		"damage_tags": [&"ballistic"],
 		"bonus_tags": [&"reveal"],
 		"pierce_count": 0,
-		"movement_type": MOVEMENT_DRONE,
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
 	},
@@ -1732,28 +1731,28 @@ const TOWERS := {
 				"spawn_interval": 10.0,
 				"spawn_limit": 1,
 				"deployment_radius": 11.0,
-				"unit_stats": {"damage": 100, "attack_interval": 0.35, "aim_radius": 5.0, "move_speed": 120.0, "leash_radius": 14.0, "damage_budget": 1300, "recharge_duration": 3.0},
+				"unit_stats": {"damage": 100, "attack_interval": 0.35, "move_speed": 120.0, "damage_budget": 1300, "recharge_duration": 3.0},
 			},
 			{
 				"upgrade_cost": 450,
 				"spawn_interval": 9.0,
 				"spawn_limit": 1,
 				"deployment_radius": 12.0,
-				"unit_stats": {"damage": 145, "attack_interval": 0.32, "aim_radius": 5.5, "move_speed": 135.0, "leash_radius": 15.0, "damage_budget": 2050, "recharge_duration": 2.8},
+				"unit_stats": {"damage": 145, "attack_interval": 0.32, "move_speed": 135.0, "damage_budget": 2050, "recharge_duration": 2.8},
 			},
 			{
 				"upgrade_cost": 1100,
 				"spawn_interval": 8.0,
 				"spawn_limit": 2,
 				"deployment_radius": 13.0,
-				"unit_stats": {"damage": 155, "attack_interval": 0.29, "aim_radius": 6.0, "move_speed": 150.0, "leash_radius": 16.0, "damage_budget": 2400, "recharge_duration": 2.6},
+				"unit_stats": {"damage": 155, "attack_interval": 0.29, "move_speed": 150.0, "damage_budget": 2400, "recharge_duration": 2.6},
 			},
 			{
 				"upgrade_cost": 3000,
 				"spawn_interval": 6.0,
 				"spawn_limit": 3,
 				"deployment_radius": 15.0,
-				"unit_stats": {"damage": 340, "attack_interval": 0.22, "aim_radius": 7.0, "move_speed": 190.0, "leash_radius": 18.0, "damage_budget": 7000, "recharge_duration": 2.0},
+				"unit_stats": {"damage": 340, "attack_interval": 0.22, "move_speed": 190.0,  "damage_budget": 7000, "recharge_duration": 2.0},
 			},
 		],
 	},

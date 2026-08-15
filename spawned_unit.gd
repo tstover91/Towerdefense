@@ -337,7 +337,8 @@ func process_drone(delta: float) -> void:
 	var drone_target_eligible := (
 		is_valid_target(target)
 		and parent_tower.global_position.distance_to(target.global_position)
-			<= leash_radius_pixels
+			
+			
 	)
 	var distributed_mode := (
 		parent_tower.has_method("get_drone_target_mode")
@@ -351,9 +352,12 @@ func process_drone(delta: float) -> void:
 		target = select_drone_command_target()
 		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
 	if is_valid_target(target):
+		var desired_distance := 2.5 * RANGE_PIXELS_PER_UNIT
 		var distance_to_target := global_position.distance_to(target.global_position)
-		if distance_to_target > aim_radius_pixels * 0.8:
+
+		if distance_to_target > desired_distance:
 			move_toward_position(target.global_position, delta)
+
 		try_attack_target()
 		return
 
