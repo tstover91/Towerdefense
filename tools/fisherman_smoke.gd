@@ -75,8 +75,12 @@ func run_test() -> void:
 		cast_start_progress + mob.get_effective_speed() * 1.3
 	)
 	for placed_tower in towers:
+		var fisherman_component := (
+			placed_tower.attack_component as FishermanAttackComponent
+		)
+		assert(fisherman_component != null)
 		assert(placed_tower.mobs_in_range.has(mob), "Every overlapping sandbox Fisherman must acquire the enemy.")
-		assert(placed_tower.fisherman_attack_on_cooldown, "Every Fisherman must start cooldown after its immediate cast.")
+		assert(placed_tower.attack_on_cooldown, "Every Fisherman must start cooldown after its immediate cast.")
 	assert(mob.health == starting_health - 225, "Every Fisherman must immediately land its first damage tick on acquisition.")
 	assert(not mob.try_begin_fisherman_pull(2.5), "A second fisherman must not reclaim the pull during immunity.")
 	var active_hooks: Array[FishermanHookEffect] = []
@@ -115,14 +119,15 @@ func run_test() -> void:
 	mob.end_fisherman_pull(2.5)
 
 	var tower := towers[0]
+	var fisherman_component := tower.attack_component as FishermanAttackComponent
 	var health_before_reacquisition: int = mob.health
 	tower._on_body_exited(mob)
-	tower._apply_damage()
-	assert(not tower.fisherman_attack_on_cooldown, "An idle cooldown timeout must leave Fisherman ready.")
+	tower._on_attack_timer_timeout()
+	assert(not tower.attack_on_cooldown, "An idle cooldown timeout must leave Fisherman ready.")
 	assert(tower.damage_timer.is_stopped(), "An idle Fisherman must not cycle its attack timer.")
 	tower._on_body_entered(mob)
 	await get_tree().process_frame
-	assert(tower.fisherman_attack_on_cooldown, "Fisherman must cast immediately when a later group enters.")
+	assert(tower.attack_on_cooldown, "Fisherman must cast immediately when a later group enters.")
 	assert(mob.health == health_before_reacquisition - 75, "Later target acquisition must immediately deal the first tick.")
 
 	tower.tower_level = 3
@@ -134,7 +139,7 @@ func run_test() -> void:
 	assert(tower.has_type_tag(&"biological"))
 	assert(tower.has_damage_tag(&"melee"))
 	assert(tower.has_damage_tag(&"electric"))
-	assert(tower.fisherman_electric_line_enabled)
+	assert(fisherman_component.electric_line_enabled)
 
 	tower.purchased_paths.assign([&"b"])
 	tower.load_base_tags()
@@ -144,7 +149,7 @@ func run_test() -> void:
 	assert(tower.has_type_tag(&"biological"))
 	assert(tower.has_damage_tag(&"melee"))
 	assert(not tower.has_damage_tag(&"electric"))
-	assert(tower.fisherman_harpoon_enabled)
-	assert(tower.fisherman_harpoon_target_count == 3)
+	assert(fisherman_component.harpoon_enabled)
+	assert(fisherman_component.harpoon_target_count == 3)
 	print("Fisherman smoke test passed: four ticks, shared pull immunity, Live Wire, and Triple Harpoon.")
 	get_tree().quit()

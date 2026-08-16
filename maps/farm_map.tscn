@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://tower_defense_map.gd" id="1_map"]
+[ext_resource type="Texture2D" path="res://assets/maps/farm.png" id="2_background"]
+
+[sub_resource type="Curve2D" id="Curve2D_farm"]
+_data = {
+"points": PackedVector2Array(0, 0, 0, 0, 0, 296, 0, 0, 0, 0, 56, 288, 0, 0, 0, 0, 80, 272, 0, 0, 0, 0, 224, 264, 0, 0, 0, 0, 240, 160, 0, 0, 0, 0, 408, 152, 0, 0, 0, 0, 408, 400, 0, 0, 0, 0, 240, 416, 0, 0, 0, 0, 240, 568, 0, 0, 0, 0, 264, 584, 0, 0, 0, 0, 592, 584, 0, 0, 0, 0, 608, 560, 0, 0, 0, 0, 608, 320, 0, 0, 0, 0, 552, 288, 0, 0, 0, 0, 552, 216, 0, 0, 0, 0, 952, 208, 0, 0, 0, 0, 952, 208)
+}
+point_count = 17
+
+[node name="FarmMap" type="Node2D"]
+script = ExtResource("1_map")
+map_id = &"farm"
+display_name = "Farm"
+native_build_bounds = Rect2(0, 0, 960, 648)
+path_no_build_radius = 30.0
+
+[node name="Background" type="Sprite2D" parent="."]
+z_index = -100
+scale = Vector2(0.6117873, 0.6415095)
+texture = ExtResource("2_background")
+centered = false
+region_rect = Rect2(0, 0, 1536, 988)
+
+[node name="Paths" type="Node2D" parent="."]
+
+[node name="primary" type="Path2D" parent="Paths"]
+curve = SubResource("Curve2D_farm")

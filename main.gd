@@ -1,6 +1,7 @@
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
+const MapData = preload("res://map_database.gd")
 const MOB_SCENE = preload("res://mob.tscn")
 const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
@@ -96,7 +97,6 @@ const DRAFT_RELIC: StringName = &"relic"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const PLACEMENT_SNAP_SIZE := 16.0
 const MIN_SIDEBAR_WIDTH := 192.0
-const PATH_NO_BUILD_RADIUS := 30.0
 const BUILD_BLOCKER_COLLISION_MASK := 4
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
@@ -106,6 +106,7 @@ signal round_started(round_number: int)
 signal round_ended(round_number: int)
 
 @onready var spawntimer: Timer = $SpawnTimer
+@onready var map_container: Node2D = $MapContainer
 @onready var tower_list: ItemList = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerSelectionArea/ItemList
 @onready var between_round_shop: Control = $MainUI/BetweenRoundShop
 @onready var pause_menu: Control = $MainUI/PauseMenu
@@ -191,6 +192,8 @@ var pending_enemy_spawns: Array[Dictionary] = []
 var displayed_tower: Node = null
 var occupied_build_cells: Dictionary = {}
 var playable_map_width := 0.0
+var active_map: TowerDefenseMap
+var next_spawn_path_index := 0
 var game_speed := 1.0
 var sandbox_mode := false
 
@@ -198,6 +201,7 @@ func _ready() -> void:
 	Engine.time_scale = 1.0
 	game_speed = 1.0
 	sandbox_mode = SessionState.sandbox_mode
+	load_selected_map()
 	update_speed_button()
 	enemy_rng.randomize()
 	shop_rng.randomize()
@@ -232,6 +236,51 @@ func _ready() -> void:
 		sandbox_panel.configure(self)
 	else:
 		sandbox_panel.hide()
+
+
+func load_selected_map() -> void:
+	for child in map_container.get_children():
+		child.queue_free()
+	var selected_map_id: StringName = SessionState.selected_map_id
+	active_map = MapData.instantiate_map(selected_map_id)
+	assert(active_map != null, "Unable to instantiate map: %s" % selected_map_id)
+	map_container.add_child(active_map)
+
+
+func get_active_map() -> TowerDefenseMap:
+	return active_map
+
+
+func get_primary_enemy_path() -> Path2D:
+	return active_map.get_enemy_path() if active_map != null else null
+
+
+func get_enemy_paths() -> Array[Path2D]:
+	return active_map.get_enemy_paths() if active_map != null else []
+
+
+func get_next_spawn_path() -> Path2D:
+	var paths := get_enemy_paths()
+	if paths.is_empty():
+		return null
+	var path := paths[next_spawn_path_index % paths.size()]
+	next_spawn_path_index = (next_spawn_path_index + 1) % paths.size()
+	return path
+
+
+func get_path_id_for_requester(requester: Node) -> StringName:
+	if active_map == null or not is_instance_valid(requester):
+		return &""
+	var requester_path_follow = requester.get("path_follow")
+	if requester_path_follow is PathFollow2D:
+		return active_map.get_path_id(requester_path_follow.get_parent() as Path2D)
+	return &""
+
+
+func clear_all_path_followers() -> void:
+	for path in get_enemy_paths():
+		for path_follow in path.get_children():
+			path_follow.queue_free()
 
 
 func populate_tower_list() -> void:
@@ -464,6 +513,7 @@ func start_round() -> void:
 	):
 		return
 	close_all_tower_menus()
+	next_spawn_path_index = 0
 	pending_enemy_spawns.clear()
 	round_number += 1
 	spawn_schedule.clear()
@@ -1299,7 +1349,8 @@ func _spawn_mob():
 	_create_mob(
 		enemy_id,
 		0.0,
-		spawn_event.get("variant", VARIANT_NORMAL)
+		spawn_event.get("variant", VARIANT_NORMAL),
+		StringName(spawn_event.get("path_id", &""))
 	)
 	mobs_left_to_spawn = spawn_schedule.size()
 
@@ -1320,9 +1371,20 @@ func _spawn_mob():
 func _create_mob(
 	enemy_id: StringName,
 	start_progress: float,
-	spawn_variant: StringName = VARIANT_NORMAL
+	spawn_variant: StringName = VARIANT_NORMAL,
+	path_id: StringName = &""
 ) -> void:
 	if game_ended:
+		return
+	var enemy_path: Path2D
+	if active_map != null:
+		enemy_path = (
+			get_next_spawn_path()
+			if path_id.is_empty()
+			else active_map.get_enemy_path(path_id)
+		)
+	if enemy_path == null:
+		push_error("Cannot spawn %s: map path '%s' does not exist" % [enemy_id, path_id])
 		return
 
 	var mob = MOB_SCENE.instantiate()
@@ -1334,7 +1396,7 @@ func _create_mob(
 	mob.reached_end.connect(_on_mob_reached_end)
 	mob.spawn_requested.connect(_on_mob_spawn_requested)
 	var pf := PathFollow2D.new()
-	$path.add_child(pf)
+	enemy_path.add_child(pf)
 	pf.loop = false
 	pf.add_child(mob)
 	mob.set_path_follow(pf, start_progress)
@@ -1459,8 +1521,7 @@ func sandbox_clear_enemies() -> void:
 	mobs_left_to_spawn = 0
 	spawntimer.stop()
 	clear_active_projectiles()
-	for path_follow in $path.get_children():
-		path_follow.queue_free()
+	clear_all_path_followers()
 	mobs_alive = 0
 	update_round_count()
 	sandbox_panel.set_status("All test enemies cleared.")
@@ -1481,17 +1542,19 @@ func _on_mob_spawn_requested(
 	requester: Node,
 	request_kind: StringName
 ) -> void:
+	var path_id := get_path_id_for_requester(requester)
 	if mobs_alive >= absolute_enemy_cap:
 		if request_kind == &"split":
 			pending_enemy_spawns.append({
 				"enemy_id": enemy_id,
 				"path_progress": path_progress,
 				"spawn_variant": spawn_variant,
+				"path_id": path_id,
 			})
 		elif is_instance_valid(requester) and requester.has_method("resolve_spawn_request"):
 			requester.resolve_spawn_request(request_kind, false)
 		return
-	_create_mob(enemy_id, path_progress, spawn_variant)
+	_create_mob(enemy_id, path_progress, spawn_variant, path_id)
 	if is_instance_valid(requester) and requester.has_method("resolve_spawn_request"):
 		requester.resolve_spawn_request(request_kind, true)
 
@@ -1506,7 +1569,8 @@ func flush_pending_enemy_spawns() -> void:
 		_create_mob(
 			request["enemy_id"],
 			request["path_progress"],
-			request["spawn_variant"]
+			request["spawn_variant"],
+			StringName(request.get("path_id", &""))
 		)
 
 
@@ -2706,8 +2770,7 @@ func finish_game(message: String) -> void:
 	$MainUI/endscreen/VBoxContainer/resultlabel.text = message
 	$MainUI/endscreen.visible = true
 	
-	for pf in $path.get_children():
-		pf.queue_free()
+	clear_all_path_followers()
 	mobs_alive = 0
 
 func _on_mob_killed(reward: int) -> void:
@@ -2859,47 +2922,47 @@ func get_build_cell_center(cell: Vector2i) -> Vector2:
 func is_build_cell_in_playable_area(cell: Vector2i) -> bool:
 	var cell_top_left := Vector2(cell) * PLACEMENT_SNAP_SIZE
 	var cell_bottom_right := cell_top_left + Vector2.ONE * PLACEMENT_SNAP_SIZE
-	var playable_right := get_playable_right_edge()
-	var viewport_size := get_viewport_rect().size
+	var build_bounds := (
+		active_map.get_build_bounds()
+		if active_map != null
+		else Rect2(Vector2.ZERO, get_viewport_rect().size)
+	)
 	return (
-		cell_top_left.x >= 0.0
-		and cell_top_left.y >= 0.0
-		and cell_bottom_right.x <= playable_right
-		and cell_bottom_right.y <= viewport_size.y
+		cell_top_left.x >= build_bounds.position.x
+		and cell_top_left.y >= build_bounds.position.y
+		and cell_bottom_right.x <= build_bounds.end.x
+		and cell_bottom_right.y <= build_bounds.end.y
 	)
 
 
 func get_playable_right_edge() -> float:
+	if active_map != null:
+		return active_map.get_build_bounds().end.x
 	return playable_map_width
 
 
 func is_world_position_in_playable_area(world_position: Vector2) -> bool:
-	var viewport_size := get_viewport_rect().size
-	return (
-		world_position.x >= 0.0
-		and world_position.y >= 0.0
-		and world_position.x <= get_playable_right_edge()
-		and world_position.y <= viewport_size.y
-	)
+	if active_map != null:
+		return active_map.contains_world_position(world_position)
+	return Rect2(Vector2.ZERO, get_viewport_rect().size).has_point(world_position)
 
 
 func _align_sidebar_to_build_grid() -> void:
 	var viewport_width := get_viewport_rect().size.x
 	var available_map_width := maxf(viewport_width - MIN_SIDEBAR_WIDTH, 0.0)
 	playable_map_width = floorf(available_map_width / BUILD_CELL_SIZE) * BUILD_CELL_SIZE
+	if active_map != null:
+		active_map.configure_runtime_build_bounds(Rect2(
+			Vector2.ZERO,
+			Vector2(playable_map_width, get_viewport_rect().size.y)
+		))
 	sidebar.offset_left = -(viewport_width - playable_map_width)
-	print("Viewport:", viewport_width)
-	print("Playable:", playable_map_width)
-	print("Sidebar:", sidebar.offset_left)
 
 func is_build_cell_blocked_by_path(cell: Vector2i) -> bool:
-	var path_node := $path as Path2D
-	if path_node.curve == null:
+	if active_map == null:
 		return false
 	var cell_center := get_build_cell_center(cell)
-	var closest_local := path_node.curve.get_closest_point(path_node.to_local(cell_center))
-	var closest_global := path_node.to_global(closest_local)
-	return cell_center.distance_to(closest_global) <= PATH_NO_BUILD_RADIUS
+	return active_map.is_point_blocked_by_path(cell_center)
 
 
 func get_path_cell_positions_near(
@@ -2909,8 +2972,7 @@ func get_path_cell_positions_near(
 	var positions: Array[Vector2] = []
 	if maximum_radius <= 0.0:
 		return positions
-	var path_node := $path as Path2D
-	if path_node.curve == null:
+	if active_map == null or get_enemy_paths().is_empty():
 		return positions
 	var minimum_cell := world_to_build_cell(
 		origin - Vector2.ONE * maximum_radius
@@ -2927,11 +2989,10 @@ func get_path_cell_positions_near(
 			var cell_center := get_build_cell_center(cell)
 			if origin.distance_to(cell_center) > maximum_radius:
 				continue
-			var closest_local := path_node.curve.get_closest_point(
-				path_node.to_local(cell_center)
-			)
-			var closest_global := path_node.to_global(closest_local)
-			if cell_center.distance_to(closest_global) > centerline_snap_distance:
+			if (
+				active_map.get_distance_to_nearest_path(cell_center)
+				> centerline_snap_distance
+			):
 				continue
 			positions.append(cell_center)
 	return positions

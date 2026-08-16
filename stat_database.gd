@@ -164,8 +164,8 @@ const ROUND_CASH_REWARDS := {
 	24: 0,
 }
 
-# Explicit round scaling profiles. Rounds 1-2 retain their introductory health;
-# durability then ramps harder so late defenses need sustained damage.
+# Explicit round scaling profiles. Standard health follows a deliberately flat
+# curve so late enemy identity comes primarily from base stats and composition.
 #
 # threat_budget is the nominal amount generated during timed spawning and is
 # used to derive the director's per-second rate. Chunk timing can leave a small
@@ -173,28 +173,28 @@ const ROUND_CASH_REWARDS := {
 const ROUND_PROFILES := {
 	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.50, "boss_health_multiplier": 1.2650},
 	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 2.00, "boss_health_multiplier": 1.2925},
-	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 2.75, "boss_health_multiplier": 1.3200},
-	4: {"duration": 35.0, "threat_budget": 63, "standard_health_multiplier": 3.50, "boss_health_multiplier": 1.3475},
-	5: {"duration": 40.0, "threat_budget": 90.0, "standard_health_multiplier": 4.25, "boss_health_multiplier": 1.3750},
-	6: {"duration": 45.0, "threat_budget": 124.0, "standard_health_multiplier": 5.00, "boss_health_multiplier": 1.4025},
-	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 5.75, "boss_health_multiplier": 1.4300},
-	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 6.50, "boss_health_multiplier": 1.4575},
-	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 7.25, "boss_health_multiplier": 1.4850},
-	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.5125},
-	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 8.75, "boss_health_multiplier": 1.5400},
-	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 9.50, "boss_health_multiplier": 1.5675},
-	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 10.20, "boss_health_multiplier": 1.5950},
-	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 10.80, "boss_health_multiplier": 1.6225},
-	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 11.40, "boss_health_multiplier": 1.6500},
-	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 12.00, "boss_health_multiplier": 1.6775},
-	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 12.60, "boss_health_multiplier": 1.7050},
-	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 13.20, "boss_health_multiplier": 1.7325},
-	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 13.80, "boss_health_multiplier": 1.7600},
-	20: {"duration": 60.0, "threat_budget": 600, "standard_health_multiplier": 14.40, "boss_health_multiplier": 1.7875},
-	21: {"duration": 60.0, "threat_budget": 650, "standard_health_multiplier": 15.00, "boss_health_multiplier": 1.8150},
-	22: {"duration": 60.0, "threat_budget": 705, "standard_health_multiplier": 15.60, "boss_health_multiplier": 1.8425},
-	23: {"duration": 60.0, "threat_budget": 765, "standard_health_multiplier": 16.50, "boss_health_multiplier": 1.8700},
-	24: {"duration": 90.0, "threat_budget": 1150, "standard_health_multiplier": 16.50, "boss_health_multiplier": 5.0000},
+	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 2.50, "boss_health_multiplier": 1.3200},
+	4: {"duration": 35.0, "threat_budget": 63, "standard_health_multiplier": 3.00, "boss_health_multiplier": 1.3475},
+	5: {"duration": 40.0, "threat_budget": 90.0, "standard_health_multiplier": 3.50, "boss_health_multiplier": 1.3750},
+	6: {"duration": 45.0, "threat_budget": 124.0, "standard_health_multiplier": 4.00, "boss_health_multiplier": 1.4025},
+	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 4.50, "boss_health_multiplier": 1.4300},
+	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 5.00, "boss_health_multiplier": 1.4575},
+	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 5.50, "boss_health_multiplier": 1.4850},
+	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 6.00, "boss_health_multiplier": 1.5125},
+	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 6.50, "boss_health_multiplier": 1.5400},
+	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 7.00, "boss_health_multiplier": 1.5675},
+	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 7.40, "boss_health_multiplier": 1.5950},
+	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 7.70, "boss_health_multiplier": 1.6225},
+	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.6500},
+	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 8.30, "boss_health_multiplier": 1.6775},
+	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 8.60, "boss_health_multiplier": 1.7050},
+	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 9.00, "boss_health_multiplier": 1.7325},
+	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 9.40, "boss_health_multiplier": 1.7600},
+	20: {"duration": 60.0, "threat_budget": 600, "standard_health_multiplier": 9.80, "boss_health_multiplier": 1.7875},
+	21: {"duration": 60.0, "threat_budget": 650, "standard_health_multiplier": 10.20, "boss_health_multiplier": 1.8150},
+	22: {"duration": 60.0, "threat_budget": 705, "standard_health_multiplier": 10.60, "boss_health_multiplier": 1.8425},
+	23: {"duration": 60.0, "threat_budget": 765, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8700},
+	24: {"duration": 90.0, "threat_budget": 1150, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8975},
 	
 }
 

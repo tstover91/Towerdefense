@@ -1,6 +1,7 @@
 extends Node
 
 const GameStats = preload("res://stat_database.gd")
+const MapData = preload("res://map_database.gd")
 const CombatSimulator = preload("res://tools/tower_balance_monte_carlo.gd")
 const MainScene = preload("res://main.tscn")
 
@@ -22,10 +23,7 @@ const STARTER_CALIBRATION_TOWERS: Array[StringName] = [
 const PURCHASE_LOOKAHEAD_STEPS := 3
 const FUTURE_POWER_DISCOUNT := 0.82
 const FUTURE_FUNDING_DISCOUNT := 0.80
-const MAP_VIEWPORT_SIZE := Vector2(1152.0, 648.0)
-const MAP_PLAYABLE_WIDTH := 960.0
 const MAP_PLACEMENT_SNAP := 16.0
-const MAP_PATH_NO_BUILD_RADIUS := 30.0
 const MAP_RANGE_PIXELS_PER_UNIT := 12.9
 const MAP_PATH_SAMPLE_INTERVAL := 8.0
 const MAP_COMBAT_SEGMENT_STRIDE := 4
@@ -77,6 +75,7 @@ var focused_starter_tower: StringName = &"invader"
 var focused_starter_pool: Array[StringName] = []
 var evolve_focused_test := false
 var use_map_geometry := false
+var selected_map_id: StringName = MapData.DEFAULT_MAP_ID
 var map_path_samples: PackedVector2Array = []
 var map_combat_samples: PackedVector2Array = []
 var map_path_length := 0.0
@@ -382,6 +381,9 @@ func read_arguments() -> void:
 			evolve_focused_test = true
 		elif argument == "--map-geometry":
 			use_map_geometry = true
+		elif argument.begins_with("--map-id="):
+			selected_map_id = StringName(argument.get_slice("=", 1))
+			assert(MapData.has_map(selected_map_id), "Unknown map ID: %s" % selected_map_id)
 		elif argument == "--record-round-history":
 			record_round_history = true
 		elif argument == "--starter-calibration":
@@ -712,10 +714,11 @@ func interpolate_health_curve(
 
 
 func prepare_map_geometry() -> void:
-	var scene_instance := MainScene.instantiate()
-	var path_node := scene_instance.get_node("path") as Path2D
-	assert(path_node != null and path_node.curve != null, "Main map requires a Path2D curve")
+	var scene_instance := MapData.instantiate_map(selected_map_id)
+	var path_node := scene_instance.get_enemy_path()
+	assert(path_node != null and path_node.curve != null, "Map requires a Path2D curve")
 	var curve := path_node.curve
+	var map_bounds := scene_instance.native_build_bounds
 	var path_length := curve.get_baked_length()
 	map_path_length = path_length
 	var distance := 0.0
@@ -745,8 +748,16 @@ func prepare_map_geometry() -> void:
 		roundi(footprint_size.y / MAP_PLACEMENT_SNAP)
 	)
 	var placement_index := 0
-	for origin_y in range(0, int(MAP_VIEWPORT_SIZE.y - footprint_size.y) + 1, int(MAP_PLACEMENT_SNAP)):
-		for origin_x in range(0, int(MAP_PLAYABLE_WIDTH - footprint_size.x) + 1, int(MAP_PLACEMENT_SNAP)):
+	for origin_y in range(
+		int(map_bounds.position.y),
+		int(map_bounds.end.y - footprint_size.y) + 1,
+		int(MAP_PLACEMENT_SNAP)
+	):
+		for origin_x in range(
+			int(map_bounds.position.x),
+			int(map_bounds.end.x - footprint_size.x) + 1,
+			int(MAP_PLACEMENT_SNAP)
+		):
 			var center := Vector2(origin_x, origin_y) + footprint_size * 0.5
 			var cells: Array[Vector2i] = []
 			var blocked := false
@@ -758,7 +769,10 @@ func prepare_map_geometry() -> void:
 					)
 					cells.append(cell)
 					var cell_center := Vector2(cell) * MAP_PLACEMENT_SNAP + Vector2.ONE * MAP_PLACEMENT_SNAP * 0.5
-					if get_closest_sample_distance(cell_center) <= MAP_PATH_NO_BUILD_RADIUS:
+					if (
+						get_closest_sample_distance(cell_center)
+						<= scene_instance.path_no_build_radius
+					):
 						blocked = true
 			if blocked:
 				continue
@@ -3436,6 +3450,7 @@ func get_checkpoint_configuration() -> Dictionary:
 		"combat_samples": combat_samples,
 		"simulation_round_limit": simulation_round_limit,
 		"use_map_geometry": use_map_geometry,
+		"map_id": selected_map_id,
 		"focused_early_test": focused_early_test,
 		"starter_calibration": starter_calibration,
 		"disable_relics": disable_relics,
@@ -3634,6 +3649,7 @@ func write_manifest() -> void:
 			"maximum_towers": MAX_TOWERS,
 			"engagement_coverage": TOWER_ENGAGEMENT_COVERAGE,
 			"map_geometry": use_map_geometry,
+			"map_id": selected_map_id,
 			"map_path_samples": map_path_samples.size(),
 			"map_combat_segments": map_combat_samples.size(),
 			"map_combat_time_step": MAP_COMBAT_TIME_STEP,

@@ -99,6 +99,13 @@ horizontal_alignment = 1
 [node name="Separator" type="HSeparator" parent="Content/Card/Content"]
 layout_mode = 2
 
+[node name="MapSelector" type="OptionButton" parent="Content/Card/Content"]
+custom_minimum_size = Vector2(360, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 20
+tooltip_text = "Choose a map"
+
 [node name="LevelButtons" type="VBoxContainer" parent="Content/Card/Content"]
 layout_mode = 2
 size_flags_horizontal = 4
@@ -109,14 +116,14 @@ custom_minimum_size = Vector2(540, 82)
 layout_mode = 2
 theme_override_font_sizes/font_size = 23
 theme_override_styles/normal = SubResource("StyleButton")
-text = "FARM\nStandard 20-round run"
+text = "PLAY\nStandard 24-round run"
 
 [node name="SandboxButton" type="Button" parent="Content/Card/Content/LevelButtons"]
 custom_minimum_size = Vector2(540, 96)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("StyleButton")
-text = "FARM — SANDBOX\nUnlimited money • All towers • Enemy controls"
+text = "SANDBOX\nUnlimited money • All towers • Enemy controls"
 
 [node name="BottomSpacer" type="Control" parent="Content/Card/Content"]
 custom_minimum_size = Vector2(0, 8)
@@ -132,7 +139,7 @@ text = "Quit"
 [node name="Footer" type="Label" parent="Content/Card/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.52, 0.6, 1)
-text = "More maps can be added to this level select later."
+text = "Choose a map, then select a game mode."
 horizontal_alignment = 1
 
 [node name="FooterSpacer" type="Control" parent="Content/Card/Content"]
