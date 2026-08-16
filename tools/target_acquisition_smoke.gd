@@ -46,6 +46,8 @@ func run_test() -> void:
 	tower.main = fake_main
 	tower.position = Vector2(500.0, 0.0)
 	add_child(tower)
+	assert(tower.targeting_controller != null)
+	assert(tower.targeting_controller.tower == tower)
 	tower.confirm_placement()
 	var starting_health: int = mob.health
 	await get_tree().physics_frame
@@ -53,6 +55,8 @@ func run_test() -> void:
 	await get_tree().process_frame
 
 	assert(tower.mobs_in_range.has(mob))
+	assert(tower.is_valid_target(mob))
+	assert(tower.select_standard_target() == mob)
 	assert(mob.health < starting_health, "Invader must fire immediately on first target acquisition.")
 	assert(tower.attack_on_cooldown)
 	assert(not tower.damage_timer.is_stopped())
