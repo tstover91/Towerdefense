@@ -15,6 +15,9 @@ const TOWER_TARGETING_CONTROLLER = preload(
 const TOWER_ATTACK_DELIVERY_CONTROLLER = preload(
 	"res://tower_combat/tower_attack_delivery_controller.gd"
 )
+const TOWER_STATS_CONTROLLER = preload(
+	"res://tower_stats/tower_stats_controller.gd"
+)
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const BEAM_HIT_HALF_WIDTH := 2.5
@@ -129,6 +132,7 @@ var attack_component: TowerAttackComponent
 var menu_controller: TowerMenuController
 var targeting_controller: TowerTargetingController
 var attack_delivery_controller: TowerAttackDeliveryController
+var stats_controller: TowerStatsController
 
 
 func _draw() -> void:
@@ -451,6 +455,10 @@ func _ready() -> void:
 	attack_delivery_controller.name = "AttackDeliveryController"
 	add_child(attack_delivery_controller)
 	attack_delivery_controller.setup(self)
+	stats_controller = TOWER_STATS_CONTROLLER.new()
+	stats_controller.name = "StatsController"
+	add_child(stats_controller)
+	stats_controller.setup(self)
 	targeting_controller = TOWER_TARGETING_CONTROLLER.new()
 	targeting_controller.name = "TargetingController"
 	add_child(targeting_controller)
@@ -592,369 +600,41 @@ func confirm_placement() -> void:
 
 
 func load_level_stats() -> void:
-	var stats := get_effective_stats_for_level(tower_level)
-	var tower_data := GameStats.get_tower(tower_id)
-	var tower_texture := tower_data.get("texture") as Texture2D
-	if tower_texture != null:
-		visual_sprite.texture = tower_texture
-	footprint_size_pixels = (
-		Vector2(tower_data.get("footprint_cells", Vector2i.ONE))
-		* BUILD_CELL_SIZE
-	)
-	var click_shape := $clickarea/CollisionShape2D.shape.duplicate() as RectangleShape2D
-	click_shape.size = footprint_size_pixels
-	$clickarea/CollisionShape2D.shape = click_shape
-	damage = stats["damage"]
-	critical_chance = clampf(
-		float(stats.get("critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE)),
-		0.0,
-		1.0
-	)
-	critical_multiplier = maxf(
-		float(stats.get(
-			"critical_multiplier",
-			GameStats.DEFAULT_CRITICAL_MULTIPLIER
-		)),
-		1.0
-	)
-	noncritical_damage_multiplier = clampf(
-		float(stats.get("noncritical_damage_multiplier", 1.0)),
-		0.0,
-		1.0
-	)
-	pierce_loses_no_power = bool(stats.get("pierce_loses_no_power", false))
-	slow_duration = maxf(float(stats.get("slow_duration", 0.0)), 0.0)
-	stun_duration = maxf(float(stats.get("stun_duration", 0.0)), 0.0)
-	stun_affects_bosses = bool(stats.get("stun_affects_bosses", false))
-	bounce_count = maxi(int(stats.get("bounce_count", 0)), 0)
-	bounce_range_pixels = (
-		maxf(float(stats.get("bounce_range", 0.0)), 0.0)
-		* RANGE_PIXELS_PER_UNIT
-	)
-	projectile_count = maxi(int(stats.get("projectile_count", 1)), 1)
-	volley_width_pixels = (
-		maxf(float(stats.get("volley_width", 0.0)), 0.0)
-		* RANGE_PIXELS_PER_UNIT
-	)
-	volley_stagger = maxf(float(stats.get("volley_stagger", 0.0)), 0.0)
-	damage_type = get_primary_damage_type()
-	beam_turn_speed_radians = deg_to_rad(maxf(
-		float(stats.get(
-			"beam_turn_speed_degrees",
-			DEFAULT_BEAM_TURN_SPEED_DEGREES
-		)),
-		0.0
-	))
-	beam_hit_half_width_pixels = maxf(
-		float(stats.get("beam_half_width", BEAM_HIT_HALF_WIDTH)),
-		0.1
-	)
-	projectile_speed = stats.get("projectile_speed", 600.0)
-	splash_radius_pixels = float(stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT
-	if attack_component != null:
-		attack_component.load_level_stats(stats)
-	load_path_behaviors()
-	if not uses_standard_spawner_system():
-		loaded_attack_interval = maxf(float(stats["firerate"]), 0.01)
-		damage_timer.wait_time = loaded_attack_interval
-	var range_shape := $Tower/CollisionShape2D.shape.duplicate() as CircleShape2D
-	range_radius_pixels = float(stats.get("range", 0.0)) * RANGE_PIXELS_PER_UNIT
-	range_shape.radius = range_radius_pixels
-	$Tower/CollisionShape2D.shape = range_shape
-	refresh_reveal_relic_coverage()
-	queue_redraw()
+	if stats_controller != null:
+		stats_controller.load_level_stats()
 
 
 func get_effective_stats_for_level(level: int) -> Dictionary:
-	var stats := GameStats.get_tower_level(tower_id, level)
-	stats = apply_path_stat_modifiers(stats)
-	if uses_standard_spawner_system():
-		var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
-		unit_stats["damage"] = roundi(
-			float(unit_stats["damage"]) + get_main_bonus(&"tower_damage_flat")
-		)
-		unit_stats["attack_interval"] = maxf(
-			float(unit_stats["attack_interval"])
-			/ get_main_multiplier(&"tower_attack_speed"),
-			0.01
-		)
-		unit_stats["aim_radius"] = (
-			float(unit_stats["aim_radius"])
-			* get_main_multiplier(&"tower_range")
-		)
-		unit_stats = apply_relic_combat_stat_modifiers(unit_stats, true)
-		stats["unit_stats"] = unit_stats
-		stats["damage"] = unit_stats["damage"]
-		stats["firerate"] = unit_stats["attack_interval"]
-		stats["range"] = (
-			float(stats["deployment_radius"])
-			* get_main_multiplier(&"tower_range")
-		)
-		return stats
-	stats["damage"] = roundi(
-		float(stats["damage"]) + get_main_bonus(&"tower_damage_flat")
-	)
-	stats["firerate"] = maxf(
-		float(stats["firerate"]) / get_main_multiplier(&"tower_attack_speed"),
-		0.01
-	)
-	if stats.has("range"):
-		stats["range"] = float(stats["range"]) * get_main_multiplier(&"tower_range")
-	stats = apply_relic_combat_stat_modifiers(stats, false)
-	return stats
+	return stats_controller.get_effective_stats_for_level(level)
 
 
 func apply_relic_combat_stat_modifiers(
 	base_stats: Dictionary,
 	for_spawned_unit: bool
 ) -> Dictionary:
-	var stats := base_stats.duplicate(true)
-	var damage_key := "damage"
-	var interval_key := "attack_interval" if for_spawned_unit else "firerate"
-	var range_key := "aim_radius" if for_spawned_unit else "range"
-	var primary_type := get_primary_damage_type()
-	if has_type_tag(TYPE_TECHNOLOGY):
-		var network_stacks := get_owned_relic_count(&"network_upgrade")
-		if network_stacks > 0:
-			var network_speed_bonus := (
-				GameStats.NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK
-				* float(get_nearby_type_tower_count(
-					TYPE_TECHNOLOGY,
-					BUILD_CELL_SIZE
-				))
-				* float(network_stacks)
-			)
-			stats[interval_key] = maxf(
-				float(stats[interval_key]) / (1.0 + network_speed_bonus),
-				0.01
-			)
-	if (
-		has_damage_tag(DAMAGE_MELEE)
-		and get_owned_relic_count(&"lone_wolf") > 0
-		and not has_nearby_other_tower(2.5 * BUILD_CELL_SIZE)
-	):
-		stats[damage_key] = maxi(roundi(
-			float(stats[damage_key]) * GameStats.LONE_WOLF_DAMAGE_MULTIPLIER
-		), 1)
-		stats[interval_key] = maxf(
-			float(stats[interval_key]) / GameStats.LONE_WOLF_ATTACK_SPEED_MULTIPLIER,
-			0.01
-		)
-		if stats.has(range_key):
-			stats[range_key] = maxf(
-				float(stats[range_key]) * GameStats.LONE_WOLF_RANGE_MULTIPLIER,
-				0.1
-			)
-
-	if primary_type == DAMAGE_BEAM:
-		var focused_count := get_owned_relic_count(&"focused_lens")
-		var wide_count := get_owned_relic_count(&"wide_lens")
-		stats[damage_key] = maxi(roundi(
-			float(stats[damage_key])
-			* (1.0 + GameStats.FOCUSED_LENS_DAMAGE_PER_STACK * focused_count)
-			* pow(GameStats.WIDE_LENS_DAMAGE_MULTIPLIER, wide_count)
-		), 1)
-		if stats.has(range_key):
-			stats[range_key] = maxf(
-				float(stats[range_key])
-				* pow(GameStats.FOCUSED_LENS_RANGE_MULTIPLIER, focused_count)
-				* (1.0 + GameStats.WIDE_LENS_RANGE_PER_STACK * wide_count),
-				0.1
-			)
-		if get_owned_relic_count(&"death_ray") > 0:
-			stats["beam_turn_speed_degrees"] = GameStats.DEATH_RAY_TURN_SPEED_DEGREES
-			stats["infinite_pierce"] = true
-
-	if primary_type == DAMAGE_BALLISTIC:
-		var heavy_count := get_owned_relic_count(&"heavy_rounds")
-		var lightweight_count := get_owned_relic_count(&"lightweight_ammo")
-		stats[damage_key] = maxi(roundi(
-			float(stats[damage_key])
-			* pow(GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER, heavy_count)
-			* pow(GameStats.LIGHTWEIGHT_AMMO_DAMAGE_MULTIPLIER, lightweight_count)
-		), 1)
-		stats[interval_key] = maxf(
-			float(stats[interval_key])
-			* pow(GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER, heavy_count)
-			* pow(GameStats.LIGHTWEIGHT_AMMO_INTERVAL_MULTIPLIER, lightweight_count),
-			0.01
-		)
-		if get_owned_relic_count(&"suppressive_fire") > 0:
-			stats["slow_duration"] = maxf(
-				float(stats.get("slow_duration", 0.0)),
-				GameStats.SUPPRESSIVE_FIRE_DURATION
-			)
-		if get_owned_relic_count(&"rubber_bullets") > 0:
-			stats["bounce_count"] = maxi(int(stats.get("bounce_count", 0)), 1)
-			stats["bounce_range"] = maxf(
-				float(stats.get("bounce_range", 0.0)),
-				GameStats.RUBBER_BULLETS_BOUNCE_RANGE
-			)
-
-	if primary_type == DAMAGE_EXPLOSIVE:
-		stats[damage_key] = maxi(roundi(
-			float(stats[damage_key]) * get_explosion_damage_multiplier()
-		), 1)
-		if stats.has("splash_radius"):
-			stats["splash_radius"] = (
-				float(stats["splash_radius"]) * get_explosion_radius_multiplier()
-			)
-		stats[interval_key] = maxf(
-			float(stats[interval_key]) * get_explosion_interval_multiplier(),
-			0.01
-		)
-	if for_spawned_unit and bool(stats.get("explode_on_damage_budget", false)):
-		stats["budget_explosion_radius"] = (
-			float(stats.get("budget_explosion_radius", 0.0))
-			* get_explosion_radius_multiplier()
-		)
-		stats["budget_explosion_damage_multiplier"] = (
-			float(stats.get("budget_explosion_damage_multiplier", 1.0))
-			* get_explosion_damage_multiplier()
-		)
-
-	if has_bonus_tag(BONUS_CRITICAL):
-		stats["critical_chance"] = clampf(
-			float(stats.get("critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE))
-			+ GameStats.LUCKY_SHOT_CHANCE_PER_STACK
-				* get_owned_relic_count(&"lucky_shot"),
-			0.0,
-			1.0
-		)
-		stats["critical_multiplier"] = maxf(
-			float(stats.get("critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER))
-			+ (
-				GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS
-				if get_owned_relic_count(&"glass_cannon") > 0
-				else 0.0
-			)
-			+ (
-				GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS
-				if get_owned_relic_count(&"deadeye") > 0
-				else 0.0
-			),
-			1.0
-		)
-		if get_owned_relic_count(&"glass_cannon") > 0:
-			stats["noncritical_damage_multiplier"] = (
-				GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER
-			)
-
-	if has_bonus_tag(BONUS_PIERCE):
-		stats["pierce_count"] = pierce_count
-		stats["pierce_loses_no_power"] = (
-			get_owned_relic_count(&"follow_through") > 0
-		)
-	if has_bonus_tag(BONUS_STUN) and get_owned_relic_count(&"youre_not_special") > 0:
-		stats["stun_affects_bosses"] = true
-	if for_spawned_unit:
-		var inherited_bonus_tags: Array = stats.get(
-			"additional_bonus_tags",
-			[]
-		).duplicate()
-		for inherited_tag in [BONUS_CRITICAL, BONUS_PIERCE, BONUS_STUN, BONUS_REVEAL]:
-			if inherited_tag == BONUS_REVEAL and uses_drone_targeting():
-				continue
-			if has_bonus_tag(inherited_tag) and not inherited_bonus_tags.has(inherited_tag):
-				inherited_bonus_tags.append(inherited_tag)
-		stats["additional_bonus_tags"] = inherited_bonus_tags
-	return stats
+	return stats_controller.apply_relic_combat_stat_modifiers(
+		base_stats, for_spawned_unit
+	)
 
 
 func get_explosion_damage_multiplier() -> float:
-	return (
-		pow(
-			GameStats.HIGH_YIELD_DAMAGE_MULTIPLIER,
-			get_owned_relic_count(&"high_yield")
-		)
-		* pow(
-			GameStats.CONCENTRATED_CHARGE_DAMAGE_MULTIPLIER,
-			get_owned_relic_count(&"concentrated_charge")
-		)
-		* (
-			GameStats.MAXIMUM_PAYLOAD_DAMAGE_MULTIPLIER
-			if get_owned_relic_count(&"maximum_payload") > 0
-			else 1.0
-		)
-	)
+	return stats_controller.get_explosion_damage_multiplier()
 
 
 func get_explosion_radius_multiplier() -> float:
-	return (
-		pow(
-			GameStats.HIGH_YIELD_RADIUS_MULTIPLIER,
-			get_owned_relic_count(&"high_yield")
-		)
-		* pow(
-			GameStats.CONCENTRATED_CHARGE_RADIUS_MULTIPLIER,
-			get_owned_relic_count(&"concentrated_charge")
-		)
-		* (
-			GameStats.MAXIMUM_PAYLOAD_RADIUS_MULTIPLIER
-			if get_owned_relic_count(&"maximum_payload") > 0
-			else 1.0
-		)
-	)
+	return stats_controller.get_explosion_radius_multiplier()
 
 
 func get_explosion_interval_multiplier() -> float:
-	return (
-		GameStats.MAXIMUM_PAYLOAD_INTERVAL_MULTIPLIER
-		if get_owned_relic_count(&"maximum_payload") > 0
-		else 1.0
-	)
+	return stats_controller.get_explosion_interval_multiplier()
 
 
 func get_sidebar_stats() -> Dictionary:
-	var tower_data := GameStats.get_tower(tower_id)
-	var levels: Array = tower_data["levels"]
-	var next_level := tower_level + 1
-	var result := {
-		"display_name": tower_data["display_name"],
-		"is_placed": is_placed,
-		"level": tower_level,
-		"maximum_level": levels.size() - 1,
-		"type_tags": type_tags.duplicate(),
-		"attack_tags": damage_tags.duplicate(),
-		"bonus_tags": bonus_tags.duplicate(),
-		"has_next_level": next_level < levels.size(),
-		"show_upgrade_info": is_placed and pending_action == MenuAction.UPGRADE,
-		"path_status": get_path_status_text(),
-	}
-
-	if next_level < levels.size():
-		result["next_level"] = next_level
-	return result
+	return stats_controller.get_sidebar_stats()
 
 
 func apply_path_stat_modifiers(base_stats: Dictionary) -> Dictionary:
-	var stats := base_stats.duplicate(true)
-	for path_id in purchased_paths:
-		var path := GameStats.get_tower_path(tower_id, path_id)
-		apply_numeric_modifiers(stats, path.get("stat_multipliers", {}), true)
-		apply_numeric_modifiers(stats, path.get("stat_additions", {}), false)
-		for conditional in path.get("conditional_stat_multipliers", []):
-			var required_absent_path := StringName(conditional.get("unless_path", &""))
-			if not required_absent_path.is_empty() and purchased_paths.has(required_absent_path):
-				continue
-			apply_numeric_modifiers(stats, conditional.get("values", {}), true)
-		for key in path.get("stat_overrides", {}):
-			stats[key] = path["stat_overrides"][key]
-		for conditional in path.get("conditional_stat_overrides", []):
-			var required_absent_path := StringName(conditional.get("unless_path", &""))
-			if not required_absent_path.is_empty() and purchased_paths.has(required_absent_path):
-				continue
-			for key in conditional.get("values", {}):
-				stats[key] = conditional["values"][key]
-
-		if stats.has("unit_stats"):
-			var unit_stats: Dictionary = stats["unit_stats"]
-			apply_numeric_modifiers(unit_stats, path.get("unit_stat_multipliers", {}), true)
-			apply_numeric_modifiers(unit_stats, path.get("unit_stat_additions", {}), false)
-			for key in path.get("unit_stat_overrides", {}):
-				unit_stats[key] = path["unit_stat_overrides"][key]
-			stats["unit_stats"] = unit_stats
-	return stats
+	return stats_controller.apply_path_stat_modifiers(base_stats)
 
 
 func apply_numeric_modifiers(
@@ -962,38 +642,19 @@ func apply_numeric_modifiers(
 	modifiers: Dictionary,
 	is_multiplier: bool
 ) -> void:
-	for key in modifiers:
-		if not stats.has(key):
-			continue
-		var original: Variant = stats[key]
-		if original is int:
-			stats[key] = (
-				roundi(float(original) * float(modifiers[key]))
-				if is_multiplier
-				else int(original) + roundi(float(modifiers[key]))
-			)
-		elif original is float:
-			stats[key] = (
-				float(original) * float(modifiers[key])
-				if is_multiplier
-				else float(original) + float(modifiers[key])
-			)
+	stats_controller.apply_numeric_modifiers(stats, modifiers, is_multiplier)
 
 
 func get_main_bonus(effect: StringName) -> float:
-	if main == null:
-		return 0.0
-	return main.get_run_bonus(effect)
+	return stats_controller.get_main_bonus(effect)
 
 
 func get_main_multiplier(effect: StringName) -> float:
-	return 1.0 + get_main_bonus(effect)
+	return stats_controller.get_main_multiplier(effect)
 
 
 func get_owned_relic_count(relic_id: StringName) -> int:
-	if main == null or not main.has_method("get_relic_count"):
-		return 0
-	return int(main.get_relic_count(relic_id))
+	return stats_controller.get_owned_relic_count(relic_id)
 
 
 func _spawn_unit() -> void:
@@ -1043,31 +704,7 @@ func complete_shared_attack_cycle(did_attack: bool) -> void:
 
 
 func get_current_attack_interval() -> float:
-	var interval := loaded_attack_interval
-	if attack_component != null:
-		interval = attack_component.modify_attack_interval(interval)
-
-	var frenzy_stacks := get_owned_relic_count(&"frenzy")
-	if has_damage_tag(DAMAGE_MELEE) and frenzy_stacks > 0:
-		var enemy_count := mini(
-			count_valid_enemies_near(global_position, range_radius_pixels),
-			GameStats.FRENZY_MAXIMUM_ENEMY_COUNT
-		)
-		var speed_bonus := (
-			GameStats.FRENZY_SPEED_PER_ENEMY_PER_STACK
-			* float(enemy_count)
-			* float(frenzy_stacks)
-		)
-		interval /= 1.0 + speed_bonus
-	if (
-		has_damage_tag(DAMAGE_MELEE)
-		and get_owned_relic_count(&"relentless") > 0
-		and relentless_stacks > 0
-	):
-		interval /= (
-			1.0 + GameStats.RELENTLESS_SPEED_PER_STACK * float(relentless_stacks)
-		)
-	return maxf(interval, 0.01)
+	return stats_controller.get_current_attack_interval()
 
 
 func register_relentless_primary_attack(current_target: Node2D) -> void:
@@ -1095,41 +732,8 @@ func reset_relentless() -> void:
 
 
 func attack(current_target: Node2D) -> void:
-	# Revalidate at the firing boundary. Target selection normally performs this
-	# check already, but reveal can be lost between targeting updates and an
-	# attack callback. In that case Hidden enemies must not produce a shot that
-	# will only be rejected later by the projectile damage gate.
-	if not is_valid_target(current_target):
-		return
-	if uses_continuous_beam():
-		var beam_damage := damage
-		if attack_component != null:
-			beam_damage = attack_component.get_continuous_beam_damage(beam_damage)
-		apply_continuous_beam_tick(
-			current_target,
-			roll_critical_damage(beam_damage, current_target),
-			0.0
-		)
-		return
-
-	if attack_component != null and attack_component.execute_raw_attack(
-		current_target, damage
-	):
-		return
-	var base_attack_damage := damage
-	if attack_component != null:
-		base_attack_damage = attack_component.modify_base_attack_damage(
-			current_target, base_attack_damage
-		)
-	var attack_damage := roll_critical_damage(base_attack_damage, current_target)
-	if attack_component != null and attack_component.execute_attack(
-		current_target, attack_damage
-	):
-		return
-	if delivery_type == GameStats.DELIVERY_PROJECTILE:
-		launch_projectile(current_target, attack_damage)
-	else:
-		apply_hitscan_damage(current_target, attack_damage)
+	if attack_delivery_controller != null:
+		attack_delivery_controller.attack(current_target)
 
 
 func apply_tower_damage(
@@ -1139,24 +743,13 @@ func apply_tower_damage(
 	ignores_armor: bool,
 	attack_context: AttackContext = null
 ) -> void:
-	var resolved_context := attack_context
-	if resolved_context == null:
-		resolved_context = create_attack_context(&"direct")
-	if current_target.has_method("apply_damage_from_tower"):
-		current_target.apply_damage_from_tower(
+	if attack_delivery_controller != null:
+		attack_delivery_controller.apply_tower_damage(
+			current_target,
 			attack_damage,
 			attack_damage_type,
 			ignores_armor,
-			tower_id,
-			resolved_context
-		)
-	else:
-		current_target.apply_damage(
-			attack_damage,
-			attack_damage_type,
-			ignores_armor,
-			true,
-			resolved_context
+			attack_context
 		)
 
 
@@ -1168,30 +761,13 @@ func create_attack_context(
 	secondary := false,
 	include_critical_roll := false
 ) -> AttackContext:
-	var source: Object = immediate_source if immediate_source != null else self
-	if parent_context != null:
-		return parent_context.derive(
-			source,
-			source_kind,
-			attack_kind,
-			secondary,
-			{"was_critical": last_attack_roll_was_critical}
-				if include_critical_roll
-				else {}
-		)
-	var metadata := get_attack_relic_metadata(
-		global_position,
-		range_radius_pixels,
-		type_tags
-	)
-	if include_critical_roll:
-		metadata["was_critical"] = last_attack_roll_was_critical
-	return AttackContext.from_tower(
-		self,
-		source,
-		source_kind,
+	return attack_delivery_controller.create_attack_context(
 		attack_kind,
-		metadata
+		immediate_source,
+		source_kind,
+		parent_context,
+		secondary,
+		include_critical_roll
 	)
 
 
@@ -1298,47 +874,20 @@ func count_valid_enemies_near(origin: Vector2, radius: float) -> int:
 
 
 func roll_attack_damage(current_target: Node2D = null) -> int:
-	return roll_critical_damage(damage, current_target)
+	return attack_delivery_controller.roll_attack_damage(current_target)
 
 
 func roll_critical_damage(base_damage: int, current_target: Node2D = null) -> int:
-	last_attack_roll_was_critical = false
-	var current_critical_chance := critical_chance
-	if (
-		has_bonus_tag(BONUS_CRITICAL)
-		and spawn_rng.randf() < current_critical_chance
-	):
-		last_attack_roll_was_critical = true
-		return maxi(roundi(float(base_damage) * critical_multiplier), 1)
-	return maxi(roundi(float(base_damage) * noncritical_damage_multiplier), 1)
+	return attack_delivery_controller.roll_critical_damage(
+		base_damage, current_target
+	)
 
 
 func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
-	if projectile_scene == null:
-		push_error("Projectile tower %s has no projectile scene." % tower_id)
-		return
-	if not is_valid_target(current_target):
-		return
-
-	var impact_radius := splash_radius_pixels if damage_type == DAMAGE_EXPLOSIVE else 0.0
-	var projectile_target_position := current_target.global_position
-	var maximum_projectile_distance := range_radius_pixels
-	if infinite_pierce and impact_mode == GameStats.IMPACT_FIRST_CONTACT:
-		var shot_direction := (
-			current_target.global_position - muzzle.global_position
-		).normalized()
-		projectile_target_position = (
-			muzzle.global_position
-			+ shot_direction * maximum_projectile_distance
+	if attack_delivery_controller != null:
+		attack_delivery_controller.launch_projectile(
+			current_target, attack_damage
 		)
-	launch_projectile_from_position(
-		current_target,
-		muzzle.global_position,
-		projectile_target_position,
-		maximum_projectile_distance,
-		attack_damage,
-		impact_radius
-	)
 
 
 func launch_projectile_from_position(
@@ -1350,54 +899,15 @@ func launch_projectile_from_position(
 	impact_radius: float,
 	attack_ownership_context: AttackContext = null
 ) -> TowerProjectile:
-	if projectile_scene == null:
-		return null
-	var projectile := projectile_scene.instantiate() as TowerProjectile
-	get_tree().current_scene.add_child(projectile)
-	projectile.global_position = launch_position
-	var resolved_context := attack_ownership_context
-	if resolved_context == null:
-		resolved_context = create_attack_context(
-			&"projectile", projectile, &"projectile", null, false, true
-		)
-	elif resolved_context.get_immediate_source() != projectile:
-		resolved_context = resolved_context.derive(
-			projectile,
-			&"projectile",
-			resolved_context.attack_kind,
-			resolved_context.is_secondary
-		)
-	projectile.setup(
+	return attack_delivery_controller.launch_projectile_from_position(
 		current_target,
+		launch_position,
 		destination,
-		projectile_speed,
 		maximum_projectile_distance,
 		attack_damage,
-		damage_type,
-		impact_mode,
 		impact_radius,
-		pierce_count,
-		slow_duration,
-		stun_duration,
-		stun_affects_bosses,
-		bounce_count,
-		bounce_range_pixels,
-		attack_component != null
-			and attack_component.projectile_contact_explosions_enabled(),
-		attack_component.projectile_contact_explosion_radius()
-			if attack_component != null
-			else 0.0,
-		infinite_pierce,
-		has_bonus_tag(BONUS_REVEAL),
-		tower_id,
-		false,
-		pierce_loses_no_power,
-		attack_component.projectile_contact_explosion_damage_multiplier()
-			if attack_component != null
-			else 1.0,
-		resolved_context
+		attack_ownership_context
 	)
-	return projectile
 
 
 func apply_hitscan_damage(
@@ -1405,72 +915,12 @@ func apply_hitscan_damage(
 	attack_damage: int,
 	provided_context: AttackContext = null
 ) -> void:
-	var origin := muzzle.global_position
-	var primary_position := current_target.global_position
-	spawn_hitscan_effect(origin, primary_position, damage_type)
-	var attack_context := provided_context
-	if attack_context == null:
-		attack_context = create_attack_context(
-			&"hitscan", null, &"tower", null, false, true
+	if attack_delivery_controller != null:
+		attack_delivery_controller.apply_hitscan_damage(
+			current_target, attack_damage, provided_context
 		)
-	apply_control_effects(current_target, attack_context)
-	apply_tower_damage(
-		current_target,
-		attack_damage,
-		damage_type,
-		pierce_count > 0,
-		attack_context
-	)
-	var hit_target_ids: Dictionary = {current_target.get_instance_id(): true}
-	var bounce_result := apply_hitscan_bounces(
-		current_target,
-		origin,
-		attack_damage,
-		attack_context,
-		hit_target_ids
-	)
-	var last_hit_target: Node2D = bounce_result["target"]
-	var final_leg_origin: Vector2 = bounce_result["origin"]
-	var final_leg_distance: float = bounce_result["maximum_distance"]
-	var final_aim_offset := last_hit_target.global_position - final_leg_origin
-	if pierce_count > 0 and not final_aim_offset.is_zero_approx():
-		var direction := final_aim_offset.normalized()
-		var pierce_origin := last_hit_target.global_position + direction * 0.01
-		var end := final_leg_origin + direction * final_leg_distance
-		spawn_hitscan_effect(last_hit_target.global_position, end, damage_type)
-		var targets := get_targets_along_line(
-			pierce_origin,
-			end,
-			last_hit_target
-		)
-		var pierced_hits := 0
-		for pierced_target: Node2D in targets:
-			if hit_target_ids.has(pierced_target.get_instance_id()):
-				continue
-			if pierced_hits >= pierce_count:
-				break
-			hit_target_ids[pierced_target.get_instance_id()] = true
-			var pierce_context := create_attack_context(
-				&"pierce",
-				self,
-				&"tower",
-				attack_context,
-				true
-			)
-			apply_control_effects(pierced_target, pierce_context)
-			var pierced_damage := GameStats.get_piercing_damage(
-				attack_damage,
-				pierced_hits + 1,
-				pierce_loses_no_power
-			)
-			apply_tower_damage(
-				pierced_target,
-				pierced_damage,
-				damage_type,
-				true,
-				pierce_context
-			)
-			pierced_hits += 1
+
+
 func apply_hitscan_bounces(
 	starting_target: Node2D,
 	starting_origin: Vector2,
@@ -1478,67 +928,22 @@ func apply_hitscan_bounces(
 	parent_context: AttackContext,
 	hit_target_ids: Dictionary
 ) -> Dictionary:
-	var result := {
-		"target": starting_target,
-		"origin": starting_origin,
-		"maximum_distance": range_radius_pixels,
-	}
-	if bounce_count < 1 or bounce_range_pixels <= 0.0:
-		return result
-	var bounce_source := starting_target
-	for _bounce_index in bounce_count:
-		var bounce_target := get_nearest_bounce_target(
-			bounce_source.global_position,
-			hit_target_ids
-		)
-		if bounce_target == null:
-			break
-		var bounce_context := create_attack_context(
-			&"bounce",
-			self,
-			&"tower",
-			parent_context,
-			true
-		)
-		spawn_hitscan_effect(
-			bounce_source.global_position,
-			bounce_target.global_position,
-			damage_type
-		)
-		apply_control_effects(bounce_target, bounce_context)
-		apply_tower_damage(
-			bounce_target,
-			attack_damage,
-			damage_type,
-			pierce_count > 0 or infinite_pierce,
-			bounce_context
-		)
-		hit_target_ids[bounce_target.get_instance_id()] = true
-		result["origin"] = bounce_source.global_position
-		result["maximum_distance"] = bounce_range_pixels
-		bounce_source = bounce_target
-		result["target"] = bounce_source
-	return result
+	return attack_delivery_controller.apply_hitscan_bounces(
+		starting_target,
+		starting_origin,
+		attack_damage,
+		parent_context,
+		hit_target_ids
+	)
 
 
 func get_nearest_bounce_target(
 	origin: Vector2,
 	excluded_target_ids: Dictionary
 ) -> Node2D:
-	var selected_target: Node2D
-	var selected_distance := INF
-	for candidate in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_target(candidate):
-			continue
-		if excluded_target_ids.has(candidate.get_instance_id()):
-			continue
-		var candidate_distance := origin.distance_to(candidate.global_position)
-		if candidate_distance > bounce_range_pixels:
-			continue
-		if candidate_distance < selected_distance:
-			selected_distance = candidate_distance
-			selected_target = candidate
-	return selected_target
+	return attack_delivery_controller.get_nearest_bounce_target(
+		origin, excluded_target_ids
+	)
 
 
 func spawn_hitscan_effect(
@@ -1546,16 +951,10 @@ func spawn_hitscan_effect(
 	end_position: Vector2,
 	attack_type: StringName
 ) -> void:
-	if HITSCAN_EFFECT_SCENE == null or get_tree().current_scene == null:
-		return
-	if get_tree().current_scene.has_method("spawn_hitscan_visual"):
-		get_tree().current_scene.spawn_hitscan_visual(
+	if attack_delivery_controller != null:
+		attack_delivery_controller.spawn_hitscan_effect(
 			start_position, end_position, attack_type
 		)
-		return
-	var effect := HITSCAN_EFFECT_SCENE.instantiate() as Node2D
-	get_tree().current_scene.add_child(effect)
-	effect.setup(start_position, end_position, attack_type)
 
 
 func apply_continuous_beam_tick(
@@ -1563,117 +962,33 @@ func apply_continuous_beam_tick(
 	attack_damage: int,
 	beam_offset := 0.0
 ) -> void:
-	ensure_continuous_beam_aim(current_target)
-	if not beam_has_aim:
-		return
-	var direction := beam_aim_direction.normalized()
-	var perpendicular := direction.orthogonal()
-	var line_origin := get_continuous_beam_origin() + perpendicular * beam_offset
-	var beam_length := get_continuous_beam_length(current_target, line_origin)
-	var line_end := line_origin + direction * beam_length
-	var beam_context := create_attack_context(
-		&"beam_tick", null, &"tower", null, false, true
-	)
-	if pierce_count < 1 and not infinite_pierce:
-		if not is_target_intersecting_line(
-			current_target,
-			line_origin,
-			line_end,
-			beam_hit_half_width_pixels
-		):
-			return
-		apply_control_effects(current_target, beam_context)
-		apply_tower_damage(
-			current_target,
-			attack_damage,
-			damage_type,
-			false,
-			beam_context
-		)
-		return
-
-	var intersected_targets := get_targets_along_line(
-		line_origin,
-		line_end,
-		null,
-		beam_hit_half_width_pixels
-	)
-	var maximum_hits := intersected_targets.size()
-	if not infinite_pierce:
-		maximum_hits = mini(maximum_hits, 1 + pierce_count)
-	for index in maximum_hits:
-		var hit_target := intersected_targets[index]
-		apply_control_effects(hit_target)
-		apply_tower_damage(
-			hit_target,
-			GameStats.get_piercing_damage(
-				attack_damage,
-				index,
-				pierce_loses_no_power
-			),
-			damage_type,
-			true,
-			create_attack_context(
-				&"beam_pierce",
-				self,
-				&"tower",
-				beam_context,
-				index > 0
-			)
+	if attack_delivery_controller != null:
+		attack_delivery_controller.apply_continuous_beam_tick(
+			current_target, attack_damage, beam_offset
 		)
 
 
 func ensure_continuous_beam_aim(current_target: Node2D) -> void:
-	if beam_has_aim or not is_valid_target(current_target):
-		return
-	var target_offset := (
-		current_target.global_position - get_continuous_beam_origin()
-	)
-	if target_offset.is_zero_approx():
-		return
-	beam_aim_direction = target_offset.normalized()
-	beam_has_aim = true
+	if attack_delivery_controller != null:
+		attack_delivery_controller.ensure_continuous_beam_aim(current_target)
 
 
 func process_continuous_beam_aim(delta: float) -> void:
-	if not uses_continuous_beam() or not is_valid_target(target):
-		return
-	var target_offset := target.global_position - get_continuous_beam_origin()
-	if target_offset.is_zero_approx():
-		return
-	var desired_direction := target_offset.normalized()
-	if not beam_has_aim:
-		beam_aim_direction = desired_direction
-		beam_has_aim = true
-	else:
-		var turn_angle := beam_aim_direction.angle_to(desired_direction)
-		var maximum_turn := beam_turn_speed_radians * delta
-		beam_aim_direction = beam_aim_direction.rotated(
-			clampf(turn_angle, -maximum_turn, maximum_turn)
-		).normalized()
-	rotator.rotation = beam_aim_direction.angle()
+	if attack_delivery_controller != null:
+		attack_delivery_controller.process_continuous_beam_aim(delta)
 
 
 func get_continuous_beam_origin() -> Vector2:
-	var default_origin := muzzle.global_position
-	return (
-		attack_component.get_continuous_beam_origin(default_origin)
-		if attack_component != null
-		else default_origin
-	)
+	return attack_delivery_controller.get_continuous_beam_origin()
 
 
 func get_continuous_beam_length(
 	current_target: Node2D,
 	beam_origin: Vector2
 ) -> float:
-	if (
-		pierce_count < 1
-		and not infinite_pierce
-		and is_valid_target(current_target)
-	):
-		return beam_origin.distance_to(current_target.global_position)
-	return range_radius_pixels
+	return attack_delivery_controller.get_continuous_beam_length(
+		current_target, beam_origin
+	)
 
 
 func is_target_intersecting_line(
@@ -1682,19 +997,8 @@ func is_target_intersecting_line(
 	line_end: Vector2,
 	line_half_width := 0.0
 ) -> bool:
-	if not is_valid_target(candidate):
-		return false
-	var closest_point := Geometry2D.get_closest_point_to_segment(
-		candidate.global_position,
-		line_origin,
-		line_end
-	)
-	var hit_radius := 12.0
-	if candidate.has_method("get_projectile_hit_radius"):
-		hit_radius = candidate.get_projectile_hit_radius()
-	return (
-		candidate.global_position.distance_to(closest_point)
-		<= hit_radius + line_half_width
+	return attack_delivery_controller.is_target_intersecting_line(
+		candidate, line_origin, line_end, line_half_width
 	)
 
 
@@ -1702,16 +1006,9 @@ func apply_control_effects(
 	current_target: Node,
 	attack_context: AttackContext = null
 ) -> void:
-	var resolved_context := attack_context
-	if resolved_context == null:
-		resolved_context = create_attack_context(&"status_effect")
-	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
-		current_target.apply_slow(slow_duration, resolved_context)
-	if stun_duration > 0.0 and current_target.has_method("apply_stun"):
-		current_target.apply_stun(
-			stun_duration,
-			stun_affects_bosses,
-			resolved_context
+	if attack_delivery_controller != null:
+		attack_delivery_controller.apply_control_effects(
+			current_target, attack_context
 		)
 
 
@@ -1721,47 +1018,9 @@ func get_targets_along_line(
 	excluded_target: Node = null,
 	line_half_width := 0.0
 ) -> Array[Node2D]:
-	var candidates: Array[Dictionary] = []
-	var segment := end - origin
-	var segment_length := segment.length()
-	if segment_length <= 0.0:
-		return []
-	var direction := segment / segment_length
-
-	for mob in get_tree().get_nodes_in_group("mobs"):
-		if mob == excluded_target or not is_valid_target(mob):
-			continue
-		var distance_along_line: float = (
-			mob.global_position - origin
-		).dot(direction)
-		if distance_along_line < 0.0 or distance_along_line > segment_length:
-			continue
-		var closest_point := Geometry2D.get_closest_point_to_segment(
-			mob.global_position,
-			origin,
-			end
-		)
-		var hit_radius := 12.0
-		if mob.has_method("get_projectile_hit_radius"):
-			hit_radius = mob.get_projectile_hit_radius()
-		if (
-			mob.global_position.distance_to(closest_point)
-			> hit_radius + line_half_width
-		):
-			continue
-		candidates.append({
-			"mob": mob,
-			"distance": distance_along_line,
-		})
-
-	candidates.sort_custom(
-		func(a: Dictionary, b: Dictionary) -> bool:
-			return float(a["distance"]) < float(b["distance"])
+	return attack_delivery_controller.get_targets_along_line(
+		origin, end, excluded_target, line_half_width
 	)
-	var result: Array[Node2D] = []
-	for candidate in candidates:
-		result.append(candidate["mob"])
-	return result
 
 func _process(delta: float) -> void:
 	update_menu_layout()
@@ -2044,185 +1303,44 @@ func get_drone_command_targets() -> Array[Node2D]:
 
 
 func add_type_tag(tag: StringName) -> void:
-	if not type_tags.has(tag):
-		type_tags.append(tag)
+	stats_controller.add_type_tag(tag)
 
 
 func add_damage_tag(tag: StringName) -> void:
-	if not damage_tags.has(tag):
-		damage_tags.append(tag)
+	stats_controller.add_damage_tag(tag)
 
 
 func add_bonus_tag(tag: StringName) -> void:
-	if not bonus_tags.has(tag):
-		bonus_tags.append(tag)
-	if tag == BONUS_PIERCE and pierce_count < 1:
-		pierce_count = 1
+	stats_controller.add_bonus_tag(tag)
 
 
 func remove_type_tag(tag: StringName) -> void:
-	type_tags.erase(tag)
+	stats_controller.remove_type_tag(tag)
 
 
 func remove_damage_tag(tag: StringName) -> void:
-	damage_tags.erase(tag)
+	stats_controller.remove_damage_tag(tag)
 
 
 func remove_bonus_tag(tag: StringName) -> void:
-	bonus_tags.erase(tag)
-	if tag == BONUS_PIERCE:
-		pierce_count = 0
+	stats_controller.remove_bonus_tag(tag)
 
 
 func set_pierce_count(value: int) -> void:
-	pierce_count = maxi(value, 0)
-	if pierce_count < 1:
-		bonus_tags.erase(BONUS_PIERCE)
-	elif not bonus_tags.has(BONUS_PIERCE):
-		bonus_tags.append(BONUS_PIERCE)
+	stats_controller.set_pierce_count(value)
 
 
 func add_pierce(amount := 1) -> void:
-	set_pierce_count(pierce_count + amount)
+	stats_controller.set_pierce_count(pierce_count + amount)
 
 
 func load_path_behaviors() -> void:
-	if attack_component != null:
-		attack_component.reset_path_behaviors()
-	for path_id in purchased_paths:
-		var path := GameStats.get_tower_path(tower_id, path_id)
-		var flags: Dictionary = path.get("behavior_flags", {})
-		var values: Dictionary = path.get("behavior_values", {})
-		if attack_component != null:
-			attack_component.apply_path_behavior(flags, values)
-		if flags.get("infinite_pierce", false):
-			infinite_pierce = true
-		if flags.get("continuous_beam", false):
-			continuous_beam_enabled = true
-	if has_damage_tag(DAMAGE_BEAM) and get_owned_relic_count(&"death_ray") > 0:
-		infinite_pierce = true
-	if attack_component != null:
-		attack_component.finalize_path_behaviors()
+	stats_controller.load_path_behaviors()
 
 
 func load_base_tags() -> void:
-	var tower_data: Dictionary = GameStats.get_tower(tower_id)
-
-	type_tags.clear()
-	damage_tags.clear()
-	bonus_tags.clear()
-
-	for tag in tower_data.get("type_tags", []):
-		type_tags.append(tag)
-
-	for tag in tower_data.get("damage_tags", []):
-		damage_tags.append(tag)
-
-	for tag in tower_data.get("bonus_tags", []):
-		bonus_tags.append(tag)
-
-	# Apply tags gained or removed from regular tower levels.
-	# These accumulate, so a tag gained at Level 3 remains active at Level 4.
-	var levels: Array = tower_data.get("levels", [])
-
-	for level_index in range(0, mini(tower_level + 1, levels.size())):
-		var level_data: Dictionary = levels[level_index]
-
-		for tag in level_data.get("add_type_tags", []):
-			if not type_tags.has(tag):
-				type_tags.append(tag)
-
-		for tag in level_data.get("add_damage_tags", []):
-			if not damage_tags.has(tag):
-				damage_tags.append(tag)
-
-		for tag in level_data.get("add_bonus_tags", []):
-			if not bonus_tags.has(tag):
-				bonus_tags.append(tag)
-
-		for tag in level_data.get("remove_type_tags", []):
-			type_tags.erase(tag)
-
-		for tag in level_data.get("remove_damage_tags", []):
-			damage_tags.erase(tag)
-
-		for tag in level_data.get("remove_bonus_tags", []):
-			bonus_tags.erase(tag)
-
-	var loaded_pierce_count := int(tower_data.get(
-		"pierce_count",
-		1 if bonus_tags.has(BONUS_PIERCE) else 0
-	))
-
-	delivery_type = tower_data.get(
-		"delivery_type",
-		GameStats.DELIVERY_HITSCAN
-	)
-	impact_mode = tower_data.get(
-		"impact_mode",
-		GameStats.IMPACT_PRIMARY
-	)
-
-	for path_id in purchased_paths:
-		var path := GameStats.get_tower_path(tower_id, path_id)
-
-		for tag in path.get("add_type_tags", []):
-			if not type_tags.has(tag):
-				type_tags.append(tag)
-
-		for tag in path.get("add_damage_tags", []):
-			if not damage_tags.has(tag):
-				damage_tags.append(tag)
-
-		for tag in path.get("add_bonus_tags", []):
-			if not bonus_tags.has(tag):
-				bonus_tags.append(tag)
-
-		for tag in path.get("remove_type_tags", []):
-			type_tags.erase(tag)
-
-		for tag in path.get("remove_damage_tags", []):
-			damage_tags.erase(tag)
-
-		for tag in path.get("remove_bonus_tags", []):
-			bonus_tags.erase(tag)
-
-		loaded_pierce_count += int(path.get("pierce_count_add", 0))
-
-		if path.has("delivery_type"):
-			delivery_type = path["delivery_type"]
-
-		if path.has("impact_mode"):
-			impact_mode = path["impact_mode"]
-
-	set_pierce_count(loaded_pierce_count)
-
-	if (
-		has_damage_tag(DAMAGE_BEAM)
-		and get_owned_relic_count(&"death_ray") > 0
-	):
-		set_pierce_count(maxi(pierce_count, 1))
-		infinite_pierce = true
-
-	if has_damage_tag(DAMAGE_BALLISTIC):
-		if get_owned_relic_count(&"armor_piercing") > 0:
-			add_pierce(1)
-
-		if get_owned_relic_count(&"experimental_munitions") > 0:
-			add_bonus_tag(BONUS_CRITICAL)
+	stats_controller.load_base_tags()
 
 
 func get_primary_damage_type() -> StringName:
-	var tower_data := GameStats.get_tower(tower_id)
-	var primary_type := StringName(
-		tower_data.get("primary_damage_type", damage_tags[0])
-	)
-	for path_id in purchased_paths:
-		var path := GameStats.get_tower_path(tower_id, path_id)
-		if path.has("primary_damage_type"):
-			primary_type = StringName(path["primary_damage_type"])
-	assert(
-		damage_tags.has(primary_type),
-		"Tower %s primary damage type must be one of its active tags." % tower_id
-	)
-	return primary_type
+	return stats_controller.get_primary_damage_type()
