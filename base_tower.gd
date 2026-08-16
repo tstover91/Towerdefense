@@ -18,6 +18,9 @@ const TOWER_ATTACK_DELIVERY_CONTROLLER = preload(
 const TOWER_STATS_CONTROLLER = preload(
 	"res://tower_stats/tower_stats_controller.gd"
 )
+const TOWER_PROGRESSION_CONTROLLER = preload(
+	"res://tower_progression/tower_progression_controller.gd"
+)
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const BEAM_HIT_HALF_WIDTH := 2.5
@@ -133,6 +136,7 @@ var menu_controller: TowerMenuController
 var targeting_controller: TowerTargetingController
 var attack_delivery_controller: TowerAttackDeliveryController
 var stats_controller: TowerStatsController
+var progression_controller: Node
 
 
 func _draw() -> void:
@@ -266,24 +270,8 @@ func show_current_range_preview() -> void:
 
 
 func show_upgrade_range_preview() -> void:
-	if uses_directional_aim():
-		show_current_range_preview()
-		return
-	var tower_data: Dictionary = GameStats.get_tower(tower_id)
-	var levels: Array = tower_data["levels"]
-	var next_level := tower_level + 1
-
-	if next_level >= levels.size():
-		show_current_range_preview()
-		return
-
-	range_preview_visible = true
-	range_preview_valid = true
-	upgrade_range_radius_pixels = (
-		get_effective_stats_for_level(next_level)["range"]
-		* RANGE_PIXELS_PER_UNIT
-	)
-	queue_redraw()
+	if progression_controller != null:
+		progression_controller.show_upgrade_range_preview()
 
 func set_selected(value: bool) -> void:
 	if menu_controller != null:
@@ -303,52 +291,27 @@ func update_menu_buttons() -> void:
 
 
 func has_path_options() -> bool:
-	return not GameStats.get_tower_paths(tower_id).is_empty()
+	return progression_controller.has_path_options()
 
 
 func get_path_unlock_level(path_id: StringName) -> int:
-	var default_level: int = GameStats.get_tower(tower_id)["levels"].size() - 1
-	return int(
-		GameStats.get_tower_path(tower_id, path_id).get(
-			"unlock_level",
-			default_level
-		)
-	)
+	return progression_controller.get_path_unlock_level(path_id)
 
 
 func can_purchase_multiple_paths() -> bool:
-	return not dual_path_relic_source.is_empty()
+	return progression_controller.can_purchase_multiple_paths()
 
 
 func grant_dual_path_relic(relic_id: StringName) -> void:
-	if not dual_path_relic_source.is_empty():
-		return
-	dual_path_relic_source = relic_id
-	update_menu_buttons()
-	if main != null and selected:
-		main.show_tower_details(self)
+	progression_controller.grant_dual_path_relic(relic_id)
 
 
 func can_purchase_path(path_id: StringName, check_money := true) -> bool:
-	var paths := GameStats.get_tower_paths(tower_id)
-	if not paths.has(path_id) or purchased_paths.has(path_id):
-		return false
-	if tower_level < get_path_unlock_level(path_id):
-		return false
-	if not purchased_paths.is_empty() and not can_purchase_multiple_paths():
-		return false
-	if check_money:
-		var path_cost := int(paths[path_id].get("cost", 0))
-		if main == null or main.money < path_cost:
-			return false
-	return true
+	return progression_controller.can_purchase_path(path_id, check_money)
 
 
 func has_available_path_purchase() -> bool:
-	for path_key in GameStats.get_tower_paths(tower_id):
-		if can_purchase_path(StringName(path_key), false):
-			return true
-	return false
+	return progression_controller.has_available_path_purchase()
 
 
 func show_path_menu() -> void:
@@ -362,52 +325,15 @@ func update_path_menu() -> void:
 
 
 func select_path_choice(path_id: StringName) -> void:
-	if not can_purchase_path(path_id):
-		return
-	pending_path_choice = path_id
-	update_path_menu()
-	if main != null and selected:
-		main.show_tower_details(self)
+	progression_controller.select_path_choice(path_id)
 
 
 func purchase_selected_path() -> void:
-	if pending_path_choice.is_empty() or not can_purchase_path(pending_path_choice):
-		return
-	var path := GameStats.get_tower_path(tower_id, pending_path_choice)
-	if not main.spend_money(int(path.get("cost", 0))):
-		return
-	purchased_paths.append(pending_path_choice)
-	pending_path_choice = &""
-	load_base_tags()
-	load_level_stats()
-	update_menu_buttons()
-	show_main_menu()
-	if main != null and selected:
-		main.show_tower_details(self)
+	progression_controller.purchase_selected_path()
 
 
 func get_path_status_text() -> String:
-	if not has_path_options():
-		return ""
-	if purchased_paths.is_empty():
-		var paths := GameStats.get_tower_paths(tower_id)
-		var earliest_unlock := 999
-		for path_key in paths:
-			earliest_unlock = mini(
-				earliest_unlock,
-				get_path_unlock_level(StringName(path_key))
-			)
-		if tower_level < earliest_unlock:
-			return "Final paths unlock at Level %d" % (earliest_unlock + 1)
-		return (
-			"Both final paths available"
-			if can_purchase_multiple_paths()
-			else "Final path available"
-		)
-	var names: Array[String] = []
-	for path_id in purchased_paths:
-		names.append(GameStats.get_tower_path(tower_id, path_id)["display_name"])
-	return "Path: %s" % " + ".join(names)
+	return progression_controller.get_path_status_text()
 
 func close_menus() -> void:
 	if menu_controller != null:
@@ -420,33 +346,11 @@ func hide_action_menus() -> void:
 
 
 func get_sell_price() -> int:
-	return get_static_sell_price()
+	return progression_controller.get_sell_price()
 
 
 func get_static_sell_price() -> int:
-	if tower_level <= 0 and purchased_paths.is_empty():
-		return (
-			maxi(purchase_price, 0)
-			if purchase_price >= 0
-			else int(GameStats.get_tower(tower_id)["placement_cost"])
-		)
-	var level_values: Array = GameStats.TOWER_UPGRADED_SELL_VALUES.get(tower_id, [])
-	if level_values.is_empty():
-		return int(GameStats.get_tower(tower_id)["placement_cost"])
-	var level_index := mini(tower_level, level_values.size() - 1)
-	var sell_price := int(level_values[level_index])
-
-	var path_sell_values: Variant = (
-		GameStats.TOWER_PATH_SELL_VALUE_ADDITIONS.get(tower_id, {})
-	)
-
-	for path_id in purchased_paths:
-		if path_sell_values is Dictionary:
-			sell_price += int(path_sell_values.get(path_id, 0))
-		else:
-			sell_price += int(path_sell_values)
-
-	return sell_price
+	return progression_controller.get_sell_price()
 
 func _ready() -> void:
 	spawn_rng.randomize()
@@ -459,6 +363,10 @@ func _ready() -> void:
 	stats_controller.name = "StatsController"
 	add_child(stats_controller)
 	stats_controller.setup(self)
+	progression_controller = TOWER_PROGRESSION_CONTROLLER.new()
+	progression_controller.name = "ProgressionController"
+	add_child(progression_controller)
+	progression_controller.setup(self)
 	targeting_controller = TOWER_TARGETING_CONTROLLER.new()
 	targeting_controller.name = "TargetingController"
 	add_child(targeting_controller)
@@ -708,27 +616,15 @@ func get_current_attack_interval() -> float:
 
 
 func register_relentless_primary_attack(current_target: Node2D) -> void:
-	if (
-		not has_damage_tag(DAMAGE_MELEE)
-		or get_owned_relic_count(&"relentless") <= 0
-		or not is_valid_target(current_target)
-	):
-		reset_relentless()
-		return
-	var current_target_id := current_target.get_instance_id()
-	if current_target_id != relentless_target_instance_id:
-		relentless_target_instance_id = current_target_id
-		relentless_stacks = 1
-	else:
-		relentless_stacks = mini(
-			relentless_stacks + 1,
-			GameStats.RELENTLESS_MAXIMUM_STACKS
+	if attack_delivery_controller != null:
+		attack_delivery_controller.register_relentless_primary_attack(
+			current_target
 		)
 
 
 func reset_relentless() -> void:
-	relentless_target_instance_id = 0
-	relentless_stacks = 0
+	if attack_delivery_controller != null:
+		attack_delivery_controller.reset_relentless()
 
 
 func attack(current_target: Node2D) -> void:
@@ -776,101 +672,34 @@ func get_attack_relic_metadata(
 	source_range: float,
 	source_type_tags: Array
 ) -> Dictionary:
-	return {
-		"source_position": source_position,
-		"source_range": maxf(source_range, 0.0),
-		"source_type_tags": source_type_tags.duplicate(),
-		"source_can_reveal": has_bonus_tag(BONUS_REVEAL),
-		"enemies_in_range": count_valid_enemies_near(source_position, source_range),
-		"nearby_melee_towers": mini(
-			get_nearby_tower_count(DAMAGE_MELEE, 1.5 * BUILD_CELL_SIZE),
-			GameStats.STRENGTH_IN_NUMBERS_MAXIMUM_NEIGHBORS
-		),
-		"pack_hunter": get_owned_relic_count(&"pack_hunter"),
-		"predatory_instinct": get_owned_relic_count(&"predatory_instinct"),
-		"interference_beam": get_owned_relic_count(&"interference_beam"),
-		"microwave": get_owned_relic_count(&"microwave"),
-		"hollow_point": get_owned_relic_count(&"hollow_point"),
-		"long_barrel": get_owned_relic_count(&"long_barrel"),
-		"point_blank": get_owned_relic_count(&"point_blank"),
-		"giant_killer": get_owned_relic_count(&"giant_killer"),
-		"duelist": get_owned_relic_count(&"duelist"),
-		"strength_in_numbers": get_owned_relic_count(&"strength_in_numbers"),
-		"crowd_pleaser": get_owned_relic_count(&"crowd_pleaser"),
-		"direct_hit": get_owned_relic_count(&"direct_hit"),
-		"thermite_bombs": get_owned_relic_count(&"thermite_bombs"),
-		"charred_clothes": get_owned_relic_count(&"charred_clothes"),
-		"conductive": get_owned_relic_count(&"conductive"),
-		"pressure_point": get_owned_relic_count(&"pressure_point"),
-		"big_game_control": get_owned_relic_count(&"big_game_control"),
-		"emergency_brake": get_owned_relic_count(&"emergency_brake"),
-	}
+	return attack_delivery_controller.get_attack_relic_metadata(
+		source_position, source_range, source_type_tags
+	)
 
 
 func get_nearby_type_tower_count(
 	required_type_tag: StringName,
 	maximum_footprint_gap: float
 ) -> int:
-	var count := 0
-	for candidate in get_tree().get_nodes_in_group("towers"):
-		if not is_valid_neighbor_tower(candidate):
-			continue
-		if not candidate.has_type_tag(required_type_tag):
-			continue
-		var candidate_footprint := Vector2(candidate.get("footprint_size_pixels"))
-		var combined_half_extents := (
-			footprint_size_pixels + candidate_footprint
-		) * 0.5
-		var center_offset: Vector2 = (
-			candidate.global_position - global_position
-		).abs()
-		var footprint_gap := Vector2(
-			maxf(center_offset.x - combined_half_extents.x, 0.0),
-			maxf(center_offset.y - combined_half_extents.y, 0.0)
-		)
-		if footprint_gap.length() <= maximum_footprint_gap + 1.0:
-			count += 1
-	return count
-
-
-func get_nearby_tower_count(required_damage_tag: StringName, radius: float) -> int:
-	var count := 0
-	for candidate in get_tree().get_nodes_in_group("towers"):
-		if not is_valid_neighbor_tower(candidate):
-			continue
-		if not candidate.has_damage_tag(required_damage_tag):
-			continue
-		if global_position.distance_to(candidate.global_position) <= radius:
-			count += 1
-	return count
-
-
-func has_nearby_other_tower(radius: float) -> bool:
-	for candidate in get_tree().get_nodes_in_group("towers"):
-		if (
-			is_valid_neighbor_tower(candidate)
-			and global_position.distance_to(candidate.global_position) <= radius
-		):
-			return true
-	return false
-
-
-func is_valid_neighbor_tower(candidate: Variant) -> bool:
-	return (
-		candidate != null
-		and candidate != self
-		and is_instance_valid(candidate)
-		and not candidate.is_queued_for_deletion()
-		and bool(candidate.get("is_placed"))
+	return stats_controller.get_nearby_type_tower_count(
+		required_type_tag, maximum_footprint_gap
 	)
 
 
+func get_nearby_tower_count(required_damage_tag: StringName, radius: float) -> int:
+	return stats_controller.get_nearby_tower_count(required_damage_tag, radius)
+
+
+func has_nearby_other_tower(radius: float) -> bool:
+	return stats_controller.has_nearby_other_tower(radius)
+
+
+func is_valid_neighbor_tower(candidate: Variant) -> bool:
+	return stats_controller.is_valid_neighbor_tower(candidate)
+
+
 func count_valid_enemies_near(origin: Vector2, radius: float) -> int:
-	var count := 0
-	for mob in get_tree().get_nodes_in_group("mobs"):
-		if is_valid_target(mob) and origin.distance_to(mob.global_position) <= radius:
-			count += 1
-	return count
+	return attack_delivery_controller.count_valid_enemies_near(origin, radius)
 
 
 func roll_attack_damage(current_target: Node2D = null) -> int:
@@ -1208,49 +1037,12 @@ func _on_cancel_path_pressed() -> void:
 		main.show_tower_details(self)
 
 func _on_upgradetower_pressed() -> void:
-	var tower_data: Dictionary = GameStats.get_tower(tower_id)
-	var levels: Array = tower_data["levels"]
-	var next_level := tower_level + 1
-	if next_level >= levels.size():
-		if has_available_path_purchase():
-			show_path_menu()
-		return
-
-	if pending_action != MenuAction.UPGRADE:
-		pending_action = MenuAction.UPGRADE
-		show_upgrade_range_preview()
-		update_menu_buttons()
-		if main != null and selected:
-			main.show_tower_details(self)
-		return
-
-	var upgrade_cost: int = levels[next_level]["upgrade_cost"]
-
-	if main.spend_money(upgrade_cost):
-		tower_level = next_level
-		load_base_tags()
-		load_level_stats()
-
-	pending_action = MenuAction.NONE
-	show_current_range_preview()
-	update_menu_buttons()
-	if main != null and selected:
-		main.show_tower_details(self)
+	if progression_controller != null:
+		progression_controller.handle_upgrade_pressed()
 
 func _on_selltower_pressed() -> void:
-	if pending_action != MenuAction.SELL:
-		pending_action = MenuAction.SELL
-		show_current_range_preview()
-		update_menu_buttons()
-		if main != null and selected:
-			main.show_tower_details(self)
-		return
-
-	main.add_money(get_sell_price())
-	is_placed = false
-	tower_sold.emit(self)
-	close_menus()
-	queue_free()
+	if progression_controller != null:
+		progression_controller.handle_sell_pressed()
 
 func has_type_tag(tag: StringName) -> bool:
 	return type_tags.has(tag)

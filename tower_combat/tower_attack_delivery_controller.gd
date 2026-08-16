@@ -98,7 +98,7 @@ func create_attack_context(
 				if include_critical_roll
 				else {}
 		)
-	var metadata := tower.get_attack_relic_metadata(
+	var metadata := get_attack_relic_metadata(
 		tower.global_position,
 		tower.range_radius_pixels,
 		tower.type_tags
@@ -112,6 +112,81 @@ func create_attack_context(
 		attack_kind,
 		metadata
 	)
+
+
+func register_relentless_primary_attack(current_target: Node2D) -> void:
+	if (
+		not tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
+		or tower.get_owned_relic_count(&"relentless") <= 0
+		or not tower.is_valid_target(current_target)
+	):
+		reset_relentless()
+		return
+	var current_target_id := current_target.get_instance_id()
+	if current_target_id != tower.relentless_target_instance_id:
+		tower.relentless_target_instance_id = current_target_id
+		tower.relentless_stacks = 1
+	else:
+		tower.relentless_stacks = mini(
+			tower.relentless_stacks + 1,
+			GameStats.RELENTLESS_MAXIMUM_STACKS
+		)
+
+
+func reset_relentless() -> void:
+	tower.relentless_target_instance_id = 0
+	tower.relentless_stacks = 0
+
+
+func get_attack_relic_metadata(
+	source_position: Vector2,
+	source_range: float,
+	source_type_tags: Array
+) -> Dictionary:
+	return {
+		"source_position": source_position,
+		"source_range": maxf(source_range, 0.0),
+		"source_type_tags": source_type_tags.duplicate(),
+		"source_can_reveal": tower.has_bonus_tag(BaseTower.BONUS_REVEAL),
+		"enemies_in_range": count_valid_enemies_near(
+			source_position, source_range
+		),
+		"nearby_melee_towers": mini(
+			tower.stats_controller.get_nearby_tower_count(
+				BaseTower.DAMAGE_MELEE, 1.5 * BaseTower.BUILD_CELL_SIZE
+			),
+			GameStats.STRENGTH_IN_NUMBERS_MAXIMUM_NEIGHBORS
+		),
+		"pack_hunter": tower.get_owned_relic_count(&"pack_hunter"),
+		"predatory_instinct": tower.get_owned_relic_count(&"predatory_instinct"),
+		"interference_beam": tower.get_owned_relic_count(&"interference_beam"),
+		"microwave": tower.get_owned_relic_count(&"microwave"),
+		"hollow_point": tower.get_owned_relic_count(&"hollow_point"),
+		"long_barrel": tower.get_owned_relic_count(&"long_barrel"),
+		"point_blank": tower.get_owned_relic_count(&"point_blank"),
+		"giant_killer": tower.get_owned_relic_count(&"giant_killer"),
+		"duelist": tower.get_owned_relic_count(&"duelist"),
+		"strength_in_numbers": tower.get_owned_relic_count(&"strength_in_numbers"),
+		"crowd_pleaser": tower.get_owned_relic_count(&"crowd_pleaser"),
+		"direct_hit": tower.get_owned_relic_count(&"direct_hit"),
+		"thermite_bombs": tower.get_owned_relic_count(&"thermite_bombs"),
+		"charred_clothes": tower.get_owned_relic_count(&"charred_clothes"),
+		"conductive": tower.get_owned_relic_count(&"conductive"),
+		"pressure_point": tower.get_owned_relic_count(&"pressure_point"),
+		"big_game_control": tower.get_owned_relic_count(&"big_game_control"),
+		"emergency_brake": tower.get_owned_relic_count(&"emergency_brake"),
+	}
+
+
+func count_valid_enemies_near(origin: Vector2, radius: float) -> int:
+	var count := 0
+	for mob in tower.get_tree().get_nodes_in_group("mobs"):
+		if (
+			tower.is_valid_target(mob)
+			and origin.distance_to(mob.global_position) <= radius
+		):
+			count += 1
+	return count
 
 
 func roll_attack_damage(current_target: Node2D = null) -> int:

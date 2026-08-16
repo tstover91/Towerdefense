@@ -144,7 +144,7 @@ func apply_relic_combat_stat_modifiers(
 		if network_stacks > 0:
 			var network_speed_bonus := (
 				GameStats.NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK
-				* float(tower.get_nearby_type_tower_count(
+				* float(get_nearby_type_tower_count(
 					BaseTower.TYPE_TECHNOLOGY, BaseTower.BUILD_CELL_SIZE
 				))
 				* float(network_stacks)
@@ -155,7 +155,7 @@ func apply_relic_combat_stat_modifiers(
 	if (
 		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
 		and get_owned_relic_count(&"lone_wolf") > 0
-		and not tower.has_nearby_other_tower(2.5 * BaseTower.BUILD_CELL_SIZE)
+		and not has_nearby_other_tower(2.5 * BaseTower.BUILD_CELL_SIZE)
 	):
 		stats[damage_key] = maxi(roundi(
 			float(stats[damage_key]) * GameStats.LONE_WOLF_DAMAGE_MULTIPLIER
@@ -551,3 +551,66 @@ func get_primary_damage_type() -> StringName:
 		"Tower %s primary damage type must be one of its active tags." % tower.tower_id
 	)
 	return primary_type
+
+
+func get_nearby_type_tower_count(
+	required_type_tag: StringName,
+	maximum_footprint_gap: float
+) -> int:
+	var count := 0
+	for candidate in tower.get_tree().get_nodes_in_group("towers"):
+		if not is_valid_neighbor_tower(candidate):
+			continue
+		if not candidate.has_type_tag(required_type_tag):
+			continue
+		var candidate_footprint := Vector2(
+			candidate.get("footprint_size_pixels")
+		)
+		var combined_half_extents := (
+			tower.footprint_size_pixels + candidate_footprint
+		) * 0.5
+		var center_offset: Vector2 = (
+			candidate.global_position - tower.global_position
+		).abs()
+		var footprint_gap := Vector2(
+			maxf(center_offset.x - combined_half_extents.x, 0.0),
+			maxf(center_offset.y - combined_half_extents.y, 0.0)
+		)
+		if footprint_gap.length() <= maximum_footprint_gap + 1.0:
+			count += 1
+	return count
+
+
+func get_nearby_tower_count(
+	required_damage_tag: StringName,
+	radius: float
+) -> int:
+	var count := 0
+	for candidate in tower.get_tree().get_nodes_in_group("towers"):
+		if not is_valid_neighbor_tower(candidate):
+			continue
+		if not candidate.has_damage_tag(required_damage_tag):
+			continue
+		if tower.global_position.distance_to(candidate.global_position) <= radius:
+			count += 1
+	return count
+
+
+func has_nearby_other_tower(radius: float) -> bool:
+	for candidate in tower.get_tree().get_nodes_in_group("towers"):
+		if (
+			is_valid_neighbor_tower(candidate)
+			and tower.global_position.distance_to(candidate.global_position) <= radius
+		):
+			return true
+	return false
+
+
+func is_valid_neighbor_tower(candidate: Variant) -> bool:
+	return (
+		candidate != null
+		and candidate != tower
+		and is_instance_valid(candidate)
+		and not candidate.is_queued_for_deletion()
+		and bool(candidate.get("is_placed"))
+	)

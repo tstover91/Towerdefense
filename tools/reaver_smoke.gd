@@ -50,59 +50,120 @@ func run_test() -> void:
 	tower.position = Vector2(500.0, 0.0)
 	add_child(tower)
 	tower.confirm_placement()
+	# Exercise the combo directly. Automatic acquisition is covered by the
+	# targeting smoke and made this test dependent on physics callback ordering.
+	tower.attack_on_cooldown = true
+	tower.damage_timer.stop()
 	tower.critical_chance = 0.0
 	var component := tower.attack_component as ReaverAttackComponent
-	assert(component != null)
-	assert(component.combo_hit_count == 3)
-	assert(is_equal_approx(component.combo_stagger, 0.10 * 0.50 / 1.15))
-	assert(component.assassinate_enabled)
-	assert(not component.time_bubble_enabled)
-	assert(component._get_combo_hit_damage(400, 0) == 100)
-	assert(component._get_combo_hit_damage(400, 1) == 100)
-	assert(component._get_combo_hit_damage(400, 2) == 200)
+	if not _check(component != null, "Reaver attack component was not created."):
+		return
+	if not _check(component.combo_hit_count == 3, "Expected a three-hit combo."):
+		return
+	if not _check(
+		is_equal_approx(component.combo_stagger, 0.10 * 0.50 / 1.15),
+		"Combo stagger did not receive the expected attack-speed scaling."
+	):
+		return
+	if not _check(component.assassinate_enabled, "Assassinate was not enabled."):
+		return
+	if not _check(not component.time_bubble_enabled, "Wrong Reaver path enabled."):
+		return
+	if not _check(component._get_combo_hit_damage(400, 0) == 100, "Wrong first-hit damage."):
+		return
+	if not _check(component._get_combo_hit_damage(400, 1) == 100, "Wrong second-hit damage."):
+		return
+	if not _check(component._get_combo_hit_damage(400, 2) == 200, "Wrong finisher base damage."):
+		return
 	var starting_health: int = mob.health
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	await get_tree().create_timer(0.15).timeout
-	assert(
-		starting_health - mob.health == 600,
+	component.execute_raw_attack(mob, 400)
+	var combo_completed := await _wait_for_health_loss(mob, starting_health, 600)
+	if not _check(
+		combo_completed and starting_health - mob.health == 600,
 		"Assassinate must deal two 100-damage hits and one guaranteed 400-damage critical finisher."
-	)
-	assert(tower.last_attack_roll_was_critical)
+	):
+		return
+	if not _check(tower.last_attack_roll_was_critical, "Finisher was not marked critical."):
+		return
 
 	# Time Bubble owns its activation, repeated slow refresh, visuals, and state
 	# preservation when stats are reloaded.
 	tower.purchased_paths.assign([&"a"])
 	tower.load_base_tags()
 	tower.load_level_stats()
-	assert(component.time_bubble_enabled)
-	assert(not component.assassinate_enabled)
+	if not _check(component.time_bubble_enabled, "Time Bubble was not enabled."):
+		return
+	if not _check(not component.assassinate_enabled, "Assassinate remained enabled."):
+		return
 	component.time_bubble_cooldown_remaining = 0.0
 	component.process_attack(0.01)
-	assert(component.time_bubble_active_remaining > 0.0)
-	assert(mob.slow_remaining > 0.0)
+	if not _check(component.time_bubble_active_remaining > 0.0, "Time Bubble did not activate."):
+		return
+	if not _check(mob.slow_remaining > 0.0, "Time Bubble did not slow its target."):
+		return
 	component.time_bubble_active_remaining = 2.0
 	tower.load_level_stats()
-	assert(is_equal_approx(component.time_bubble_active_remaining, 2.0))
+	if not _check(
+		is_equal_approx(component.time_bubble_active_remaining, 2.0),
+		"Stat reload did not preserve active Time Bubble duration."
+	):
+		return
 
 	# The Psionic relic modifiers moved with the bubble rather than remaining as
 	# hidden Reaver branches in BaseTower.
 	fake_main.relics[&"lingering_thoughts"] = 1
 	fake_main.relics[&"quick_thinking"] = 1
 	tower.load_level_stats()
-	assert(is_equal_approx(
-		component.time_bubble_active_duration,
-		3.0
-			* GameStats.LINGERING_THOUGHTS_DURATION_MULTIPLIER
-			* GameStats.QUICK_THINKING_DURATION_MULTIPLIER
-	))
-	assert(is_equal_approx(
-		component.time_bubble_cooldown,
-		7.0 * GameStats.QUICK_THINKING_COOLDOWN_MULTIPLIER
-	))
+	if not _check(
+		is_equal_approx(
+			component.time_bubble_active_duration,
+			3.0
+				* GameStats.LINGERING_THOUGHTS_DURATION_MULTIPLIER
+				* GameStats.QUICK_THINKING_DURATION_MULTIPLIER
+		),
+		"Psionic relics produced the wrong Time Bubble duration."
+	):
+		return
+	if not _check(
+		is_equal_approx(
+			component.time_bubble_cooldown,
+			7.0 * GameStats.QUICK_THINKING_COOLDOWN_MULTIPLIER
+		),
+		"Psionic relics produced the wrong Time Bubble cooldown."
+	):
+		return
 	component.on_round_ended()
-	assert(is_zero_approx(component.time_bubble_active_remaining))
-	assert(is_zero_approx(component.time_bubble_cooldown_remaining))
+	if not _check(
+		is_zero_approx(component.time_bubble_active_remaining),
+		"Time Bubble remained active after the round ended."
+	):
+		return
+	if not _check(
+		is_zero_approx(component.time_bubble_cooldown_remaining),
+		"Time Bubble cooldown remained after the round ended."
+	):
+		return
 
 	print("Reaver smoke test passed: combo timing, Assassinate, Time Bubble, path state, visuals, and Psionic relics.")
 	get_tree().quit(0)
+
+
+func _wait_for_health_loss(
+	mob: Node,
+	starting_health: int,
+	expected_loss: int
+) -> bool:
+	var deadline := Time.get_ticks_msec() + 1000
+	while Time.get_ticks_msec() < deadline:
+		if starting_health - int(mob.health) >= expected_loss:
+			return true
+		await get_tree().process_frame
+	return false
+
+
+func _check(condition: bool, message: String) -> bool:
+	if condition:
+		return true
+	push_error(message)
+	get_tree().quit(1)
+	return false
