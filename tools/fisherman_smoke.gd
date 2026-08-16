@@ -29,8 +29,10 @@ func run_test() -> void:
 	var tower_data := GameStats.get_tower(&"fisherman")
 	assert(int(tower_data["placement_cost"]) == 167)
 	assert(tower_data["levels"].size() == 4)
-	assert(int(tower_data["levels"][0]["damage"]) == 300)
-	assert(int(tower_data["levels"][3]["damage"]) == 1200)
+	assert(int(tower_data["levels"][0]["damage"]) == 150)
+	assert(float(tower_data["levels"][0]["firerate"]) == 2.0)
+	assert(int(tower_data["levels"][3]["damage"]) == 600)
+	assert(float(tower_data["levels"][3]["firerate"]) == 1.75)
 	assert(float(tower_data["levels"][0]["range"]) == 8.5)
 	assert(float(tower_data["levels"][3]["range"]) == 11.0)
 	assert(int(tower_data["paths"]["b"]["pierce_count_add"]) == 2)
@@ -81,7 +83,7 @@ func run_test() -> void:
 		assert(fisherman_component != null)
 		assert(placed_tower.mobs_in_range.has(mob), "Every overlapping sandbox Fisherman must acquire the enemy.")
 		assert(placed_tower.attack_on_cooldown, "Every Fisherman must start cooldown after its immediate cast.")
-	assert(mob.health == starting_health - 225, "Every Fisherman must immediately land its first damage tick on acquisition.")
+	assert(mob.health == starting_health - 114, "Every Fisherman must immediately land its first damage tick on acquisition.")
 	assert(not mob.try_begin_fisherman_pull(2.5), "A second fisherman must not reclaim the pull during immunity.")
 	var active_hooks: Array[FishermanHookEffect] = []
 	for child in get_tree().current_scene.get_children():
@@ -94,7 +96,7 @@ func run_test() -> void:
 			pulling_hook_count += 1
 	assert(pulling_hook_count == 1, "Overlapping hooks must share one pull claim while all remain visible.")
 	await get_tree().create_timer(1.3).timeout
-	assert(mob.health == starting_health - 900, "All three casts must deal their exact four-tick totals.")
+	assert(mob.health == starting_health - 450, "All three casts must deal their exact four-tick totals.")
 	assert(follow.progress < unpulled_progress, "The claimed hook must reduce progress toward its tower.")
 	assert(mob.fisherman_minimum_progress > cast_start_progress, "The guaranteed progress floor must keep advancing during a hook.")
 	assert(not mob.fisherman_pull_active, "The pull claim must end when its line releases.")
@@ -128,13 +130,13 @@ func run_test() -> void:
 	tower._on_body_entered(mob)
 	await get_tree().process_frame
 	assert(tower.attack_on_cooldown, "Fisherman must cast immediately when a later group enters.")
-	assert(mob.health == health_before_reacquisition - 75, "Later target acquisition must immediately deal the first tick.")
+	assert(mob.health == health_before_reacquisition - 38, "Later target acquisition must immediately deal the first tick.")
 
 	tower.tower_level = 3
 	tower.purchased_paths.assign([&"a"])
 	tower.load_base_tags()
 	tower.load_level_stats()
-	assert(tower.damage == 1680)
+	assert(tower.damage == 840)
 	assert(tower.damage_type == &"electric")
 	assert(tower.has_type_tag(&"biological"))
 	assert(tower.has_damage_tag(&"melee"))
@@ -151,5 +153,30 @@ func run_test() -> void:
 	assert(not tower.has_damage_tag(&"electric"))
 	assert(fisherman_component.harpoon_enabled)
 	assert(fisherman_component.harpoon_target_count == 3)
-	print("Fisherman smoke test passed: four ticks, shared pull immunity, Live Wire, and Triple Harpoon.")
+
+	# A lethal first tick used to remove the target and hook before the line's
+	# first draw. Successful casts now retain cached endpoints for a brief flash.
+	var lethal_follow := PathFollow2D.new()
+	path.add_child(lethal_follow)
+	var lethal_mob := MOB_SCENE.instantiate()
+	lethal_mob.enemy_id = &"brute"
+	lethal_follow.add_child(lethal_mob)
+	lethal_mob.set_path_follow(lethal_follow, 500.0)
+	lethal_mob.health = 1
+	lethal_mob.max_health = 1
+	fisherman_component.execute_attack(lethal_mob, tower.damage)
+	var lethal_hook: FishermanHookEffect
+	for child in get_tree().current_scene.get_children():
+		if child is FishermanHookEffect and child.hooked_target == lethal_mob:
+			lethal_hook = child
+			break
+	assert(lethal_hook != null, "A lethal Fisherman cast must still create its line effect.")
+	assert(lethal_hook.has_cached_line, "The lethal cast must cache its line endpoints before damage.")
+	await get_tree().create_timer(0.05).timeout
+	assert(is_instance_valid(lethal_hook), "A lethal line must survive long enough to be rendered.")
+	assert(not lethal_hook.is_queued_for_deletion(), "A lethal line must remain visible for its minimum flash.")
+	await get_tree().create_timer(0.15).timeout
+	await get_tree().process_frame
+	assert(not is_instance_valid(lethal_hook), "The lethal line flash must clean itself up.")
+	print("Fisherman smoke test passed: four ticks, pull immunity, lethal line flashes, Live Wire, and Triple Harpoon.")
 	get_tree().quit()

@@ -1,6 +1,8 @@
 class_name FishermanHookEffect
 extends Node2D
 
+const MINIMUM_VISUAL_DURATION := 0.15
+
 var source_tower: BaseTower
 var hooked_target: Node2D
 var total_damage := 0
@@ -18,6 +20,9 @@ var attack_context: AttackContext
 var elapsed := 0.0
 var ticks_applied := 0
 var tick_interval := 0.4
+var cached_line_start_world := Vector2.ZERO
+var cached_line_end_world := Vector2.ZERO
+var has_cached_line := false
 
 
 func setup(
@@ -50,6 +55,7 @@ func setup(
 	tick_interval = duration / float(maxi(tick_count - 1, 1))
 	z_index = 12
 	z_as_relative = false
+	_cache_live_line_endpoints()
 	if attack_can_pull and hooked_target.has_method("try_begin_fisherman_pull"):
 		can_pull = hooked_target.try_begin_fisherman_pull(
 			pull_immunity_duration
@@ -74,10 +80,15 @@ func _release_pull() -> void:
 
 
 func _process(delta: float) -> void:
-	if not _combat_is_active():
-		queue_free()
-		return
 	elapsed += delta
+	_cache_live_line_endpoints()
+	if not _combat_is_active():
+		_release_pull()
+		if elapsed >= MINIMUM_VISUAL_DURATION:
+			queue_free()
+		else:
+			queue_redraw()
+		return
 	if can_pull and hooked_target.has_method("apply_fisherman_pull_toward"):
 		hooked_target.apply_fisherman_pull_toward(
 			source_tower.global_position,
@@ -94,10 +105,11 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	if not _target_is_active() or not is_instance_valid(source_tower):
+	if not has_cached_line or not is_instance_valid(source_tower):
 		return
-	var start := to_local(source_tower.muzzle.global_position)
-	var finish := to_local(hooked_target.global_position)
+	_cache_live_line_endpoints()
+	var start := to_local(cached_line_start_world)
+	var finish := to_local(cached_line_end_world)
 	if harpoon_line:
 		draw_line(start, finish, Color(0.12, 0.16, 0.20, 0.90), 6.0, true)
 		draw_line(start, finish, Color(0.82, 0.88, 0.92, 1.0), 2.5, true)
@@ -117,6 +129,14 @@ func _draw() -> void:
 		return
 	draw_line(start, finish, Color(0.25, 0.85, 0.95, 0.95), 2.0, true)
 	draw_circle(finish, 3.5, Color(1.0, 0.55, 0.18, 0.95))
+
+
+func _cache_live_line_endpoints() -> void:
+	if is_instance_valid(source_tower) and is_instance_valid(source_tower.muzzle):
+		cached_line_start_world = source_tower.muzzle.global_position
+	if is_instance_valid(hooked_target):
+		cached_line_end_world = hooked_target.global_position
+		has_cached_line = true
 
 
 func _apply_damage_tick() -> void:

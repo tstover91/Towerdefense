@@ -887,8 +887,8 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 300,
-				"firerate": 4.0,
+				"damage": 150,
+				"firerate": 2.0,
 				"range": 8.5,
 				"hook_tick_count": 4,
 				"hook_duration": 1.2,
@@ -897,8 +897,8 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 167,
-				"damage": 600,
-				"firerate": 4.0,
+				"damage": 300,
+				"firerate": 2.0,
 				"range": 9.0,
 				"hook_tick_count": 4,
 				"hook_duration": 1.2,
@@ -907,8 +907,8 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 500,
-				"damage": 750,
-				"firerate": 4.0,
+				"damage": 375,
+				"firerate": 2.0,
 				"range": 10.0,
 				"hook_tick_count": 4,
 				"hook_duration": 1.2,
@@ -917,8 +917,8 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1667,
-				"damage": 1200,
-				"firerate": 3.5,
+				"damage": 600,
+				"firerate": 1.75,
 				"range": 11.0,
 				"hook_tick_count": 4,
 				"hook_duration": 1.2,
