@@ -11,6 +11,7 @@ const VOID_SINGULARITY_SCENE = preload("res://void_singularity.tscn")
 const SOLAR_LANCE_SCENE = preload("res://solar_lance.tscn")
 const SAUCER_FLYER_SCENE = preload("res://saucer_flyer.tscn")
 const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
+const FISHERMAN_HOOK_EFFECT = preload("res://fisherman_hook_effect.gd")
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const MENU_HALF_WIDTH := 120.0
@@ -29,6 +30,7 @@ const VOID_CALLER_TOWER_ID: StringName = &"voidcaller"
 const REAVER_TOWER_ID: StringName = &"reaver"
 const BEHOLDER_TOWER_ID: StringName = &"beholder"
 const SLINGER_TOWER_ID: StringName = &"slinger"
+const FISHERMAN_TOWER_ID: StringName = &"fisherman"
 const GAUSS_LINE_HALF_WIDTH := 3.0
 const BEAM_HIT_HALF_WIDTH := 2.5
 const DEFAULT_BEAM_TURN_SPEED_DEGREES := 720.0
@@ -246,6 +248,17 @@ var saucer_rocket_damage_multiplier := 2.0
 var saucer_rocket_interval := 3.0
 var saucer_rocket_splash_radius_pixels := 0.0
 var saucer_monster_drop_enabled := false
+var fisherman_hook_tick_count := 4
+var fisherman_hook_duration := 1.2
+var fisherman_hook_pull_speed := 80.0
+var fisherman_hook_pull_immunity := 2.5
+var fisherman_electric_line_enabled := false
+var fisherman_harpoon_enabled := false
+var fisherman_harpoon_target_count := 3
+var fisherman_harpoon_line_half_width := 5.0
+var fisherman_harpoon_pull_speed_multiplier := 1.45
+var fisherman_attack_on_cooldown := false
+var fisherman_immediate_attack_pending := false
 var saucer_flyer_move_speed := 165.0
 var saucer_attack_radius_pixels := 0.0
 var saucer_abduction_cooldown := 16.0
@@ -1001,7 +1014,13 @@ func confirm_placement() -> void:
 	$clickarea/CollisionShape2D.disabled = false
 	ensure_saucer_flyer()
 	refresh_reveal_relic_coverage()
-	damage_timer.start()
+	if tower_id == FISHERMAN_TOWER_ID:
+		# Fisherman has a long interval, so its cooldown begins after an actual
+		# cast instead of cycling while idle and potentially missing a whole group.
+		fisherman_attack_on_cooldown = false
+		damage_timer.stop()
+	else:
+		damage_timer.start()
 	if uses_standard_spawner_system() and main != null and main.round_active:
 		call_deferred("_spawn_unit")
 
@@ -1143,6 +1162,11 @@ func load_level_stats() -> void:
 	)
 	projectile_speed = stats.get("projectile_speed", 600.0)
 	splash_radius_pixels = float(stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT
+	if tower_id == FISHERMAN_TOWER_ID:
+		fisherman_hook_tick_count = maxi(int(stats.get("hook_tick_count", 4)), 1)
+		fisherman_hook_duration = maxf(float(stats.get("hook_duration", 1.2)), 0.01)
+		fisherman_hook_pull_speed = maxf(float(stats.get("hook_pull_speed", 80.0)), 0.0)
+		fisherman_hook_pull_immunity = maxf(float(stats.get("hook_pull_immunity", 2.5)), 0.0)
 	if tower_id == SAUCER_TOWER_ID:
 		saucer_flyer_move_speed = maxf(float(stats.get("flyer_move_speed", 165.0)), 0.0)
 		saucer_attack_radius_pixels = (
@@ -1991,6 +2015,14 @@ func _apply_damage() -> void:
 		):
 			register_relentless_primary_attack(target)
 		damage_timer.wait_time = get_current_attack_interval()
+		if tower_id == FISHERMAN_TOWER_ID:
+			fisherman_attack_on_cooldown = true
+			damage_timer.start()
+	elif tower_id == FISHERMAN_TOWER_ID:
+		# The cooldown completed without a target. Stay ready and wait for the
+		# next body-enter/target-acquisition event instead of cycling while idle.
+		fisherman_attack_on_cooldown = false
+		damage_timer.stop()
 
 
 func get_current_attack_interval() -> float:
@@ -2203,6 +2235,9 @@ func attack(current_target: Node2D) -> void:
 	var attack_damage := roll_critical_damage(base_attack_damage, current_target)
 	if beholder_ramping_beam_enabled:
 		attack_damage = roll_critical_damage(get_beholder_ramp_damage(), current_target)
+	if tower_id == FISHERMAN_TOWER_ID:
+		launch_fisherman_cast(current_target, attack_damage)
+		return
 	if tower_id == ENERGY_CORE_TOWER_ID:
 		apply_energy_core_attack(current_target, attack_damage)
 		return
@@ -2216,6 +2251,74 @@ func attack(current_target: Node2D) -> void:
 				launch_projectile(current_target, attack_damage)
 	else:
 		apply_hitscan_damage(current_target, attack_damage)
+
+
+func launch_fisherman_cast(current_target: Node2D, attack_damage: int) -> void:
+	var cast_targets: Array[Node2D] = [current_target]
+	if fisherman_harpoon_enabled:
+		var cast_direction := current_target.global_position - muzzle.global_position
+		if not cast_direction.is_zero_approx():
+			var cast_end := (
+				muzzle.global_position
+				+ cast_direction.normalized() * range_radius_pixels
+			)
+			var pierced_targets := get_targets_along_line(
+				muzzle.global_position,
+				cast_end,
+				current_target,
+				fisherman_harpoon_line_half_width
+			)
+			pierced_targets.resize(mini(
+				pierced_targets.size(),
+				fisherman_harpoon_target_count - 1
+			))
+			cast_targets.append_array(pierced_targets)
+	if cast_targets.is_empty():
+		cast_targets.append(current_target)
+
+	var cast_context := create_attack_context(
+		&"fisherman_cast", self, &"tower", null, false, true
+	)
+	for hit_index in cast_targets.size():
+		var hooked_target := cast_targets[hit_index]
+		if not is_valid_target(hooked_target):
+			continue
+		var hooked_damage := attack_damage
+		if fisherman_harpoon_enabled:
+			hooked_damage = GameStats.get_piercing_damage(
+				attack_damage,
+				hit_index,
+				pierce_loses_no_power
+			)
+		var hook_context := create_attack_context(
+			&"fisherman_hook",
+			self,
+			&"tower",
+			cast_context,
+			hit_index > 0
+		)
+		apply_control_effects(hooked_target, hook_context)
+		var hook_effect := FISHERMAN_HOOK_EFFECT.new()
+		get_tree().current_scene.add_child(hook_effect)
+		hook_effect.setup(
+			self,
+			hooked_target,
+			hooked_damage,
+			damage_type,
+			fisherman_harpoon_enabled,
+			fisherman_hook_tick_count,
+			fisherman_hook_duration,
+			fisherman_hook_pull_speed * (
+				fisherman_harpoon_pull_speed_multiplier
+				if fisherman_harpoon_enabled
+				else 1.0
+			),
+			fisherman_hook_pull_immunity,
+			hit_index == 0,
+			fisherman_electric_line_enabled,
+			fisherman_harpoon_enabled,
+			hook_context
+		)
 
 
 func apply_energy_core_attack(
@@ -3290,6 +3393,7 @@ func _process(delta: float) -> void:
 		target = null
 	if not is_valid_target(target):
 		_select_target()
+	request_fisherman_attack_if_ready()
 	process_continuous_beam_aim(delta)
 	update_beholder_target_observer()
 	process_beholder_beam_ramp(delta)
@@ -3598,6 +3702,7 @@ func _on_body_entered(body: Node2D) -> void:
 		apply_reveal_relics_to_mob(body)
 		if not is_valid_target(target):
 			_select_target()
+		request_fisherman_attack_if_ready()
 
 func _on_body_exited(body: Node2D) -> void:
 	mobs_in_range.erase(body)
@@ -3605,6 +3710,29 @@ func _on_body_exited(body: Node2D) -> void:
 		body.remove_global_reveal_source(self)
 	if body == target:
 		target = null
+
+
+func request_fisherman_attack_if_ready() -> void:
+	if (
+		tower_id != FISHERMAN_TOWER_ID
+		or not is_placed
+		or fisherman_attack_on_cooldown
+		or fisherman_immediate_attack_pending
+		or not is_valid_target(target)
+	):
+		return
+	fisherman_immediate_attack_pending = true
+	call_deferred("_perform_pending_fisherman_attack")
+
+
+func _perform_pending_fisherman_attack() -> void:
+	fisherman_immediate_attack_pending = false
+	if fisherman_attack_on_cooldown or not is_placed:
+		return
+	if not is_valid_target(target) or not mobs_in_range.has(target):
+		_select_target()
+	if is_valid_target(target):
+		_apply_damage()
 
 func is_valid_target(candidate: Variant) -> bool:
 	if not is_valid_area_target(candidate):
@@ -4355,6 +4483,11 @@ func load_path_behaviors() -> void:
 	saucer_rocket_interval = 3.0
 	saucer_rocket_splash_radius_pixels = 0.0
 	saucer_monster_drop_enabled = false
+	fisherman_electric_line_enabled = false
+	fisherman_harpoon_enabled = false
+	fisherman_harpoon_target_count = 3
+	fisherman_harpoon_line_half_width = 5.0
+	fisherman_harpoon_pull_speed_multiplier = 1.45
 	slinger_contact_explosions_enabled = false
 	slinger_contact_explosion_radius_pixels = 0.0
 	slinger_contact_explosion_damage_multiplier = 1.0
@@ -4623,6 +4756,22 @@ func load_path_behaviors() -> void:
 			)
 		if flags.get("saucer_monster_drop", false):
 			saucer_monster_drop_enabled = true
+		if flags.get("fisherman_electric_line", false):
+			fisherman_electric_line_enabled = true
+		if flags.get("fisherman_harpoon", false):
+			fisherman_harpoon_enabled = true
+			fisherman_harpoon_target_count = maxi(
+				int(values.get("harpoon_target_count", 3)),
+				1
+			)
+			fisherman_harpoon_line_half_width = maxf(
+				float(values.get("harpoon_line_half_width", 5.0)),
+				0.0
+			)
+			fisherman_harpoon_pull_speed_multiplier = maxf(
+				float(values.get("harpoon_pull_speed_multiplier", 1.45)),
+				0.0
+			)
 		if flags.get("slinger_contact_explosions", false):
 			set_slinger_contact_explosions(
 				true,

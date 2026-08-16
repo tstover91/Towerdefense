@@ -5,12 +5,22 @@ const GameStats = preload("res://stat_database.gd")
 
 func _init() -> void:
 	assert(GameStats.ROUND_PROFILES.size() == 24)
-	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.145))
+	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.104))
+	assert(GameStats.get_round_cash_reward(1) == 100)
+	assert(GameStats.get_round_cash_reward(2) == 125)
+	assert(GameStats.get_round_cash_reward(3) == 150)
+	assert(GameStats.get_round_cash_reward(16) == 2400)
+	assert(GameStats.get_round_cash_reward(17) == 5000)
+	assert(GameStats.get_round_cash_reward(18) == 2500)
+	var total_round_cash := 0
+	for round_number in range(1, 25):
+		total_round_cash += GameStats.get_round_cash_reward(round_number)
+	assert(total_round_cash == 36500)
 	var expected_health_multipliers := [
-		1.50, 2.00, 2.50, 3.00, 3.50, 4.00,
-		4.50, 5.00, 5.50, 6.00, 6.50, 7.00,
-		7.40, 7.70, 8.00, 8.30, 8.60, 9.00,
-		9.40, 9.80, 10.20, 10.60, 11.00, 11.00,
+		1.50, 2.00, 2.75, 3.50, 4.25, 5.00,
+		5.75, 6.50, 7.25, 8.00, 8.75, 9.50,
+		10.20, 10.80, 11.40, 12.00, 12.60, 13.20,
+		13.80, 14.40, 15.00, 15.60, 16.50, 16.50,
 	]
 	var total_duration := 0.0
 	var previous_threat_budget := 0.0
@@ -20,9 +30,11 @@ func _init() -> void:
 			if round_number == 24
 			else minf(20.0 + float(round_number - 1) * 5.0, 60.0)
 		)
-		var legacy_boss_health := (
+		var expected_boss_health := (
 			1.15 + float(round_number - 1) * 0.025
 		) * 1.10
+		if round_number == 24:
+			expected_boss_health = 5.0
 
 		assert(is_equal_approx(
 			GameStats.get_round_duration(round_number),
@@ -37,7 +49,7 @@ func _init() -> void:
 		))
 		assert(is_equal_approx(
 			GameStats.get_round_health_multiplier(round_number, true),
-			legacy_boss_health
+			expected_boss_health
 		))
 		total_duration += expected_duration
 
@@ -59,15 +71,15 @@ func _init() -> void:
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"normal")
-	) == 366)
+	) == 549)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"bruiser"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"bruiser")
-	) == 2883)
+	) == 4324)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"brute"]["health"])
 		* GameStats.get_enemy_health_multiplier(24, &"brute")
-	) == 170775)
+	) == 450000)
 	assert(int(GameStats.ENEMIES[&"heavy_enforcer"]["health"]) == 1800)
 	assert(int(GameStats.ENEMIES[&"juggernaut"]["health"]) == 3500)
 	assert(int(GameStats.ENEMIES[&"bulwark"]["health"]) == 6000)

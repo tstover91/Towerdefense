@@ -7,6 +7,8 @@ extends RefCounted
 const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "invader"
 const BUILD_CELL_SIZE := 32.0
+const ELECTRIC_HITS_TO_PROC := 5
+const ELECTRIC_PROC_DAMAGE_CONTRIBUTION := 0.30
 
 # Shared wave-director recipe data. Keeping this here lets gameplay and the
 # balance optimizer consume the same role and formation weights.
@@ -131,39 +133,39 @@ const EXPLOSIVE_ARMOR_MULTIPLIER := 1.25
 const ARMOR_RATING_CONSTANT := 50.0
 const MAXIMUM_ARMOR_DAMAGE_REDUCTION := 0.60
 
-# Enemy bounties remain composition-dependent; this global multiplier is the
-# single tuning point for their average contribution to the run economy.
-const KILL_REWARD_MULTIPLIER := 0.145
+# Enemy bounties remain composition-dependent. This value compensates for the
+# denser director budgets so added enemies do not also inflate the economy.
+const KILL_REWARD_MULTIPLIER := 0.104
 
 const ROUND_CASH_REWARDS := {
-	1: 500,
-	2: 600,
-	3: 750,
-	4: 900,
-	5: 1050,
-	6: 1300,
-	7: 1400,
-	8: 1550,
-	9: 1700,
-	10: 1900,
-	11: 2200,
-	12: 2300,
-	13: 2500,
-	14: 2700,
-	15: 3000,
-	16: 3400,
+	1: 100,
+	2: 125,
+	3: 150,
+	4: 200,
+	5: 250,
+	6: 300,
+	7: 350,
+	8: 400,
+	9: 450,
+	10: 475,
+	11: 800,
+	12: 1000,
+	13: 1200,
+	14: 1500,
+	15: 1900,
+	16: 2400,
 	17: 5000,
-	18: 4000,
-	19: 4250,
-	20: 4500,
-	21: 4750,
-	22: 5000,
-	23: 5500,
+	18: 2500,
+	19: 2800,
+	20: 3100,
+	21: 3400,
+	22: 3800,
+	23: 4300,
 	24: 0,
 }
 
-# Explicit round scaling profiles. Standard health follows a deliberately flat
-# curve so late enemy identity comes primarily from base stats and composition.
+# Explicit round scaling profiles. Rounds 1-2 retain their introductory health;
+# durability then ramps harder so late defenses need sustained damage.
 #
 # threat_budget is the nominal amount generated during timed spawning and is
 # used to derive the director's per-second rate. Chunk timing can leave a small
@@ -171,28 +173,28 @@ const ROUND_CASH_REWARDS := {
 const ROUND_PROFILES := {
 	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.50, "boss_health_multiplier": 1.2650},
 	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 2.00, "boss_health_multiplier": 1.2925},
-	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 2.50, "boss_health_multiplier": 1.3200},
-	4: {"duration": 35.0, "threat_budget": 63, "standard_health_multiplier": 3.00, "boss_health_multiplier": 1.3475},
-	5: {"duration": 40.0, "threat_budget": 90.0, "standard_health_multiplier": 3.50, "boss_health_multiplier": 1.3750},
-	6: {"duration": 45.0, "threat_budget": 124.0, "standard_health_multiplier": 4.00, "boss_health_multiplier": 1.4025},
-	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 4.50, "boss_health_multiplier": 1.4300},
-	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 5.00, "boss_health_multiplier": 1.4575},
-	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 5.50, "boss_health_multiplier": 1.4850},
-	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 6.00, "boss_health_multiplier": 1.5125},
-	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 6.50, "boss_health_multiplier": 1.5400},
-	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 7.00, "boss_health_multiplier": 1.5675},
-	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 7.40, "boss_health_multiplier": 1.5950},
-	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 7.70, "boss_health_multiplier": 1.6225},
-	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.6500},
-	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 8.30, "boss_health_multiplier": 1.6775},
-	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 8.60, "boss_health_multiplier": 1.7050},
-	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 9.00, "boss_health_multiplier": 1.7325},
-	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 9.40, "boss_health_multiplier": 1.7600},
-	20: {"duration": 60.0, "threat_budget": 600, "standard_health_multiplier": 9.80, "boss_health_multiplier": 1.7875},
-	21: {"duration": 60.0, "threat_budget": 650, "standard_health_multiplier": 10.20, "boss_health_multiplier": 1.8150},
-	22: {"duration": 60.0, "threat_budget": 705, "standard_health_multiplier": 10.60, "boss_health_multiplier": 1.8425},
-	23: {"duration": 60.0, "threat_budget": 765, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8700},
-	24: {"duration": 90.0, "threat_budget": 1150, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8975},
+	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 2.75, "boss_health_multiplier": 1.3200},
+	4: {"duration": 35.0, "threat_budget": 63, "standard_health_multiplier": 3.50, "boss_health_multiplier": 1.3475},
+	5: {"duration": 40.0, "threat_budget": 90.0, "standard_health_multiplier": 4.25, "boss_health_multiplier": 1.3750},
+	6: {"duration": 45.0, "threat_budget": 124.0, "standard_health_multiplier": 5.00, "boss_health_multiplier": 1.4025},
+	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 5.75, "boss_health_multiplier": 1.4300},
+	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 6.50, "boss_health_multiplier": 1.4575},
+	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 7.25, "boss_health_multiplier": 1.4850},
+	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.5125},
+	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 8.75, "boss_health_multiplier": 1.5400},
+	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 9.50, "boss_health_multiplier": 1.5675},
+	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 10.20, "boss_health_multiplier": 1.5950},
+	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 10.80, "boss_health_multiplier": 1.6225},
+	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 11.40, "boss_health_multiplier": 1.6500},
+	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 12.00, "boss_health_multiplier": 1.6775},
+	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 12.60, "boss_health_multiplier": 1.7050},
+	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 13.20, "boss_health_multiplier": 1.7325},
+	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 13.80, "boss_health_multiplier": 1.7600},
+	20: {"duration": 60.0, "threat_budget": 600, "standard_health_multiplier": 14.40, "boss_health_multiplier": 1.7875},
+	21: {"duration": 60.0, "threat_budget": 650, "standard_health_multiplier": 15.00, "boss_health_multiplier": 1.8150},
+	22: {"duration": 60.0, "threat_budget": 705, "standard_health_multiplier": 15.60, "boss_health_multiplier": 1.8425},
+	23: {"duration": 60.0, "threat_budget": 765, "standard_health_multiplier": 16.50, "boss_health_multiplier": 1.8700},
+	24: {"duration": 90.0, "threat_budget": 1150, "standard_health_multiplier": 16.50, "boss_health_multiplier": 5.0000},
 	
 }
 
@@ -415,6 +417,7 @@ const TRADE_AGREEMENT_BUILD_COST_MULTIPLIER := 2.0
 
 const TOWER_TEXTURES := {
 	&"invader": preload("res://assets/towers/invader.png"),
+	&"fisherman": preload("res://assets/towers/fisherman.png"),
 	&"gauss_repeater": preload("res://assets/towers/gauss_repeater.png"),
 	&"beholder": preload("res://assets/towers/beholder.png"),
 	&"reaver": preload("res://assets/towers/reaver.png"),
@@ -435,6 +438,7 @@ const TOWER_TEXTURES := {
 # separately using the price actually paid for that tower instance.
 const TOWER_UPGRADED_SELL_VALUES := {
 	&"invader": [200, 233, 327, 633],
+	&"fisherman": [167, 223, 390, 946],
 	&"gauss_repeater": [800, 911, 1444, 2944],
 	&"beholder": [2500, 2722, 3389, 4665],
 	&"reaver": [175, 216, 450, 933],
@@ -452,6 +456,7 @@ const TOWER_UPGRADED_SELL_VALUES := {
 
 const TOWER_PATH_SELL_VALUE_ADDITIONS := {
 	&"invader": {&"a": 1533, &"b": 1516},
+	&"fisherman": {&"a": 1500, &"b": 1500},
 	&"gauss_repeater": {&"a": 5944, &"b": 5944,},
 	&"beholder": {&"a": 7632, &"b": 7699},
 	&"reaver": {&"a": 1599, &"b": 1633},
@@ -840,6 +845,88 @@ const TOWERS := {
 		},
 	],
 },
+	"fisherman": {
+		"display_name": "Alien Fisherman",
+		"description": "Casts a hook that deals its damage over four ticks while reeling the enemy backward. After the line releases, that enemy cannot be pulled again for 2.5 seconds, but can still take hook damage.",
+		"placement_cost": 167,
+		"footprint_cells": Vector2i(2, 2),
+		"type_tags": [&"biological"],
+		"damage_tags": [&"melee"],
+		"primary_damage_type": &"melee",
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
+		"bonus_tags": [],
+		"paths": {
+			"a": {
+				"display_name": "Live Wire",
+				"description": "Electrifies the fishing line, converting its damage to Electric so every hook tick contributes to shared Electric buildup.",
+				"cost": 4500,
+				"unlock_level": 3,
+				"add_damage_tags": [&"electric"],
+				"primary_damage_type": &"electric",
+				"stat_multipliers": {"damage": 1.40},
+				"behavior_flags": {"fisherman_electric_line": true},
+			},
+			"b": {
+				"display_name": "Triple Harpoon",
+				"description": "Replaces the rod with a harpoon gun that spears up to three enemies in a line and bypasses armor. Only the selected target is reeled backward, with greater pull strength.",
+				"cost": 4500,
+				"unlock_level": 3,
+				"add_bonus_tags": [&"pierce"],
+				"pierce_count_add": 2,
+				"behavior_flags": {"fisherman_harpoon": true},
+				"behavior_values": {
+					"harpoon_target_count": 3,
+					"harpoon_line_half_width": 5.0,
+					"harpoon_pull_speed_multiplier": 1.45,
+				},
+			},
+		},
+		# Cost and stat progression use the same TDS conversion as Invader:
+		# gameplay costs are one third of the source curve and damage is 30x.
+		"levels": [
+			{
+				"upgrade_cost": 0,
+				"damage": 300,
+				"firerate": 4.0,
+				"range": 8.5,
+				"hook_tick_count": 4,
+				"hook_duration": 1.2,
+				"hook_pull_speed": 80.0,
+				"hook_pull_immunity": 2.5,
+			},
+			{
+				"upgrade_cost": 167,
+				"damage": 600,
+				"firerate": 4.0,
+				"range": 9.0,
+				"hook_tick_count": 4,
+				"hook_duration": 1.2,
+				"hook_pull_speed": 85.0,
+				"hook_pull_immunity": 2.5,
+			},
+			{
+				"upgrade_cost": 500,
+				"damage": 750,
+				"firerate": 4.0,
+				"range": 10.0,
+				"hook_tick_count": 4,
+				"hook_duration": 1.2,
+				"hook_pull_speed": 90.0,
+				"hook_pull_immunity": 2.5,
+			},
+			{
+				"upgrade_cost": 1667,
+				"damage": 1200,
+				"firerate": 3.5,
+				"range": 11.0,
+				"hook_tick_count": 4,
+				"hook_duration": 1.2,
+				"hook_pull_speed": 100.0,
+				"hook_pull_immunity": 2.5,
+			},
+		],
+	},
 	"gauss_repeater": {
 		"display_name": "Gauss Repeater",
 		"placement_cost": 800,
@@ -889,7 +976,7 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 20,
+				"damage": 16,
 				"projectile_speed": 900.0,
 				"firerate": 0.080,
 				"maximum_spread_degrees": 18.0,
@@ -900,7 +987,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 333,
-				"damage": 20,
+				"damage": 16,
 				"projectile_speed": 950.0,
 				"firerate": 0.060,
 				"maximum_spread_degrees": 18.0,
@@ -911,7 +998,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1600,
-				"damage": 40,
+				"damage": 32,
 				"projectile_speed": 1050.0,
 				"firerate": 0.05,
 				"maximum_spread_degrees": 16.0,
@@ -922,7 +1009,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 4500,
-				"damage": 70,
+				"damage": 56,
 				"projectile_speed": 1200.0,
 				"firerate": 0.05,
 				"maximum_spread_degrees": 14.0,
@@ -1538,7 +1625,7 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 20,
+				"damage": 16,
 				"firerate": 0.40,
 				"range": 7.5,
 				"projectile_count": 1,
@@ -1546,7 +1633,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 95,
-				"damage": 28,
+				"damage": 22,
 				"firerate": 0.40,
 				"range": 7.5,
 				"projectile_count": 2,
@@ -1554,7 +1641,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 330,
-				"damage": 38,
+				"damage": 30,
 				"firerate": 0.40,
 				"range": 8.25,
 				"projectile_count": 2,
@@ -1562,7 +1649,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 830,
-				"damage": 94,
+				"damage": 75,
 				"firerate": 0.40,
 				"range": 8.25,
 				"projectile_count": 3,
@@ -1589,7 +1676,7 @@ const TOWERS := {
 				"add_damage_tags": [&"explosive"],
 				"behavior_flags": {"saucer_twin_rockets": true},
 				"behavior_values": {
-					"saucer_rocket_damage_multiplier": 2.0,
+					"saucer_rocket_damage_multiplier": 2.5,
 					"saucer_rocket_interval": 3.0,
 					"saucer_rocket_splash_radius": 3.0,
 				},
@@ -1606,7 +1693,7 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 275,
+				"damage": 220,
 				"projectile_speed": 650.0,
 				"firerate": 0.65,
 				"range": 15.0,
@@ -1619,7 +1706,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1075,
-				"damage": 390,
+				"damage": 312,
 				"projectile_speed": 760.0,
 				"firerate": 0.60,
 				"range": 16.0,
@@ -1632,7 +1719,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1000,
-				"damage": 600,
+				"damage": 480,
 				"projectile_speed": 760.0,
 				"firerate": 0.60,
 				"range": 16.0,
@@ -1645,7 +1732,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1600,
-				"damage": 675,
+				"damage": 540,
 				"projectile_speed": 920.0,
 				"firerate": 0.45,
 				"range": 17.0,
@@ -1671,7 +1758,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Triple Bloom",
-				"description": "Each Spore Turret fires three projectiles simultaneously, with each projectile dealing 65% damage.",
+				"description": "Each Spore Turret fires three projectiles simultaneously from one point. The shots fan outward with distance, with each projectile dealing 65% damage.",
 				"cost": 5000,
 				"unlock_level": 3,
 				"unit_stat_multipliers": {
@@ -2149,12 +2236,14 @@ static func get_tower_draft_entry(tower_id: StringName) -> Dictionary:
 	var special_names := PackedStringArray()
 	for bonus_tag in tower.get("bonus_tags", []):
 		special_names.append(String(bonus_tag).capitalize())
-	var description := "$%d build cost. %s %s attack with %s impact." % [
-		int(tower["placement_cost"]),
-		damage_name,
-		delivery_name,
-		impact_name,
-	]
+	var description := String(tower.get("description", ""))
+	if description.is_empty():
+		description = "$%d build cost. %s %s attack with %s impact." % [
+			int(tower["placement_cost"]),
+			damage_name,
+			delivery_name,
+			impact_name,
+		]
 	if not special_names.is_empty():
 		description += " Specials: %s." % ", ".join(special_names)
 	return {

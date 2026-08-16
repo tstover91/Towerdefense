@@ -903,11 +903,14 @@ func launch_projectile_volley(
 			spread_ratio = (
 				float(projectile_index) / float(projectile_count - 1) - 0.5
 			)
-		var launch_position := (
-			global_position
+		# Multi-projectile volleys share one muzzle and spread toward separate
+		# endpoints. Their separation therefore grows throughout the flight
+		# instead of starting wide and converging on the selected target.
+		var launch_position := global_position
+		var destination := (
+			current_target.global_position
 			+ perpendicular * volley_width_pixels * spread_ratio
 		)
-		var destination := current_target.global_position
 		var projectile := PROJECTILE_SCENE.instantiate() as TowerProjectile
 		get_tree().current_scene.add_child(projectile)
 		projectile.global_position = launch_position

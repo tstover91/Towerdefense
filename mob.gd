@@ -3,8 +3,10 @@ extends CharacterBody2D
 const GameStats = preload("res://stat_database.gd")
 const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
+const ELECTRIC_PROC_EFFECT = preload("res://electric_proc_effect.gd")
 const STUN_FATIGUE_MULTIPLIERS := [1.0, 0.65, 0.40, 0.25, 0.10]
 const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
+const FISHERMAN_MINIMUM_PROGRESS_RATIO := 0.25
 
 signal mob_killed(reward: int)
 signal mob_died(mob: Node2D)
@@ -61,6 +63,11 @@ var brainiac_link_remaining := 0.0
 var brainiac_link_radius := 0.0
 var brainiac_link_damage_share := 0.0
 var brainiac_link_context: AttackContext
+var fisherman_pull_immunity_remaining := 0.0
+var fisherman_pull_active := false
+var fisherman_minimum_progress := -1.0
+var electric_hit_count := 0
+var electric_proc_damage := 0.0
 
 
 func _draw() -> void:
@@ -82,6 +89,9 @@ func _draw() -> void:
 func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
 	path_follow = pf
 	path_follow.progress = maxf(start_progress, 0.0)
+	fisherman_pull_active = false
+	fisherman_pull_immunity_remaining = 0.0
+	fisherman_minimum_progress = -1.0
 	position = Vector2.ZERO
 	update_health_bar_position()
 	
@@ -93,6 +103,12 @@ func _process(delta: float) -> void:
 	_process_regeneration(delta)
 	_process_summoning(delta)
 	_process_control_effects(delta)
+	if fisherman_minimum_progress >= 0.0:
+		fisherman_minimum_progress += (
+			get_effective_speed()
+			* FISHERMAN_MINIMUM_PROGRESS_RATIO
+			* delta
+		)
 	path_follow.progress += get_effective_speed() * delta
 	update_health_bar_position()
 
@@ -227,6 +243,10 @@ func update_health_bar_visibility() -> void:
 
 
 func _process_control_effects(delta: float) -> void:
+	fisherman_pull_immunity_remaining = maxf(
+		fisherman_pull_immunity_remaining - delta,
+		0.0
+	)
 	stun_remaining = maxf(stun_remaining - delta, 0.0)
 	if stun_fatigue_tier > 0:
 		stun_fatigue_recovery_elapsed += delta
@@ -260,6 +280,65 @@ func clear_slow_from_context(attack_context: AttackContext) -> void:
 		return
 	slow_remaining = 0.0
 	slow_context = null
+
+
+func try_begin_fisherman_pull(_immunity_duration: float) -> bool:
+	if (
+		finished
+		or path_follow == null
+		or fisherman_pull_active
+		or fisherman_pull_immunity_remaining > 0.0
+	):
+		return false
+	fisherman_pull_active = true
+	# Bank all progress earned since the previous hook. A new cast may reel from
+	# here, but can never erase the ground gained during the protected window.
+	fisherman_minimum_progress = maxf(
+		fisherman_minimum_progress,
+		path_follow.progress
+	)
+	return true
+
+
+func end_fisherman_pull(immunity_duration: float) -> void:
+	if not fisherman_pull_active:
+		return
+	fisherman_pull_active = false
+	fisherman_pull_immunity_remaining = maxf(
+		fisherman_pull_immunity_remaining,
+		maxf(immunity_duration, 0.0)
+	)
+
+
+func apply_fisherman_pull_toward(
+	tower_world_position: Vector2,
+	pull_distance: float
+) -> void:
+	if finished or path_follow == null or pull_distance <= 0.0:
+		return
+	var path := path_follow.get_parent() as Path2D
+	if path == null or path.curve == null:
+		return
+	var current_progress := path_follow.progress
+	var current_position := path.to_global(
+		path.curve.sample_baked(current_progress)
+	)
+	var current_distance := current_position.distance_to(tower_world_position)
+	var minimum_progress := minf(
+		maxf(fisherman_minimum_progress, 0.0),
+		current_progress
+	)
+	var backward_progress := maxf(
+		current_progress - pull_distance,
+		minimum_progress
+	)
+	var backward_distance := path.to_global(
+		path.curve.sample_baked(backward_progress)
+	).distance_to(tower_world_position)
+	# Fishing pulls may only reverse path progress. When the tower is ahead of
+	# the enemy, the line still damages but cannot accelerate it toward the exit.
+	if backward_distance + 0.001 < current_distance:
+		path_follow.progress = backward_progress
 
 
 func apply_brainiac_link(
@@ -457,13 +536,19 @@ func apply_damage(
 ) -> int:
 	if finished:
 		return 0
+	var is_electric_proc := (
+		damage_type == &"electric"
+		and attack_context != null
+		and bool(attack_context.metadata.get("electric_proc", false))
+	)
 	if (
 		damage_type == &"explosive"
 		and attack_context != null
 		and int(attack_context.metadata.get("charred_clothes", 0)) > 0
 	):
 		remove_hidden_trait()
-	amount = apply_relic_damage_modifiers(amount, damage_type, attack_context)
+	if not is_electric_proc:
+		amount = apply_relic_damage_modifiers(amount, damage_type, attack_context)
 	if (
 		attack_context != null
 		and bool(attack_context.metadata.get("was_critical", false))
@@ -480,6 +565,8 @@ func apply_damage(
 	):
 		ignores_armor = true
 	var should_spread := (
+		not is_electric_proc
+		and
 		can_trigger_brainiac_link
 		and brainiac_link_remaining > 0.0
 		and brainiac_link_radius > 0.0
@@ -488,6 +575,8 @@ func apply_damage(
 	var link_center := global_position
 
 	var conductive_armor := (
+		not is_electric_proc
+		and
 		damage_type == &"electric"
 		and attack_context != null
 		and int(attack_context.metadata.get("conductive", 0)) > 0
@@ -495,7 +584,7 @@ func apply_damage(
 	)
 	var armor_reduction := (
 		0.0
-		if ignores_armor and not conductive_armor
+		if (ignores_armor or is_electric_proc) and not conductive_armor
 		else GameStats.get_armor_damage_reduction(armor, damage_type)
 	)
 	var final_damage := maxi(
@@ -511,6 +600,8 @@ func apply_damage(
 	health -= final_damage
 	health_bar.value = health
 	update_health_bar_visibility()
+	if damage_type == &"electric" and not is_electric_proc and received_damage > 0:
+		register_electric_hit(received_damage, attack_context)
 	if health <= 0:
 		if (
 			damage_type == &"beam"
@@ -527,6 +618,65 @@ func apply_damage(
 			attack_context
 		)
 	return received_damage
+
+
+func register_electric_hit(
+	received_damage: int,
+	attack_context: AttackContext
+) -> void:
+	electric_hit_count += 1
+	electric_proc_damage += (
+		float(received_damage)
+		* GameStats.ELECTRIC_PROC_DAMAGE_CONTRIBUTION
+	)
+	if electric_hit_count < GameStats.ELECTRIC_HITS_TO_PROC:
+		return
+	var lightning_damage := maxi(roundi(electric_proc_damage), 1)
+	electric_hit_count = 0
+	electric_proc_damage = 0.0
+	trigger_electric_lightning_proc(lightning_damage, attack_context)
+
+
+func trigger_electric_lightning_proc(
+	lightning_damage: int,
+	source_context: AttackContext
+) -> void:
+	spawn_electric_proc_effect()
+	if health <= 0 or finished:
+		return
+	var proc_context: AttackContext
+	if source_context != null:
+		proc_context = source_context.derive(
+			self,
+			&"enemy",
+			&"electric_lightning_proc",
+			true,
+			{"electric_proc": true}
+		)
+	else:
+		proc_context = AttackContext.legacy(&"", &"electric_lightning_proc")
+		proc_context.metadata["electric_proc"] = true
+	# The stored value is already based on final received damage. Bypass armor,
+	# relic modifiers, and Brainiac sharing so the proc deals that exact amount
+	# to this target only and cannot recursively build another proc.
+	apply_damage(
+		lightning_damage,
+		&"electric",
+		true,
+		false,
+		proc_context
+	)
+
+
+func spawn_electric_proc_effect() -> void:
+	if not is_inside_tree():
+		return
+	var effect := ELECTRIC_PROC_EFFECT.new() as Node2D
+	var effect_parent: Node = get_tree().current_scene
+	if effect_parent == null:
+		effect_parent = get_tree().root
+	effect_parent.add_child(effect)
+	effect.global_position = global_position
 
 
 func trigger_microwave_explosion(

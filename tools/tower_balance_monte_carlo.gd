@@ -9,7 +9,7 @@ const DEFAULT_REPORT_PATH := "res://balance_reports/tower_monte_carlo.csv"
 const BALANCED_TOWERS: Array[StringName] = [
 	&"invader", &"gauss_repeater", &"beholder", &"reaver", &"brainiac",
 	&"longshot", &"slinger", &"voidcaller", &"orbitalcannon", &"energycore",
-	&"saucer",
+	&"saucer", &"fisherman",
 ]
 
 var rng := RandomNumberGenerator.new()
@@ -642,6 +642,19 @@ func get_control_value(stats: Dictionary, traits: Dictionary, scenario: Dictiona
 	if stun_duration > 0.0 and (not bool(scenario["boss"]) or bool(stats.get("stun_affects_bosses", false))):
 		# Repeated stuns quickly settle into fatigue, so sustained control uses the middle fatigue tier.
 		value += minf(stun_duration / interval, 1.0) * targets * 0.40
+	if stats.has("hook_duration"):
+		var pull_strength := clampf(
+			float(stats.get("hook_pull_speed", 0.0))
+			/ maxf(float(scenario.get("speed", 1.0)), 1.0),
+			0.0,
+			1.0
+		)
+		value += (
+			minf(float(stats.get("hook_duration", 1.2)) / interval, 1.0)
+			* targets
+			* pull_strength
+			* 0.15
+		)
 	var flags: Dictionary = traits["flags"]
 	var values: Dictionary = traits["values"]
 	if flags.get("reaver_time_bubble", false):
@@ -980,6 +993,7 @@ func get_model_note(tower_id: StringName) -> String:
 		&"orbitalcannon": return "accurate manual placement assumed; area; stun; Lance ramp and Slow modeled"
 		&"energycore": return "distinct primary targets; Slow; Shockwave and Branching Current modeled"
 		&"saucer": return "pursuit uptime; abduction execution; split prevention; rockets and specimen uptime modeled"
+		&"fisherman": return "four-tick hook; shared pull immunity and three-target Harpoon Pierce modeled"
 		&"hivemother", &"dronedepot", &"mechbay": return "spawn ramp and combat uptime approximated"
 		_: return "generic event model"
 
