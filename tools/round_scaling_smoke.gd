@@ -6,16 +6,19 @@ const GameStats = preload("res://stat_database.gd")
 func _init() -> void:
 	assert(GameStats.ROUND_PROFILES.size() == 24)
 	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.104))
-	assert(GameStats.get_round_cash_reward(1) == 100)
-	assert(GameStats.get_round_cash_reward(2) == 125)
-	assert(GameStats.get_round_cash_reward(3) == 150)
+	assert(GameStats.get_round_cash_reward(1) == 150)
+	assert(GameStats.get_round_cash_reward(2) == 175)
+	assert(GameStats.get_round_cash_reward(3) == 200)
+	assert(GameStats.get_round_cash_reward(9) == 525)
+	assert(GameStats.get_round_cash_reward(10) == 600)
+	assert(GameStats.get_round_cash_reward(11) == 800)
 	assert(GameStats.get_round_cash_reward(16) == 2400)
 	assert(GameStats.get_round_cash_reward(17) == 5000)
 	assert(GameStats.get_round_cash_reward(18) == 2500)
 	var total_round_cash := 0
 	for round_number in range(1, 25):
 		total_round_cash += GameStats.get_round_cash_reward(round_number)
-	assert(total_round_cash == 36500)
+	assert(total_round_cash == 37100)
 	var expected_health_multipliers := [
 		1.50, 2.00, 2.50, 3.00, 3.50, 4.00,
 		4.50, 5.00, 5.50, 6.00, 6.50, 7.00,

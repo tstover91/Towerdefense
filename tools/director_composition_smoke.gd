@@ -43,6 +43,18 @@ func run_checks() -> void:
 				return StringName(event.get("variant", &"normal")) == &"elite"
 			))
 
+	director.enemy_rng.seed = 99173
+	var random_break_count := 0
+	for _group_index in 100:
+		director.current_wave_spawn_style = &"standard"
+		var schedule: Array[Dictionary] = director.build_director_group()
+		if schedule.back().has("random_break_after"):
+			var break_duration := float(schedule.back()["random_break_after"])
+			assert(break_duration >= director.RANDOM_SPAWN_BREAK_MIN_DURATION)
+			assert(break_duration <= director.RANDOM_SPAWN_BREAK_MAX_DURATION)
+			random_break_count += 1
+	assert(random_break_count > 0 and random_break_count < 100)
+
 	for round_number in range(1, 24):
 		var debuts := GameStats.get_debut_enemy_ids(
 			round_number,

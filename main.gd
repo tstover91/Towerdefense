@@ -53,6 +53,9 @@ const MAX_POOLED_EXPLOSION_EFFECTS := 64
 const STANDARD_GROUP_SIZE_MULTIPLIER := 1.25
 const STANDARD_FORMATION_DELAY_MULTIPLIER := 0.70
 const SPACED_FORMATION_DELAY_MULTIPLIER := 0.85
+const RANDOM_SPAWN_BREAK_CHANCE := 0.30
+const RANDOM_SPAWN_BREAK_MIN_DURATION := 0.75
+const RANDOM_SPAWN_BREAK_MAX_DURATION := 1.50
 const ELITE_EVENT_MIN_INTERVAL := 15.0
 const ELITE_EVENT_MAX_INTERVAL := 25.0
 const GAUNTLET_ELITE_MIN_INTERVAL := 10.0
@@ -2003,7 +2006,22 @@ func build_director_group() -> Array[Dictionary]:
 			spawn_variant,
 			HORDE_SPAWN_DELAY_MULTIPLIER
 		)
+	apply_random_spawn_break(schedule)
 	return schedule
+
+
+func apply_random_spawn_break(schedule: Array[Dictionary]) -> void:
+	if schedule.is_empty() or enemy_rng.randf() >= RANDOM_SPAWN_BREAK_CHANCE:
+		return
+	var break_duration := enemy_rng.randf_range(
+		RANDOM_SPAWN_BREAK_MIN_DURATION,
+		RANDOM_SPAWN_BREAK_MAX_DURATION
+	)
+	schedule.back()["delay_after"] = (
+		float(schedule.back().get("delay_after", 0.1))
+		+ break_duration
+	)
+	schedule.back()["random_break_after"] = break_duration
 
 
 func choose_gauntlet_spawn_style() -> StringName:
