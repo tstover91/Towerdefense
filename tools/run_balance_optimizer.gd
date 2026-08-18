@@ -1559,8 +1559,12 @@ func make_mix_entry(
 			variant_reward_multiplier = 0.55
 			variant_damage_multiplier = 0.70
 		&"elite":
-			variant_health_multiplier = GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER
-			variant_speed_multiplier = GameStats.ELITE_ENEMY_SPEED_MULTIPLIER
+			variant_health_multiplier = GameStats.get_elite_enemy_health_multiplier(
+				round_number
+			)
+			variant_speed_multiplier = GameStats.get_elite_enemy_speed_multiplier(
+				round_number
+			)
 			variant_reward_multiplier = 3.0
 			variant_damage_multiplier = 1.50
 			variant_armor_bonus = 6.0
@@ -3482,6 +3486,8 @@ func get_balance_values() -> Dictionary:
 		"horde_enemy_health_multiplier": GameStats.HORDE_ENEMY_HEALTH_MULTIPLIER,
 		"elite_enemy_health_multiplier": GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER,
 		"elite_enemy_speed_multiplier": GameStats.ELITE_ENEMY_SPEED_MULTIPLIER,
+		"early_elite_enemy_health_multiplier": GameStats.EARLY_ELITE_ENEMY_HEALTH_MULTIPLIER,
+		"early_elite_enemy_speed_multiplier": GameStats.EARLY_ELITE_ENEMY_SPEED_MULTIPLIER,
 		"payday_enemy_health_multiplier": GameStats.PAYDAY_ENEMY_HEALTH_MULTIPLIER,
 		"explosive_armor_multiplier": GameStats.EXPLOSIVE_ARMOR_MULTIPLIER,
 	}

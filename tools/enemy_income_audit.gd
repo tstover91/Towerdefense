@@ -101,15 +101,11 @@ func append_special_event_counts(
 		var elite_count: int = (
 			director.enemy_rng.randi_range(1, 3)
 			if is_gauntlet
-			else (
-				2
-				if round_number == 6 and director.enemy_rng.randf() < 0.25
-				else (1 if round_number == 6 else director.enemy_rng.randi_range(1, 2))
-			)
+			else (1 if round_number == 6 else director.enemy_rng.randi_range(1, 2))
 		)
 		var escort_count: int = director.enemy_rng.randi_range(
-			4 if is_gauntlet else 3,
-			8 if is_gauntlet else 6
+			4 if is_gauntlet else (2 if round_number == 6 else 3),
+			8 if is_gauntlet else (4 if round_number == 6 else 6)
 		)
 		add_schedule_counts(counts, director.build_elite_event_schedule(
 			elite_count, escort_count,
@@ -120,11 +116,13 @@ func append_special_event_counts(
 			18.0 if is_gauntlet else 25.0
 		)
 	add_schedule_counts(counts, director.build_elite_event_schedule(
-		3 if round_number >= 11 else 2,
+		3 if round_number >= 11 else (1 if round_number == 6 else 2),
 		(
 			director.enemy_rng.randi_range(6, 10)
 			if is_gauntlet
-			else director.enemy_rng.randi_range(4, 7)
+			else director.enemy_rng.randi_range(3, 5)
+				if round_number == 6
+				else director.enemy_rng.randi_range(4, 7)
 		),
 		&"horde" if is_gauntlet else &"normal"
 	))

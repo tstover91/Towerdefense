@@ -53,6 +53,7 @@ func _init() -> void:
 func validate_debut_plan(plan: Dictionary) -> void:
 	assert(plan.size() == GameStats.ENEMIES.size())
 	assert(int(plan[&"normal"]) == 1)
+	assert(int(plan[&"hidden"]) == 9)
 	assert(int(plan[&"heavy_enforcer"]) == 16)
 	assert(int(plan[&"juggernaut"]) == 19)
 	assert(int(plan[&"bulwark"]) == 22)

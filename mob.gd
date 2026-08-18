@@ -145,8 +145,10 @@ func load_stats() -> void:
 			visual_multiplier = 0.9
 			traits.append(&"horde")
 		&"elite":
-			variant_health_multiplier = GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER
-			speed_multiplier = GameStats.ELITE_ENEMY_SPEED_MULTIPLIER
+			variant_health_multiplier = GameStats.get_elite_enemy_health_multiplier(
+				wave_number
+			)
+			speed_multiplier = GameStats.get_elite_enemy_speed_multiplier(wave_number)
 			reward_multiplier = 3.0
 			damage_multiplier = 1.5
 			armor_bonus = 6.0

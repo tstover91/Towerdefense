@@ -17,6 +17,7 @@ const ELECTRIC_PROC_DAMAGE_CONTRIBUTION := 0.30
 # mechanics onto the same round or allowing counters before they are affordable.
 const FIXED_ENEMY_DEBUT_ROUNDS := {
 	&"normal": 1,
+	&"hidden": 9,
 	&"swat_enforcer": 13,
 	&"heavy_enforcer": 16,
 	&"juggernaut": 19,
@@ -26,10 +27,7 @@ const FIXED_ENEMY_DEBUT_ROUNDS := {
 const ENEMY_DEBUT_GROUPS := [
 	{"enemies": [&"runner", &"swarmling"], "rounds": [2, 3]},
 	{"enemies": [&"bruiser", &"armored"], "rounds": [4, 5]},
-	{
-		"enemies": [&"hidden", &"splitter", &"buffer"],
-		"rounds": [7, 8, 9],
-	},
+	{"enemies": [&"splitter", &"buffer"], "rounds": [7, 8]},
 	{
 		"enemies": [&"rusher", &"regenerator", &"summoner"],
 		"rounds": [10, 11, 13],
@@ -174,9 +172,9 @@ const ROUND_PROFILES := {
 	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.50, "boss_health_multiplier": 1.2650},
 	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 2.00, "boss_health_multiplier": 1.2925},
 	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 2.50, "boss_health_multiplier": 1.3200},
-	4: {"duration": 35.0, "threat_budget": 63, "standard_health_multiplier": 3.00, "boss_health_multiplier": 1.3475},
-	5: {"duration": 40.0, "threat_budget": 90.0, "standard_health_multiplier": 3.50, "boss_health_multiplier": 1.3750},
-	6: {"duration": 45.0, "threat_budget": 124.0, "standard_health_multiplier": 4.00, "boss_health_multiplier": 1.4025},
+	4: {"duration": 35.0, "threat_budget": 56, "standard_health_multiplier": 3.00, "boss_health_multiplier": 1.3475},
+	5: {"duration": 40.0, "threat_budget": 75.0, "standard_health_multiplier": 3.50, "boss_health_multiplier": 1.3750},
+	6: {"duration": 45.0, "threat_budget": 96.0, "standard_health_multiplier": 4.00, "boss_health_multiplier": 1.4025},
 	7: {"duration": 50.0, "threat_budget": 159.6700, "standard_health_multiplier": 4.50, "boss_health_multiplier": 1.4300},
 	8: {"duration": 55.0, "threat_budget": 195.2720, "standard_health_multiplier": 5.00, "boss_health_multiplier": 1.4575},
 	9: {"duration": 60.0, "threat_budget": 235.9560, "standard_health_multiplier": 5.50, "boss_health_multiplier": 1.4850},
@@ -223,6 +221,8 @@ const STANDARD_ENEMY_SPEED_MULTIPLIER := 0.53
 const HORDE_ENEMY_HEALTH_MULTIPLIER := 0.55
 const ELITE_ENEMY_HEALTH_MULTIPLIER := 2.25
 const ELITE_ENEMY_SPEED_MULTIPLIER := 1.30
+const EARLY_ELITE_ENEMY_HEALTH_MULTIPLIER := 1.75
+const EARLY_ELITE_ENEMY_SPEED_MULTIPLIER := 1.15
 const PAYDAY_ENEMY_HEALTH_MULTIPLIER := 0.50
 
 # Provisional relic balance values. These are centralized so later tuning does
@@ -600,16 +600,16 @@ const ENEMIES := {
 	},
 	"hidden": {
 		"display_name": "Hidden",
-		"health": 100,
+		"health": 75,
 		"health_per_wave": 0.0,
-		"move_speed": 110.0,
+		"move_speed": 95.0,
 		"cash_reward": 15,
-		"base_damage": 6,
+		"base_damage": 4,
 		"armor": 0,
-		"earliest_debut_round": 8,
-		"formation_strength": 5,
-		"director_cost": 3,
-		"spawn_weight": 24,
+		"earliest_debut_round": 9,
+		"formation_strength": 4,
+		"director_cost": 4,
+		"spawn_weight": 16,
 		"spawn_style": &"burst",
 		"role": &"pressure",
 		"traits": [&"hidden"],
@@ -2310,3 +2310,19 @@ static func get_relic(relic_id: StringName) -> Dictionary:
 
 static func get_round_cash_reward(round_number: int) -> int:
 	return int(ROUND_CASH_REWARDS.get(round_number, 0))
+
+
+static func get_elite_enemy_health_multiplier(round_number: int) -> float:
+	return (
+		EARLY_ELITE_ENEMY_HEALTH_MULTIPLIER
+		if round_number <= 6
+		else ELITE_ENEMY_HEALTH_MULTIPLIER
+	)
+
+
+static func get_elite_enemy_speed_multiplier(round_number: int) -> float:
+	return (
+		EARLY_ELITE_ENEMY_SPEED_MULTIPLIER
+		if round_number <= 6
+		else ELITE_ENEMY_SPEED_MULTIPLIER
+	)

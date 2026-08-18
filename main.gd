@@ -49,6 +49,9 @@ const VARIANT_PAYDAY: StringName = &"payday"
 const HORDE_THREAT_MULTIPLIER := 2.0
 const HORDE_GROUP_SIZE_MULTIPLIER := 2.0
 const HORDE_SPAWN_DELAY_MULTIPLIER := 0.5
+const EARLY_HORDE_THREAT_MULTIPLIER := 1.65
+const EARLY_HORDE_GROUP_SIZE_MULTIPLIER := 1.6
+const EARLY_HORDE_SPAWN_DELAY_MULTIPLIER := 0.65
 const ENEMY_AURA_REFRESH_INTERVAL := 0.15
 const MAX_POOLED_HITSCAN_EFFECTS := 128
 const MAX_POOLED_EXPLOSION_EFFECTS := 64
@@ -651,7 +654,7 @@ func start_round() -> void:
 	round_elapsed = 0.0
 	threat_per_second = get_wave_threat_rate(round_number)
 	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
-		threat_per_second *= HORDE_THREAT_MULTIPLIER
+		threat_per_second *= get_horde_threat_multiplier(round_number)
 	var mode: Dictionary = GameStats.get_mode(mode_id)
 	spawn_threat = mode.get("starting_spawn_threat", 1.0)
 	threat_chunk_elapsed = 0.0
@@ -1799,6 +1802,26 @@ func get_wave_threat_rate(wave: int) -> float:
 	)
 
 
+func get_horde_threat_multiplier(wave: int) -> float:
+	return EARLY_HORDE_THREAT_MULTIPLIER if wave <= 6 else HORDE_THREAT_MULTIPLIER
+
+
+func get_horde_group_size_multiplier(wave: int) -> float:
+	return (
+		EARLY_HORDE_GROUP_SIZE_MULTIPLIER
+		if wave <= 6
+		else HORDE_GROUP_SIZE_MULTIPLIER
+	)
+
+
+func get_horde_spawn_delay_multiplier(wave: int) -> float:
+	return (
+		EARLY_HORDE_SPAWN_DELAY_MULTIPLIER
+		if wave <= 6
+		else HORDE_SPAWN_DELAY_MULTIPLIER
+	)
+
+
 func get_enemy_health_multiplier(wave: int, enemy_id: StringName) -> float:
 	return GameStats.get_enemy_health_multiplier(wave, enemy_id)
 
@@ -1826,7 +1849,7 @@ func simulate_director_spawn_counts(
 	var duration := get_wave_duration(wave)
 	var simulated_threat_rate := get_wave_threat_rate(wave)
 	if round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
-		simulated_threat_rate *= HORDE_THREAT_MULTIPLIER
+		simulated_threat_rate *= get_horde_threat_multiplier(wave)
 	var available_threat := float(mode.get("starting_spawn_threat", 1.0))
 	var continuous_ratio := float(mode.get("threat_continuous_ratio", 1.0))
 	var chunk_ratio := float(mode.get("threat_chunk_ratio", 0.0))
@@ -1933,11 +1956,15 @@ func process_special_round_events() -> void:
 	var final_pack_time := round_duration * FINAL_ELITE_PACK_START_RATIO
 	if not final_elite_pack_spawned and round_elapsed >= final_pack_time:
 		final_elite_pack_spawned = true
-		var final_elite_count := 3 if round_number >= 11 else 2
+		var final_elite_count := (
+			3 if round_number >= 11 else (1 if round_number == 6 else 2)
+		)
 		var final_escort_count := (
 			enemy_rng.randi_range(6, 10)
 			if current_round_type == ROUND_GAUNTLET
-			else enemy_rng.randi_range(4, 7)
+			else enemy_rng.randi_range(3, 5)
+				if round_number == 6
+				else enemy_rng.randi_range(4, 7)
 		)
 		inject_special_spawn_schedule(build_elite_event_schedule(
 			final_elite_count,
@@ -1960,7 +1987,8 @@ func process_special_round_events() -> void:
 		next_interval_max = GAUNTLET_ELITE_MAX_INTERVAL
 		escort_variant = VARIANT_HORDE
 	elif round_number == 6:
-		elite_count = 2 if enemy_rng.randf() < 0.25 else 1
+		elite_count = 1
+		escort_count = enemy_rng.randi_range(2, 4)
 	else:
 		elite_count = enemy_rng.randi_range(1, 2)
 
@@ -2086,7 +2114,7 @@ func build_director_group() -> Array[Dictionary]:
 	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
 		group_size = maxi(
 			1,
-			roundi(group_size * HORDE_GROUP_SIZE_MULTIPLIER)
+			roundi(group_size * get_horde_group_size_multiplier(round_number))
 		)
 	var enemy_queue := build_role_based_enemy_queue(
 		group_style,
@@ -2131,7 +2159,7 @@ func build_director_group() -> Array[Dictionary]:
 		apply_spawn_schedule_variant(
 			schedule,
 			spawn_variant,
-			HORDE_SPAWN_DELAY_MULTIPLIER
+			get_horde_spawn_delay_multiplier(round_number)
 		)
 	apply_random_spawn_break(schedule)
 	return schedule
@@ -2718,7 +2746,7 @@ func build_centerpiece_escort_schedule(
 	if make_centerpiece_elite and centerpiece_index < schedule.size():
 		schedule[centerpiece_index]["variant"] = VARIANT_ELITE
 		schedule[centerpiece_index]["director_cost_multiplier"] = (
-			GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER
+			GameStats.get_elite_enemy_health_multiplier(round_number)
 		)
 	return schedule
 
