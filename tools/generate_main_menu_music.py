@@ -14,7 +14,7 @@ import numpy as np
 
 
 SAMPLE_RATE = 44_100
-TEMPO = 72.0
+TEMPO = 92.0
 BEAT = 60.0 / TEMPO
 BARS = 24
 DURATION = BARS * 4 * BEAT
@@ -73,14 +73,14 @@ def mallet(midi: float, seconds: float = 2.7) -> np.ndarray:
     return 0.083 * (tone + 0.16 * knock) * np.exp(-t / 0.78) * np.minimum(t / 0.008, 1.0)
 
 
-def rubber_bass(midi: float, seconds: float = 2.2) -> np.ndarray:
+def rubber_bass(midi: float, seconds: float = 1.35) -> np.ndarray:
     n = round(seconds * SAMPLE_RATE)
     t = np.arange(n) / SAMPLE_RATE
     f = hz(midi)
-    scoop = 0.11 * np.exp(-t / 0.12)
+    scoop = 0.065 * np.exp(-t / 0.10)
     phase = TAU * f * (t + scoop)
     tone = np.sin(phase) + 0.27 * np.sin(2 * phase) + 0.08 * np.sin(3 * phase)
-    return 0.105 * np.tanh(1.3 * tone) * envelope(n, 0.025, 0.72, 0.03)
+    return 0.145 * np.tanh(1.45 * tone) * envelope(n, 0.018, 0.42, 0.015)
 
 
 def alien_whistle(start_midi: float, end_midi: float, seconds: float = 2.5) -> np.ndarray:
@@ -106,71 +106,114 @@ def soft_tick(high: bool = False) -> np.ndarray:
     return (0.012 if high else 0.017) * noise * np.exp(-t / (0.025 if high else 0.07))
 
 
-# Hazy two-bar chords. The harmony lives between D Dorian and cartoon-space
-# chromaticism; the final chord naturally points back to the opening D minor.
+def soft_kick() -> np.ndarray:
+    n = round(0.38 * SAMPLE_RATE)
+    t = np.arange(n) / SAMPLE_RATE
+    freq = 52.0 + 62.0 * np.exp(-t / 0.035)
+    phase = TAU * np.cumsum(freq) / SAMPLE_RATE
+    return 0.075 * np.sin(phase) * np.exp(-t / 0.105)
+
+
+def bubble_lead(midi: float, seconds: float = 0.72) -> np.ndarray:
+    """A rounded, toy-like lead that carries the hook without getting piercing."""
+    n = round(seconds * SAMPLE_RATE)
+    t = np.arange(n) / SAMPLE_RATE
+    f = hz(midi)
+    phase = TAU * f * t + 0.045 * np.sin(TAU * 5.4 * t)
+    tone = np.sin(phase) + 0.24 * np.sin(2 * phase + 0.2) + 0.07 * np.sin(3 * phase)
+    return 0.070 * np.tanh(1.2 * tone) * envelope(n, 0.018, 0.30, 0.025)
+
+
+# A looping eight-bar progression in D minor/Dorian. Familiar tonic movement
+# makes the hook easy to retain, while the G and altered A chords keep the
+# harmony buoyant and slightly alien.
 chords = [
-    [50, 57, 62, 64, 69],       # Dm 6/9 (open voicing)
-    [48, 55, 59, 62, 66],       # Cmaj9 #11
+    [50, 57, 62, 65, 69],       # Dm9
+    [46, 53, 57, 62, 65],       # Bbmaj9
     [43, 50, 57, 59, 64],       # G6/9
-    [46, 53, 57, 62, 64],       # Bbmaj7 #11
-    [51, 58, 62, 65, 69],       # Ebmaj9 #11
-    [45, 52, 55, 61, 65],       # A7(b9, sus color)
-] * 2
+    [45, 52, 55, 61, 65],       # A7(b9)
+    [50, 57, 62, 64, 69],       # Dm6/9
+    [41, 48, 53, 57, 60],       # Fmaj9
+    [48, 55, 59, 62, 64],       # Cmaj9
+    [45, 52, 55, 61, 67],       # A7(b9, 7)
+] * 3
 
 for chord_index, chord in enumerate(chords):
-    start = chord_index * 8 * BEAT
+    start = chord_index * 4 * BEAT
     for voice, note in enumerate(chord):
-        place(pad_note(note), start + voice * 0.035, pan=-0.65 + voice * 0.32)
+        place(pad_note(note, 4.8), start + voice * 0.025, pan=-0.65 + voice * 0.32)
 
 
-# A bass part that leaves whole beats empty; the second half subtly changes its
-# pickups so the repeated chord sequence does not read as a short repeating unit.
-bass_roots = [38, 36, 31, 34, 39, 33] * 2
-for section, root in enumerate(bass_roots):
-    bar = section * 2
-    pattern = [(0.0, root), (2.5, root + 7), (4.0, root), (6.75, root + (12 if section >= 6 else 5))]
+# The bass is a hook in its own right: root/fifth anchors, octave pops, and
+# chromatic approaches. Every fourth bar changes its turnaround to propel the
+# next phrase instead of feeling like a static accompaniment.
+bass_patterns = [
+    [(0.0, 38), (0.75, 45), (1.5, 50), (2.5, 45), (3.25, 48)],
+    [(0.0, 34), (1.0, 41), (1.75, 45), (2.5, 41), (3.5, 37)],
+    [(0.0, 31), (0.75, 38), (1.5, 43), (2.25, 45), (3.25, 46)],
+    [(0.0, 33), (1.0, 40), (1.75, 43), (2.75, 37), (3.5, 49)],
+    [(0.0, 38), (0.75, 45), (1.5, 48), (2.5, 50), (3.25, 45)],
+    [(0.0, 41), (1.0, 48), (1.75, 53), (2.5, 48), (3.5, 40)],
+    [(0.0, 36), (0.75, 43), (1.5, 48), (2.25, 50), (3.25, 43)],
+    [(0.0, 33), (1.0, 40), (1.75, 43), (2.5, 49), (3.25, 45), (3.75, 37)],
+]
+for bar in range(BARS):
+    pattern = bass_patterns[bar % 8]
     for beat_offset, note in pattern:
-        place(rubber_bass(note), (bar * 4 + beat_offset) * BEAT, pan=-0.12)
+        place(rubber_bass(note), (bar * 4 + beat_offset) * BEAT, pan=-0.08)
 
 
-# Sparse mallet statements. Motifs recur transformed or displaced, never as an
-# identical ostinato. MIDI note 74 is D5.
-motifs = {
-    1: [(0.0, 74), (1.5, 77), (3.0, 76), (5.5, 69)],
-    4: [(0.5, 67), (2.0, 71), (3.5, 74), (6.5, 72)],
-    7: [(0.0, 70), (1.0, 74), (2.75, 76), (5.0, 69), (6.5, 73)],
-    10: [(0.75, 76), (2.25, 72), (4.0, 67), (6.75, 70)],
-    13: [(0.0, 74), (1.5, 77), (3.25, 81), (5.5, 76)],
-    16: [(0.5, 67), (2.0, 71), (4.25, 72), (6.0, 66)],
-    19: [(0.0, 70), (1.25, 69), (3.0, 74), (4.5, 76), (7.0, 73)],
-    22: [(0.75, 76), (2.5, 72), (4.0, 67), (5.5, 70), (7.25, 69)],
-}
-for bar, notes in motifs.items():
-    for event_index, (beat_offset, note) in enumerate(notes):
-        pan = -0.48 if event_index % 2 == 0 else 0.42
-        place(mallet(note), (bar * 4 + beat_offset) * BEAT, pan=pan)
+# An eight-bar tune designed to be hummable: a four-note rising identity,
+# question/answer phrasing, then a descending turnaround. It appears three times
+# with octave, rhythmic, and ending variations rather than constant repetition.
+hook = [
+    [(0.0, 74), (0.75, 77), (1.5, 81), (2.5, 79), (3.25, 77)],
+    [(0.0, 74), (1.0, 72), (2.0, 70), (2.75, 74), (3.5, 77)],
+    [(0.0, 79), (0.75, 81), (1.5, 82), (2.5, 79), (3.25, 74)],
+    [(0.0, 76), (0.75, 73), (1.5, 69), (2.5, 73), (3.25, 76)],
+    [(0.0, 74), (0.75, 77), (1.5, 79), (2.25, 81), (3.25, 84)],
+    [(0.0, 81), (0.75, 77), (1.5, 76), (2.5, 72), (3.25, 77)],
+    [(0.0, 79), (0.75, 81), (1.5, 84), (2.5, 82), (3.25, 79)],
+    [(0.0, 77), (0.75, 76), (1.5, 73), (2.25, 69), (3.0, 73), (3.5, 76)],
+]
+for pass_index in range(3):
+    for phrase_bar, notes in enumerate(hook):
+        bar = pass_index * 8 + phrase_bar
+        for event_index, (beat_offset, base_note) in enumerate(notes):
+            note = base_note
+            if pass_index == 1 and phrase_bar in {2, 6}:
+                note += 12
+            if pass_index == 2 and phrase_bar == 7 and event_index >= len(notes) - 2:
+                note += 2
+            start = (bar * 4 + beat_offset) * BEAT
+            place(bubble_lead(note), start, pan=0.16)
+            # A quieter mallet doubles selected notes for the cartoony sparkle.
+            if event_index in {0, 2}:
+                place(mallet(note + 12, 1.25), start, pan=-0.38)
 
 
-# Four little character moments across the full 80-second loop.
+# Short alien replies fill the breaths between hook phrases.
 whistles = [
-    (5 * 4 + 1.0, 79, 76, -0.35),
-    (11 * 4 + 2.0, 73, 74, 0.38),
-    (17 * 4 + 1.5, 82, 77, 0.28),
-    (23 * 4 + 0.5, 68, 69, -0.30),
+    (3 * 4 + 2.0, 81, 76, -0.35),
+    (7 * 4 + 3.0, 69, 73, 0.38),
+    (11 * 4 + 2.0, 84, 79, 0.28),
+    (15 * 4 + 3.0, 73, 76, -0.30),
+    (19 * 4 + 2.0, 82, 77, 0.32),
+    (23 * 4 + 3.0, 69, 74, -0.30),
 ]
 for beat_pos, note_a, note_b, pan in whistles:
     place(alien_whistle(note_a, note_b), beat_pos * BEAT, pan=pan)
 
 
-# Almost subliminal brushed timekeeping: accents move between bars and disappear
-# for selected bars, keeping the pulse relaxed rather than metronomic.
+# A soft kick and brushed ticks add motion without competing with menu SFX.
 for bar in range(BARS):
-    if bar not in {3, 9, 15, 21}:
-        place(soft_tick(False), (bar * 4 + 0.0) * BEAT, pan=-0.18)
-    if bar % 3 != 2:
-        place(soft_tick(True), (bar * 4 + 2.0) * BEAT, pan=0.28)
-    if bar in {6, 14, 20}:
-        place(soft_tick(True), (bar * 4 + 3.5) * BEAT, pan=-0.42)
+    for beat_offset in (0.0, 2.0):
+        place(soft_kick(), (bar * 4 + beat_offset) * BEAT, pan=0.0)
+    for beat_offset in (1.0, 3.0):
+        place(soft_tick(False), (bar * 4 + beat_offset) * BEAT, pan=-0.18)
+    for beat_offset in (0.5, 1.5, 2.5, 3.5):
+        if not (bar % 8 == 7 and beat_offset == 3.5):
+            place(soft_tick(True), (bar * 4 + beat_offset) * BEAT, pan=0.28)
 
 
 # Circular ambience preserves sample-perfect looping. Cross-channel taps provide
