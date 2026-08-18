@@ -17,6 +17,25 @@ func run_checks() -> void:
 
 	var director = MAIN_SCENE.instantiate()
 	get_tree().root.add_child(director)
+	director.tower_roster.assign([&"invader"])
+	var base_roster_tags: Array[StringName] = director.get_tower_roster_tags()
+	assert(base_roster_tags.has(&"biological"))
+	assert(base_roster_tags.has(&"ballistic"))
+	assert(not base_roster_tags.has(&"critical"))
+	assert(not base_roster_tags.has(&"pierce"))
+	assert(not base_roster_tags.has(&"reveal"))
+	assert(director.is_relic_applicable_to_current_loadout(
+		&"hollow_point", base_roster_tags
+	))
+	assert(not director.is_relic_applicable_to_current_loadout(
+		&"lucky_shot", base_roster_tags
+	))
+	assert(not director.is_relic_applicable_to_current_loadout(
+		&"deep_penetration", base_roster_tags
+	))
+	assert(director.is_relic_applicable_to_current_loadout(
+		&"dividends", base_roster_tags
+	))
 
 	var test_mob = MOB_SCENE.instantiate()
 	test_mob.enemy_id = &"normal"

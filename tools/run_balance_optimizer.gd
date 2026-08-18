@@ -2919,6 +2919,8 @@ func get_available_relics(state: Dictionary) -> Array[StringName]:
 			and not has_eligible_dual_path_tower(state, relic_id)
 		):
 			continue
+		if not relic_is_applicable_to_state(state, relic_id):
+			continue
 		result.append(relic_id)
 	return result
 
@@ -2932,6 +2934,11 @@ func roll_relic_offer_set(
 	if round_number == 1:
 		return roll_opening_relic_offer_set(state, available, round_number, run_rng)
 	var minimum_rare_plus := 1 if round_number == 6 else (2 if round_number == 11 else (3 if round_number == 20 else 0))
+	var available_rare_plus := 0
+	for relic_id in available:
+		if GameStats.get_relic(relic_id)["rarity"] in [&"rare", &"legendary"]:
+			available_rare_plus += 1
+	minimum_rare_plus = mini(minimum_rare_plus, available_rare_plus)
 	var choice_count := 4 if round_number == 6 else 3
 	var offers: Array[StringName] = []
 	for _attempt in 256:
@@ -3058,6 +3065,11 @@ func relic_is_applicable_to_state(
 ) -> bool:
 	var relic := GameStats.get_relic(relic_id)
 	var category: StringName = relic["category"]
+	if relic_id == &"trade_agreement":
+		return (
+			roster_has_any(state["roster"], TRADE_TOWERS)
+			or StringName(state.get("contraband_tower", &"")) in TRADE_TOWERS
+		)
 	if category == &"global":
 		return true
 	for instance in state["build"]:
@@ -3072,6 +3084,15 @@ func relic_is_applicable_to_state(
 			tower.get("type_tags", []).has(category)
 			or tower.get("damage_tags", []).has(category)
 			or tower.get("bonus_tags", []).has(category)
+		):
+			return true
+	var contraband_tower_id := StringName(state.get("contraband_tower", &""))
+	if not contraband_tower_id.is_empty():
+		var contraband_tower := GameStats.get_tower(contraband_tower_id)
+		if (
+			contraband_tower.get("type_tags", []).has(category)
+			or contraband_tower.get("damage_tags", []).has(category)
+			or contraband_tower.get("bonus_tags", []).has(category)
 		):
 			return true
 	return false

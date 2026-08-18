@@ -996,7 +996,8 @@ func get_relic_choice_quantities(offers: Array[StringName]) -> Dictionary:
 
 
 func roll_relic_offers() -> Array[StringName]:
-	var available: Array[StringName] = []
+	var eligible_relics: Array[StringName] = []
+	var current_tags := get_tower_roster_tags()
 	for item_key in GameStats.RELICS:
 		var item_id := StringName(item_key)
 		var item_stats: Dictionary = GameStats.get_relic(item_id)
@@ -1008,16 +1009,26 @@ func roll_relic_offers() -> Array[StringName]:
 		):
 			continue
 			
-		if recent_relic_offers.has(item_id):
-			continue
-			
 		if (
 			item_id in [&"singularity_core", &"perfect_mutation"]
 			and not has_eligible_built_tower_for_path_relic(item_id)
 		):
 			continue
-		available.append(item_id)
+		if not is_relic_applicable_to_current_loadout(item_id, current_tags):
+			continue
+		eligible_relics.append(item_id)
 	var choice_count := get_relic_draft_choice_count()
+	var available: Array[StringName] = []
+	for item_id in eligible_relics:
+		if not recent_relic_offers.has(item_id):
+			available.append(item_id)
+	if available.size() < choice_count:
+		for item_id in eligible_relics:
+			if available.has(item_id):
+				continue
+			available.append(item_id)
+			if available.size() >= choice_count:
+				break
 	assert(available.size() >= choice_count, "The shop needs at least %d items." % choice_count)
 	if round_number == RELIC_DRAFT_ROUNDS[0]:
 		var opening_offers := roll_opening_relic_offers(available)
@@ -1031,6 +1042,10 @@ func roll_relic_offers() -> Array[StringName]:
 	var minimum_rare_plus := int(
 		RELIC_MINIMUM_RARE_PLUS_BY_ROUND.get(round_number, 0)
 	)
+	minimum_rare_plus = mini(
+		minimum_rare_plus,
+		count_rare_plus_relics(available)
+	)
 	var offers: Array[StringName] = []
 	for _attempt in RELIC_ROLL_MAX_ATTEMPTS:
 		offers = roll_weighted_relic_set(
@@ -1043,7 +1058,7 @@ func roll_relic_offers() -> Array[StringName]:
 			and count_applicable_relics(offers) >= MINIMUM_APPLICABLE_RELIC_CHOICES
 		):
 			if round_number == 16:
-				offers.append(choose_stacked_common_relic(available, offers))
+				offers.append(choose_stacked_common_relic(eligible_relics, offers))
 			remember_relic_offers(offers)
 			return offers
 
@@ -1157,13 +1172,24 @@ func count_applicable_relics(offers: Array[StringName]) -> int:
 	var roster_tags := get_tower_roster_tags()
 	var count := 0
 	for item_id in offers:
-		var category: StringName = GameStats.get_relic(item_id)["category"]
-		if item_id == &"trade_agreement":
-			if has_dedicated_spawner_available():
-				count += 1
-		elif category == &"global" or roster_tags.has(category):
+		if is_relic_applicable_to_current_loadout(item_id, roster_tags):
 			count += 1
 	return count
+
+
+func is_relic_applicable_to_current_loadout(
+	item_id: StringName,
+	current_tags: Array[StringName] = []
+) -> bool:
+	if item_id == &"trade_agreement":
+		return has_dedicated_spawner_available()
+	var category: StringName = GameStats.get_relic(item_id)["category"]
+	if category == &"global":
+		return true
+	var tags := current_tags
+	if tags.is_empty():
+		tags = get_tower_roster_tags()
+	return tags.has(category)
 
 
 func has_dedicated_spawner_available() -> bool:
@@ -2465,14 +2491,14 @@ func build_debut_opening(wave: int) -> Array[Dictionary]:
 	if debuts.is_empty():
 		return schedule
 	var available := get_available_enemies(wave)
+	var group: Array[StringName] = debuts.duplicate()
+	var escort_pool := available.duplicate()
 	for debut_id in debuts:
-		var escort_pool := available.duplicate()
 		escort_pool.erase(debut_id)
-		var group: Array[StringName] = [debut_id]
-		for _index in mini(2, escort_pool.size()):
-			group.append(choose_weighted_enemy(escort_pool))
-		GameStats.shuffle_with_rng(group, enemy_rng)
-		append_enemy_group(schedule, group, 0.22, 1.0, &"debut")
+	while group.size() < 3 and not escort_pool.is_empty():
+		group.append(choose_weighted_enemy(escort_pool))
+	GameStats.shuffle_with_rng(group, enemy_rng)
+	append_enemy_group(schedule, group, 0.22, 1.0, &"debut")
 	return schedule
 
 
