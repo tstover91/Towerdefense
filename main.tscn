@@ -170,6 +170,12 @@ layout_mode = 2
 tooltip_text = "Start Round 1"
 text = "▶"
 
+[node name="ReinforcementButton" type="Button" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+tooltip_text = "Deploy alien reinforcements during a round"
+text = "Reinforce\nREADY"
+
 [node name="TowerSelectionArea" type="VBoxContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout" unique_id=1269389940]
 layout_mode = 2
 

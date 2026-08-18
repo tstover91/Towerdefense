@@ -485,7 +485,7 @@ func process_guard(delta: float) -> void:
 			<= acquisition_radius_pixels
 	)
 	if target_refresh_remaining <= 0.0 or not guard_target_eligible:
-		target = select_target(home_position, acquisition_radius_pixels)
+		target = select_guard_target()
 		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
 	if is_valid_target(target):
 		if global_position.distance_to(target.global_position) > aim_radius_pixels:
@@ -495,6 +495,39 @@ func process_guard(delta: float) -> void:
 		return
 	target = null
 	move_toward_position(home_position, delta)
+
+
+func select_guard_target() -> Node2D:
+	var candidates: Array[Node2D] = []
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if (
+			is_valid_target(candidate)
+			and home_position.distance_to(candidate.global_position)
+				<= acquisition_radius_pixels
+		):
+			candidates.append(candidate)
+	candidates.sort_custom(
+		func(a: Node2D, b: Node2D) -> bool:
+			return get_target_progress(a) > get_target_progress(b)
+	)
+	if candidates.is_empty():
+		return null
+
+	var claimed_targets: Dictionary = {}
+	if unit_id == &"reinforcement_alien" and is_instance_valid(parent_tower):
+		for sibling in get_tree().get_nodes_in_group("spawned_units"):
+			if (
+				sibling == self
+				or sibling.get("unit_id") != &"reinforcement_alien"
+				or sibling.get("parent_tower") != parent_tower
+				or not is_valid_target(sibling.get("target"))
+			):
+				continue
+			claimed_targets[sibling.target.get_instance_id()] = true
+		for candidate in candidates:
+			if not claimed_targets.has(candidate.get_instance_id()):
+				return candidate
+	return candidates[0]
 
 
 func process_path_assault(delta: float) -> void:
@@ -1423,5 +1456,21 @@ func _draw() -> void:
 			draw_circle(Vector2(-4.0, -2.0), 2.5, Color(0.08, 0.12, 0.06))
 			draw_circle(Vector2(4.0, -2.0), 2.5, Color(0.08, 0.12, 0.06))
 			draw_arc(Vector2(0.0, 2.0), 5.0, 0.2, PI - 0.2, 12, Color(0.12, 0.22, 0.08), 2.0)
+		&"reinforcement_alien":
+			var body_color := Color(0.38, 0.9, 0.48)
+			draw_circle(Vector2(0.0, -3.0), 8.0, body_color)
+			draw_colored_polygon(
+				PackedVector2Array([
+					Vector2(-7.0, 3.0),
+					Vector2(7.0, 3.0),
+					Vector2(5.0, 12.0),
+					Vector2(-5.0, 12.0),
+				]),
+				body_color.darkened(0.18)
+			)
+			draw_circle(Vector2(-3.0, -4.0), 1.8, Color(0.08, 0.12, 0.1))
+			draw_circle(Vector2(3.0, -4.0), 1.8, Color(0.08, 0.12, 0.1))
+			draw_line(Vector2(-7.0, 5.0), Vector2(-12.0, 9.0), body_color, 3.0, true)
+			draw_line(Vector2(7.0, 5.0), Vector2(12.0, 9.0), body_color, 3.0, true)
 		_:
 			draw_circle(Vector2.ZERO, 8.0, Color.WHITE)

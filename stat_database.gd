@@ -353,6 +353,39 @@ const SPAWNED_UNITS := {
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
 	},
+	"reinforcement_alien": {
+		"display_name": "Reinforcement Grunt",
+		"type_tags": [&"biological"],
+		"damage_tags": [&"melee"],
+		"bonus_tags": [&"slow"],
+		"pierce_count": 0,
+		"movement_type": MOVEMENT_GUARD,
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
+	},
+}
+
+const REINFORCEMENT_OPTIONS := {
+	"grunt_squad": {
+		"display_name": "Grunt Squad",
+		"description": "Deploys three alien grunts that pursue and slow nearby enemies.",
+		"cooldown": 25.0,
+		"unit_id": &"reinforcement_alien",
+		"unit_count": 3,
+		"deployment_spread": 18.0,
+		"command_radius": 7.5,
+		"unit_stats": {
+			"damage": 5,
+			"damage_per_round": 1.0,
+			"attack_interval": 0.9,
+			"aim_radius": 1.25,
+			"acquisition_radius": 7.5,
+			"leash_radius": 7.5,
+			"move_speed": 80.0,
+			"slow_duration": 1.1,
+			"lifetime": 14.0,
+		},
+	},
 }
 
 const RELICS := {
@@ -2179,6 +2212,14 @@ static func get_tower(tower_id: StringName) -> Dictionary:
 static func get_spawned_unit(unit_id: StringName) -> Dictionary:
 	assert(SPAWNED_UNITS.has(unit_id), "Unknown spawned unit ID: %s" % unit_id)
 	return SPAWNED_UNITS[unit_id].duplicate(true)
+
+
+static func get_reinforcement_option(option_id: StringName) -> Dictionary:
+	assert(
+		REINFORCEMENT_OPTIONS.has(option_id),
+		"Unknown reinforcement option ID: %s" % option_id
+	)
+	return REINFORCEMENT_OPTIONS[option_id].duplicate(true)
 
 
 static func get_tower_paths(tower_id: StringName) -> Dictionary:

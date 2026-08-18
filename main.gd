@@ -5,6 +5,8 @@ const MapData = preload("res://map_database.gd")
 const MOB_SCENE = preload("res://mob.tscn")
 const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
+const ReinforcementDropScript = preload("res://reinforcement_drop.gd")
+const ReinforcementDropPreviewScript = preload("res://reinforcement_drop_preview.gd")
 const SPAWN_STYLES := {
 	&"steady": {
 		"minimum_group_size": 6,
@@ -116,6 +118,7 @@ signal round_ended(round_number: int)
 @onready var sandbox_panel: Control = $MainUI/SandboxPanel
 @onready var speed_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/SpeedButton
 @onready var pause_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton
+@onready var reinforcement_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/ReinforcementButton
 @onready var sidebar: Control = $MainUI/HUDRoot/Sidebar
 @onready var money_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/moneydisplay
 @onready var lives_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/livesdisplay
@@ -199,6 +202,10 @@ var active_map: TowerDefenseMap
 var next_spawn_path_index := 0
 var game_speed := 1.0
 var sandbox_mode := false
+var selected_reinforcement_id: StringName = &"grunt_squad"
+var reinforcement_cooldown_remaining := 0.0
+var reinforcement_targeting := false
+var reinforcement_preview: Node2D
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
@@ -231,6 +238,7 @@ func _ready() -> void:
 	update_lives()
 	update_round_count()
 	spawntimer.timeout.connect(_spawn_mob)
+	reinforcement_button.pressed.connect(_on_reinforcement_button_pressed)
 	between_round_shop.draft_confirmed.connect(_on_draft_confirmed)
 	between_round_shop.draft_health_requested.connect(_on_draft_health_requested)
 	update_play_pause_button()
@@ -406,6 +414,123 @@ func _process(delta: float) -> void:
 
 	_process_round_director(delta)
 	_process_enemy_speed_auras(delta)
+	_process_reinforcements(delta)
+
+
+func _process_reinforcements(delta: float) -> void:
+	if (
+		round_active
+		and not shop_open
+		and not game_ended
+		and reinforcement_cooldown_remaining > 0.0
+	):
+		reinforcement_cooldown_remaining = maxf(
+			reinforcement_cooldown_remaining - delta,
+			0.0
+		)
+	if reinforcement_targeting and is_instance_valid(reinforcement_preview):
+		var preview_position := get_global_mouse_position()
+		reinforcement_preview.set_preview_position(
+			preview_position,
+			is_valid_reinforcement_drop_position(preview_position)
+		)
+	update_reinforcement_button()
+
+
+func get_selected_reinforcement_option() -> Dictionary:
+	return GameStats.get_reinforcement_option(selected_reinforcement_id)
+
+
+func can_begin_reinforcement_targeting() -> bool:
+	return (
+		not game_ended
+		and round_active
+		and not shop_open
+		and not build_mode
+		and not is_selecting_path_relic_tower()
+		and reinforcement_cooldown_remaining <= 0.0
+	)
+
+
+func _on_reinforcement_button_pressed() -> void:
+	if reinforcement_targeting:
+		cancel_reinforcement_targeting()
+		return
+	begin_reinforcement_targeting()
+
+
+func begin_reinforcement_targeting() -> void:
+	if not can_begin_reinforcement_targeting():
+		return
+	close_all_tower_menus()
+	reinforcement_targeting = true
+	var option := get_selected_reinforcement_option()
+	reinforcement_preview = ReinforcementDropPreviewScript.new()
+	add_child(reinforcement_preview)
+	reinforcement_preview.configure(
+		float(option.get("command_radius", 1.0))
+		* ReinforcementDropScript.RANGE_PIXELS_PER_UNIT
+	)
+	update_reinforcement_button()
+
+
+func cancel_reinforcement_targeting() -> void:
+	reinforcement_targeting = false
+	if is_instance_valid(reinforcement_preview):
+		reinforcement_preview.queue_free()
+	reinforcement_preview = null
+	update_reinforcement_button()
+
+
+func is_valid_reinforcement_drop_position(world_position: Vector2) -> bool:
+	return is_world_position_in_playable_area(world_position)
+
+
+func deploy_reinforcements(world_position: Vector2) -> bool:
+	if (
+		not reinforcement_targeting
+		or not is_valid_reinforcement_drop_position(world_position)
+	):
+		return false
+	var option := get_selected_reinforcement_option()
+	var drop := ReinforcementDropScript.new() as ReinforcementDrop
+	add_child(drop)
+	drop.global_position = world_position
+	drop.setup(option, maxi(round_number, 1))
+	reinforcement_cooldown_remaining = maxf(
+		float(option.get("cooldown", 0.0)),
+		0.0
+	)
+	cancel_reinforcement_targeting()
+	return true
+
+
+func clear_reinforcement_drops() -> void:
+	for drop in get_tree().get_nodes_in_group("reinforcement_drops"):
+		if is_instance_valid(drop):
+			drop.queue_free()
+
+
+func update_reinforcement_button() -> void:
+	if not is_instance_valid(reinforcement_button):
+		return
+	var option := get_selected_reinforcement_option()
+	var display_name := String(option.get("display_name", "Reinforcements"))
+	if reinforcement_targeting:
+		reinforcement_button.text = "Cancel Drop"
+		reinforcement_button.tooltip_text = "Click the map to deploy; right-click to cancel"
+		reinforcement_button.disabled = false
+	elif reinforcement_cooldown_remaining > 0.0:
+		reinforcement_button.text = "%s\n%ds" % [
+			display_name,
+			ceili(reinforcement_cooldown_remaining),
+		]
+		reinforcement_button.tooltip_text = "Reinforcements are recovering"
+		reinforcement_button.disabled = true
+	else:
+		reinforcement_button.text = "%s\nREADY" % display_name
+		reinforcement_button.tooltip_text = String(option.get("description", ""))
+		reinforcement_button.disabled = not can_begin_reinforcement_targeting()
 
 func update_lives() -> void:
 	lives_display.text = "Health: %d/%d" % [lives, max_lives]
@@ -633,6 +758,8 @@ func end_round() -> void:
 	
 	round_active = false
 	spawning_active = false
+	cancel_reinforcement_targeting()
+	clear_reinforcement_drops()
 	clear_active_projectiles()
 	spawn_schedule.clear()
 	pending_enemy_spawns.clear()
@@ -2763,6 +2890,8 @@ func finish_game(message: String) -> void:
 	if game_ended:
 		return
 	game_ended = true
+	cancel_reinforcement_targeting()
+	clear_reinforcement_drops()
 	round_active = false
 	spawning_active = false
 	spawn_schedule.clear()
@@ -2837,6 +2966,27 @@ func _input(event: InputEvent) -> void:
 			finish_manual_tower_targeting(targeting_tower)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if reinforcement_targeting:
+		if (
+			event.is_action_pressed("ui_cancel")
+			or (
+				event is InputEventMouseButton
+				and event.button_index == MOUSE_BUTTON_RIGHT
+				and event.pressed
+			)
+		):
+			get_viewport().set_input_as_handled()
+			cancel_reinforcement_targeting()
+			return
+		if (
+			event is InputEventMouseButton
+			and event.button_index == MOUSE_BUTTON_LEFT
+			and event.pressed
+		):
+			get_viewport().set_input_as_handled()
+			deploy_reinforcements(get_global_mouse_position())
+			return
+
 	if is_selecting_path_relic_tower():
 		return
 	if event.is_action_pressed("ui_cancel") and not game_ended:
