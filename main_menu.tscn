@@ -1,6 +1,7 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://main_menu.gd" id="1_menu"]
+[ext_resource type="AudioStream" path="res://assets/audio/main_menu_loop.wav" id="2_music"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBackground"]
 bg_color = Color(0.018, 0.031, 0.047, 1)
@@ -39,6 +40,11 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
+
+[node name="MenuMusic" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("2_music")
+volume_db = -8.5
+autoplay = true
 
 [node name="Background" type="Panel" parent="."]
 layout_mode = 1
@@ -149,3 +155,4 @@ layout_mode = 2
 [connection signal="pressed" from="Content/Card/Content/LevelButtons/NormalButton" to="." method="_on_normal_button_pressed"]
 [connection signal="pressed" from="Content/Card/Content/LevelButtons/SandboxButton" to="." method="_on_sandbox_button_pressed"]
 [connection signal="pressed" from="Content/Card/Content/QuitButton" to="." method="_on_quit_button_pressed"]
+[connection signal="finished" from="MenuMusic" to="." method="_on_menu_music_finished"]
