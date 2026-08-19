@@ -41,9 +41,3 @@ func _on_sandbox_button_pressed() -> void:
 
 func _on_quit_button_pressed() -> void:
 	get_tree().quit()
-
-
-func _on_menu_music_finished() -> void:
-	# The WAV importer handles the sample-accurate loop. This is a fallback for
-	# platforms or future import settings that do not preserve the loop flag.
-	$MenuMusic.play()
