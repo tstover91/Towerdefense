@@ -36,6 +36,26 @@ func run_checks() -> void:
 	assert(director.is_relic_applicable_to_current_loadout(
 		&"dividends", base_roster_tags
 	))
+	director.shop_rng.seed = 481516
+	director.recent_relic_offers.clear()
+	for draft_round in [1, 6, 11, 16, 20]:
+		director.round_number = draft_round
+		var relic_offers: Array[StringName] = director.roll_relic_offers()
+		var expected_count := 4 if draft_round in [1, 6, 16] else 3
+		assert(relic_offers.size() == expected_count)
+		for relic_id in relic_offers:
+			assert(director.is_relic_applicable_to_current_loadout(
+				relic_id,
+				base_roster_tags
+			))
+		if draft_round == 16:
+			var quantities: Dictionary = director.get_relic_choice_quantities(
+				relic_offers
+			)
+			assert(int(quantities.get(relic_offers.back(), 1)) == 2)
+	var tower_offers: Array[StringName] = director.roll_tower_offers()
+	assert(tower_offers.size() == 3)
+	assert(not tower_offers.has(&"invader"))
 
 	var test_mob = MOB_SCENE.instantiate()
 	test_mob.enemy_id = &"normal"

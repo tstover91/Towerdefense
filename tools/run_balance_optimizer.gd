@@ -4,6 +4,7 @@ const GameStats = preload("res://stat_database.gd")
 const MapData = preload("res://map_database.gd")
 const CombatSimulator = preload("res://tools/tower_balance_monte_carlo.gd")
 const MainScene = preload("res://main.tscn")
+const DraftManagerScript = preload("res://draft_manager.gd")
 
 const TOWER_DRAFT_ROUNDS := [4, 9, 14]
 const RELIC_DRAFT_ROUNDS := [1, 6, 11, 16, 20]
@@ -12,7 +13,7 @@ const TARGET_WIN_RATE := 0.60
 const ACCEPTABLE_WIN_LOW := 0.42
 const ACCEPTABLE_WIN_HIGH := 0.78
 const DEFAULT_OUTPUT_DIR := "res://balance_reports/overnight"
-const CHECKPOINT_VERSION := 9
+const CHECKPOINT_VERSION := 10
 const CHECKPOINT_FILE_A := "optimizer_checkpoint_a.dat"
 const CHECKPOINT_FILE_B := "optimizer_checkpoint_b.dat"
 const TOWER_ENGAGEMENT_COVERAGE := 0.45
@@ -1110,6 +1111,7 @@ func simulate_run(
 		"build": [],
 		"occupied_cells": {},
 		"relics": {},
+		"recent_relic_offers": [],
 		"dual_path_used": {&"technology": false, &"biological": false},
 		"contraband_tower": &"",
 		"holiday_sale_tower": &"",
@@ -2903,199 +2905,75 @@ func resolve_relic_draft(state: Dictionary, policy: Dictionary, round_number: in
 			state["contraband_tower"] = outside[run_rng.randi_range(0, outside.size() - 1)]
 
 
-func get_available_relics(state: Dictionary) -> Array[StringName]:
-	var result: Array[StringName] = []
-	for relic_key in GameStats.RELICS:
-		var relic_id := StringName(relic_key)
-		if EXCLUDED_RELICS.has(relic_id):
-			continue
-		var relic := GameStats.get_relic(relic_id)
-		if not bool(relic.get("enabled", true)):
-			continue
-		if not bool(relic.get("stackable", false)) and relic_count(state, relic_id) > 0:
-			continue
-		if (
-			relic_id in [&"singularity_core", &"perfect_mutation"]
-			and not has_eligible_dual_path_tower(state, relic_id)
-		):
-			continue
-		if not relic_is_applicable_to_state(state, relic_id):
-			continue
-		result.append(relic_id)
-	return result
-
-
 func roll_relic_offer_set(
 	state: Dictionary,
 	round_number: int,
 	run_rng: RandomNumberGenerator
 ) -> Array[StringName]:
-	var available := get_available_relics(state)
-	if round_number == 1:
-		return roll_opening_relic_offer_set(state, available, round_number, run_rng)
-	var minimum_rare_plus := 1 if round_number == 6 else (2 if round_number == 11 else (3 if round_number == 20 else 0))
-	var available_rare_plus := 0
-	for relic_id in available:
-		if GameStats.get_relic(relic_id)["rarity"] in [&"rare", &"legendary"]:
-			available_rare_plus += 1
-	minimum_rare_plus = mini(minimum_rare_plus, available_rare_plus)
-	var choice_count := 4 if round_number == 6 else 3
-	var offers: Array[StringName] = []
-	for _attempt in 256:
-		offers.clear()
-		var remaining := available.duplicate()
-		while offers.size() < choice_count and not remaining.is_empty():
-			var chosen := choose_weighted_relic_for_round(
-				remaining,
-				round_number,
-				run_rng
-			)
-			if chosen.is_empty():
-				break
-			offers.append(chosen)
-			remaining.erase(chosen)
-		if offers.size() < choice_count:
-			continue
-		var rare_plus := 0
-		var applicable := 0
-		for relic_id in offers:
-			if GameStats.get_relic(relic_id)["rarity"] in [&"rare", &"legendary"]:
-				rare_plus += 1
-			if relic_is_applicable_to_state(state, relic_id):
-				applicable += 1
-		if rare_plus < minimum_rare_plus or applicable < 2:
-			continue
-		if round_number == 16:
-			var common_choices: Array[StringName] = []
-			for relic_id in remaining:
-				var relic := GameStats.get_relic(relic_id)
-				if (
-					relic["rarity"] == &"common"
-					and bool(relic.get("stackable", false))
-				):
-					common_choices.append(relic_id)
-			if common_choices.is_empty():
-				continue
-			offers.append(common_choices[
-				run_rng.randi_range(0, common_choices.size() - 1)
-			])
-		return offers
+	var manager = DraftManagerScript.new(run_rng)
+	var recent_offers: Array[StringName] = []
+	recent_offers.assign(state.get("recent_relic_offers", []))
+	manager.recent_relic_offers = recent_offers
+	var path_relic_eligibility := {
+		&"singularity_core": has_eligible_dual_path_tower(
+			state,
+			&"singularity_core"
+		),
+		&"perfect_mutation": has_eligible_dual_path_tower(
+			state,
+			&"perfect_mutation"
+		),
+	}
+	var contraband_tower := StringName(state.get("contraband_tower", &""))
+	var has_dedicated_spawner := (
+		roster_has_any(state["roster"], TRADE_TOWERS)
+		or contraband_tower in TRADE_TOWERS
+	)
+	var offers: Array[StringName] = manager.roll_relic_offers(
+		round_number,
+		state["relics"],
+		get_state_draft_tags(state),
+		path_relic_eligibility,
+		has_dedicated_spawner,
+		EXCLUDED_RELICS
+	)
+	state["recent_relic_offers"] = manager.recent_relic_offers.duplicate()
 	return offers
 
 
-func roll_opening_relic_offer_set(
-	state: Dictionary,
-	available: Array[StringName],
-	round_number: int,
-	run_rng: RandomNumberGenerator
-) -> Array[StringName]:
-	var commons: Array[StringName] = []
-	var rares: Array[StringName] = []
-	for relic_id in available:
-		var rarity: StringName = GameStats.get_relic(relic_id)["rarity"]
-		if rarity == &"common":
-			commons.append(relic_id)
-		elif rarity == &"rare":
-			rares.append(relic_id)
-	if commons.size() < 4:
-		return []
-	for _attempt in 256:
-		var remaining := commons.duplicate()
-		var offers: Array[StringName] = []
-		while offers.size() < 3:
-			offers.append(remaining.pop_at(run_rng.randi_range(0, remaining.size() - 1)))
-		if not rares.is_empty() and run_rng.randf() < 0.25:
-			offers.append(rares[run_rng.randi_range(0, rares.size() - 1)])
-		else:
-			offers.append(remaining.pop_at(run_rng.randi_range(0, remaining.size() - 1)))
-		var applicable := 0
-		for relic_id in offers:
-			if relic_is_applicable_to_state(state, relic_id):
-				applicable += 1
-		if applicable >= 2:
-			return offers
-	return []
-
-
-func choose_weighted_relic_for_round(
-	available: Array[StringName],
-	round_number: int,
-	run_rng: RandomNumberGenerator
-) -> StringName:
-	var weights_by_round: Dictionary = {
-		1: {&"common": 100.0},
-		6: {&"common": 70.0, &"rare": 30.0},
-		11: {&"common": 35.0, &"rare": 55.0, &"legendary": 10.0},
-		16: {&"rare": 70.0, &"legendary": 30.0},
-		20: {&"rare": 60.0, &"legendary": 40.0},
-	}
-	var weights: Dictionary = weights_by_round.get(round_number, {})
-	if weights.is_empty():
-		return available[run_rng.randi_range(0, available.size() - 1)]
-	var eligible_by_rarity := {}
-	var total_weight := 0.0
-	for rarity_key in weights:
-		var rarity := StringName(rarity_key)
-		var matching: Array[StringName] = []
-		for relic_id in available:
-			if GameStats.get_relic(relic_id)["rarity"] == rarity:
-				matching.append(relic_id)
-		if matching.is_empty():
-			continue
-		eligible_by_rarity[rarity] = matching
-		total_weight += float(weights[rarity_key])
-	if total_weight <= 0.0:
-		return &""
-	var roll := run_rng.randf_range(0.0, total_weight)
-	for rarity_key in weights:
-		var rarity := StringName(rarity_key)
-		if not eligible_by_rarity.has(rarity):
-			continue
-		roll -= float(weights[rarity_key])
-		if roll <= 0.0:
-			var matching: Array[StringName] = eligible_by_rarity[rarity]
-			return matching[run_rng.randi_range(0, matching.size() - 1)]
-	var fallback: Array[StringName] = eligible_by_rarity.values().back()
-	return fallback[run_rng.randi_range(0, fallback.size() - 1)]
-
-
-func relic_is_applicable_to_state(
-	state: Dictionary,
-	relic_id: StringName
-) -> bool:
-	var relic := GameStats.get_relic(relic_id)
-	var category: StringName = relic["category"]
-	if relic_id == &"trade_agreement":
-		return (
-			roster_has_any(state["roster"], TRADE_TOWERS)
-			or StringName(state.get("contraband_tower", &"")) in TRADE_TOWERS
-		)
-	if category == &"global":
-		return true
-	for instance in state["build"]:
-		if candidate_has_category(
-			candidates[instance["candidate_key"]],
-			category
-		):
-			return true
+func get_state_draft_tags(state: Dictionary) -> Array[StringName]:
+	var tags: Array[StringName] = []
 	for tower_id in state["roster"]:
-		var tower := GameStats.get_tower(tower_id)
-		if (
-			tower.get("type_tags", []).has(category)
-			or tower.get("damage_tags", []).has(category)
-			or tower.get("bonus_tags", []).has(category)
-		):
-			return true
-	var contraband_tower_id := StringName(state.get("contraband_tower", &""))
-	if not contraband_tower_id.is_empty():
-		var contraband_tower := GameStats.get_tower(contraband_tower_id)
-		if (
-			contraband_tower.get("type_tags", []).has(category)
-			or contraband_tower.get("damage_tags", []).has(category)
-			or contraband_tower.get("bonus_tags", []).has(category)
-		):
-			return true
-	return false
+		append_tower_base_tags(tags, StringName(tower_id))
+	var contraband_tower := StringName(state.get("contraband_tower", &""))
+	if not contraband_tower.is_empty():
+		append_tower_base_tags(tags, contraband_tower)
+	for instance in state["build"]:
+		var candidate: Dictionary = candidates[instance["candidate_key"]]
+		for tag in candidate["tower"].get("type_tags", []):
+			append_unique_draft_tag(tags, StringName(tag))
+		for tag_group in ["type_tags", "damage_tags", "bonus_tags"]:
+			for tag in candidate["traits"].get(tag_group, []):
+				append_unique_draft_tag(tags, StringName(tag))
+	return tags
+
+
+func append_tower_base_tags(
+	tags: Array[StringName],
+	tower_id: StringName
+) -> void:
+	var tower := GameStats.get_tower(tower_id)
+	for tag_group in ["type_tags", "damage_tags", "bonus_tags"]:
+		for tag in tower.get(tag_group, []):
+			append_unique_draft_tag(tags, StringName(tag))
+
+
+func append_unique_draft_tag(
+	tags: Array[StringName],
+	tag: StringName
+) -> void:
+	if not tags.has(tag):
+		tags.append(tag)
 
 
 func get_relic_choice_score(
@@ -3503,6 +3381,11 @@ func get_balance_values() -> Dictionary:
 		"enemy_debut_groups": GameStats.ENEMY_DEBUT_GROUPS,
 		"fixed_enemy_debut_rounds": GameStats.FIXED_ENEMY_DEBUT_ROUNDS,
 		"wave_style_rules": GameStats.WAVE_STYLE_RULES,
+		"relic_draft_rounds": DraftManagerScript.RELIC_DRAFT_ROUNDS,
+		"relic_rarity_weights": DraftManagerScript.RELIC_RARITY_WEIGHTS_BY_ROUND,
+		"relic_minimum_rare_plus": (
+			DraftManagerScript.RELIC_MINIMUM_RARE_PLUS_BY_ROUND
+		),
 		"standard_enemy_speed_multiplier": GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER,
 		"horde_enemy_health_multiplier": GameStats.HORDE_ENEMY_HEALTH_MULTIPLIER,
 		"elite_enemy_health_multiplier": GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER,

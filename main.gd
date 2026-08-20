@@ -7,36 +7,13 @@ const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const ReinforcementDropScript = preload("res://reinforcement_drop.gd")
 const ReinforcementDropPreviewScript = preload("res://reinforcement_drop_preview.gd")
-const SPAWN_STYLES := {
-	&"steady": {
-		"minimum_group_size": 6,
-		"maximum_group_size": 10,
-		"interval": 0.5,
-		"gap_after_group": 0.8,
-	},
-	&"stream": {
-		"minimum_group_size": 10,
-		"maximum_group_size": 16,
-		"interval": 0.15,
-		"gap_after_group": 0.8,
-	},
-	&"burst": {
-		"minimum_group_size": 7,
-		"maximum_group_size": 11,
-		"interval": 0.08,
-		"gap_after_group": 1.1,
-	},
-	&"spaced": {
-		"minimum_group_size": 5,
-		"maximum_group_size": 8,
-		"interval": 0.8,
-		"gap_after_group": 0.8,
-	},
-}
-const ROLE_FODDER := &"fodder"
-const ROLE_PRESSURE := &"pressure"
-const ROLE_TANK := &"tank"
-const ROLE_SUPPORT := &"support"
+const WaveDirectorScript = preload("res://wave_director.gd")
+const DraftManagerScript = preload("res://draft_manager.gd")
+const BuildControllerScript = preload("res://build_controller.gd")
+const ROLE_FODDER := WaveDirectorScript.ROLE_FODDER
+const ROLE_PRESSURE := WaveDirectorScript.ROLE_PRESSURE
+const ROLE_TANK := WaveDirectorScript.ROLE_TANK
+const ROLE_SUPPORT := WaveDirectorScript.ROLE_SUPPORT
 const ROUND_STANDARD: StringName = &"standard"
 const ROUND_HORDE: StringName = &"horde"
 const ROUND_ELITE: StringName = &"elite"
@@ -46,21 +23,12 @@ const VARIANT_NORMAL: StringName = &"normal"
 const VARIANT_HORDE: StringName = &"horde"
 const VARIANT_ELITE: StringName = &"elite"
 const VARIANT_PAYDAY: StringName = &"payday"
-const HORDE_THREAT_MULTIPLIER := 2.0
-const HORDE_GROUP_SIZE_MULTIPLIER := 2.0
-const HORDE_SPAWN_DELAY_MULTIPLIER := 0.5
-const EARLY_HORDE_THREAT_MULTIPLIER := 1.65
-const EARLY_HORDE_GROUP_SIZE_MULTIPLIER := 1.6
-const EARLY_HORDE_SPAWN_DELAY_MULTIPLIER := 0.65
 const ENEMY_AURA_REFRESH_INTERVAL := 0.15
 const MAX_POOLED_HITSCAN_EFFECTS := 128
 const MAX_POOLED_EXPLOSION_EFFECTS := 64
-const STANDARD_GROUP_SIZE_MULTIPLIER := 1.25
-const STANDARD_FORMATION_DELAY_MULTIPLIER := 0.70
-const SPACED_FORMATION_DELAY_MULTIPLIER := 0.85
-const RANDOM_SPAWN_BREAK_CHANCE := 0.30
-const RANDOM_SPAWN_BREAK_MIN_DURATION := 0.75
-const RANDOM_SPAWN_BREAK_MAX_DURATION := 1.50
+const RANDOM_SPAWN_BREAK_CHANCE := WaveDirectorScript.RANDOM_SPAWN_BREAK_CHANCE
+const RANDOM_SPAWN_BREAK_MIN_DURATION := WaveDirectorScript.RANDOM_SPAWN_BREAK_MIN_DURATION
+const RANDOM_SPAWN_BREAK_MAX_DURATION := WaveDirectorScript.RANDOM_SPAWN_BREAK_MAX_DURATION
 const ELITE_EVENT_MIN_INTERVAL := 15.0
 const ELITE_EVENT_MAX_INTERVAL := 25.0
 const GAUNTLET_ELITE_MIN_INTERVAL := 10.0
@@ -68,29 +36,11 @@ const GAUNTLET_ELITE_MAX_INTERVAL := 18.0
 const FINAL_ELITE_PACK_START_RATIO := 0.8
 const ELITE_EVENT_RESERVED_SLOTS := 12
 const GAUNTLET_EVENT_RESERVED_SLOTS := 20
-const SHOP_CHOICE_COUNT := 3
-const GAUNTLET_RELIC_CHOICE_COUNT := 4
-const MINIMUM_APPLICABLE_RELIC_CHOICES := 2
 const DRAFT_HEALTH_RECOVERY := 20
 const DRAFT_HEALTH_COST_RATIO := 0.30
 const DRAFT_HEALTH_PRICE_INCREMENT := 25
 const TOWER_DRAFT_ROUNDS: Array[int] = [4, 9, 14]
 const RELIC_DRAFT_ROUNDS: Array[int] = [1, 6, 11, 16, 20]
-const RELIC_RARITY_WEIGHTS_BY_ROUND := {
-	1: {&"common": 100.0},
-	6: {&"common": 70.0, &"rare": 30.0},
-	11: {&"common": 40.0, &"rare": 55.0, &"legendary": 5.0},
-	16: {&"rare": 85.0, &"legendary": 15.0},
-	20: {&"rare": 60.0, &"legendary": 40.0},
-}
-const RELIC_MINIMUM_RARE_PLUS_BY_ROUND := {
-	6: 1,
-	11: 2,
-	20: 3,
-}
-const RELIC_ROLL_MAX_ATTEMPTS := 256
-const WAVE_ROLE_WEIGHTS := GameStats.WAVE_ROLE_WEIGHTS
-const FORMATION_ROLE_WEIGHTS := GameStats.FORMATION_ROLE_WEIGHTS
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
 const TOWER_SLOT_COUNT := 5
@@ -103,7 +53,6 @@ const TRADE_AGREEMENT_TOWER_IDS: Array[StringName] = [
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
-const PLACEMENT_SNAP_SIZE := 16.0
 const MIN_SIDEBAR_WIDTH := 192.0
 const BUILD_BLOCKER_COLLISION_MASK := 4
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
@@ -136,20 +85,65 @@ signal round_ended(round_number: int)
 @onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/UpgradeHeaderLabel
 var lives: int
 var max_lives: int
-var place_mode := false
-var build_mode := false
-var tower_to_place: Node2D = null
-var manual_targeting_tower: Node2D
 var money: int
-var pending_tower_type: StringName = &""
-var pending_tower_cost := 0
-var pending_tower_is_contraband := false
 var round_number := 0
 var mobs_left_to_spawn := 0
 var mobs_alive := 0
 var spawn_schedule: Array[Dictionary] = []
 var enemy_rng := RandomNumberGenerator.new()
+var wave_director = null
 var shop_rng := RandomNumberGenerator.new()
+var draft_manager = null
+var build_controller = null
+var place_mode: bool:
+	get:
+		ensure_build_controller()
+		return build_controller.place_mode
+	set(value):
+		ensure_build_controller()
+		build_controller.place_mode = value
+var build_mode: bool:
+	get:
+		ensure_build_controller()
+		return build_controller.build_mode
+	set(value):
+		ensure_build_controller()
+		build_controller.build_mode = value
+var tower_to_place: Node2D:
+	get:
+		ensure_build_controller()
+		return build_controller.tower_to_place
+	set(value):
+		ensure_build_controller()
+		build_controller.tower_to_place = value
+var manual_targeting_tower: Node2D:
+	get:
+		ensure_build_controller()
+		return build_controller.manual_targeting_tower
+	set(value):
+		ensure_build_controller()
+		build_controller.manual_targeting_tower = value
+var pending_tower_type: StringName:
+	get:
+		ensure_build_controller()
+		return build_controller.pending_tower_type
+	set(value):
+		ensure_build_controller()
+		build_controller.pending_tower_type = value
+var pending_tower_cost: int:
+	get:
+		ensure_build_controller()
+		return build_controller.pending_tower_cost
+	set(value):
+		ensure_build_controller()
+		build_controller.pending_tower_cost = value
+var pending_tower_is_contraband: bool:
+	get:
+		ensure_build_controller()
+		return build_controller.pending_tower_is_contraband
+	set(value):
+		ensure_build_controller()
+		build_controller.pending_tower_is_contraband = value
 var enemy_debut_plan: Dictionary = {}
 var round_style_plan: Dictionary = {}
 var current_wave_spawn_style: StringName = &"standard"
@@ -199,7 +193,6 @@ var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
 var pending_enemy_spawns: Array[Dictionary] = []
 var displayed_tower: Node = null
-var occupied_build_cells: Dictionary = {}
 var playable_map_width := 0.0
 var active_map: TowerDefenseMap
 var next_spawn_path_index := 0
@@ -218,6 +211,9 @@ func _ready() -> void:
 	update_speed_button()
 	enemy_rng.randomize()
 	shop_rng.randomize()
+	wave_director = WaveDirectorScript.new(enemy_rng, get_active_enemy_count)
+	draft_manager = DraftManagerScript.new(shop_rng)
+	ensure_build_controller()
 	generate_run_director_plan()
 	roll_challenge_round_order()
 	_align_sidebar_to_build_grid()
@@ -584,22 +580,22 @@ func close_all_tower_menus() -> void:
 
 
 func begin_manual_tower_targeting(tower: Node2D) -> void:
-	if is_instance_valid(manual_targeting_tower) and manual_targeting_tower != tower:
-		manual_targeting_tower.cancel_manual_targeting()
-	manual_targeting_tower = tower
+	ensure_build_controller()
+	var previous_tower: Node2D = build_controller.begin_manual_targeting(tower)
+	if is_instance_valid(previous_tower) and previous_tower != tower:
+		previous_tower.cancel_manual_targeting()
 
 
 func finish_manual_tower_targeting(tower: Node2D) -> void:
-	if manual_targeting_tower == tower:
-		manual_targeting_tower = null
+	ensure_build_controller()
+	build_controller.finish_manual_targeting(tower)
 
 
 func cancel_manual_tower_targeting() -> void:
-	if not is_instance_valid(manual_targeting_tower):
-		manual_targeting_tower = null
+	ensure_build_controller()
+	var tower: Node2D = build_controller.take_manual_targeting_tower()
+	if not is_instance_valid(tower):
 		return
-	var tower := manual_targeting_tower
-	manual_targeting_tower = null
 	tower.cancel_manual_targeting()
 
 
@@ -613,11 +609,39 @@ func roll_challenge_round_order() -> void:
 
 
 func generate_run_director_plan() -> void:
-	enemy_debut_plan = GameStats.build_enemy_debut_plan(enemy_rng)
-	round_style_plan = GameStats.build_round_style_plan(
-		enemy_rng,
-		enemy_debut_plan
+	ensure_wave_director()
+	wave_director.generate_run_plan()
+	enemy_debut_plan = wave_director.enemy_debut_plan
+	round_style_plan = wave_director.round_style_plan
+
+
+func ensure_wave_director() -> void:
+	if wave_director == null:
+		wave_director = WaveDirectorScript.new(enemy_rng, get_active_enemy_count)
+
+
+func ensure_build_controller() -> void:
+	if build_controller != null:
+		return
+	build_controller = BuildControllerScript.new()
+
+
+func sync_wave_director_context() -> void:
+	ensure_wave_director()
+	wave_director.enemy_debut_plan = enemy_debut_plan
+	wave_director.round_style_plan = round_style_plan
+	wave_director.set_round_context(
+		round_number,
+		current_round_type,
+		current_wave_spawn_style
 	)
+	wave_director.last_gauntlet_spawn_style = last_gauntlet_spawn_style
+	wave_director.gauntlet_style_repeat_count = gauntlet_style_repeat_count
+
+
+func sync_wave_director_style_memory() -> void:
+	last_gauntlet_spawn_style = wave_director.last_gauntlet_spawn_style
+	gauntlet_style_repeat_count = wave_director.gauntlet_style_repeat_count
 
 
 func get_round_type(wave: int) -> StringName:
@@ -680,6 +704,8 @@ func start_round() -> void:
 	final_elite_pack_spawned = false
 	last_gauntlet_spawn_style = &""
 	gauntlet_style_repeat_count = 0
+	ensure_wave_director()
+	wave_director.reset_round_style_memory()
 	if current_round_type == ROUND_ELITE:
 		next_elite_event_time = enemy_rng.randf_range(
 			ELITE_EVENT_MIN_INTERVAL,
@@ -988,208 +1014,55 @@ func _on_draft_health_requested() -> void:
 	between_round_shop.mark_health_purchased(health_recovery)
 
 
+func ensure_draft_manager() -> void:
+	if draft_manager == null:
+		draft_manager = DraftManagerScript.new(shop_rng)
+
+
+func sync_draft_manager_history() -> void:
+	ensure_draft_manager()
+	draft_manager.recent_relic_offers = recent_relic_offers.duplicate()
+
+
 func get_relic_choice_quantities(offers: Array[StringName]) -> Dictionary:
-	var choice_quantities: Dictionary = {}
-	if round_number == 16 and offers.size() >= GAUNTLET_RELIC_CHOICE_COUNT:
-		choice_quantities[offers[GAUNTLET_RELIC_CHOICE_COUNT - 1]] = 2
-	return choice_quantities
+	ensure_draft_manager()
+	return draft_manager.get_relic_choice_quantities(round_number, offers)
 
 
 func roll_relic_offers() -> Array[StringName]:
-	var eligible_relics: Array[StringName] = []
-	var current_tags := get_tower_roster_tags()
-	for item_key in GameStats.RELICS:
-		var item_id := StringName(item_key)
-		var item_stats: Dictionary = GameStats.get_relic(item_id)
-		if not bool(item_stats.get("enabled", true)):
-			continue
-		if (
-			not item_stats.get("stackable", false)
-			and int(owned_shop_items.get(item_id, 0)) > 0
-		):
-			continue
-			
-		if (
-			item_id in [&"singularity_core", &"perfect_mutation"]
-			and not has_eligible_built_tower_for_path_relic(item_id)
-		):
-			continue
-		if not is_relic_applicable_to_current_loadout(item_id, current_tags):
-			continue
-		eligible_relics.append(item_id)
-	var choice_count := get_relic_draft_choice_count()
-	var available: Array[StringName] = []
-	for item_id in eligible_relics:
-		if not recent_relic_offers.has(item_id):
-			available.append(item_id)
-	if available.size() < choice_count:
-		for item_id in eligible_relics:
-			if available.has(item_id):
-				continue
-			available.append(item_id)
-			if available.size() >= choice_count:
-				break
-	assert(available.size() >= choice_count, "The shop needs at least %d items." % choice_count)
-	if round_number == RELIC_DRAFT_ROUNDS[0]:
-		var opening_offers := roll_opening_relic_offers(available)
-		remember_relic_offers(opening_offers)
-		return opening_offers
-
-	var rarity_weights: Dictionary = RELIC_RARITY_WEIGHTS_BY_ROUND.get(
+	sync_draft_manager_history()
+	var path_relic_eligibility := {
+		&"singularity_core": has_eligible_built_tower_for_path_relic(
+			&"singularity_core"
+		),
+		&"perfect_mutation": has_eligible_built_tower_for_path_relic(
+			&"perfect_mutation"
+		),
+	}
+	var offers: Array[StringName] = draft_manager.roll_relic_offers(
 		round_number,
-		{}
+		owned_shop_items,
+		get_tower_roster_tags(),
+		path_relic_eligibility,
+		has_dedicated_spawner_available()
 	)
-	var minimum_rare_plus := int(
-		RELIC_MINIMUM_RARE_PLUS_BY_ROUND.get(round_number, 0)
-	)
-	minimum_rare_plus = mini(
-		minimum_rare_plus,
-		count_rare_plus_relics(available)
-	)
-	var offers: Array[StringName] = []
-	for _attempt in RELIC_ROLL_MAX_ATTEMPTS:
-		offers = roll_weighted_relic_set(
-			available,
-			rarity_weights,
-			choice_count
-		)
-		if (
-			count_rare_plus_relics(offers) >= minimum_rare_plus
-			and count_applicable_relics(offers) >= MINIMUM_APPLICABLE_RELIC_CHOICES
-		):
-			if round_number == 16:
-				offers.append(choose_stacked_common_relic(eligible_relics, offers))
-			remember_relic_offers(offers)
-			return offers
-
-	assert(
-		false,
-		"Unable to satisfy the relic draft guarantees for round %d." % round_number
-	)
+	recent_relic_offers = draft_manager.recent_relic_offers.duplicate()
 	return offers
-
-
-func get_relic_draft_choice_count() -> int:
-	return 4 if round_number in RELIC_DRAFT_ROUNDS.slice(0, 2) else SHOP_CHOICE_COUNT
-
-
-func roll_opening_relic_offers(available: Array[StringName]) -> Array[StringName]:
-	var common_relics: Array[StringName] = []
-	var rare_relics: Array[StringName] = []
-	for item_id in available:
-		var rarity: StringName = GameStats.get_relic(item_id)["rarity"]
-		if rarity == &"common":
-			common_relics.append(item_id)
-		elif rarity == &"rare":
-			rare_relics.append(item_id)
-	assert(common_relics.size() >= 4, "Opening relic drafts need four eligible common relics.")
-
-	for _attempt in RELIC_ROLL_MAX_ATTEMPTS:
-		var remaining_commons := common_relics.duplicate()
-		var offers: Array[StringName] = []
-		while offers.size() < 3:
-			offers.append(remaining_commons.pop_at(shop_rng.randi_range(0, remaining_commons.size() - 1)))
-		if not rare_relics.is_empty() and shop_rng.randf() < 0.25:
-			offers.append(rare_relics[shop_rng.randi_range(0, rare_relics.size() - 1)])
-		else:
-			offers.append(remaining_commons.pop_at(shop_rng.randi_range(0, remaining_commons.size() - 1)))
-		if count_applicable_relics(offers) >= MINIMUM_APPLICABLE_RELIC_CHOICES:
-			return offers
-
-	assert(false, "Unable to satisfy the opening relic draft guarantees for round %d." % round_number)
-	return []
-
-func remember_relic_offers(offers: Array[StringName]) -> void:
-	for item_id in offers:
-		if not recent_relic_offers.has(item_id):
-			recent_relic_offers.append(item_id)
-
-	while recent_relic_offers.size() > 6:
-		recent_relic_offers.pop_front()
-		
-func roll_weighted_relic_set(
-	available: Array[StringName],
-	rarity_weights: Dictionary,
-	choice_count: int
-) -> Array[StringName]:
-	var remaining: Array[StringName] = available.duplicate()
-	var offers: Array[StringName] = []
-	while offers.size() < choice_count:
-		var item_id := choose_weighted_relic_by_rarity(remaining, rarity_weights)
-		assert(not item_id.is_empty(), "No eligible relic remains for this draft.")
-		offers.append(item_id)
-		remaining.erase(item_id)
-	return offers
-
-
-func choose_weighted_relic_by_rarity(
-	available: Array[StringName],
-	rarity_weights: Dictionary
-) -> StringName:
-	if rarity_weights.is_empty():
-		return available[shop_rng.randi_range(0, available.size() - 1)]
-
-	var eligible_by_rarity: Dictionary = {}
-	var total_weight := 0.0
-	for rarity_key in rarity_weights:
-		var rarity := StringName(rarity_key)
-		var eligible: Array[StringName] = []
-		for item_id in available:
-			if GameStats.get_relic(item_id)["rarity"] == rarity:
-				eligible.append(item_id)
-		if eligible.is_empty():
-			continue
-		eligible_by_rarity[rarity] = eligible
-		total_weight += float(rarity_weights[rarity_key])
-
-	if eligible_by_rarity.is_empty() or total_weight <= 0.0:
-		return &""
-
-	var roll := shop_rng.randf_range(0.0, total_weight)
-	for rarity_key in rarity_weights:
-		var rarity := StringName(rarity_key)
-		if not eligible_by_rarity.has(rarity):
-			continue
-		roll -= float(rarity_weights[rarity_key])
-		if roll <= 0.0:
-			var eligible: Array[StringName] = eligible_by_rarity[rarity]
-			return eligible[shop_rng.randi_range(0, eligible.size() - 1)]
-
-	var fallback_rarity: StringName = eligible_by_rarity.keys().back()
-	var fallback: Array[StringName] = eligible_by_rarity[fallback_rarity]
-	return fallback[shop_rng.randi_range(0, fallback.size() - 1)]
-
-
-func count_rare_plus_relics(offers: Array[StringName]) -> int:
-	var count := 0
-	for item_id in offers:
-		if GameStats.get_relic(item_id)["rarity"] in [&"rare", &"legendary"]:
-			count += 1
-	return count
-
-
-func count_applicable_relics(offers: Array[StringName]) -> int:
-	var roster_tags := get_tower_roster_tags()
-	var count := 0
-	for item_id in offers:
-		if is_relic_applicable_to_current_loadout(item_id, roster_tags):
-			count += 1
-	return count
 
 
 func is_relic_applicable_to_current_loadout(
 	item_id: StringName,
 	current_tags: Array[StringName] = []
 ) -> bool:
-	if item_id == &"trade_agreement":
-		return has_dedicated_spawner_available()
-	var category: StringName = GameStats.get_relic(item_id)["category"]
-	if category == &"global":
-		return true
+	ensure_draft_manager()
 	var tags := current_tags
 	if tags.is_empty():
 		tags = get_tower_roster_tags()
-	return tags.has(category)
+	return draft_manager.is_relic_applicable(
+		item_id,
+		tags,
+		has_dedicated_spawner_available()
+	)
 
 
 func has_dedicated_spawner_available() -> bool:
@@ -1204,24 +1077,6 @@ func has_dedicated_spawner_available() -> bool:
 		):
 			return true
 	return false
-
-
-func choose_stacked_common_relic(
-	available: Array[StringName],
-	excluded: Array[StringName]
-) -> StringName:
-	var eligible: Array[StringName] = []
-	for item_id in available:
-		if excluded.has(item_id):
-			continue
-		var item_stats: Dictionary = GameStats.get_relic(item_id)
-		if (
-			item_stats["rarity"] == &"common"
-			and item_stats.get("stackable", false)
-		):
-			eligible.append(item_id)
-	assert(not eligible.is_empty(), "The Gauntlet needs a stackable common relic.")
-	return eligible[shop_rng.randi_range(0, eligible.size() - 1)]
 
 
 func get_tower_roster_tags() -> Array[StringName]:
@@ -1252,20 +1107,8 @@ func get_tower_roster_tags() -> Array[StringName]:
 
 
 func roll_tower_offers() -> Array[StringName]:
-	var available: Array[StringName] = []
-	for tower_key in GameStats.TOWERS:
-		var tower_id := StringName(tower_key)
-		if not tower_roster.has(tower_id):
-			available.append(tower_id)
-	assert(
-		available.size() >= SHOP_CHOICE_COUNT,
-		"The tower draft needs at least %d available towers." % SHOP_CHOICE_COUNT
-	)
-	var offers: Array[StringName] = []
-	while offers.size() < SHOP_CHOICE_COUNT:
-		var index := shop_rng.randi_range(0, available.size() - 1)
-		offers.append(available.pop_at(index))
-	return offers
+	ensure_draft_manager()
+	return draft_manager.roll_tower_offers(tower_roster)
 
 
 func _on_draft_confirmed(item_id: StringName, quantity: int) -> void:
@@ -1355,18 +1198,10 @@ func get_tower_build_cost(tower_id: StringName, is_contraband := false) -> int:
 	return maxi(roundi(cost), 0)
 
 func roll_random_starting_towers(count: int = 2) -> void:
-	tower_roster.clear()
+	ensure_draft_manager()
+	tower_roster.assign(draft_manager.roll_random_starting_towers(count))
 
-	var available: Array[StringName] = []
 
-	for tower_key in GameStats.TOWERS:
-		available.append(StringName(tower_key))
-
-	for _index in mini(count, available.size()):
-		var random_index := shop_rng.randi_range(0, available.size() - 1)
-		tower_roster.append(available.pop_at(random_index))
-		
-		
 func collect_tower(tower_id: StringName) -> void:
 	if tower_roster.has(tower_id) or tower_roster.size() >= TOWER_SLOT_COUNT:
 		return
@@ -1467,15 +1302,11 @@ func can_tower_purchase_both_paths(tower: Node) -> bool:
 
 
 func cancel_pending_tower_placement() -> void:
-	if is_instance_valid(tower_to_place):
-		clear_tower_details(tower_to_place)
-		tower_to_place.queue_free()
-	tower_to_place = null
-	place_mode = false
-	build_mode = false
-	pending_tower_type = &""
-	pending_tower_cost = 0
-	pending_tower_is_contraband = false
+	ensure_build_controller()
+	var pending_tower: Node2D = build_controller.clear_pending_placement()
+	if is_instance_valid(pending_tower):
+		clear_tower_details(pending_tower)
+		pending_tower.queue_free()
 	tower_list.deselect_all()
 	update_play_pause_button()
 	
@@ -1808,44 +1639,33 @@ func _recycle_explosion_effect(effect: Node2D) -> void:
 
 
 func choose_wave_spawn_style(wave: int) -> StringName:
-	if round_style_plan.has(wave):
-		return StringName(round_style_plan[wave])
-	var available := get_available_enemies(wave)
-	return GameStats.choose_weighted_wave_style(
-		GameStats.get_eligible_wave_styles(wave, available),
-		enemy_rng
-	)
+	sync_wave_director_context()
+	return wave_director.choose_wave_spawn_style(wave)
 
 
 func get_wave_duration(wave: int) -> float:
-	return GameStats.get_round_duration(wave)
+	ensure_wave_director()
+	return wave_director.get_wave_duration(wave)
 
 
 func get_wave_threat_rate(wave: int) -> float:
-	return (
-		GameStats.get_round_threat_budget(wave)
-		/ maxf(GameStats.get_round_duration(wave), 0.01)
-	)
+	ensure_wave_director()
+	return wave_director.get_wave_threat_rate(wave)
 
 
 func get_horde_threat_multiplier(wave: int) -> float:
-	return EARLY_HORDE_THREAT_MULTIPLIER if wave <= 6 else HORDE_THREAT_MULTIPLIER
+	ensure_wave_director()
+	return wave_director.get_horde_threat_multiplier(wave)
 
 
 func get_horde_group_size_multiplier(wave: int) -> float:
-	return (
-		EARLY_HORDE_GROUP_SIZE_MULTIPLIER
-		if wave <= 6
-		else HORDE_GROUP_SIZE_MULTIPLIER
-	)
+	ensure_wave_director()
+	return wave_director.get_horde_group_size_multiplier(wave)
 
 
 func get_horde_spawn_delay_multiplier(wave: int) -> float:
-	return (
-		EARLY_HORDE_SPAWN_DELAY_MULTIPLIER
-		if wave <= 6
-		else HORDE_SPAWN_DELAY_MULTIPLIER
-	)
+	ensure_wave_director()
+	return wave_director.get_horde_spawn_delay_multiplier(wave)
 
 
 func get_enemy_health_multiplier(wave: int, enemy_id: StringName) -> float:
@@ -1858,69 +1678,20 @@ func simulate_director_spawn_counts(
 	seed: int,
 	regenerate_plan := true
 ) -> Dictionary:
-	# Headless balance tools use this dry run so their enemy totals respect the
-	# same threat availability, formation delays, and group cooldowns as play.
-	# It deliberately excludes free elite-event packs; the optimizer models
-	# those separately with their spawned variants.
-	enemy_rng.seed = seed
-	if regenerate_plan or enemy_debut_plan.is_empty() or round_style_plan.is_empty():
-		generate_run_director_plan()
-	round_number = wave
-	current_round_type = round_type
-	var mode := GameStats.get_mode(mode_id)
-	max_rounds = int(mode["max_rounds"])
-	current_wave_spawn_style = choose_wave_spawn_style(wave)
-	if wave == max_rounds:
-		current_wave_spawn_style = &"boss_escort"
-	var duration := get_wave_duration(wave)
-	var simulated_threat_rate := get_wave_threat_rate(wave)
-	if round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
-		simulated_threat_rate *= get_horde_threat_multiplier(wave)
-	var available_threat := float(mode.get("starting_spawn_threat", 1.0))
-	var continuous_ratio := float(mode.get("threat_continuous_ratio", 1.0))
-	var chunk_ratio := float(mode.get("threat_chunk_ratio", 0.0))
-	var chunk_interval := maxf(float(mode.get("threat_chunk_interval", 4.0)), 0.01)
-	var chunk_elapsed := 0.0
-	var cooldown := 0.0
-	var event_wait := 0.0
-	var schedule: Array[Dictionary] = []
-	if wave == max_rounds:
-		schedule = build_timed_boss_opening()
-	else:
-		schedule = build_debut_opening(wave)
-	var counts := {}
-	var elapsed := 0.0
-	const DIRECTOR_STEP := 0.05
-	while elapsed < duration:
-		var delta := minf(DIRECTOR_STEP, duration - elapsed)
-		available_threat += simulated_threat_rate * continuous_ratio * delta
-		chunk_elapsed += delta
-		while chunk_elapsed >= chunk_interval:
-			chunk_elapsed -= chunk_interval
-			available_threat += simulated_threat_rate * chunk_interval * chunk_ratio
-		cooldown = maxf(cooldown - delta, 0.0)
-		event_wait = maxf(event_wait - delta, 0.0)
-		if schedule.is_empty() and cooldown <= 0.0 and event_wait <= 0.0:
-			schedule = build_director_group()
-		if not schedule.is_empty() and event_wait <= 0.0:
-			var spawn_event: Dictionary = schedule.front()
-			var enemy_id := StringName(spawn_event["enemy_id"])
-			var spawn_cost := get_spawn_event_director_cost(spawn_event)
-			if available_threat >= spawn_cost:
-				schedule.pop_front()
-				available_threat -= spawn_cost
-				var spawn_variant := StringName(spawn_event.get(
-					"variant",
-					VARIANT_NORMAL
-				))
-				var count_key := "%s|%s" % [enemy_id, spawn_variant]
-				counts[count_key] = float(counts.get(count_key, 0.0)) + 1.0
-				var delay := float(spawn_event.get("delay_after", 0.1))
-				if schedule.is_empty():
-					cooldown = delay
-				else:
-					event_wait = delay
-		elapsed += delta
+	ensure_wave_director()
+	wave_director.enemy_debut_plan = enemy_debut_plan
+	wave_director.round_style_plan = round_style_plan
+	var simulated_max_rounds := int(GameStats.get_mode(mode_id)["max_rounds"])
+	var counts: Dictionary = wave_director.simulate_spawn_counts(
+		wave,
+		round_type,
+		seed,
+		mode_id,
+		simulated_max_rounds,
+		regenerate_plan
+	)
+	enemy_debut_plan = wave_director.enemy_debut_plan
+	round_style_plan = wave_director.round_style_plan
 	return counts
 
 
@@ -1970,9 +1741,11 @@ func stop_timed_spawning() -> void:
 
 
 func get_available_enemies(wave: int) -> Array[StringName]:
-	if enemy_debut_plan.is_empty():
-		generate_run_director_plan()
-	return GameStats.get_available_enemy_ids(wave, enemy_debut_plan)
+	sync_wave_director_context()
+	var available: Array[StringName] = wave_director.get_available_enemies(wave)
+	enemy_debut_plan = wave_director.enemy_debut_plan
+	round_style_plan = wave_director.round_style_plan
+	return available
 
 
 func process_special_round_events() -> void:
@@ -2034,77 +1807,12 @@ func build_elite_event_schedule(
 	escort_count: int,
 	escort_variant: StringName
 ) -> Array[Dictionary]:
-	var available := get_available_enemies(round_number)
-	var schedule: Array[Dictionary] = []
-	if available.is_empty():
-		return schedule
-
-	var elites: Array[StringName] = []
-	for _index in elite_count:
-		elites.append(choose_elite_enemy(available))
-	var escorts: Array[StringName] = []
-	for _index in escort_count:
-		escorts.append(choose_weighted_enemy(available))
-
-	var front_escort_count := ceili(escorts.size() / 2.0)
-	for _index in front_escort_count:
-		append_special_spawn_event(
-			schedule,
-			escorts.pop_front(),
-			escort_variant,
-			0.12
-		)
-	for elite_id in elites:
-		append_special_spawn_event(
-			schedule,
-			elite_id,
-			VARIANT_ELITE,
-			0.18
-		)
-		if not escorts.is_empty():
-			append_special_spawn_event(
-				schedule,
-				escorts.pop_front(),
-				escort_variant,
-				0.12
-			)
-	while not escorts.is_empty():
-		append_special_spawn_event(
-			schedule,
-			escorts.pop_front(),
-			escort_variant,
-			0.12
-		)
-	if not schedule.is_empty():
-		schedule.back()["delay_after"] = 1.0
-	return schedule
-
-
-func choose_elite_enemy(available: Array[StringName]) -> StringName:
-	var preferred: Array[StringName] = []
-	for enemy_id in available:
-		var role: StringName = GameStats.get_enemy(enemy_id).get("role", ROLE_FODDER)
-		if role in [ROLE_PRESSURE, ROLE_TANK]:
-			preferred.append(enemy_id)
-	if preferred.is_empty():
-		preferred = available.duplicate()
-	return choose_weighted_enemy(preferred)
-
-
-func append_special_spawn_event(
-	schedule: Array[Dictionary],
-	enemy_id: StringName,
-	spawn_variant: StringName,
-	delay_after: float
-) -> void:
-	schedule.append({
-		"enemy_id": enemy_id,
-		"delay_after": delay_after,
-		"style": &"elite_event",
-		"variant": spawn_variant,
-		"free_spawn": true,
-		"special_event": true,
-	})
+	sync_wave_director_context()
+	return wave_director.build_elite_event_schedule(
+		elite_count,
+		escort_count,
+		escort_variant
+	)
 
 
 func inject_special_spawn_schedule(schedule: Array[Dictionary]) -> void:
@@ -2118,336 +1826,30 @@ func inject_special_spawn_schedule(schedule: Array[Dictionary]) -> void:
 
 
 func build_director_group() -> Array[Dictionary]:
-	var available := get_available_enemies(round_number)
-	if current_round_type == ROUND_PAYDAY:
-		available = available.filter(
-			func(enemy_id: StringName) -> bool:
-				var role: StringName = GameStats.get_enemy(enemy_id).get(
-					"role",
-					ROLE_FODDER
-				)
-				return role in [ROLE_FODDER, ROLE_PRESSURE]
-		)
-	if available.is_empty():
-		return []
-
-	var group_style := current_wave_spawn_style
-	if current_round_type == ROUND_GAUNTLET:
-		group_style = choose_gauntlet_spawn_style()
-	elif current_round_type == ROUND_PAYDAY:
-		group_style = choose_payday_spawn_style()
-	var group_size := get_director_group_size(group_style)
-	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
-		group_size = maxi(
-			1,
-			roundi(group_size * get_horde_group_size_multiplier(round_number))
-		)
-	var enemy_queue := build_role_based_enemy_queue(
-		group_style,
-		group_size,
-		available
-	)
-
-	var schedule: Array[Dictionary]
-	match group_style:
-		&"pulses":
-			schedule = build_pulse_schedule(enemy_queue)
-		&"swarm_batch":
-			schedule = build_swarm_batch_schedule(enemy_queue)
-		&"convoy":
-			schedule = build_convoy_schedule(enemy_queue)
-		&"hidden_probe":
-			schedule = build_hidden_probe_schedule(enemy_queue)
-		&"splitter_pack":
-			schedule = build_splitter_pack_schedule(enemy_queue)
-		&"support_column":
-			schedule = build_support_column_schedule(enemy_queue)
-		&"rush_screen":
-			schedule = build_rush_screen_schedule(enemy_queue)
-		&"summoner_escort":
-			schedule = build_summoner_escort_schedule(enemy_queue)
-		&"elite_escort":
-			schedule = build_elite_escort_schedule(enemy_queue)
-		&"layered_assault":
-			schedule = build_layered_assault_schedule(enemy_queue)
-		&"boss_rehearsal":
-			schedule = build_boss_rehearsal_schedule(enemy_queue)
-		&"stream", &"burst", &"spaced":
-			schedule = build_fixed_style_schedule(enemy_queue, group_style)
-		_:
-			schedule = build_standard_schedule(enemy_queue)
-	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
-		var spawn_variant := (
-			VARIANT_PAYDAY
-			if current_round_type == ROUND_PAYDAY
-			else VARIANT_HORDE
-		)
-		apply_spawn_schedule_variant(
-			schedule,
-			spawn_variant,
-			get_horde_spawn_delay_multiplier(round_number)
-		)
-	apply_random_spawn_break(schedule)
+	sync_wave_director_context()
+	var schedule: Array[Dictionary] = wave_director.build_director_group()
+	sync_wave_director_style_memory()
 	return schedule
 
 
-func apply_random_spawn_break(schedule: Array[Dictionary]) -> void:
-	if schedule.is_empty() or enemy_rng.randf() >= RANDOM_SPAWN_BREAK_CHANCE:
-		return
-	var break_duration := enemy_rng.randf_range(
-		RANDOM_SPAWN_BREAK_MIN_DURATION,
-		RANDOM_SPAWN_BREAK_MAX_DURATION
-	)
-	schedule.back()["delay_after"] = (
-		float(schedule.back().get("delay_after", 0.1))
-		+ break_duration
-	)
-	schedule.back()["random_break_after"] = break_duration
+func build_debut_opening(wave: int) -> Array[Dictionary]:
+	sync_wave_director_context()
+	return wave_director.build_debut_opening(wave)
 
 
-func choose_gauntlet_spawn_style() -> StringName:
-	var styles: Array[StringName] = [
-		&"pulses",
-		&"swarm_batch",
-		&"convoy",
-		&"layered_assault",
-		&"elite_escort",
-		&"stream",
-	]
-	if gauntlet_style_repeat_count >= 2:
-		styles.erase(last_gauntlet_spawn_style)
-	var selected := styles[enemy_rng.randi_range(0, styles.size() - 1)]
-	if selected == last_gauntlet_spawn_style:
-		gauntlet_style_repeat_count += 1
-	else:
-		last_gauntlet_spawn_style = selected
-		gauntlet_style_repeat_count = 1
-	return selected
+func build_timed_boss_opening() -> Array[Dictionary]:
+	sync_wave_director_context()
+	return wave_director.build_timed_boss_opening()
 
 
-func choose_payday_spawn_style() -> StringName:
-	var styles: Array[StringName] = [
-		&"stream",
-		&"pulses",
-		&"swarm_batch",
-		&"burst",
-	]
-	return styles[enemy_rng.randi_range(0, styles.size() - 1)]
+func get_spawn_event_director_cost(spawn_event: Dictionary) -> float:
+	ensure_wave_director()
+	return wave_director.get_spawn_event_director_cost(spawn_event)
 
 
-func apply_spawn_schedule_variant(
-	schedule: Array[Dictionary],
-	spawn_variant: StringName,
-	delay_multiplier: float
-) -> void:
-	for spawn_event in schedule:
-		if not spawn_event.has("variant"):
-			spawn_event["variant"] = spawn_variant
-		spawn_event["delay_after"] = maxf(
-			float(spawn_event.get("delay_after", 0.1)) * delay_multiplier,
-			0.01
-		)
-
-
-func build_role_based_enemy_queue(
-	style_name: StringName,
-	group_size: int,
-	available: Array[StringName]
-) -> Array[StringName]:
-	var group: Array[StringName] = []
-	var recipe_style := style_name
-	if recipe_style == &"standard" or recipe_style == &"boss_escort":
-		recipe_style = &"steady"
-
-	var forced_roles: Array[StringName] = []
-	match style_name:
-		&"convoy", &"elite_escort":
-			forced_roles = [ROLE_TANK]
-		&"support_column":
-			forced_roles = [ROLE_SUPPORT]
-		&"rush_screen", &"layered_assault":
-			forced_roles = [ROLE_TANK, ROLE_PRESSURE]
-
-	for forced_role in forced_roles:
-		var forced_enemy := choose_enemy_for_role(
-			forced_role,
-			available,
-			group,
-			group_size
-		)
-		if not forced_enemy.is_empty():
-			group.append(forced_enemy)
-	var forced_enemy_id: StringName = &""
-	match style_name:
-		&"hidden_probe":
-			forced_enemy_id = &"hidden"
-		&"splitter_pack":
-			forced_enemy_id = &"splitter"
-		&"rush_screen":
-			forced_enemy_id = &"rusher"
-		&"summoner_escort":
-			forced_enemy_id = &"summoner"
-		&"boss_rehearsal":
-			forced_enemy_id = &"summoner" if &"summoner" in available else &"regenerator"
-	if not forced_enemy_id.is_empty() and forced_enemy_id in available:
-		if forced_enemy_id not in group and group.size() < group_size:
-			group.append(forced_enemy_id)
-
-	if style_name == &"standard" or style_name == &"boss_escort":
-		var leader_role := choose_formation_role(
-			recipe_style,
-			available,
-			group,
-			group_size
-		)
-		var leader := choose_enemy_for_role(
-			leader_role,
-			available,
-			group,
-			group_size
-		)
-		if not leader.is_empty():
-			group.push_front(leader)
-			recipe_style = GameStats.get_enemy(leader).get("spawn_style", &"steady")
-
-	while group.size() < group_size:
-		var role := choose_formation_role(
-			recipe_style,
-			available,
-			group,
-			group_size
-		)
-		var enemy_id := choose_enemy_for_role(
-			role,
-			available,
-			group,
-			group_size
-		)
-		if enemy_id.is_empty():
-			break
-		group.append(enemy_id)
-
-	return group
-
-
-func choose_formation_role(
-	style_name: StringName,
-	available: Array[StringName],
-	current_group: Array[StringName],
-	group_size: int
-) -> StringName:
-	var wave_weights := get_wave_role_weights(round_number)
-	var formation_weights: Dictionary = FORMATION_ROLE_WEIGHTS.get(
-		style_name,
-		FORMATION_ROLE_WEIGHTS[&"steady"]
-	)
-	var roles: Array[StringName] = [
-		ROLE_FODDER,
-		ROLE_PRESSURE,
-		ROLE_TANK,
-		ROLE_SUPPORT,
-	]
-	var candidates: Array[StringName] = []
-	var candidate_weights: Array[float] = []
-	var total_weight := 0.0
-
-	for role in roles:
-		if role == ROLE_SUPPORT and count_role_in_group(current_group, ROLE_SUPPORT) >= 1:
-			continue
-		if get_valid_enemies_for_role(
-			role,
-			available,
-			current_group,
-			group_size
-		).is_empty():
-			continue
-
-		var wave_weight := float(wave_weights.get(role, 0.0))
-		var formation_weight := float(formation_weights.get(role, 0.0))
-		# A zero in either table is an intentional exclusion. Multiplication keeps
-		# formation identities intact while still respecting round progression.
-		var weight := wave_weight * formation_weight / 100.0
-		if weight <= 0.0:
-			continue
-		candidates.append(role)
-		candidate_weights.append(weight)
-		total_weight += weight
-
-	if candidates.is_empty():
-		return ROLE_FODDER
-
-	var roll := enemy_rng.randf_range(0.0, total_weight)
-	for index in candidates.size():
-		roll -= candidate_weights[index]
-		if roll <= 0.0:
-			return candidates[index]
-	return candidates.back()
-
-
-func get_wave_role_weights(wave: int) -> Dictionary:
-	for entry in WAVE_ROLE_WEIGHTS:
-		if wave <= entry["maximum_wave"]:
-			return entry["weights"]
-	return WAVE_ROLE_WEIGHTS.back()["weights"]
-
-
-func choose_enemy_for_role(
-	role: StringName,
-	available: Array[StringName],
-	current_group: Array[StringName],
-	group_size: int
-) -> StringName:
-	var candidates := get_valid_enemies_for_role(
-		role,
-		available,
-		current_group,
-		group_size
-	)
-	if candidates.is_empty():
-		for fallback_role in [ROLE_FODDER, ROLE_PRESSURE, ROLE_TANK, ROLE_SUPPORT]:
-			candidates = get_valid_enemies_for_role(
-				fallback_role,
-				available,
-				current_group,
-				group_size
-			)
-			if not candidates.is_empty():
-				break
-	if candidates.is_empty():
-		return &""
-	return choose_weighted_enemy(candidates)
-
-
-func get_valid_enemies_for_role(
-	role: StringName,
-	available: Array[StringName],
-	current_group: Array[StringName],
-	group_size: int
-) -> Array[StringName]:
-	var candidates: Array[StringName] = []
-	for enemy_id in available:
-		var stats: Dictionary = GameStats.get_enemy(enemy_id)
-		if stats.get("role", ROLE_FODDER) != role:
-			continue
-		if role == ROLE_SUPPORT and count_role_in_group(current_group, ROLE_SUPPORT) >= 1:
-			continue
-		if enemy_id in [&"buffer", &"summoner"]:
-			if get_active_enemy_count(enemy_id) + current_group.count(enemy_id) >= 2:
-				continue
-		if enemy_id == &"rusher":
-			var rusher_limit := maxi(1, floori(float(group_size) * 0.3))
-			if current_group.count(&"rusher") >= rusher_limit:
-				continue
-		candidates.append(enemy_id)
-	return candidates
-
-
-func count_role_in_group(group: Array[StringName], role: StringName) -> int:
-	var count := 0
-	for enemy_id in group:
-		if GameStats.get_enemy(enemy_id).get("role", ROLE_FODDER) == role:
-			count += 1
-	return count
+func choose_weighted_enemy(available: Array[StringName]) -> StringName:
+	sync_wave_director_context()
+	return wave_director.choose_weighted_enemy(available)
 
 
 func get_active_enemy_count(enemy_id: StringName) -> int:
@@ -2462,462 +1864,6 @@ func get_active_enemy_count(enemy_id: StringName) -> int:
 		):
 			count += 1
 	return count
-
-
-func get_director_group_size(style_name: StringName) -> int:
-	var base_size: int
-	match style_name:
-		&"pulses":
-			base_size = enemy_rng.randi_range(7, 12)
-		&"swarm_batch":
-			base_size = enemy_rng.randi_range(8, 14)
-		&"convoy":
-			base_size = 8
-		&"elite_escort", &"support_column", &"summoner_escort":
-			base_size = 9
-		&"hidden_probe", &"splitter_pack", &"rush_screen":
-			base_size = enemy_rng.randi_range(8, 12)
-		&"layered_assault", &"boss_rehearsal":
-			base_size = enemy_rng.randi_range(10, 14)
-		_:
-			base_size = enemy_rng.randi_range(6, 10)
-	return maxi(1, roundi(float(base_size) * STANDARD_GROUP_SIZE_MULTIPLIER))
-
-
-func build_debut_opening(wave: int) -> Array[Dictionary]:
-	var schedule: Array[Dictionary] = []
-	var debuts := GameStats.get_debut_enemy_ids(wave, enemy_debut_plan)
-	debuts.erase(&"normal")
-	if debuts.is_empty():
-		return schedule
-	var available := get_available_enemies(wave)
-	var group: Array[StringName] = debuts.duplicate()
-	var escort_pool := available.duplicate()
-	for debut_id in debuts:
-		escort_pool.erase(debut_id)
-	while group.size() < 3 and not escort_pool.is_empty():
-		group.append(choose_weighted_enemy(escort_pool))
-	GameStats.shuffle_with_rng(group, enemy_rng)
-	append_enemy_group(schedule, group, 0.22, 1.0, &"debut")
-	return schedule
-
-
-func build_timed_boss_opening() -> Array[Dictionary]:
-	var available := get_available_enemies(round_number)
-	if available.is_empty():
-		var boss_only_schedule: Array[Dictionary] = []
-		append_enemy_group(
-			boss_only_schedule,
-			[&"brute"],
-			0.2,
-			2.0,
-			&"boss_escort"
-		)
-		return boss_only_schedule
-
-	var front_candidates: Array[StringName] = []
-	var rear_candidates: Array[StringName] = []
-	for enemy_id in available:
-		if get_enemy_formation_strength(enemy_id) < 8:
-			continue
-		var role: StringName = GameStats.get_enemy(enemy_id).get(
-			"role",
-			ROLE_FODDER
-		)
-		if role == ROLE_TANK:
-			front_candidates.append(enemy_id)
-		elif role in [ROLE_PRESSURE, ROLE_SUPPORT]:
-			rear_candidates.append(enemy_id)
-	if front_candidates.is_empty():
-		front_candidates = available.duplicate()
-	if rear_candidates.is_empty():
-		rear_candidates = available.duplicate()
-	var boss_group: Array[StringName] = [
-		choose_weighted_enemy(front_candidates),
-		choose_weighted_enemy(front_candidates),
-		&"brute",
-		choose_weighted_enemy(rear_candidates),
-		choose_weighted_enemy(rear_candidates),
-	]
-	var schedule: Array[Dictionary] = []
-	append_enemy_group(schedule, boss_group, 0.2, 2.0, &"boss_escort")
-	return schedule
-
-
-func build_standard_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
-	var schedule: Array[Dictionary] = []
-
-	while not enemy_queue.is_empty():
-		var group_leader: StringName = enemy_queue[0]
-		var leader_stats: Dictionary = GameStats.get_enemy(group_leader)
-		var style_name: StringName = leader_stats.get("spawn_style", &"steady")
-		var style: Dictionary = SPAWN_STYLES.get(style_name, SPAWN_STYLES[&"steady"])
-		var minimum_group_size: int = style["minimum_group_size"]
-		var maximum_group_size: int = style["maximum_group_size"]
-		var requested_size := enemy_rng.randi_range(
-			minimum_group_size,
-			maximum_group_size
-		)
-		var group_size := mini(requested_size, enemy_queue.size())
-		var interval: float = style["interval"]
-		var gap_after_group: float = style["gap_after_group"]
-
-		var group := take_front_group(enemy_queue, group_size)
-		append_enemy_group(
-			schedule,
-			group,
-			interval,
-			gap_after_group,
-			style_name
-		)
-
-	return schedule
-
-
-func build_pulse_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
-	var schedule: Array[Dictionary] = []
-	while not enemy_queue.is_empty():
-		var group_size := mini(enemy_rng.randi_range(7, 12), enemy_queue.size())
-		var group := take_front_group(enemy_queue, group_size)
-		append_enemy_group(schedule, group, 0.12, 1.2, &"pulses")
-	return schedule
-
-
-func build_swarm_batch_schedule(
-	enemy_queue: Array[StringName]
-) -> Array[Dictionary]:
-	var schedule: Array[Dictionary] = []
-	while not enemy_queue.is_empty():
-		var group_size := mini(enemy_rng.randi_range(8, 14), enemy_queue.size())
-		var group := take_front_group(enemy_queue, group_size)
-		append_enemy_group(schedule, group, 0.05, 1.2, &"swarm_batch")
-	return schedule
-
-
-func build_convoy_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
-	var schedule: Array[Dictionary] = []
-	while not enemy_queue.is_empty():
-		var group: Array[StringName] = [take_enemy_by_role(enemy_queue, ROLE_TANK)]
-		var escort_count := mini(7, enemy_queue.size())
-		for _index in escort_count:
-			group.append(take_weakest_enemy(enemy_queue))
-		append_enemy_group(schedule, group, 0.2, 1.2, &"convoy")
-	return schedule
-
-
-func build_fixed_style_schedule(
-	enemy_queue: Array[StringName],
-	style_name: StringName
-) -> Array[Dictionary]:
-	var style: Dictionary = SPAWN_STYLES.get(
-		style_name,
-		SPAWN_STYLES[&"steady"]
-	)
-	var schedule: Array[Dictionary] = []
-	append_enemy_group(
-		schedule,
-		enemy_queue,
-		float(style["interval"]),
-		float(style["gap_after_group"]),
-		style_name
-	)
-	return schedule
-
-
-func build_hidden_probe_schedule(
-	enemy_queue: Array[StringName]
-) -> Array[Dictionary]:
-	var hidden_enemies := take_all_enemy_id(enemy_queue, &"hidden")
-	var front := take_front_group(
-		enemy_queue,
-		ceili(float(enemy_queue.size()) * 0.5)
-	)
-	var group := front
-	group.append_array(hidden_enemies)
-	group.append_array(enemy_queue)
-	var schedule: Array[Dictionary] = []
-	append_enemy_group(schedule, group, 0.16, 1.1, &"hidden_probe")
-	return schedule
-
-
-func build_splitter_pack_schedule(
-	enemy_queue: Array[StringName]
-) -> Array[Dictionary]:
-	var splitters := take_all_enemy_id(enemy_queue, &"splitter")
-	var group: Array[StringName] = []
-	while not splitters.is_empty() or not enemy_queue.is_empty():
-		if not enemy_queue.is_empty():
-			group.append(take_weakest_enemy(enemy_queue))
-		if not splitters.is_empty():
-			group.append(splitters.pop_front())
-	var schedule: Array[Dictionary] = []
-	append_enemy_group(schedule, group, 0.12, 1.2, &"splitter_pack")
-	return schedule
-
-
-func build_support_column_schedule(
-	enemy_queue: Array[StringName]
-) -> Array[Dictionary]:
-	var support := take_enemy_by_role(enemy_queue, ROLE_SUPPORT)
-	var tank := take_enemy_by_role(enemy_queue, ROLE_TANK)
-	var group: Array[StringName] = []
-	append_if_valid(group, tank)
-	var front := take_front_group(enemy_queue, mini(2, enemy_queue.size()))
-	group.append_array(front)
-	append_if_valid(group, support)
-	group.append_array(enemy_queue)
-	var schedule: Array[Dictionary] = []
-	append_enemy_group(schedule, group, 0.18, 1.3, &"support_column")
-	return schedule
-
-
-func build_rush_screen_schedule(
-	enemy_queue: Array[StringName]
-) -> Array[Dictionary]:
-	var rushers := take_all_enemy_id(enemy_queue, &"rusher")
-	var screen := take_enemy_by_role(enemy_queue, ROLE_TANK)
-	var group: Array[StringName] = []
-	append_if_valid(group, screen)
-	group.append_array(take_front_group(enemy_queue, mini(2, enemy_queue.size())))
-	group.append_array(rushers)
-	group.append_array(enemy_queue)
-	var schedule: Array[Dictionary] = []
-	append_enemy_group(schedule, group, 0.10, 1.2, &"rush_screen")
-	return schedule
-
-
-func build_summoner_escort_schedule(
-	enemy_queue: Array[StringName]
-) -> Array[Dictionary]:
-	var summoner := take_enemy_by_id(enemy_queue, &"summoner")
-	var tank := take_enemy_by_role(enemy_queue, ROLE_TANK)
-	return build_centerpiece_escort_schedule(
-		enemy_queue,
-		summoner,
-		tank,
-		&"summoner_escort",
-		false
-	)
-
-
-func build_elite_escort_schedule(
-	enemy_queue: Array[StringName]
-) -> Array[Dictionary]:
-	var elite := take_enemy_by_role(enemy_queue, ROLE_TANK)
-	return build_centerpiece_escort_schedule(
-		enemy_queue,
-		elite,
-		&"",
-		&"elite_escort",
-		true
-	)
-
-
-func build_layered_assault_schedule(
-	enemy_queue: Array[StringName]
-) -> Array[Dictionary]:
-	var fodder: Array[StringName] = []
-	var pressure: Array[StringName] = []
-	var finishers: Array[StringName] = []
-	for enemy_id in enemy_queue:
-		var role: StringName = GameStats.get_enemy(enemy_id).get(
-			"role",
-			ROLE_FODDER
-		)
-		if role == ROLE_FODDER:
-			fodder.append(enemy_id)
-		elif role == ROLE_PRESSURE:
-			pressure.append(enemy_id)
-		else:
-			finishers.append(enemy_id)
-	var schedule: Array[Dictionary] = []
-	append_enemy_group(schedule, fodder, 0.10, 0.9, &"layered_assault")
-	append_enemy_group(schedule, pressure, 0.08, 1.0, &"layered_assault")
-	append_enemy_group(schedule, finishers, 0.28, 1.3, &"layered_assault")
-	return schedule
-
-
-func build_boss_rehearsal_schedule(
-	enemy_queue: Array[StringName]
-) -> Array[Dictionary]:
-	var centerpiece := take_enemy_by_id(enemy_queue, &"summoner")
-	if centerpiece.is_empty():
-		centerpiece = take_enemy_by_id(enemy_queue, &"regenerator")
-	return build_centerpiece_escort_schedule(
-		enemy_queue,
-		centerpiece,
-		&"",
-		&"boss_rehearsal",
-		true
-	)
-
-
-func build_centerpiece_escort_schedule(
-	enemy_queue: Array[StringName],
-	centerpiece: StringName,
-	frontliner: StringName,
-	style_name: StringName,
-	make_centerpiece_elite: bool
-) -> Array[Dictionary]:
-	var escorts := enemy_queue.duplicate()
-	var group: Array[StringName] = []
-	append_if_valid(group, frontliner)
-	var front_count := ceili(float(escorts.size()) * 0.5)
-	group.append_array(take_front_group(escorts, front_count))
-	var centerpiece_index := group.size()
-	append_if_valid(group, centerpiece)
-	group.append_array(escorts)
-	var schedule: Array[Dictionary] = []
-	append_enemy_group(schedule, group, 0.16, 1.3, style_name)
-	if make_centerpiece_elite and centerpiece_index < schedule.size():
-		schedule[centerpiece_index]["variant"] = VARIANT_ELITE
-		schedule[centerpiece_index]["director_cost_multiplier"] = (
-			GameStats.get_elite_enemy_health_multiplier(round_number)
-		)
-	return schedule
-
-
-func take_front_group(
-	enemy_queue: Array[StringName],
-	count: int
-) -> Array[StringName]:
-	var group: Array[StringName] = []
-	for _index in mini(count, enemy_queue.size()):
-		group.append(enemy_queue.pop_front())
-	return group
-
-
-func take_enemy_by_id(
-	enemy_queue: Array[StringName],
-	enemy_id: StringName
-) -> StringName:
-	var index := enemy_queue.find(enemy_id)
-	if index < 0:
-		return &""
-	enemy_queue.remove_at(index)
-	return enemy_id
-
-
-func take_all_enemy_id(
-	enemy_queue: Array[StringName],
-	enemy_id: StringName
-) -> Array[StringName]:
-	var selected: Array[StringName] = []
-	while enemy_id in enemy_queue:
-		take_enemy_by_id(enemy_queue, enemy_id)
-		selected.append(enemy_id)
-	return selected
-
-
-func append_if_valid(
-	group: Array[StringName],
-	enemy_id: StringName
-) -> void:
-	if not enemy_id.is_empty():
-		group.append(enemy_id)
-
-
-func append_enemy_group(
-	schedule: Array[Dictionary],
-	group: Array[StringName],
-	interval: float,
-	gap_after_group: float,
-	style_name: StringName
-) -> void:
-	var delay_multiplier := STANDARD_FORMATION_DELAY_MULTIPLIER
-	if style_name == &"boss_escort":
-		delay_multiplier = 1.0
-	elif style_name == &"spaced":
-		delay_multiplier = SPACED_FORMATION_DELAY_MULTIPLIER
-	var adjusted_interval := maxf(interval * delay_multiplier, 0.01)
-	var adjusted_gap := maxf(gap_after_group * delay_multiplier, 0.01)
-	for index in group.size():
-		var delay_after := adjusted_interval
-		if index == group.size() - 1:
-			delay_after = adjusted_gap
-		schedule.append({
-			"enemy_id": group[index],
-			"delay_after": delay_after,
-			"style": style_name,
-		})
-
-
-func take_strongest_enemy(enemy_queue: Array[StringName]) -> StringName:
-	return take_enemy_by_threat(enemy_queue, true)
-
-
-func take_enemy_by_role(
-	enemy_queue: Array[StringName],
-	role: StringName
-) -> StringName:
-	for index in enemy_queue.size():
-		if GameStats.get_enemy(enemy_queue[index]).get("role", ROLE_FODDER) == role:
-			var selected := enemy_queue[index]
-			enemy_queue.remove_at(index)
-			return selected
-	return take_strongest_enemy(enemy_queue)
-
-
-func take_weakest_enemy(enemy_queue: Array[StringName]) -> StringName:
-	return take_enemy_by_threat(enemy_queue, false)
-
-
-func take_enemy_by_threat(
-	enemy_queue: Array[StringName],
-	take_strongest: bool
-) -> StringName:
-	if enemy_queue.is_empty():
-		return &""
-
-	var selected_index := 0
-	var selected_cost := get_enemy_formation_strength(enemy_queue[0])
-
-	for index in range(1, enemy_queue.size()):
-		var candidate_cost := get_enemy_formation_strength(enemy_queue[index])
-		if (
-			(take_strongest and candidate_cost > selected_cost)
-			or (not take_strongest and candidate_cost < selected_cost)
-		):
-			selected_index = index
-			selected_cost = candidate_cost
-
-	var selected_enemy := enemy_queue[selected_index]
-	enemy_queue.remove_at(selected_index)
-	return selected_enemy
-
-
-func get_enemy_formation_strength(enemy_id: StringName) -> int:
-	return GameStats.get_enemy(enemy_id).get("formation_strength", 1)
-
-
-func get_enemy_director_cost(enemy_id: StringName) -> int:
-	return GameStats.get_enemy(enemy_id).get("director_cost", 1)
-
-
-func get_spawn_event_director_cost(spawn_event: Dictionary) -> float:
-	return (
-		float(get_enemy_director_cost(StringName(spawn_event["enemy_id"])))
-		* float(spawn_event.get("director_cost_multiplier", 1.0))
-	)
-
-
-func choose_weighted_enemy(available: Array[StringName]) -> StringName:
-	if available.is_empty():
-		return &""
-
-	var total_weight := 0
-	for enemy_id in available:
-		total_weight += GameStats.get_enemy(enemy_id).get("spawn_weight", 1)
-	if total_weight <= 0:
-		return available[0]
-
-	var roll := enemy_rng.randi_range(1, total_weight)
-	for enemy_id in available:
-		roll -= GameStats.get_enemy(enemy_id).get("spawn_weight", 1)
-		if roll <= 0:
-			return enemy_id
-
-	return available[0]
 
 
 func _on_mob_reached_end(damage: int) -> void:
@@ -2955,14 +1901,13 @@ func finish_game(message: String) -> void:
 	clear_active_projectiles()
 	shop_open = false
 	between_round_shop.hide()
-	place_mode = false
-	build_mode = false
 	close_all_tower_menus()
 	clear_tower_details()
 
-	if is_instance_valid(tower_to_place):
-		tower_to_place.queue_free()
-		tower_to_place = null
+	ensure_build_controller()
+	var pending_tower: Node2D = build_controller.clear_pending_placement()
+	if is_instance_valid(pending_tower):
+		pending_tower.queue_free()
 	
 	pause_button.disabled = true
 	speed_button.disabled = true
@@ -2994,9 +1939,9 @@ func mob_finished() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not is_instance_valid(manual_targeting_tower):
-		if manual_targeting_tower != null:
-			manual_targeting_tower = null
+	ensure_build_controller()
+	if not is_instance_valid(build_controller.manual_targeting_tower):
+		build_controller.clear_invalid_manual_target()
 		return
 	if (
 		event.is_action_pressed("ui_cancel")
@@ -3015,7 +1960,7 @@ func _input(event: InputEvent) -> void:
 		and event.pressed
 	):
 		get_viewport().set_input_as_handled()
-		var targeting_tower := manual_targeting_tower
+		var targeting_tower: Node2D = build_controller.manual_targeting_tower
 		if targeting_tower.confirm_manual_target_position(get_global_mouse_position()):
 			finish_manual_tower_targeting(targeting_tower)
 
@@ -3068,13 +2013,13 @@ func can_place_tower(pos: Vector2) -> bool:
 		return false
 
 	var tower_id: StringName = tower_to_place.tower_id
-	for cell in get_tower_build_cells(pos, tower_id):
-		if not is_build_cell_in_playable_area(cell):
-			return false
-		if is_build_cell_blocked_by_path(cell):
-			return false
-		if is_build_cell_occupied(cell):
-			return false
+	if not build_controller.can_place_tower_on_grid(
+		pos,
+		tower_id,
+		get_build_bounds(),
+		is_build_cell_blocked_by_path
+	):
+		return false
 
 	var space_state = get_world_2d().direct_space_state
 	var shape_node := tower_to_place.get_node("clickarea/CollisionShape2D")
@@ -3095,66 +2040,50 @@ func finalize_tower_placement() -> void:
 	var pos := tower_to_place.position
 	if not can_place_tower(pos):
 		return
-	place_mode = false
+	build_controller.await_confirmation()
 	tower_to_place.position = pos
 	tower_to_place.get_node("towerconfirm").visible = true
 	tower_list.deselect_all()
 
 
 func world_to_build_cell(world_position: Vector2) -> Vector2i:
-	return Vector2i(
-		floori(world_position.x / PLACEMENT_SNAP_SIZE),
-		floori(world_position.y / PLACEMENT_SNAP_SIZE)
-	)
+	ensure_build_controller()
+	return build_controller.world_to_build_cell(world_position)
 
 
 func get_tower_footprint(tower_id: StringName) -> Vector2i:
-	return GameStats.get_tower(tower_id).get("footprint_cells", Vector2i.ONE)
+	ensure_build_controller()
+	return build_controller.get_tower_footprint(tower_id)
 
 
 func get_tower_build_position(world_position: Vector2, tower_id: StringName) -> Vector2:
-	var footprint_size := Vector2(get_tower_footprint(tower_id)) * BUILD_CELL_SIZE
-	var snap_step := Vector2.ONE * PLACEMENT_SNAP_SIZE
-	var snapped_origin := (world_position - footprint_size * 0.5).snapped(snap_step)
-	return snapped_origin + footprint_size * 0.5
+	ensure_build_controller()
+	return build_controller.get_tower_build_position(world_position, tower_id)
 
 
 func get_tower_build_cells(tower_position: Vector2, tower_id: StringName) -> Array[Vector2i]:
-	var footprint_size := Vector2(get_tower_footprint(tower_id)) * BUILD_CELL_SIZE
-	var footprint_cells := Vector2i(
-		roundi(footprint_size.x / PLACEMENT_SNAP_SIZE),
-		roundi(footprint_size.y / PLACEMENT_SNAP_SIZE)
+	ensure_build_controller()
+	var cells: Array[Vector2i] = build_controller.get_tower_build_cells(
+		tower_position,
+		tower_id
 	)
-	var origin_world := tower_position - footprint_size * 0.5
-	var origin_cell := world_to_build_cell(origin_world + Vector2(0.01, 0.01))
-	var cells: Array[Vector2i] = []
-	for y_offset in footprint_cells.y:
-		for x_offset in footprint_cells.x:
-			cells.append(origin_cell + Vector2i(x_offset, y_offset))
 	return cells
 
 
 func get_build_cell_center(cell: Vector2i) -> Vector2:
-	return (
-		Vector2(cell) * PLACEMENT_SNAP_SIZE
-		+ Vector2.ONE * PLACEMENT_SNAP_SIZE * 0.5
-	)
+	ensure_build_controller()
+	return build_controller.get_build_cell_center(cell)
 
 
 func is_build_cell_in_playable_area(cell: Vector2i) -> bool:
-	var cell_top_left := Vector2(cell) * PLACEMENT_SNAP_SIZE
-	var cell_bottom_right := cell_top_left + Vector2.ONE * PLACEMENT_SNAP_SIZE
-	var build_bounds := (
-		active_map.get_build_bounds()
-		if active_map != null
-		else Rect2(Vector2.ZERO, get_viewport_rect().size)
-	)
-	return (
-		cell_top_left.x >= build_bounds.position.x
-		and cell_top_left.y >= build_bounds.position.y
-		and cell_bottom_right.x <= build_bounds.end.x
-		and cell_bottom_right.y <= build_bounds.end.y
-	)
+	ensure_build_controller()
+	return build_controller.is_build_cell_in_bounds(cell, get_build_bounds())
+
+
+func get_build_bounds() -> Rect2:
+	if active_map != null:
+		return active_map.get_build_bounds()
+	return Rect2(Vector2.ZERO, get_viewport_rect().size)
 
 
 func get_playable_right_edge() -> float:
@@ -3196,76 +2125,48 @@ func get_path_cell_positions_near(
 		return positions
 	if active_map == null or get_enemy_paths().is_empty():
 		return positions
-	var minimum_cell := world_to_build_cell(
-		origin - Vector2.ONE * maximum_radius
+	ensure_build_controller()
+	return build_controller.get_path_cell_positions_near(
+		origin,
+		maximum_radius,
+		get_build_bounds(),
+		active_map
 	)
-	var maximum_cell := world_to_build_cell(
-		origin + Vector2.ONE * maximum_radius
-	)
-	var centerline_snap_distance := PLACEMENT_SNAP_SIZE * 0.75
-	for cell_y in range(minimum_cell.y, maximum_cell.y + 1):
-		for cell_x in range(minimum_cell.x, maximum_cell.x + 1):
-			var cell := Vector2i(cell_x, cell_y)
-			if not is_build_cell_in_playable_area(cell):
-				continue
-			var cell_center := get_build_cell_center(cell)
-			if origin.distance_to(cell_center) > maximum_radius:
-				continue
-			if (
-				active_map.get_distance_to_nearest_path(cell_center)
-				> centerline_snap_distance
-			):
-				continue
-			positions.append(cell_center)
-	return positions
 
 
 func is_build_cell_occupied(cell: Vector2i) -> bool:
-	if not occupied_build_cells.has(cell):
-		return false
-	var occupying_tower = occupied_build_cells[cell]
-	if is_instance_valid(occupying_tower) and not occupying_tower.is_queued_for_deletion():
-		return true
-	occupied_build_cells.erase(cell)
-	return false
+	ensure_build_controller()
+	return build_controller.is_build_cell_occupied(cell)
 
 
 func reserve_tower_build_cells(tower: Node2D) -> void:
-	var cells := get_tower_build_cells(tower.position, tower.tower_id)
-	for cell in cells:
-		occupied_build_cells[cell] = tower
-	tower.set_meta("build_cells", cells)
+	ensure_build_controller()
+	build_controller.reserve_tower_build_cells(tower)
 
 
 func release_tower_build_cells(tower: Node2D) -> void:
-	var cells: Array = tower.get_meta("build_cells", [])
-	for cell in cells:
-		if occupied_build_cells.get(cell) == tower:
-			occupied_build_cells.erase(cell)
+	ensure_build_controller()
+	build_controller.release_tower_build_cells(tower)
 
 func _on_tower_confirmed(tower: Node2D) -> void:
 	reserve_tower_build_cells(tower)
-	money -= pending_tower_cost
-	if pending_tower_is_contraband and tower.tower_id == contraband_tower_id:
+	ensure_build_controller()
+	var placement_cost: int = build_controller.pending_tower_cost
+	var was_contraband: bool = build_controller.pending_tower_is_contraband
+	build_controller.clear_pending_placement()
+	money -= placement_cost
+	if was_contraband and tower.tower_id == contraband_tower_id:
 		contraband_tower_id = &""
 		populate_tower_list()
 	update_money()
-	pending_tower_type = &""
-	pending_tower_cost = 0
-	pending_tower_is_contraband = false
-	build_mode = false
-	tower_to_place = null
 	update_play_pause_button()
 	show_tower_details(tower)
 	call_deferred("refresh_placed_tower_stats")
 
 func _on_tower_cancelled(tower: Node2D) -> void:
 	clear_tower_details(tower)
-	pending_tower_type = &""
-	pending_tower_cost = 0
-	pending_tower_is_contraband = false
-	build_mode = false
-	tower_to_place = null
+	ensure_build_controller()
+	build_controller.clear_pending_placement()
 	update_play_pause_button()
 
 
@@ -3278,18 +2179,17 @@ func start_build_tower() -> void:
 		return
 	close_all_tower_menus()
 
-	place_mode = true
-	build_mode = true
+	var pending_tower: Node2D = TOWER_SCENE.instantiate()
+	pending_tower.main = self
+	pending_tower.tower_id = pending_tower_type
+	pending_tower.purchase_price = pending_tower_cost
+	pending_tower.tower_confirmed.connect(_on_tower_confirmed)
+	pending_tower.tower_cancelled.connect(_on_tower_cancelled)
+	pending_tower.tower_sold.connect(_on_tower_sold)
+	build_controller.begin_placement(pending_tower)
 	update_play_pause_button()
-	tower_to_place = TOWER_SCENE.instantiate()
-	tower_to_place.main = self
-	tower_to_place.tower_id = pending_tower_type
-	tower_to_place.purchase_price = pending_tower_cost
-	tower_to_place.tower_confirmed.connect(_on_tower_confirmed)
-	tower_to_place.tower_cancelled.connect(_on_tower_cancelled)
-	tower_to_place.tower_sold.connect(_on_tower_sold)
-	add_child(tower_to_place)
-	show_tower_details(tower_to_place)
+	add_child(pending_tower)
+	show_tower_details(pending_tower)
 
 
 func can_select_tower() -> bool:
@@ -3318,9 +2218,12 @@ func _on_item_list_item_selected(index: int) -> void:
 	var cost := get_tower_build_cost(selected_tower_id, selected_is_contraband)
 	
 	if money >= cost:
-		pending_tower_type = selected_tower_id
-		pending_tower_cost = cost
-		pending_tower_is_contraband = selected_is_contraband
+		ensure_build_controller()
+		build_controller.begin_pending_tower(
+			selected_tower_id,
+			cost,
+			selected_is_contraband
+		)
 		start_build_tower()
 		tower_list.select(index)
 	else:
