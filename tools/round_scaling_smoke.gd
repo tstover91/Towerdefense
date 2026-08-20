@@ -92,7 +92,7 @@ func _init() -> void:
 		&"shields": {1: [&"shielded"], 2: [&"shield_projector"]},
 		&"general": {
 			1: [&"normal"],
-			2: [&"heavy_enforcer", &"bulwark", &"brute"],
+			2: [&"striker", &"heavy_enforcer", &"bulwark", &"brute"],
 		},
 	}
 	for family in expected_families:
@@ -122,6 +122,8 @@ func _init() -> void:
 		* GameStats.get_enemy_health_multiplier(24, &"brute")
 	) == 170775)
 	assert(int(GameStats.ENEMIES[&"heavy_enforcer"]["health"]) == 1800)
+	assert(GameStats.ENEMIES[&"striker"]["role"] == &"pressure")
+	assert(int(GameStats.ENEMIES[&"striker"]["director_cost"]) == 8)
 	assert(int(GameStats.ENEMIES[&"juggernaut"]["health"]) == 3500)
 	assert(int(GameStats.ENEMIES[&"bulwark"]["health"]) == 6000)
 	assert(is_equal_approx(float(GameStats.ENEMIES[&"brute"]["move_speed"]), 18.0))

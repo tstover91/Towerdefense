@@ -60,6 +60,9 @@ const FORMATION_ROLE_WEIGHTS := GameStats.FORMATION_ROLE_WEIGHTS
 var rng: RandomNumberGenerator
 var enemy_debut_plan: Dictionary = {}
 var round_style_plan: Dictionary = {}
+var selected_enemy_families: Array[StringName] = []
+var selected_tier_one_enemies: Array[StringName] = []
+var selected_tier_two_enemies: Array[StringName] = []
 var round_number := 1
 var current_round_type: StringName = ROUND_STANDARD
 var current_wave_spawn_style: StringName = &"standard"
@@ -77,7 +80,11 @@ func _init(
 
 
 func generate_run_plan() -> void:
-	enemy_debut_plan = GameStats.build_enemy_debut_plan(rng)
+	var progression := GameStats.build_normal_enemy_progression(rng)
+	enemy_debut_plan = progression["debut_plan"]
+	selected_enemy_families.assign(progression["selected_families"])
+	selected_tier_one_enemies.assign(progression["selected_tier_one"])
+	selected_tier_two_enemies.assign(progression["selected_tier_two"])
 	round_style_plan = GameStats.build_round_style_plan(rng, enemy_debut_plan)
 
 
@@ -188,6 +195,10 @@ func build_director_group() -> Array[Dictionary]:
 			schedule = build_splitter_pack_schedule(enemy_queue)
 		&"support_column":
 			schedule = build_support_column_schedule(enemy_queue)
+		&"escalation":
+			schedule = build_escalation_schedule(enemy_queue)
+		&"second_wind":
+			schedule = build_second_wind_schedule(enemy_queue)
 		&"rush_screen":
 			schedule = build_rush_screen_schedule(enemy_queue)
 		&"summoner_escort":
@@ -283,9 +294,17 @@ func build_role_based_enemy_queue(
 			forced_roles = [ROLE_SUPPORT]
 		&"rush_screen", &"layered_assault":
 			forced_roles = [ROLE_TANK, ROLE_PRESSURE]
+	var roster_enemies: Array[StringName] = []
+	if style_name == &"mixed_roster":
+		roster_enemies = get_progression_roster_enemies(false)
+	elif style_name == &"layered_assault" and round_number >= 19:
+		roster_enemies = get_progression_roster_enemies(true)
+	for enemy_id in roster_enemies:
+		if enemy_id in available and group.size() < group_size:
+			group.append(enemy_id)
 
 	for forced_role in forced_roles:
-		var forced_enemy := choose_enemy_for_role(
+		var forced_enemy := choose_enemy_for_exact_role(
 			forced_role, available, group, group_size
 		)
 		if not forced_enemy.is_empty():
@@ -328,6 +347,24 @@ func build_role_based_enemy_queue(
 			break
 		group.append(enemy_id)
 	return group
+
+
+func get_progression_roster_enemies(include_tier_two: bool) -> Array[StringName]:
+	var roster: Array[StringName] = []
+	var eligible_debut_rounds := (
+		[4, 6, 10, 14, 18] if include_tier_two else [4, 6, 10]
+	)
+	for enemy_key in enemy_debut_plan:
+		var enemy_id := StringName(enemy_key)
+		if (
+			GameStats.get_enemy_family(enemy_id) != &"general"
+			and int(enemy_debut_plan[enemy_key]) in eligible_debut_rounds
+		):
+			roster.append(enemy_id)
+	roster.sort_custom(func(first: StringName, second: StringName) -> bool:
+		return int(enemy_debut_plan[first]) < int(enemy_debut_plan[second])
+	)
+	return roster
 
 
 func choose_formation_role(
@@ -400,6 +437,18 @@ func choose_enemy_for_role(
 	return choose_weighted_enemy(candidates)
 
 
+func choose_enemy_for_exact_role(
+	role: StringName,
+	available: Array[StringName],
+	current_group: Array[StringName],
+	group_size: int
+) -> StringName:
+	var candidates := get_valid_enemies_for_role(
+		role, available, current_group, group_size
+	)
+	return &"" if candidates.is_empty() else choose_weighted_enemy(candidates)
+
+
 func get_valid_enemies_for_role(
 	role: StringName,
 	available: Array[StringName],
@@ -451,7 +500,7 @@ func get_director_group_size(style_name: StringName) -> int:
 			base_size = 9
 		&"hidden_probe", &"splitter_pack", &"rush_screen":
 			base_size = rng.randi_range(8, 12)
-		&"layered_assault", &"boss_rehearsal":
+		&"escalation", &"second_wind", &"layered_assault", &"boss_rehearsal":
 			base_size = rng.randi_range(10, 14)
 		_:
 			base_size = rng.randi_range(6, 10)
@@ -497,10 +546,22 @@ func build_timed_boss_opening() -> Array[Dictionary]:
 			front_candidates.append(enemy_id)
 		elif role in [ROLE_PRESSURE, ROLE_SUPPORT]:
 			rear_candidates.append(enemy_id)
+	var non_fodder_candidates: Array[StringName] = []
+	for enemy_id in available:
+		if GameStats.get_enemy(enemy_id).get("role", ROLE_FODDER) != ROLE_FODDER:
+			non_fodder_candidates.append(enemy_id)
 	if front_candidates.is_empty():
-		front_candidates = available.duplicate()
+		front_candidates = (
+			non_fodder_candidates.duplicate()
+			if not non_fodder_candidates.is_empty()
+			else available.duplicate()
+		)
 	if rear_candidates.is_empty():
-		rear_candidates = available.duplicate()
+		rear_candidates = (
+			non_fodder_candidates.duplicate()
+			if not non_fodder_candidates.is_empty()
+			else available.duplicate()
+		)
 	var boss_group: Array[StringName] = [
 		choose_weighted_enemy(front_candidates),
 		choose_weighted_enemy(front_candidates),
@@ -610,6 +671,64 @@ func build_pulse_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
 	return schedule
 
 
+func build_escalation_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var total_count := enemy_queue.size()
+	var opening_size := maxi(1, floori(float(total_count) * 0.2))
+	var middle_size := maxi(1, floori(float(total_count) * 0.3))
+	if opening_size + middle_size >= total_count:
+		middle_size = maxi(total_count - opening_size - 1, 0)
+	var schedule: Array[Dictionary] = []
+	append_enemy_group(
+		schedule,
+		take_front_group(enemy_queue, opening_size),
+		0.22,
+		1.4,
+		&"escalation"
+	)
+	append_enemy_group(
+		schedule,
+		take_front_group(enemy_queue, middle_size),
+		0.14,
+		0.9,
+		&"escalation"
+	)
+	append_enemy_group(
+		schedule,
+		enemy_queue,
+		0.08,
+		0.6,
+		&"escalation"
+	)
+	return schedule
+
+
+func build_second_wind_schedule(
+	enemy_queue: Array[StringName]
+) -> Array[Dictionary]:
+	var reserve_count := maxi(1, roundi(float(enemy_queue.size()) * 0.4))
+	var reserve: Array[StringName] = []
+	for _index in mini(reserve_count, enemy_queue.size()):
+		reserve.append(take_strongest_enemy(enemy_queue))
+	var schedule: Array[Dictionary] = []
+	append_enemy_group(
+		schedule,
+		enemy_queue,
+		0.16,
+		2.8,
+		&"second_wind"
+	)
+	append_enemy_group(
+		schedule,
+		reserve,
+		0.07,
+		0.8,
+		&"second_wind"
+	)
+	return schedule
+
+
 func build_swarm_batch_schedule(
 	enemy_queue: Array[StringName]
 ) -> Array[Dictionary]:
@@ -629,7 +748,11 @@ func build_swarm_batch_schedule(
 func build_convoy_schedule(enemy_queue: Array[StringName]) -> Array[Dictionary]:
 	var schedule: Array[Dictionary] = []
 	while not enemy_queue.is_empty():
-		var group: Array[StringName] = [take_enemy_by_role(enemy_queue, ROLE_TANK)]
+		var leader := take_enemy_by_role(enemy_queue, ROLE_TANK)
+		if leader.is_empty():
+			leader = take_strongest_enemy(enemy_queue)
+		var group: Array[StringName] = []
+		append_if_valid(group, leader)
 		for _index in mini(7, enemy_queue.size()):
 			group.append(take_weakest_enemy(enemy_queue))
 		append_enemy_group(schedule, group, 0.2, 1.2, &"convoy")
@@ -869,7 +992,7 @@ func take_enemy_by_role(
 			var selected := enemy_queue[index]
 			enemy_queue.remove_at(index)
 			return selected
-	return take_strongest_enemy(enemy_queue)
+	return &""
 
 
 func take_weakest_enemy(enemy_queue: Array[StringName]) -> StringName:
@@ -915,17 +1038,27 @@ func get_spawn_event_director_cost(spawn_event: Dictionary) -> float:
 func choose_weighted_enemy(available: Array[StringName]) -> StringName:
 	if available.is_empty():
 		return &""
-	var total_weight := 0
+	var total_weight := 0.0
 	for enemy_id in available:
-		total_weight += GameStats.get_enemy(enemy_id).get("spawn_weight", 1)
+		total_weight += get_progression_spawn_weight(enemy_id)
 	if total_weight <= 0:
 		return available[0]
-	var roll := rng.randi_range(1, total_weight)
+	var roll := rng.randf_range(0.0, total_weight)
 	for enemy_id in available:
-		roll -= GameStats.get_enemy(enemy_id).get("spawn_weight", 1)
+		roll -= get_progression_spawn_weight(enemy_id)
 		if roll <= 0:
 			return enemy_id
 	return available[0]
+
+
+func get_progression_spawn_weight(enemy_id: StringName) -> float:
+	var stats := GameStats.get_enemy(enemy_id)
+	var base_weight := float(stats.get("spawn_weight", 1.0))
+	if StringName(stats.get("family", &"general")) == &"general":
+		return base_weight
+	var debut_round := int(enemy_debut_plan.get(enemy_id, round_number))
+	var rounds_available := maxi(round_number - debut_round, 0)
+	return base_weight * (1.0 + minf(float(rounds_available) * 0.08, 0.8))
 
 
 func simulate_spawn_counts(

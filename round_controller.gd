@@ -17,6 +17,7 @@ const PHASE_COMPLETE: StringName = &"complete"
 const POST_ROUND_BUILD: StringName = &"build"
 const POST_ROUND_TOWER_DRAFT: StringName = &"tower_draft"
 const POST_ROUND_RELIC_DRAFT: StringName = &"relic_draft"
+const POST_ROUND_REINFORCEMENT_DRAFT: StringName = &"reinforcement_draft"
 const POST_ROUND_VICTORY: StringName = &"victory"
 
 var rng: RandomNumberGenerator
@@ -24,8 +25,8 @@ var phase: StringName = PHASE_BUILD
 var round_number := 0
 var max_rounds := 0
 var current_round_type: StringName = ROUND_STANDARD
-var round_six_type: StringName = ROUND_HORDE
-var round_eleven_type: StringName = ROUND_ELITE
+var round_eight_type: StringName = ROUND_HORDE
+var round_sixteen_type: StringName = ROUND_ELITE
 var round_time_remaining := 0.0
 var round_duration := 0.0
 var round_elapsed := 0.0
@@ -43,23 +44,19 @@ func configure(maximum_rounds: int) -> void:
 
 func roll_challenge_round_order() -> void:
 	if rng.randf() < 0.5:
-		round_six_type = ROUND_HORDE
-		round_eleven_type = ROUND_ELITE
+		round_eight_type = ROUND_HORDE
+		round_sixteen_type = ROUND_ELITE
 	else:
-		round_six_type = ROUND_ELITE
-		round_eleven_type = ROUND_HORDE
+		round_eight_type = ROUND_ELITE
+		round_sixteen_type = ROUND_HORDE
 
 
 func get_round_type(wave: int) -> StringName:
 	match wave:
-		6:
-			return round_six_type
-		11:
-			return round_eleven_type
+		8:
+			return round_eight_type
 		16:
-			return ROUND_GAUNTLET
-		17:
-			return ROUND_PAYDAY
+			return round_sixteen_type
 		_:
 			return ROUND_STANDARD
 
@@ -139,7 +136,8 @@ func should_finish_round(
 
 func get_post_round_action(
 	tower_draft_rounds: Array[int],
-	relic_draft_rounds: Array[int]
+	relic_draft_rounds: Array[int],
+	reinforcement_draft_rounds: Array[int] = []
 ) -> StringName:
 	if round_number >= max_rounds:
 		return POST_ROUND_VICTORY
@@ -147,6 +145,8 @@ func get_post_round_action(
 		return POST_ROUND_TOWER_DRAFT
 	if relic_draft_rounds.has(round_number):
 		return POST_ROUND_RELIC_DRAFT
+	if reinforcement_draft_rounds.has(round_number):
+		return POST_ROUND_REINFORCEMENT_DRAFT
 	return POST_ROUND_BUILD
 
 

@@ -40,8 +40,9 @@ const GAUNTLET_EVENT_RESERVED_SLOTS := 20
 const DRAFT_HEALTH_RECOVERY := 20
 const DRAFT_HEALTH_COST_RATIO := 0.30
 const DRAFT_HEALTH_PRICE_INCREMENT := 25
-const TOWER_DRAFT_ROUNDS: Array[int] = [4, 9, 14]
-const RELIC_DRAFT_ROUNDS: Array[int] = [1, 6, 11, 16, 20]
+const TOWER_DRAFT_ROUNDS: Array[int] = [3, 9, 14]
+const RELIC_DRAFT_ROUNDS: Array[int] = [1, 5, 11, 20]
+const REINFORCEMENT_DRAFT_ROUNDS: Array[int] = [7, 17]
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
 const TOWER_SLOT_COUNT := 5
@@ -158,20 +159,20 @@ var current_round_type: StringName:
 	set(value):
 		ensure_round_controller()
 		round_controller.current_round_type = value
-var round_six_type: StringName:
+var round_eight_type: StringName:
 	get:
 		ensure_round_controller()
-		return round_controller.round_six_type
+		return round_controller.round_eight_type
 	set(value):
 		ensure_round_controller()
-		round_controller.round_six_type = value
-var round_eleven_type: StringName:
+		round_controller.round_eight_type = value
+var round_sixteen_type: StringName:
 	get:
 		ensure_round_controller()
-		return round_controller.round_eleven_type
+		return round_controller.round_sixteen_type
 	set(value):
 		ensure_round_controller()
-		round_controller.round_eleven_type = value
+		round_controller.round_sixteen_type = value
 var round_time_remaining: float:
 	get:
 		ensure_round_controller()
@@ -905,7 +906,8 @@ func end_round() -> void:
 
 	match round_controller.get_post_round_action(
 		TOWER_DRAFT_ROUNDS,
-		RELIC_DRAFT_ROUNDS
+		RELIC_DRAFT_ROUNDS,
+		REINFORCEMENT_DRAFT_ROUNDS
 	):
 		RoundControllerScript.POST_ROUND_VICTORY:
 			victory()
@@ -913,8 +915,16 @@ func end_round() -> void:
 			open_tower_draft()
 		RoundControllerScript.POST_ROUND_RELIC_DRAFT:
 			open_relic_draft()
+		RoundControllerScript.POST_ROUND_REINFORCEMENT_DRAFT:
+			open_reinforcement_draft_placeholder()
 		_:
 			enter_build_phase()
+
+
+func open_reinforcement_draft_placeholder() -> void:
+	# Reinforcement choices will plug into this scheduled beat once their draft
+	# content exists. Until then, continue into the normal build phase.
+	enter_build_phase()
 
 
 func enter_build_phase() -> void:

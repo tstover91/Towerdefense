@@ -10,52 +10,40 @@ const BUILD_CELL_SIZE := 32.0
 const ELECTRIC_HITS_TO_PROC := 5
 const ELECTRIC_PROC_DAMAGE_CONTRIBUTION := 0.30
 
-# Shared wave-director recipe data. Keeping this here lets gameplay and the
-# balance optimizer consume the same role and formation weights.
-# Related early enemies arrive together in spaced introduction beats, giving the
-# player several rounds to learn each tier. Later mechanics are shuffled across
-# fixed beats so runs still vary without introducing something every round.
+# Shared Normal-mode progression data. General-family enemies keep fixed beats;
+# three other families and two upgrades are selected separately for each run.
 const FIXED_ENEMY_DEBUT_ROUNDS := {
 	&"normal": 1,
-	&"runner": 2,
-	&"swarmling": 2,
-	&"bruiser": 5,
-	&"armored": 5,
-	&"splitter": 8,
-	&"buffer": 8,
-	&"hidden": 11,
-	&"swat_enforcer": 14,
-	&"shielded": 17,
+	&"striker": 17,
 	&"heavy_enforcer": 17,
-	&"shield_projector": 20,
-	&"juggernaut": 20,
 	&"bulwark": 22,
 	&"brute": 24,
 }
 const ENEMY_DEBUT_GROUPS := [
-	{
-		"enemies": [&"rusher", &"regenerator", &"summoner"],
-		"rounds": [14, 17, 20],
-	},
+	{"family_tier": 1, "count": 3, "rounds": [4, 6, 10]},
+	{"family_tier": 2, "count": 2, "rounds": [14, 18]},
 ]
 
 # Set pieces are eligible only when their required roster is already revealed.
 # Their lower weights keep them memorable without making every group scripted.
 const WAVE_STYLE_RULES := {
 	&"standard": {"minimum_round": 1, "weight": 1.5},
-	&"burst": {"minimum_round": 2, "required_any": [&"runner", &"rusher"], "weight": 1.0},
-	&"stream": {"minimum_round": 2, "required_any": [&"swarmling", &"normal"], "weight": 1.0},
+	&"burst": {"minimum_round": 2, "required_roles": [&"pressure"], "weight": 1.0},
+	&"stream": {"minimum_round": 2, "required_roles": [&"fodder"], "weight": 1.0},
 	&"pulses": {"minimum_round": 3, "weight": 1.0},
-	&"spaced": {"minimum_round": 5, "required_any": [&"bruiser", &"armored", &"regenerator"], "weight": 1.0},
-	&"swarm_batch": {"minimum_round": 4, "required_any": [&"swarmling", &"normal"], "weight": 0.9},
-	&"convoy": {"minimum_round": 5, "required_any": [&"bruiser", &"armored", &"regenerator"], "weight": 0.9},
-	&"elite_escort": {"minimum_round": 5, "required_any": [&"bruiser", &"armored", &"regenerator"], "weight": 0.45},
+	&"spaced": {"minimum_round": 5, "required_roles": [&"tank"], "weight": 1.0},
+	&"swarm_batch": {"minimum_round": 4, "required_roles": [&"fodder"], "weight": 0.9},
+	&"convoy": {"minimum_round": 5, "required_roles": [&"tank"], "weight": 0.9},
+	&"elite_escort": {"minimum_round": 5, "required_roles": [&"tank"], "weight": 0.45},
 	&"hidden_probe": {"minimum_round": 11, "required_all": [&"hidden"], "weight": 0.75},
 	&"splitter_pack": {"minimum_round": 8, "required_all": [&"splitter"], "weight": 0.75},
-	&"support_column": {"minimum_round": 8, "required_any": [&"buffer", &"regenerator", &"summoner"], "weight": 0.75},
+	&"support_column": {"minimum_round": 8, "required_roles": [&"support"], "weight": 0.75},
+	&"escalation": {"minimum_round": 9, "weight": 0.85},
+	&"second_wind": {"minimum_round": 14, "weight": 0.7},
 	&"rush_screen": {"minimum_round": 14, "required_all": [&"rusher"], "weight": 0.75},
 	&"summoner_escort": {"minimum_round": 14, "required_all": [&"summoner"], "weight": 0.65},
-	&"layered_assault": {"minimum_round": 14, "weight": 0.9},
+	&"mixed_roster": {"minimum_round": 12, "maximum_round": 13, "weight": 0.0},
+	&"layered_assault": {"minimum_round": 14, "minimum_distinct_roles": 2, "weight": 0.9},
 	&"boss_rehearsal": {"minimum_round": 22, "maximum_round": 23, "required_any": [&"regenerator", &"summoner"], "weight": 0.8},
 }
 const WAVE_ROLE_WEIGHTS := [
@@ -114,8 +102,11 @@ const FORMATION_ROLE_WEIGHTS := {
 	&"hidden_probe": {&"fodder": 45.0, &"pressure": 45.0, &"tank": 10.0, &"support": 0.0},
 	&"splitter_pack": {&"fodder": 55.0, &"pressure": 35.0, &"tank": 10.0, &"support": 0.0},
 	&"support_column": {&"fodder": 35.0, &"pressure": 20.0, &"tank": 25.0, &"support": 20.0},
+	&"escalation": {&"fodder": 45.0, &"pressure": 25.0, &"tank": 20.0, &"support": 10.0},
+	&"second_wind": {&"fodder": 30.0, &"pressure": 30.0, &"tank": 30.0, &"support": 10.0},
 	&"rush_screen": {&"fodder": 25.0, &"pressure": 55.0, &"tank": 20.0, &"support": 0.0},
 	&"summoner_escort": {&"fodder": 35.0, &"pressure": 15.0, &"tank": 25.0, &"support": 25.0},
+	&"mixed_roster": {&"fodder": 35.0, &"pressure": 25.0, &"tank": 25.0, &"support": 15.0},
 	&"layered_assault": {&"fodder": 35.0, &"pressure": 30.0, &"tank": 25.0, &"support": 10.0},
 	&"boss_rehearsal": {&"fodder": 20.0, &"pressure": 25.0, &"tank": 30.0, &"support": 25.0},
 }
@@ -782,6 +773,26 @@ const ENEMIES := {
 		"traits": [&"armored", &"high_health"],
 		"color": Color(0.28, 0.32, 0.38),
 		"visual_scale": 1.55,
+	},
+	"striker": {
+		"display_name": "Striker",
+		"health": 425,
+		"health_per_wave": 0.0,
+		"move_speed": 110.0,
+		"cash_reward": 48,
+		"base_damage": 14,
+		"armor": 0,
+		"earliest_debut_round": 17,
+		"formation_strength": 10,
+		"director_cost": 8,
+		"spawn_weight": 22,
+		"spawn_style": &"burst",
+		"role": &"pressure",
+		"family": &"general",
+		"family_tier": 2,
+		"traits": [&"basic"],
+		"color": Color(0.95, 0.42, 0.18),
+		"visual_scale": 1.05,
 	},
 	"shielded": {
 		"display_name": "Shielded",
@@ -2129,15 +2140,112 @@ static func get_enemy_family_ids(
 
 
 static func build_enemy_debut_plan(rng: RandomNumberGenerator) -> Dictionary:
-	var plan := FIXED_ENEMY_DEBUT_ROUNDS.duplicate(true)
-	for group in ENEMY_DEBUT_GROUPS:
-		var enemies: Array = group["enemies"].duplicate()
-		var rounds: Array = group["rounds"].duplicate()
-		shuffle_with_rng(enemies, rng)
-		shuffle_with_rng(rounds, rng)
-		for index in enemies.size():
-			plan[StringName(enemies[index])] = int(rounds[index])
-	return plan
+	return build_normal_enemy_progression(rng)["debut_plan"]
+
+
+static func build_normal_enemy_progression(
+	rng: RandomNumberGenerator
+) -> Dictionary:
+	var tier_one_by_family := {}
+	var tier_two_by_family := {}
+	for enemy_key in ENEMIES:
+		var enemy_id := StringName(enemy_key)
+		var enemy: Dictionary = ENEMIES[enemy_key]
+		if bool(enemy.get("boss", false)):
+			continue
+		var family := StringName(enemy.get("family", &"general"))
+		if family == &"general":
+			continue
+		var family_tier := int(enemy.get("family_tier", 1))
+		var family_members: Array = (
+			tier_one_by_family.get(family, [])
+			if family_tier == 1
+			else tier_two_by_family.get(family, [])
+		)
+		family_members.append(enemy_id)
+		if family_tier == 1:
+			tier_one_by_family[family] = family_members
+		else:
+			tier_two_by_family[family] = family_members
+
+	var family_pool: Array = tier_one_by_family.keys()
+	shuffle_with_rng(family_pool, rng)
+	var selected_families: Array[StringName] = []
+	var selected_tier_one: Array[StringName] = []
+	for index in mini(3, family_pool.size()):
+		var family := StringName(family_pool[index])
+		var tier_one_options: Array = tier_one_by_family[family].duplicate()
+		shuffle_with_rng(tier_one_options, rng)
+		selected_families.append(family)
+		selected_tier_one.append(StringName(tier_one_options[0]))
+
+	var upgrade_family_pool: Array = []
+	for family in selected_families:
+		if not Array(tier_two_by_family.get(family, [])).is_empty():
+			upgrade_family_pool.append(family)
+	shuffle_with_rng(upgrade_family_pool, rng)
+	var selected_tier_two: Array[StringName] = []
+	var advanced_families: Array[StringName] = []
+	for family_value in upgrade_family_pool:
+		if selected_tier_two.size() >= 2:
+			break
+		var family := StringName(family_value)
+		var tier_two_options: Array = tier_two_by_family[family].duplicate()
+		shuffle_with_rng(tier_two_options, rng)
+		selected_tier_two.append(StringName(tier_two_options[0]))
+		advanced_families.append(family)
+
+	# A run can select families that do not have Tier 2 content yet. Fill any
+	# missing upgrade beats from the remaining non-general Tier 2 roster.
+	var fallback_tier_two: Array = []
+	for family_key in tier_two_by_family:
+		if advanced_families.has(StringName(family_key)):
+			continue
+		for enemy_id in Array(tier_two_by_family[family_key]):
+			if not selected_tier_two.has(StringName(enemy_id)):
+				fallback_tier_two.append(StringName(enemy_id))
+	shuffle_with_rng(fallback_tier_two, rng)
+	while selected_tier_two.size() < 2 and not fallback_tier_two.is_empty():
+		var enemy_id := StringName(fallback_tier_two.pop_back())
+		selected_tier_two.append(enemy_id)
+		advanced_families.append(get_enemy_family(enemy_id))
+	if selected_tier_two.size() < 2:
+		var any_tier_two: Array = []
+		for enemy_key in ENEMIES:
+			var enemy_id := StringName(enemy_key)
+			var enemy: Dictionary = ENEMIES[enemy_key]
+			if (
+				not bool(enemy.get("boss", false))
+				and int(enemy.get("family_tier", 1)) == 2
+				and not selected_tier_two.has(enemy_id)
+			):
+				any_tier_two.append(enemy_id)
+		shuffle_with_rng(any_tier_two, rng)
+		while selected_tier_two.size() < 2 and not any_tier_two.is_empty():
+			var enemy_id := StringName(any_tier_two.pop_back())
+			selected_tier_two.append(enemy_id)
+			advanced_families.append(get_enemy_family(enemy_id))
+
+	var plan := {}
+	for enemy_key in ENEMIES:
+		plan[StringName(enemy_key)] = 999
+	# General-family enemies are progression fixtures rather than drafted roster
+	# choices, so retain their established availability beats.
+	for enemy_id in FIXED_ENEMY_DEBUT_ROUNDS:
+		plan[enemy_id] = int(FIXED_ENEMY_DEBUT_ROUNDS[enemy_id])
+	var tier_one_rounds := [4, 6, 10]
+	for index in selected_tier_one.size():
+		plan[selected_tier_one[index]] = tier_one_rounds[index]
+	var tier_two_rounds := [14, 18]
+	for index in selected_tier_two.size():
+		plan[selected_tier_two[index]] = tier_two_rounds[index]
+	return {
+		"debut_plan": plan,
+		"selected_families": selected_families,
+		"selected_tier_one": selected_tier_one,
+		"selected_tier_two": selected_tier_two,
+		"advanced_families": advanced_families,
+	}
 
 
 static func shuffle_with_rng(values: Array, rng: RandomNumberGenerator) -> void:
@@ -2202,6 +2310,20 @@ static func get_eligible_wave_styles(
 					break
 			if not found_required_enemy:
 				continue
+		var available_roles := {}
+		for enemy_id in available:
+			available_roles[StringName(
+				get_enemy(enemy_id).get("role", &"fodder")
+			)] = true
+		var required_roles: Array = rule.get("required_roles", [])
+		for required_role in required_roles:
+			if not available_roles.has(StringName(required_role)):
+				requirements_met = false
+				break
+		if not requirements_met:
+			continue
+		if available_roles.size() < int(rule.get("minimum_distinct_roles", 1)):
+			continue
 		styles.append(style_name)
 	return styles
 
@@ -2234,6 +2356,10 @@ static func build_round_style_plan(
 	var plan := {}
 	var previous_style: StringName = &""
 	for round_number in range(1, 25):
+		if round_number == 1:
+			plan[round_number] = &"standard"
+			previous_style = &"standard"
+			continue
 		if round_number == 24:
 			plan[round_number] = &"final_escort"
 			continue
@@ -2244,6 +2370,10 @@ static func build_round_style_plan(
 			rng,
 			previous_style
 		)
+		if round_number in [12, 13]:
+			selected = &"mixed_roster"
+		elif round_number in [19, 21, 22, 23]:
+			selected = &"layered_assault"
 		plan[round_number] = selected
 		previous_style = selected
 	return plan

@@ -10,13 +10,15 @@ func _ready() -> void:
 	var controller = RoundControllerScript.new(rng)
 	controller.configure(24)
 	controller.roll_challenge_round_order()
-	assert(controller.round_six_type in [
+	assert(controller.round_eight_type in [
 		RoundControllerScript.ROUND_HORDE,
 		RoundControllerScript.ROUND_ELITE,
 	])
-	assert(controller.round_eleven_type != controller.round_six_type)
-	assert(controller.get_round_type(16) == RoundControllerScript.ROUND_GAUNTLET)
-	assert(controller.get_round_type(17) == RoundControllerScript.ROUND_PAYDAY)
+	assert(controller.round_sixteen_type != controller.round_eight_type)
+	assert(controller.get_round_type(8) == controller.round_eight_type)
+	assert(controller.get_round_type(16) == controller.round_sixteen_type)
+	assert(controller.get_round_type(6) == RoundControllerScript.ROUND_STANDARD)
+	assert(controller.get_round_type(17) == RoundControllerScript.ROUND_STANDARD)
 
 	assert(controller.can_start_round())
 	assert(not controller.can_start_round(true))
@@ -32,18 +34,27 @@ func _ready() -> void:
 	assert(controller.should_finish_round(false, 0, 0, 0))
 	assert(not controller.should_finish_round(false, 0, 1, 0))
 
-	var tower_rounds: Array[int] = [4, 9, 14]
-	var relic_rounds: Array[int] = [1, 6, 11, 16, 20]
+	var tower_rounds: Array[int] = [3, 9, 14]
+	var relic_rounds: Array[int] = [1, 5, 11, 20]
+	var reinforcement_rounds: Array[int] = [7, 17]
 	assert(controller.end_round())
 	assert(controller.get_post_round_action(
 		tower_rounds,
-		relic_rounds
+		relic_rounds,
+		reinforcement_rounds
 	) == RoundControllerScript.POST_ROUND_RELIC_DRAFT)
+	controller.round_number = 7
+	assert(controller.get_post_round_action(
+		tower_rounds,
+		relic_rounds,
+		reinforcement_rounds
+	) == RoundControllerScript.POST_ROUND_REINFORCEMENT_DRAFT)
 	controller.enter_draft_phase()
 	assert(controller.phase == RoundControllerScript.PHASE_DRAFT)
 	controller.enter_build_phase()
 	assert(controller.phase == RoundControllerScript.PHASE_BUILD)
 
+	controller.round_number = 1
 	var base_reward := GameStats.get_round_cash_reward(1)
 	assert(controller.calculate_end_round_reward(500, false) == base_reward)
 	assert(controller.calculate_end_round_reward(500, true) >= base_reward)
@@ -54,7 +65,8 @@ func _ready() -> void:
 	assert(controller.end_round())
 	assert(controller.get_post_round_action(
 		tower_rounds,
-		relic_rounds
+		relic_rounds,
+		reinforcement_rounds
 	) == RoundControllerScript.POST_ROUND_VICTORY)
 	assert(controller.finish_game())
 	assert(controller.game_ended)

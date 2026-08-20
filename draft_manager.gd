@@ -4,18 +4,16 @@ extends RefCounted
 const GameStats = preload("res://stat_database.gd")
 
 const SHOP_CHOICE_COUNT := 3
-const GAUNTLET_RELIC_CHOICE_COUNT := 4
 const MINIMUM_APPLICABLE_RELIC_CHOICES := 2
-const RELIC_DRAFT_ROUNDS: Array[int] = [1, 6, 11, 16, 20]
+const RELIC_DRAFT_ROUNDS: Array[int] = [1, 5, 11, 20]
 const RELIC_RARITY_WEIGHTS_BY_ROUND := {
 	1: {&"common": 100.0},
-	6: {&"common": 70.0, &"rare": 30.0},
+	5: {&"common": 70.0, &"rare": 30.0},
 	11: {&"common": 40.0, &"rare": 55.0, &"legendary": 5.0},
-	16: {&"rare": 85.0, &"legendary": 15.0},
 	20: {&"rare": 60.0, &"legendary": 40.0},
 }
 const RELIC_MINIMUM_RARE_PLUS_BY_ROUND := {
-	6: 1,
+	5: 1,
 	11: 2,
 	20: 3,
 }
@@ -31,13 +29,10 @@ func _init(random_source: RandomNumberGenerator) -> void:
 
 
 func get_relic_choice_quantities(
-	round_number: int,
-	offers: Array[StringName]
+	_round_number: int,
+	_offers: Array[StringName]
 ) -> Dictionary:
-	var choice_quantities: Dictionary = {}
-	if round_number == 16 and offers.size() >= GAUNTLET_RELIC_CHOICE_COUNT:
-		choice_quantities[offers[GAUNTLET_RELIC_CHOICE_COUNT - 1]] = 2
-	return choice_quantities
+	return {}
 
 
 func roll_relic_offers(
@@ -126,11 +121,6 @@ func roll_relic_offers(
 				has_dedicated_spawner
 			) >= MINIMUM_APPLICABLE_RELIC_CHOICES
 		):
-			if round_number == 16:
-				offers.append(choose_stacked_common_relic(
-					eligible_relics,
-					offers
-				))
 			remember_relic_offers(offers)
 			return offers
 
@@ -305,24 +295,6 @@ func is_relic_applicable(
 		return has_dedicated_spawner
 	var category: StringName = GameStats.get_relic(item_id)["category"]
 	return category == &"global" or current_tags.has(category)
-
-
-func choose_stacked_common_relic(
-	available: Array[StringName],
-	excluded: Array[StringName]
-) -> StringName:
-	var eligible: Array[StringName] = []
-	for item_id in available:
-		if excluded.has(item_id):
-			continue
-		var item_stats: Dictionary = GameStats.get_relic(item_id)
-		if (
-			item_stats["rarity"] == &"common"
-			and item_stats.get("stackable", false)
-		):
-			eligible.append(item_id)
-	assert(not eligible.is_empty(), "The Gauntlet needs a stackable common relic.")
-	return eligible[rng.randi_range(0, eligible.size() - 1)]
 
 
 func roll_tower_offers(

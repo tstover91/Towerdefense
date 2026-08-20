@@ -6,8 +6,8 @@ const CombatSimulator = preload("res://tools/tower_balance_monte_carlo.gd")
 const MainScene = preload("res://main.tscn")
 const DraftManagerScript = preload("res://draft_manager.gd")
 
-const TOWER_DRAFT_ROUNDS := [4, 9, 14]
-const RELIC_DRAFT_ROUNDS := [1, 6, 11, 16, 20]
+const TOWER_DRAFT_ROUNDS := [3, 9, 14]
+const RELIC_DRAFT_ROUNDS := [1, 5, 11, 20]
 const MAX_TOWERS := 128
 const TARGET_WIN_RATE := 0.60
 const ACCEPTABLE_WIN_LOW := 0.42
@@ -556,12 +556,8 @@ func prepare_director_count_templates() -> void:
 	const SAMPLE_COUNT := 6
 	for round_number in range(1, 21):
 		var round_types: Array[StringName] = [&"standard"]
-		if round_number in [6, 11]:
+		if round_number in [8, 16]:
 			round_types.append_array([&"horde", &"elite"])
-		elif round_number == 16:
-			round_types.append(&"gauntlet")
-		elif round_number == 17:
-			round_types.append(&"payday")
 		for round_type in round_types:
 			var totals := {}
 			for sample_index in SAMPLE_COUNT:
@@ -578,7 +574,7 @@ func prepare_director_count_templates() -> void:
 			director_count_templates["%d:%s" % [round_number, round_type]] = averages
 	director.free()
 	print("Director lookup: %d round/type templates using live formation timing" % director_count_templates.size())
-	for key in ["1:standard", "6:horde", "6:elite", "16:gauntlet"]:
+	for key in ["1:standard", "8:horde", "8:elite", "16:horde", "16:elite"]:
 		var total := 0.0
 		for count in Dictionary(director_count_templates.get(key, {})).values():
 			total += float(count)
@@ -1090,20 +1086,19 @@ func simulate_run(
 	profile_data: Dictionary,
 	run_seed: int,
 	starting_roster: Array,
-	round_six_override: StringName = &""
+	special_round_one_override: StringName = &""
 ) -> Dictionary:
 	var run_rng := RandomNumberGenerator.new()
 	run_rng.seed = run_seed
 	var mode := GameStats.get_mode(&"easy")
-	var round_six_type: StringName = round_six_override
-	if round_six_type.is_empty():
-		round_six_type = &"horde" if run_rng.randf() < 0.5 else &"elite"
+	var special_round_one_type: StringName = special_round_one_override
+	if special_round_one_type.is_empty():
+		special_round_one_type = &"horde" if run_rng.randf() < 0.5 else &"elite"
 	var challenge_rounds := {
-		6: round_six_type,
-		11: &"elite" if round_six_type == &"horde" else &"horde",
-		16: &"gauntlet",
-		17: &"payday",
+		8: special_round_one_type,
+		16: &"elite" if special_round_one_type == &"horde" else &"horde",
 	}
+	var enemy_progression := GameStats.build_normal_enemy_progression(run_rng)
 	var state := {
 		"money": float(mode["starting_cash"]) * float(profile_data["starting_cash"]),
 		"lives": float(mode["starting_lives"]),
@@ -1118,6 +1113,7 @@ func simulate_run(
 		"leak_damage": 0.0,
 		"round_reached": 0,
 		"challenge_rounds": challenge_rounds,
+		"enemy_debut_plan": enemy_progression["debut_plan"],
 		"first_tower_built": &"",
 		"upgrade_purchases": 0,
 		"total_spent": 0.0,
@@ -1144,7 +1140,8 @@ func simulate_run(
 			profile_data,
 			mode,
 			run_rng,
-			StringName(challenge_rounds.get(round_number, &"standard"))
+			StringName(challenge_rounds.get(round_number, &"standard")),
+			state["enemy_debut_plan"]
 		)
 		var starting_money := float(state["money"])
 		var spent_before_round := float(state["total_spent"])
@@ -1213,7 +1210,7 @@ func simulate_run(
 		"policy_id": policy["id"],
 		"policy_name": policy["name"],
 		"run_seed": run_seed,
-		"round_six_type": round_six_type,
+		"special_round_one_type": special_round_one_type,
 		"forced_starter": focused_starter_tower,
 		"starter_calibration": starter_calibration,
 		"relics_disabled": disable_relics,
@@ -1242,7 +1239,8 @@ func build_round_mix(
 	profile_data: Dictionary,
 	mode: Dictionary,
 	run_rng: RandomNumberGenerator,
-	round_type: StringName = &"standard"
+	round_type: StringName = &"standard",
+	enemy_debut_plan: Dictionary = {}
 ) -> Array[Dictionary]:
 	var duration := GameStats.get_round_duration(round_number)
 	var threat_rate := (
@@ -1267,10 +1265,11 @@ func build_round_mix(
 	for enemy_key in GameStats.ENEMIES:
 		var enemy_id := StringName(enemy_key)
 		var enemy := GameStats.get_enemy(enemy_id)
-		if (
-			bool(enemy.get("boss", false))
-			or int(enemy.get("earliest_debut_round", 1)) > round_number
-		):
+		var debut_round := int(enemy_debut_plan.get(
+			enemy_id,
+			enemy.get("earliest_debut_round", 1)
+		))
+		if bool(enemy.get("boss", false)) or debut_round > round_number:
 			continue
 		var weight := float(enemy.get("spawn_weight", 0.0))
 		if weight <= 0.0:
@@ -1304,10 +1303,12 @@ func build_round_mix(
 		enemy_weights[enemy_id] = enemy_weight
 		total_weight += enemy_weight
 	var mix: Array[Dictionary] = []
-	var director_counts: Dictionary = director_count_templates.get(
-		"%d:%s" % [round_number, round_type],
-		{}
-	)
+	var director_counts: Dictionary = {}
+	if enemy_debut_plan.is_empty():
+		director_counts = director_count_templates.get(
+			"%d:%s" % [round_number, round_type],
+			{}
+		)
 	var base_variant: StringName = (
 		&"horde" if round_type in [&"horde", &"gauntlet"]
 		else (&"payday" if round_type == &"payday" else &"normal")
@@ -1705,7 +1706,8 @@ func purchase_for_round(
 				mix,
 				profile_data,
 				round_number,
-				state["challenge_rounds"]
+				state["challenge_rounds"],
+				state["enemy_debut_plan"]
 			)
 		var scored: Array[Dictionary] = []
 		for action in actions:
@@ -1741,7 +1743,8 @@ func build_purchase_planning_mixes(
 	current_mix: Array[Dictionary],
 	profile_data: Dictionary,
 	round_number: int,
-	challenge_rounds: Dictionary
+	challenge_rounds: Dictionary,
+	enemy_debut_plan: Dictionary
 ) -> Array:
 	var result: Array = [current_mix]
 	var mode := GameStats.get_mode(&"easy")
@@ -1756,7 +1759,8 @@ func build_purchase_planning_mixes(
 			profile_data,
 			mode,
 			planning_rng,
-			StringName(challenge_rounds.get(future_round, &"standard"))
+			StringName(challenge_rounds.get(future_round, &"standard")),
+			enemy_debut_plan
 		))
 	return result
 
@@ -2889,12 +2893,12 @@ func resolve_relic_draft(state: Dictionary, policy: Dictionary, round_number: in
 	var best := offers[0]
 	var best_score := -INF
 	for relic_id in offers:
-		var quantity := 2 if round_number == 16 and relic_id == offers.back() else 1
+		var quantity := 1
 		var score := get_relic_choice_score(state, policy, relic_id, quantity, round_number)
 		if score > best_score:
 			best_score = score
 			best = relic_id
-	var best_quantity := 2 if round_number == 16 and best == offers.back() else 1
+	var best_quantity := 1
 	state["relics"][best] = int(state["relics"].get(best, 0)) + best_quantity
 	if best == &"contraband_blueprint":
 		var outside: Array[StringName] = []
@@ -3615,10 +3619,10 @@ func write_strategy_report(ranked: Array[Dictionary]) -> void:
 
 
 func write_run_report() -> void:
-	var file := open_report("finalist_runs.csv", "policy_id,policy_name,profile,round_six_type,starting_roster,first_tower,won,round_reached,lives,money,leak_damage,total_spent,path_coverage,upgrade_purchases,tower_count,build,relics,towers")
+	var file := open_report("finalist_runs.csv", "policy_id,policy_name,profile,special_round_one_type,starting_roster,first_tower,won,round_reached,lives,money,leak_damage,total_spent,path_coverage,upgrade_purchases,tower_count,build,relics,towers")
 	for row in final_results:
 		file.store_line(",".join(PackedStringArray([
-			str(row["policy_id"]), csv(row.get("policy_name", "")), str(row["profile"]), csv(row.get("round_six_type", "")), csv(row["starting_roster"]), csv(row.get("first_tower", "")), str(int(row["won"])), str(row["round_reached"]), "%.3f" % row["lives"], "%.2f" % row["money"], "%.2f" % row["leak_damage"], "%.2f" % row.get("total_spent", 0.0), "%.4f" % row.get("path_coverage", 0.0), str(row.get("upgrade_purchases", 0)), str(row.get("tower_count", 0)), csv(row["build_signature"]), csv(row["relic_signature"]), csv(row["tower_signature"]),
+			str(row["policy_id"]), csv(row.get("policy_name", "")), str(row["profile"]), csv(row.get("special_round_one_type", "")), csv(row["starting_roster"]), csv(row.get("first_tower", "")), str(int(row["won"])), str(row["round_reached"]), "%.3f" % row["lives"], "%.2f" % row["money"], "%.2f" % row["leak_damage"], "%.2f" % row.get("total_spent", 0.0), "%.4f" % row.get("path_coverage", 0.0), str(row.get("upgrade_purchases", 0)), str(row.get("tower_count", 0)), csv(row["build_signature"]), csv(row["relic_signature"]), csv(row["tower_signature"]),
 		])))
 	file.close()
 
@@ -3626,7 +3630,7 @@ func write_run_report() -> void:
 func write_early_round_trace_report() -> void:
 	var file := open_report(
 		"early_round_trace.csv",
-		"policy_id,policy_name,run_seed,round_six_type,forced_starter,starting_roster,first_tower,round,survived,starting_money,spent,post_purchase_money,midwave_spent,kill_income,round_reward,ending_money,round_leak_damage,lives,build,towers"
+		"policy_id,policy_name,run_seed,special_round_one_type,forced_starter,starting_roster,first_tower,round,survived,starting_money,spent,post_purchase_money,midwave_spent,kill_income,round_reward,ending_money,round_leak_damage,lives,build,towers"
 	)
 	for result in final_results:
 		for trace in result.get("round_history", []):
@@ -3634,7 +3638,7 @@ func write_early_round_trace_report() -> void:
 				str(result["policy_id"]),
 				csv(result.get("policy_name", "")),
 				str(result.get("run_seed", 0)),
-				csv(result.get("round_six_type", "")),
+				csv(result.get("special_round_one_type", "")),
 				csv(result.get("forced_starter", "")),
 				csv(result["starting_roster"]),
 				csv(result.get("first_tower", "")),
@@ -3659,12 +3663,12 @@ func write_starter_calibration_report() -> void:
 	var groups := {}
 	for row in final_results:
 		var key := "%s|%s|%s" % [
-			row.get("policy_name", ""), row.get("round_six_type", ""), row["starting_roster"],
+			row.get("policy_name", ""), row.get("special_round_one_type", ""), row["starting_roster"],
 		]
 		if not groups.has(key):
 			groups[key] = {
 				"strategy": row.get("policy_name", ""),
-				"challenge": row.get("round_six_type", ""),
+				"challenge": row.get("special_round_one_type", ""),
 				"roster": row["starting_roster"],
 				"runs": 0, "wins": 0, "round": 0.0, "lives": 0.0,
 				"money": 0.0, "leaks": 0.0, "spent": 0.0,
