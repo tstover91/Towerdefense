@@ -11,6 +11,14 @@ func run_test() -> void:
 	var shielded := spawn_test_mob(&"shielded", Vector2.ZERO)
 	var shielded_health: int = shielded.health
 	assert(shielded.ablative_shield_points == 5)
+	var thermite_context := AttackContext.legacy(&"orbitalcannon", &"explosion")
+	thermite_context.metadata["thermite_bombs"] = 1
+	assert(shielded.apply_damage(
+		10_000, &"explosive", false, true, thermite_context
+	) == 0)
+	assert(shielded.health == shielded_health)
+	assert(shielded.ablative_shield_points == 0)
+	shielded.ablative_shield_points = 5
 	for hit_index in 5:
 		var damage_type: StringName = &"beam" if hit_index % 2 == 0 else &"explosive"
 		assert(shielded.apply_damage(10_000, damage_type) == 0)
@@ -25,6 +33,12 @@ func run_test() -> void:
 	var protected_health: int = protected.health
 	var outside_health: int = outside.health
 	assert(projector.ablative_shield_points == 12)
+	assert(protected.apply_damage(
+		10_000, &"explosive", false, true, thermite_context
+	) == 0)
+	assert(protected.health == protected_health)
+	assert(projector.ablative_shield_points == 7)
+	projector.ablative_shield_points = 12
 	assert(protected.apply_damage(10_000, &"beam") == 0)
 	assert(protected.health == protected_health)
 	assert(projector.ablative_shield_points == 11)

@@ -122,7 +122,7 @@ func assert_static_discharge() -> void:
 	var context := AttackContext.legacy(&"energycore", &"electric_primary")
 	context.metadata["static_discharge"] = 1
 	primary.trigger_electric_lightning_proc(100, context)
-	assert(primary.health == primary_health - 100)
+	assert(primary.health == primary_health - 50)
 	assert(nearby.health == nearby_health - 35)
 	assert(outside.health == outside_health)
 

@@ -93,6 +93,58 @@ func run_test() -> void:
 			* invader.get_main_multiplier(&"tower_range")
 	))
 
+	# Experimental Munitions grants a lower 1.5x baseline that other Critical
+	# relics can build on. Deadeye adds its multiplier and a per-attack miss.
+	fake_main.relics[&"experimental_munitions"] = 1
+	invader.load_base_tags()
+	invader.load_level_stats()
+	assert(invader.has_bonus_tag(&"critical"))
+	assert(is_equal_approx(
+		invader.critical_multiplier,
+		GameStats.EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER
+	))
+	fake_main.relics[&"deadeye"] = 1
+	invader.load_level_stats()
+	assert(is_equal_approx(
+		invader.critical_multiplier,
+		GameStats.EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER
+			+ GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS
+	))
+	assert(is_equal_approx(invader.miss_chance, GameStats.DEADEYE_MISS_CHANCE))
+	invader.miss_chance = 1.0
+	assert(invader.roll_attack_damage() == 0)
+	var missed_context := invader.create_attack_context(
+		&"hitscan", null, &"tower", null, false, true
+	)
+	assert(bool(missed_context.metadata.get("shot_missed", false)))
+
+	# Lone Wolf now cares only about duplicate copies of the same Melee tower.
+	fake_main.relics[&"lone_wolf"] = 1
+	var reaver := create_tower(&"reaver", fake_main)
+	reaver.is_placed = true
+	var lone_reaver_stats := reaver.get_effective_stats_for_level(0)
+	var slinger := create_tower(&"slinger", fake_main)
+	slinger.is_placed = true
+	var mixed_melee_stats := reaver.get_effective_stats_for_level(0)
+	assert(lone_reaver_stats == mixed_melee_stats)
+	var second_reaver := create_tower(&"reaver", fake_main)
+	second_reaver.is_placed = true
+	var duplicate_reaver_stats := reaver.get_effective_stats_for_level(0)
+	assert(int(lone_reaver_stats["damage"]) > int(duplicate_reaver_stats["damage"]))
+	assert(float(lone_reaver_stats["firerate"]) < float(duplicate_reaver_stats["firerate"]))
+	assert(float(lone_reaver_stats["range"]) > float(duplicate_reaver_stats["range"]))
+	second_reaver.is_placed = false
+	var mech_bay := create_tower(&"mechbay", fake_main)
+	mech_bay.is_placed = true
+	var lone_mech_stats := mech_bay.get_effective_stats_for_level(0)
+	var second_mech_bay := create_tower(&"mechbay", fake_main)
+	second_mech_bay.is_placed = true
+	var duplicate_mech_stats := mech_bay.get_effective_stats_for_level(0)
+	assert(
+		int(lone_mech_stats["unit_stats"]["damage"])
+		> int(duplicate_mech_stats["unit_stats"]["damage"])
+	)
+
 	var sidebar := invader.get_sidebar_stats()
 	assert(sidebar["display_name"] == "Invader")
 	assert(sidebar["level"] == 3)

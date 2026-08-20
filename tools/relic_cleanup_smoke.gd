@@ -13,6 +13,7 @@ func _init() -> void:
 func run_checks() -> void:
 	assert(not GameStats.RELICS.has(&"opening_shot"))
 	assert(not GameStats.RELICS.has(&"long_term_investment"))
+	assert(not bool(GameStats.get_relic(&"pressure_point").get("enabled", true)))
 	assert(is_equal_approx(GameStats.HOLLOW_POINT_DAMAGE_PER_STACK, 0.25))
 
 	var director = MAIN_SCENE.instantiate()

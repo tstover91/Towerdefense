@@ -643,6 +643,15 @@ func apply_damage(
 ) -> int:
 	if finished:
 		return 0
+	if (
+		attack_context != null
+		and bool(attack_context.metadata.get("shot_missed", false))
+	):
+		return 0
+	if amount > 0 and apply_thermite_protection_removal(
+		damage_type, attack_context
+	):
+		return 0
 	if amount > 0 and consume_ablative_shield_hit():
 		return 0
 	var is_electric_proc := (
@@ -670,13 +679,6 @@ func apply_damage(
 	):
 		ignores_armor = true
 	if damage_type == &"beam":
-		ignores_armor = true
-	if (
-		damage_type == &"explosive"
-		and armor > 0.0
-		and attack_context != null
-		and int(attack_context.metadata.get("thermite_bombs", 0)) > 0
-	):
 		ignores_armor = true
 	var should_spread := (
 		not is_electric_proc
@@ -745,10 +747,42 @@ func consume_ablative_shield_hit() -> bool:
 	return true
 
 
+func apply_thermite_protection_removal(
+	damage_type: StringName,
+	attack_context: AttackContext
+) -> bool:
+	if (
+		damage_type != &"explosive"
+		or attack_context == null
+		or int(attack_context.metadata.get("thermite_bombs", 0)) <= 0
+	):
+		return false
+	var shield_provider: Node = self if ablative_shield_points > 0 else null
+	if shield_provider == null:
+		shield_provider = get_nearest_ablative_shield_provider()
+	if shield_provider != null:
+		shield_provider.remove_ablative_shield_points(
+			GameStats.THERMITE_BOMBS_PROTECTION_REMOVAL
+		)
+		return true
+	if armor <= 0.0:
+		return false
+	armor = maxf(
+		armor - float(GameStats.THERMITE_BOMBS_PROTECTION_REMOVAL),
+		0.0
+	)
+	return true
+
+
 func consume_projected_shield_hit() -> void:
 	if ablative_shield_points <= 0:
 		return
 	ablative_shield_points -= 1
+	queue_redraw()
+
+
+func remove_ablative_shield_points(amount: int) -> void:
+	ablative_shield_points = maxi(ablative_shield_points - maxi(amount, 0), 0)
 	queue_redraw()
 
 
@@ -854,8 +888,16 @@ func trigger_electric_lightning_proc(
 	# The stored value is already based on final received damage. Bypass armor,
 	# relic modifiers, and Brainiac sharing so the proc deals that exact amount
 	# to this target only and cannot recursively build another proc.
+	var primary_damage := (
+		maxi(roundi(
+			float(lightning_damage)
+			* GameStats.STATIC_DISCHARGE_PRIMARY_DAMAGE_RATIO
+		), 1)
+		if has_static_discharge
+		else lightning_damage
+	)
 	apply_damage(
-		lightning_damage,
+		primary_damage,
 		&"electric",
 		true,
 		false,
@@ -958,6 +1000,12 @@ func trigger_microwave_explosion(
 	killing_beam_damage: int,
 	beam_context: AttackContext
 ) -> void:
+	var source_tower := beam_context.get_root_tower()
+	if (
+		is_instance_valid(source_tower)
+		and source_tower.has_method("add_microwave_attack_cooldown")
+	):
+		source_tower.add_microwave_attack_cooldown()
 	var explosion_damage := mini(
 		maxi(roundi(float(max_health) * GameStats.MICROWAVE_MAX_HEALTH_DAMAGE_RATIO), 1),
 		maxi(roundi(
@@ -1131,13 +1179,12 @@ func apply_relic_damage_modifiers(
 					multiplier *= 1.30
 				3:
 					multiplier *= 1.15
-
 	if (
-		damage_type == &"explosive"
-		and armor > 0.0
-		and int(metadata.get("thermite_bombs", 0)) > 0
+		damage_type == &"electric"
+		and armor <= 0.0
+		and int(metadata.get("conductive", 0)) > 0
 	):
-		multiplier *= GameStats.THERMITE_BOMBS_DAMAGE_MULTIPLIER
+		multiplier *= GameStats.CONDUCTIVE_UNARMORED_DAMAGE_MULTIPLIER
 
 	return maxi(roundi(float(amount) * multiplier), 1)
 

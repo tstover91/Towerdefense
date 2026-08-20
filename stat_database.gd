@@ -10,6 +10,7 @@ const BUILD_CELL_SIZE := 32.0
 const ELECTRIC_HITS_TO_PROC := 5
 const ELECTRIC_PROC_DAMAGE_CONTRIBUTION := 0.30
 const STATIC_DISCHARGE_DAMAGE_RATIO := 0.35
+const STATIC_DISCHARGE_PRIMARY_DAMAGE_RATIO := 0.50
 const STATIC_DISCHARGE_RADIUS := BUILD_CELL_SIZE * 1.25
 const OVERCHARGED_CAPACITOR_HIT_MULTIPLIER := 1.50
 const OVERCHARGED_CAPACITOR_DAMAGE_MULTIPLIER := 3.0
@@ -257,6 +258,8 @@ const LUCKY_SHOT_CHANCE_PER_STACK := 0.20
 const GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS := 2.0
 const GLASS_CANNON_NONCRITICAL_MULTIPLIER := 0.70
 const DEADEYE_CRITICAL_MULTIPLIER_BONUS := 2.0
+const DEADEYE_MISS_CHANCE := 0.20
+const EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER := 1.50
 
 const BOSS_STUN_DURATION_MULTIPLIER := 0.50
 
@@ -273,7 +276,8 @@ const POINT_BLANK_MAX_DAMAGE_PER_STACK := 0.40
 const GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER := 1.75
 const GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER := 0.75
 
-const THERMITE_BOMBS_DAMAGE_MULTIPLIER := 1.25
+const THERMITE_BOMBS_PROTECTION_REMOVAL := 5
+const CONDUCTIVE_UNARMORED_DAMAGE_MULTIPLIER := 0.85
 
 const BIG_GAME_CONTROL_ELITE_DURATION_PER_STACK := 1.40
 const BIG_GAME_CONTROL_NORMAL_DURATION_PER_STACK := 0.80
@@ -307,6 +311,7 @@ const RELENTLESS_MAXIMUM_STACKS := 5
 const MICROWAVE_MAX_HEALTH_DAMAGE_RATIO := 0.30
 const MICROWAVE_BEAM_DAMAGE_CAP_MULTIPLIER := 5.0
 const MICROWAVE_EXPLOSION_RADIUS := BUILD_CELL_SIZE * 1.5
+const MICROWAVE_ATTACK_COOLDOWN := 1.0
 
 
 const MOVEMENT_STATIONARY: StringName = &"stationary"
@@ -402,7 +407,7 @@ const RELICS := {
 	"focused_lens": {"display_name": "Focused Lens", "description": "Beam damage increases by 30% per stack, but range is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true},
 	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases by 30% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true},
 	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal 60% more damage to slowed or stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
-	"microwave": {"display_name": "Microwave", "description": "An enemy killed by Beam damage explodes for 30% of its maximum health, capped at five times the killing damage.", "rarity": &"rare", "category": &"beam", "stackable": false},
+	"microwave": {"display_name": "Microwave", "description": "An enemy killed by Beam damage explodes for 30% of its maximum health, capped at five times the killing damage. The source tower pauses briefly after each explosion.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"death_ray": {"display_name": "Death Ray", "description": "Beams gain infinite Pierce, but turn speed is reduced to 90 degrees per second.", "rarity": &"legendary", "category": &"beam", "stackable": false},
 	"hollow_point": {"display_name": "Hollow Point", "description": "Ballistic attacks deal 25% more damage per stack to enemies above 75% health.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"heavy_rounds": {"display_name": "Heavy Rounds", "description": "Ballistic damage increases by 35% per stack, but attacks take 15% longer per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true},
@@ -412,28 +417,28 @@ const RELICS := {
 	"armor_piercing": {"display_name": "Armor Piercing", "description": "Ballistic attacks gain Pierce 1.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"suppressive_fire": {"display_name": "Suppressive Fire", "description": "Ballistic attacks slow enemies for at least 1 second.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce once to another enemy within 3 tiles.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
-	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
+	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit, but their base critical multiplier is 1.5x before other relic modifiers.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
 	"frenzy": {"display_name": "Frenzy", "description": "Melee attacks become 6% faster per enemy in range per stack, counting up to 10 enemies.", "rarity": &"common", "category": &"melee", "stackable": true},
 	"duelist": {"display_name": "Duelist", "description": "Melee damage gains 45% per stack with one enemy in range or 25% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true},
 	"relentless": {"display_name": "Relentless", "description": "Gain 15% Melee attack speed after each attack against the same primary target, up to five stacks. Changing targets resets it.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"giant_killer": {"display_name": "Giant Killer", "description": "Melee attacks deal 75% more damage to elites and bosses, but 25% less to normal enemies.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"strength_in_numbers": {"display_name": "Strength in Numbers", "description": "Gain 20% Melee damage per nearby Melee tower, counting up to four.", "rarity": &"rare", "category": &"melee", "stackable": false},
-	"lone_wolf": {"display_name": "Lone Wolf", "description": "Gain 50% damage, 35% attack speed, and 25% range when no other tower is within 2.5 tiles.", "rarity": &"legendary", "category": &"melee", "stackable": false},
+	"lone_wolf": {"display_name": "Lone Wolf", "description": "A Melee tower gains 50% damage, 35% attack speed, and 25% range while it is the only copy of that specific tower built. Mech Bay counts per bay, not per active mech.", "rarity": &"legendary", "category": &"melee", "stackable": false},
 	"high_yield": {"display_name": "High Yield", "description": "Explosion radius increases by 35% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true},
 	"concentrated_charge": {"display_name": "Concentrated Charge", "description": "Explosion radius is reduced by 20% per stack, but damage increases by 40% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true},
 	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosions gain 12% damage per enemy caught, up to 150% bonus damage.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"direct_hit": {"display_name": "Direct Hit", "description": "Explosions gain 60% damage against one target, 30% against two, or 15% against three.", "rarity": &"rare", "category": &"explosive", "stackable": false},
-	"thermite_bombs": {"display_name": "Thermite Bombs", "description": "Explosions ignore armor and deal 25% more damage to armored enemies.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"thermite_bombs": {"display_name": "Thermite Bombs", "description": "Explosive hits deal no health damage to armored or shielded enemies, but remove 5 Armor or Shield instead.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"maximum_payload": {"display_name": "Maximum Payload", "description": "Explosion damage and radius increase by 50%, but explosive cooldowns take 75% longer.", "rarity": &"rare", "category": &"explosive", "stackable": false, "enabled": false},
 	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions permanently remove Hidden from enemies they hit.", "rarity": &"rare", "category": &"explosive", "stackable": false},
-	"conductive": {"display_name": "Conductive", "description": "Armor increases Electric damage instead of reducing it.", "rarity": &"common", "category": &"electric", "stackable": false},
+	"conductive": {"display_name": "Conductive", "description": "Armor increases Electric damage instead of reducing it, but Electric damage is reduced by 15% against unarmored enemies.", "rarity": &"common", "category": &"electric", "stackable": false},
 	"overcharged_capacitor": {"display_name": "Overcharged Capacitor", "description": "Lightning procs take 1.5x as many hits to activate per stack, but deal 3x damage per stack.", "rarity": &"common", "category": &"electric", "stackable": true},
-	"static_discharge": {"display_name": "Static Discharge", "description": "Lightning procs deal 35% of the strike's damage to enemies in a small radius around the target.", "rarity": &"rare", "category": &"electric", "stackable": false},
+	"static_discharge": {"display_name": "Static Discharge", "description": "Lightning procs deal only 50% damage to the primary target, but deal 35% of the full strike to enemies in a small radius.", "rarity": &"rare", "category": &"electric", "stackable": false},
 	"chain_lightning": {"display_name": "Chain Lightning", "description": "Lightning procs jump to the closest other enemy for full damage.", "rarity": &"rare", "category": &"electric", "stackable": false},
 	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 20 percentage points per stack.", "rarity": &"common", "category": &"critical", "stackable": true},
 	"glass_cannon": {"display_name": "Glass Cannon", "description": "Adds +2x critical damage, but non-critical attacks deal 30% less damage.", "rarity": &"rare", "category": &"critical", "stackable": false},
-	"pressure_point": {"display_name": "Pressure Point", "description": "Critical hits ignore armor.", "rarity": &"rare", "category": &"critical", "stackable": false},
-	"deadeye": {"display_name": "Deadeye", "description": "Adds +2x to the critical-hit multiplier.", "rarity": &"rare", "category": &"critical", "stackable": false},
+	"pressure_point": {"display_name": "Pressure Point", "description": "Critical hits ignore armor.", "rarity": &"rare", "category": &"critical", "stackable": false, "enabled": false},
+	"deadeye": {"display_name": "Deadeye", "description": "Adds +2x to the critical-hit multiplier, but every attack has a 20% chance to miss.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"lingering_thoughts": {"display_name": "Lingering Thoughts", "description": "Psionic abilities last 35% longer per stack.", "rarity": &"common", "category": &"psionic", "stackable": true},
 	"quick_thinking": {"display_name": "Quick Thinking", "description": "Psionic duration and cooldown are both reduced by 30% per stack.", "rarity": &"common", "category": &"psionic", "stackable": true},
 	"spotter": {"display_name": "Spotter", "description": "Hidden enemies inside any Reveal tower's range can be targeted by all towers until they leave every Reveal range.", "rarity": &"common", "category": &"reveal", "stackable": false},

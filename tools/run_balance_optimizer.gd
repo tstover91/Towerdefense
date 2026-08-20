@@ -863,11 +863,7 @@ func get_covered_combat_segments(
 		not state.is_empty()
 		and traits["damage_tags"].has(&"melee")
 		and relic_count(state, &"lone_wolf") > 0
-		and not placement_has_nearby_other_tower(
-			state,
-			placement_index,
-			2.5 * GameStats.BUILD_CELL_SIZE
-		)
+		and count_built_tower(state["build"], candidate["tower_id"]) <= 1
 	):
 		maximum_range *= GameStats.LONE_WOLF_RANGE_MULTIPLIER
 	maximum_range *= MAP_RANGE_PIXELS_PER_UNIT
@@ -2098,10 +2094,9 @@ func get_best_available_placement_index(state: Dictionary, candidate: Dictionary
 				)
 				if (
 					relic_count(state, &"lone_wolf") > 0
-					and not placement_has_nearby_other_tower(
-						state, placement_index,
-						2.5 * GameStats.BUILD_CELL_SIZE
-					)
+					and count_built_tower(
+						state["build"], candidate["tower_id"]
+					) <= 1
 				):
 					score *= (
 						GameStats.LONE_WOLF_DAMAGE_MULTIPLIER
@@ -2272,8 +2267,6 @@ func get_candidate_enemy_power(
 	)
 	if relic_count(state, &"armor_piercing") > 0 and traits["damage_tags"].has(&"ballistic"):
 		ignores_armor = true
-	if relic_count(state, &"thermite_bombs") > 0 and primary_type == &"explosive":
-		ignores_armor = true
 	if not ignores_armor:
 		var raw_hit := maxf(float(stats.get("damage", 1.0)), 1.0)
 		var base_armor := float(base_scenario.get("armor", 0.0))
@@ -2373,7 +2366,8 @@ func get_relic_combat_multiplier(
 		if int(relics.get(&"interference_beam", 0)) > 0 and build_has_control(state["build"]):
 			multiplier *= GameStats.INTERFERENCE_BEAM_DAMAGE_MULTIPLIER
 		if int(relics.get(&"microwave", 0)) > 0 and engagement_count >= 3.0:
-			multiplier *= 1.18
+			# Explosion value is tempered by the post-explosion attack pause.
+			multiplier *= 1.10
 		if int(relics.get(&"death_ray", 0)) > 0:
 			multiplier *= 1.0 + minf(engagement_count - 1.0, 4.0) * 0.16
 	if damage_tags.has(&"ballistic"):
@@ -2422,11 +2416,9 @@ func get_relic_combat_multiplier(
 			)
 		if (
 			int(relics.get(&"lone_wolf", 0)) > 0
-			and not placement_has_nearby_other_tower(
-				state,
-				placement_index,
-				2.5 * GameStats.BUILD_CELL_SIZE
-			)
+			and count_built_tower(
+				state["build"], candidate["tower_id"]
+			) <= 1
 		):
 			multiplier *= GameStats.LONE_WOLF_DAMAGE_MULTIPLIER * GameStats.LONE_WOLF_ATTACK_SPEED_MULTIPLIER
 	if damage_tags.has(&"explosive"):
@@ -2436,19 +2428,46 @@ func get_relic_combat_multiplier(
 			multiplier *= 1.0 + minf(GameStats.CROWD_PLEASER_DAMAGE_PER_ENEMY * engagement_count, GameStats.CROWD_PLEASER_MAXIMUM_DAMAGE_BONUS)
 		if int(relics.get(&"direct_hit", 0)) > 0:
 			multiplier *= 1.60 if engagement_count <= 1.5 else (1.30 if engagement_count <= 2.5 else (1.15 if engagement_count <= 3.5 else 1.0))
-		if int(relics.get(&"thermite_bombs", 0)) > 0 and float(entry["armor"]) > 0.0:
-			multiplier *= GameStats.THERMITE_BOMBS_DAMAGE_MULTIPLIER
-	if damage_tags.has(&"electric") and int(relics.get(&"conductive", 0)) > 0 and float(entry["armor"]) > 0.0:
-		var armor_reduction := GameStats.get_armor_damage_reduction(
-			float(entry["armor"]),
-			&"electric"
+		if (
+			int(relics.get(&"thermite_bombs", 0)) > 0
+			and float(entry["armor"]) > 0.0
+		):
+			# Approximate the opening zero-damage hits spent stripping Armor.
+			multiplier *= 0.75
+	if damage_tags.has(&"electric") and int(relics.get(&"conductive", 0)) > 0:
+		if float(entry["armor"]) > 0.0:
+			var armor_reduction := GameStats.get_armor_damage_reduction(
+				float(entry["armor"]),
+				&"electric"
+			)
+			multiplier *= (1.0 + armor_reduction) / (1.0 - armor_reduction)
+		else:
+			multiplier *= GameStats.CONDUCTIVE_UNARMORED_DAMAGE_MULTIPLIER
+	if (
+		damage_tags.has(&"electric")
+		and int(relics.get(&"static_discharge", 0)) > 0
+	):
+		var nearby_static_targets := clampf(engagement_count - 1.0, 0.0, 4.0)
+		multiplier *= maxf(
+			1.0
+			- (1.0 - GameStats.STATIC_DISCHARGE_PRIMARY_DAMAGE_RATIO)
+				* GameStats.ELECTRIC_PROC_DAMAGE_CONTRIBUTION
+			+ nearby_static_targets
+				* GameStats.STATIC_DISCHARGE_DAMAGE_RATIO
+				* GameStats.ELECTRIC_PROC_DAMAGE_CONTRIBUTION,
+			0.1
 		)
-		multiplier *= (1.0 + armor_reduction) / (1.0 - armor_reduction)
 	var base_has_critical := bonus_tags.has(&"critical")
 	var has_critical := base_has_critical or int(relics.get(&"experimental_munitions", 0)) > 0
 	if has_critical:
 		var chance := clampf(GameStats.DEFAULT_CRITICAL_CHANCE + GameStats.LUCKY_SHOT_CHANCE_PER_STACK * float(relics.get(&"lucky_shot", 0)), 0.0, 1.0)
-		var crit_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER + GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"glass_cannon", 0)) + GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"deadeye", 0))
+		var crit_multiplier := (
+			GameStats.EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER
+			if int(relics.get(&"experimental_munitions", 0)) > 0
+			and damage_tags.has(&"ballistic")
+			else GameStats.DEFAULT_CRITICAL_MULTIPLIER
+		)
+		crit_multiplier += GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"glass_cannon", 0)) + GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"deadeye", 0))
 		var noncrit := GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER if int(relics.get(&"glass_cannon", 0)) > 0 else 1.0
 		var modified_critical_average := chance * crit_multiplier + (1.0 - chance) * noncrit
 		var baseline_critical_average := (
@@ -2458,6 +2477,8 @@ func get_relic_combat_multiplier(
 			else 1.0
 		)
 		multiplier *= modified_critical_average / baseline_critical_average
+		if int(relics.get(&"deadeye", 0)) > 0:
+			multiplier *= 1.0 - GameStats.DEADEYE_MISS_CHANCE
 		if int(relics.get(&"pressure_point", 0)) > 0 and float(entry["armor"]) > 0.0:
 			var raw_damage := maxf(float(stats.get("damage", 1.0)), 1.0)
 			var armored_damage := raw_damage * GameStats.get_armor_damage_multiplier(

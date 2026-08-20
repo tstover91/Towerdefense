@@ -40,6 +40,7 @@ func load_level_stats() -> void:
 	tower.noncritical_damage_multiplier = clampf(
 		float(stats.get("noncritical_damage_multiplier", 1.0)), 0.0, 1.0
 	)
+	tower.miss_chance = clampf(float(stats.get("miss_chance", 0.0)), 0.0, 1.0)
 	tower.pierce_loses_no_power = bool(stats.get("pierce_loses_no_power", false))
 	tower.slow_duration = maxf(float(stats.get("slow_duration", 0.0)), 0.0)
 	tower.stun_duration = maxf(float(stats.get("stun_duration", 0.0)), 0.0)
@@ -155,7 +156,7 @@ func apply_relic_combat_stat_modifiers(
 	if (
 		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
 		and get_owned_relic_count(&"lone_wolf") > 0
-		and not has_nearby_other_tower(2.5 * BaseTower.BUILD_CELL_SIZE)
+		and not has_other_placed_tower_with_same_id()
 	):
 		stats[damage_key] = maxi(roundi(
 			float(stats[damage_key]) * GameStats.LONE_WOLF_DAMAGE_MULTIPLIER
@@ -236,6 +237,16 @@ func apply_relic_combat_stat_modifiers(
 			* get_explosion_damage_multiplier()
 		)
 	if tower.has_bonus_tag(BaseTower.BONUS_CRITICAL):
+		var base_critical_multiplier := float(stats.get(
+			"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
+		))
+		if (
+			tower.has_damage_tag(BaseTower.DAMAGE_BALLISTIC)
+			and get_owned_relic_count(&"experimental_munitions") > 0
+		):
+			base_critical_multiplier = (
+				GameStats.EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER
+			)
 		stats["critical_chance"] = clampf(
 			float(stats.get("critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE))
 			+ GameStats.LUCKY_SHOT_CHANCE_PER_STACK
@@ -244,9 +255,7 @@ func apply_relic_combat_stat_modifiers(
 			1.0
 		)
 		stats["critical_multiplier"] = maxf(
-			float(stats.get(
-				"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
-			))
+			base_critical_multiplier
 			+ (GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS
 				if get_owned_relic_count(&"glass_cannon") > 0 else 0.0)
 			+ (GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS
@@ -257,6 +266,8 @@ func apply_relic_combat_stat_modifiers(
 			stats["noncritical_damage_multiplier"] = (
 				GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER
 			)
+		if get_owned_relic_count(&"deadeye") > 0:
+			stats["miss_chance"] = GameStats.DEADEYE_MISS_CHANCE
 	if tower.has_bonus_tag(BaseTower.BONUS_PIERCE):
 		stats["pierce_count"] = tower.pierce_count
 		stats["pierce_loses_no_power"] = (
@@ -601,6 +612,16 @@ func has_nearby_other_tower(radius: float) -> bool:
 		if (
 			is_valid_neighbor_tower(candidate)
 			and tower.global_position.distance_to(candidate.global_position) <= radius
+		):
+			return true
+	return false
+
+
+func has_other_placed_tower_with_same_id() -> bool:
+	for candidate in tower.get_tree().get_nodes_in_group("towers"):
+		if (
+			is_valid_neighbor_tower(candidate)
+			and StringName(candidate.get("tower_id")) == tower.tower_id
 		):
 			return true
 	return false

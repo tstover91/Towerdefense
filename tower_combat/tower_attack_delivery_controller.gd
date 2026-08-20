@@ -61,6 +61,8 @@ func apply_tower_damage(
 	var resolved_context := attack_context
 	if resolved_context == null:
 		resolved_context = create_attack_context(&"direct")
+	if bool(resolved_context.metadata.get("shot_missed", false)):
+		return
 	if current_target.has_method("apply_damage_from_tower"):
 		current_target.apply_damage_from_tower(
 			attack_damage,
@@ -94,7 +96,7 @@ func create_attack_context(
 			source_kind,
 			attack_kind,
 			secondary,
-			{"was_critical": tower.last_attack_roll_was_critical}
+			get_last_attack_roll_metadata()
 				if include_critical_roll
 				else {}
 		)
@@ -104,7 +106,7 @@ func create_attack_context(
 		tower.type_tags
 	)
 	if include_critical_roll:
-		metadata["was_critical"] = tower.last_attack_roll_was_critical
+		metadata.merge(get_last_attack_roll_metadata(), true)
 	return AttackContext.from_tower(
 		tower,
 		source,
@@ -198,6 +200,10 @@ func roll_attack_damage(current_target: Node2D = null) -> int:
 
 func roll_critical_damage(base_damage: int, _current_target: Node2D = null) -> int:
 	tower.last_attack_roll_was_critical = false
+	tower.last_attack_roll_missed = false
+	if tower.miss_chance > 0.0 and tower.spawn_rng.randf() < tower.miss_chance:
+		tower.last_attack_roll_missed = true
+		return 0
 	if (
 		tower.has_bonus_tag(BaseTower.BONUS_CRITICAL)
 		and tower.spawn_rng.randf() < tower.critical_chance
@@ -207,6 +213,23 @@ func roll_critical_damage(base_damage: int, _current_target: Node2D = null) -> i
 	return maxi(
 		roundi(float(base_damage) * tower.noncritical_damage_multiplier), 1
 	)
+
+
+func roll_guaranteed_critical_damage(base_damage: int) -> int:
+	tower.last_attack_roll_was_critical = false
+	tower.last_attack_roll_missed = false
+	if tower.miss_chance > 0.0 and tower.spawn_rng.randf() < tower.miss_chance:
+		tower.last_attack_roll_missed = true
+		return 0
+	tower.last_attack_roll_was_critical = true
+	return maxi(roundi(float(base_damage) * tower.critical_multiplier), 1)
+
+
+func get_last_attack_roll_metadata() -> Dictionary:
+	return {
+		"was_critical": tower.last_attack_roll_was_critical,
+		"shot_missed": tower.last_attack_roll_missed,
+	}
 
 
 func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
@@ -600,6 +623,8 @@ func apply_control_effects(
 	var resolved_context := attack_context
 	if resolved_context == null:
 		resolved_context = create_attack_context(&"status_effect")
+	if bool(resolved_context.metadata.get("shot_missed", false)):
+		return
 	if tower.slow_duration > 0.0 and current_target.has_method("apply_slow"):
 		current_target.apply_slow(tower.slow_duration, resolved_context)
 	if tower.stun_duration > 0.0 and current_target.has_method("apply_stun"):

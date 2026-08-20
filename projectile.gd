@@ -558,6 +558,11 @@ func apply_damage_and_effects(
 		damage_type if attack_damage_type.is_empty() else attack_damage_type
 	)
 	var resolved_context := ownership_context if ownership_context != null else attack_context
+	if (
+		resolved_context != null
+		and bool(resolved_context.metadata.get("shot_missed", false))
+	):
+		return
 	if slow_duration > 0.0 and mob.has_method("apply_slow"):
 		mob.apply_slow(slow_duration, resolved_context)
 	if stun_duration > 0.0 and mob.has_method("apply_stun"):

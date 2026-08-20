@@ -30,6 +30,8 @@ var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
 var noncritical_damage_multiplier := 1.0
 var last_attack_roll_was_critical := false
+var last_attack_roll_missed := false
+var miss_chance := 0.0
 var relentless_target_instance_id := 0
 var relentless_stacks := 0
 var pierce_loses_no_power := false
@@ -153,6 +155,7 @@ func apply_stats(unit_stats: Dictionary) -> void:
 		0.0,
 		1.0
 	)
+	miss_chance = clampf(float(unit_stats.get("miss_chance", 0.0)), 0.0, 1.0)
 	pierce_loses_no_power = bool(
 		unit_stats.get("pierce_loses_no_power", false)
 	)
@@ -781,7 +784,7 @@ func create_attack_context(
 			&"spawned_unit",
 			attack_kind,
 			secondary,
-			{"was_critical": last_attack_roll_was_critical}
+			get_last_attack_roll_metadata()
 				if include_critical_roll
 				else {}
 		)
@@ -809,7 +812,7 @@ func create_attack_context(
 				local_enemy_count += 1
 		metadata["enemies_in_range"] = local_enemy_count
 	if include_critical_roll:
-		metadata["was_critical"] = last_attack_roll_was_critical
+		metadata.merge(get_last_attack_roll_metadata(), true)
 	return AttackContext.from_tower(
 		parent_tower,
 		self,
@@ -1289,6 +1292,10 @@ func get_hitscan_pierce_targets(
 
 func roll_attack_damage(current_target: Node2D = null) -> int:
 	last_attack_roll_was_critical = false
+	last_attack_roll_missed = false
+	if miss_chance > 0.0 and randf() < miss_chance:
+		last_attack_roll_missed = true
+		return 0
 	var current_critical_chance := critical_chance
 	if (
 		mech_hunter
@@ -1308,10 +1315,22 @@ func roll_attack_damage(current_target: Node2D = null) -> int:
 	return maxi(roundi(float(damage) * noncritical_damage_multiplier), 1)
 
 
+func get_last_attack_roll_metadata() -> Dictionary:
+	return {
+		"was_critical": last_attack_roll_was_critical,
+		"shot_missed": last_attack_roll_missed,
+	}
+
+
 func apply_control_effects(
 	current_target: Node,
 	attack_context: AttackContext = null
 ) -> void:
+	if (
+		attack_context != null
+		and bool(attack_context.metadata.get("shot_missed", false))
+	):
+		return
 	var resolved_context := attack_context
 	if resolved_context == null:
 		resolved_context = create_attack_context(&"spawned_status_effect")

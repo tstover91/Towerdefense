@@ -191,5 +191,17 @@ func run_test() -> void:
 	assert(mob.beholder_mark_stacks == 0)
 	assert(is_equal_approx(mob.get_beholder_mark_damage_multiplier(), 1.0))
 
+	# Microwave adds a short pause on top of the source tower's current cooldown.
+	fake_main.relics[&"microwave"] = 1
+	tower.load_level_stats()
+	tower.damage_timer.start(0.5)
+	var microwave_context := tower.create_attack_context(&"beam_tick")
+	mob.trigger_microwave_explosion(tower.damage, microwave_context)
+	await get_tree().process_frame
+	assert(
+		tower.damage_timer.time_left
+		> 0.5 + GameStats.MICROWAVE_ATTACK_COOLDOWN - 0.1
+	)
+
 	print("Beholder smoke test passed: outward beam fan, center tracking, interception, Piercing Volley, base Reveal, and Withering Gaze.")
 	get_tree().quit(0)

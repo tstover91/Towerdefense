@@ -92,6 +92,8 @@ var critical_chance := GameStats.DEFAULT_CRITICAL_CHANCE
 var critical_multiplier := GameStats.DEFAULT_CRITICAL_MULTIPLIER
 var noncritical_damage_multiplier := 1.0
 var last_attack_roll_was_critical := false
+var last_attack_roll_missed := false
+var miss_chance := 0.0
 var relentless_target_instance_id := 0
 var relentless_stacks := 0
 var pierce_loses_no_power := false
@@ -615,6 +617,20 @@ func get_current_attack_interval() -> float:
 	return stats_controller.get_current_attack_interval()
 
 
+func add_microwave_attack_cooldown() -> void:
+	call_deferred("_apply_microwave_attack_cooldown")
+
+
+func _apply_microwave_attack_cooldown() -> void:
+	if not is_inside_tree() or not is_placed:
+		return
+	var remaining_cooldown := (
+		damage_timer.time_left if not damage_timer.is_stopped() else 0.0
+	)
+	attack_on_cooldown = true
+	damage_timer.start(remaining_cooldown + GameStats.MICROWAVE_ATTACK_COOLDOWN)
+
+
 func register_relentless_primary_attack(current_target: Node2D) -> void:
 	if attack_delivery_controller != null:
 		attack_delivery_controller.register_relentless_primary_attack(
@@ -710,6 +726,10 @@ func roll_critical_damage(base_damage: int, current_target: Node2D = null) -> in
 	return attack_delivery_controller.roll_critical_damage(
 		base_damage, current_target
 	)
+
+
+func roll_guaranteed_critical_damage(base_damage: int) -> int:
+	return attack_delivery_controller.roll_guaranteed_critical_damage(base_damage)
 
 
 func launch_projectile(current_target: Node2D, attack_damage: int) -> void:

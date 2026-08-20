@@ -160,8 +160,7 @@ func execute_raw_attack(current_target: Node2D, base_damage: int) -> bool:
 	for hit_index in combo_hit_count:
 		var hit_damage := _get_combo_hit_damage(base_damage, hit_index)
 		if assassinate_enabled and hit_index == combo_hit_count - 1:
-			hit_damage = maxi(roundi(float(hit_damage) * maxf(tower.critical_multiplier, 1.0)), 1)
-			tower.last_attack_roll_was_critical = true
+			hit_damage = tower.roll_guaranteed_critical_damage(hit_damage)
 		else:
 			hit_damage = tower.roll_critical_damage(hit_damage, current_target)
 		var hit_context := tower.create_attack_context(
