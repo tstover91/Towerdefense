@@ -1,6 +1,7 @@
 extends Node
 
 const GameStats = preload("res://stat_database.gd")
+const BEHOLDER_BEAMS = preload("res://beholder_converging_beams.gd")
 const DEFAULT_ITERATIONS := 1000
 const DEFAULT_DURATION := 30.0
 const RANGE_PIXELS_PER_UNIT := 12.9
@@ -140,6 +141,7 @@ func build_enemy_scenarios() -> void:
 			"health": maxf(health, 1.0),
 			"speed": speed,
 			"regeneration": float(enemy.get("regeneration_per_second", 0.0)),
+			"ablative_shield_points": int(enemy.get("ablative_shield_points", 0)),
 			"boss": bool(enemy.get("boss", false)),
 			"hidden": enemy_traits.has(&"hidden"),
 			"traits": enemy_traits,
@@ -332,6 +334,10 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		)
 		attacks = floori((active_duration + rng.randf() * interval) / interval)
 	var total := 0.0
+	var shield_hits_remaining := maxi(
+		int(scenario.get("ablative_shield_points", 0)),
+		0
+	)
 	var flags: Dictionary = traits["flags"]
 	var values: Dictionary = traits["values"]
 	var primary_type: StringName = traits["primary_type"]
@@ -363,6 +369,21 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		if rng.randf() > hit_chance and primary_type != &"explosive":
 			continue
 		var hit_damage := apply_armor(attack_damage, primary_type, float(scenario["armor"]), int(stats.get("pierce_count", 0)) > 0)
+		if shield_hits_remaining > 0:
+			if tower_id == &"brainiac":
+				var blocked_ticks := mini(
+					shield_hits_remaining,
+					BEHOLDER_BEAMS.TICK_COUNT
+				)
+				shield_hits_remaining -= blocked_ticks
+				hit_damage *= (
+					1.0
+					- float(blocked_ticks)
+						/ float(BEHOLDER_BEAMS.TICK_COUNT)
+				)
+			else:
+				shield_hits_remaining -= 1
+				continue
 		hit_damage = minf(hit_damage, float(scenario["health"]))
 		if tower_id == &"voidcaller":
 			total += get_voidcaller_volley_damage(hit_damage, stats, scenario)

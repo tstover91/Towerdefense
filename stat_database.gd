@@ -25,7 +25,9 @@ const FIXED_ENEMY_DEBUT_ROUNDS := {
 	&"buffer": 8,
 	&"hidden": 11,
 	&"swat_enforcer": 14,
+	&"shielded": 17,
 	&"heavy_enforcer": 17,
+	&"shield_projector": 20,
 	&"juggernaut": 20,
 	&"bulwark": 22,
 	&"brute": 24,
@@ -213,6 +215,8 @@ const ENEMY_LATE_HEALTH_FACTORS := {
 	&"summoner": 1.00,
 	&"swat_enforcer": 1.20,
 	&"heavy_enforcer": 1.15,
+	&"shielded": 1.00,
+	&"shield_projector": 1.00,
 	&"juggernaut": 1.10,
 	&"bulwark": 1.05,
 	&"brute": 1.00,
@@ -523,6 +527,8 @@ const ENEMIES := {
 		"spawn_weight": 100,
 		"spawn_style": &"steady",
 		"role": &"fodder",
+		"family": &"general",
+		"family_tier": 1,
 		"traits": [&"basic"],
 		"color": Color(1.0, 1.0, 1.0),
 		"visual_scale": 1.0,
@@ -541,6 +547,8 @@ const ENEMIES := {
 		"spawn_weight": 65,
 		"spawn_style": &"burst",
 		"role": &"pressure",
+		"family": &"speed",
+		"family_tier": 1,
 		"traits": [&"fast"],
 		"color": Color(1.0, 0.85, 0.2),
 		"visual_scale": 0.85,
@@ -559,6 +567,8 @@ const ENEMIES := {
 		"spawn_weight": 55,
 		"spawn_style": &"stream",
 		"role": &"fodder",
+		"family": &"swarms",
+		"family_tier": 1,
 		"traits": [&"small", &"swarm"],
 		"color": Color(0.55, 1.0, 0.55),
 		"visual_scale": 0.65,
@@ -577,6 +587,8 @@ const ENEMIES := {
 		"spawn_weight": 45,
 		"spawn_style": &"spaced",
 		"role": &"tank",
+		"family": &"tank",
+		"family_tier": 1,
 		"traits": [&"slow", &"high_health"],
 		"color": Color(0.75, 0.45, 0.25),
 		"visual_scale": 1.25,
@@ -595,6 +607,8 @@ const ENEMIES := {
 		"spawn_weight": 35,
 		"spawn_style": &"steady",
 		"role": &"pressure",
+		"family": &"swarms",
+		"family_tier": 2,
 		"traits": [&"splits"],
 		"split_enemy_id": &"swarmling",
 		"split_count": 2,
@@ -615,6 +629,8 @@ const ENEMIES := {
 		"spawn_weight": 16,
 		"spawn_style": &"burst",
 		"role": &"pressure",
+		"family": &"hidden",
+		"family_tier": 1,
 		"traits": [&"hidden"],
 		"color": Color(0.42, 0.32, 0.62),
 		"visual_scale": 0.9,
@@ -633,6 +649,8 @@ const ENEMIES := {
 		"spawn_weight": 30,
 		"spawn_style": &"spaced",
 		"role": &"tank",
+		"family": &"armor",
+		"family_tier": 1,
 		"traits": [&"armored"],
 		"color": Color(0.55, 0.62, 0.7),
 		"visual_scale": 1.2,
@@ -651,6 +669,8 @@ const ENEMIES := {
 		"spawn_weight": 24,
 		"spawn_style": &"steady",
 		"role": &"support",
+		"family": &"buffs",
+		"family_tier": 1,
 		"traits": [&"speed_aura"],
 		"speed_aura_radius": 100.0,
 		"speed_aura_multiplier": 1.2,
@@ -671,6 +691,8 @@ const ENEMIES := {
 		"spawn_weight": 20,
 		"spawn_style": &"spaced",
 		"role": &"tank",
+		"family": &"healer",
+		"family_tier": 1,
 		"traits": [&"regenerates"],
 		"regeneration_per_second": 20,
 		"color": Color(0.25, 1.0, 0.35),
@@ -690,6 +712,8 @@ const ENEMIES := {
 		"spawn_weight": 22,
 		"spawn_style": &"burst",
 		"role": &"pressure",
+		"family": &"speed",
+		"family_tier": 2,
 		"traits": [&"fast", &"rushes"],
 		"rush_start_ratio": 0.7,
 		"rush_speed_multiplier": 2.0,
@@ -710,6 +734,8 @@ const ENEMIES := {
 		"spawn_weight": 15,
 		"spawn_style": &"spaced",
 		"role": &"support",
+		"family": &"summon",
+		"family_tier": 1,
 		"traits": [&"summons"],
 		"summon_enemy_id": &"swarmling",
 		"summon_interval": 4.0,
@@ -731,6 +757,8 @@ const ENEMIES := {
 		"spawn_weight": 8,
 		"spawn_style": &"spaced",
 		"role": &"tank",
+		"family": &"armor",
+		"family_tier": 2,
 		"traits": [&"armored", &"high_health"],
 		"color": Color(0.18, 0.22, 0.28),
 		"visual_scale": 1.45,
@@ -749,9 +777,54 @@ const ENEMIES := {
 		"spawn_weight": 6,
 		"spawn_style": &"spaced",
 		"role": &"tank",
+		"family": &"general",
+		"family_tier": 2,
 		"traits": [&"armored", &"high_health"],
 		"color": Color(0.28, 0.32, 0.38),
 		"visual_scale": 1.55,
+	},
+	"shielded": {
+		"display_name": "Shielded",
+		"health": 450,
+		"health_per_wave": 0.0,
+		"move_speed": 78.0,
+		"cash_reward": 58,
+		"base_damage": 16,
+		"armor": 0,
+		"earliest_debut_round": 17,
+		"formation_strength": 16,
+		"director_cost": 11,
+		"spawn_weight": 14,
+		"spawn_style": &"spaced",
+		"role": &"tank",
+		"family": &"shields",
+		"family_tier": 1,
+		"traits": [&"shielded"],
+		"ablative_shield_points": 5,
+		"color": Color(0.25, 0.72, 1.0),
+		"visual_scale": 1.15,
+	},
+	"shield_projector": {
+		"display_name": "Shield Projector",
+		"health": 525,
+		"health_per_wave": 0.0,
+		"move_speed": 68.0,
+		"cash_reward": 82,
+		"base_damage": 18,
+		"armor": 0,
+		"earliest_debut_round": 20,
+		"formation_strength": 20,
+		"director_cost": 14,
+		"spawn_weight": 10,
+		"spawn_style": &"steady",
+		"role": &"support",
+		"family": &"shields",
+		"family_tier": 2,
+		"traits": [&"shielded", &"shield_aura"],
+		"ablative_shield_points": 12,
+		"shield_aura_radius": 96.0,
+		"color": Color(0.18, 0.9, 0.85),
+		"visual_scale": 1.25,
 	},
 	"juggernaut": {
 		"display_name": "Juggernaut",
@@ -760,14 +833,16 @@ const ENEMIES := {
 		"move_speed": 38.0,
 		"cash_reward": 236,
 		"base_damage": 65,
-		"armor": 10,
+		"armor": 0,
 		"earliest_debut_round": 20,
 		"formation_strength": 75,
 		"director_cost": 65,
 		"spawn_weight": 4,
 		"spawn_style": &"spaced",
 		"role": &"tank",
-		"traits": [&"armored", &"high_health", &"slow"],
+		"family": &"tank",
+		"family_tier": 2,
+		"traits": [&"high_health", &"slow"],
 		"color": Color(0.42, 0.30, 0.22),
 		"visual_scale": 1.7,
 	},
@@ -785,6 +860,8 @@ const ENEMIES := {
 		"spawn_weight": 2,
 		"spawn_style": &"spaced",
 		"role": &"tank",
+		"family": &"general",
+		"family_tier": 2,
 		"traits": [&"armored", &"high_health", &"slow"],
 		"color": Color(0.20, 0.28, 0.42),
 		"visual_scale": 1.9,
@@ -803,6 +880,8 @@ const ENEMIES := {
 		"spawn_weight": 0,
 		"spawn_style": &"boss",
 		"role": &"boss",
+		"family": &"general",
+		"family_tier": 2,
 		"traits": [&"boss", &"high_health"],
 		"boss": true,
 		"color": Color(0.75, 0.08, 0.08),
@@ -2024,6 +2103,29 @@ const MODES := {
 static func get_enemy(enemy_id: StringName) -> Dictionary:
 	assert(ENEMIES.has(enemy_id), "Unknown enemy ID: %s" % enemy_id)
 	return ENEMIES[enemy_id].duplicate(true)
+
+
+static func get_enemy_family(enemy_id: StringName) -> StringName:
+	return StringName(get_enemy(enemy_id).get("family", &"general"))
+
+
+static func get_enemy_family_tier(enemy_id: StringName) -> int:
+	return clampi(int(get_enemy(enemy_id).get("family_tier", 1)), 1, 2)
+
+
+static func get_enemy_family_ids(
+	family: StringName,
+	tier := 0
+) -> Array[StringName]:
+	var members: Array[StringName] = []
+	for enemy_key in ENEMIES:
+		var enemy_id := StringName(enemy_key)
+		if get_enemy_family(enemy_id) != family:
+			continue
+		if tier > 0 and get_enemy_family_tier(enemy_id) != tier:
+			continue
+		members.append(enemy_id)
+	return members
 
 
 static func build_enemy_debut_plan(rng: RandomNumberGenerator) -> Dictionary:

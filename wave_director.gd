@@ -413,7 +413,7 @@ func get_valid_enemies_for_role(
 			continue
 		if role == ROLE_SUPPORT and count_role_in_group(current_group, ROLE_SUPPORT) >= 1:
 			continue
-		if enemy_id in [&"buffer", &"summoner"]:
+		if enemy_id in [&"buffer", &"summoner", &"shield_projector"]:
 			if get_active_enemy_count(enemy_id) + current_group.count(enemy_id) >= 2:
 				continue
 		if enemy_id == &"rusher":

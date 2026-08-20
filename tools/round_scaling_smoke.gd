@@ -77,6 +77,33 @@ func _init() -> void:
 		assert(not enemy.has("spawn_cost"))
 		assert(not enemy.has("threat_cost"))
 		assert(not enemy.has("first_wave"))
+		assert(enemy.has("family"))
+		assert(int(enemy.get("family_tier", 0)) in [1, 2])
+
+	var expected_families := {
+		&"speed": {1: [&"runner"], 2: [&"rusher"]},
+		&"swarms": {1: [&"swarmling"], 2: [&"splitter"]},
+		&"tank": {1: [&"bruiser"], 2: [&"juggernaut"]},
+		&"armor": {1: [&"armored"], 2: [&"swat_enforcer"]},
+		&"buffs": {1: [&"buffer"], 2: []},
+		&"hidden": {1: [&"hidden"], 2: []},
+		&"healer": {1: [&"regenerator"], 2: []},
+		&"summon": {1: [&"summoner"], 2: []},
+		&"shields": {1: [&"shielded"], 2: [&"shield_projector"]},
+		&"general": {
+			1: [&"normal"],
+			2: [&"heavy_enforcer", &"bulwark", &"brute"],
+		},
+	}
+	for family in expected_families:
+		for tier in expected_families[family]:
+			var actual := GameStats.get_enemy_family_ids(family, tier)
+			actual.sort()
+			var expected: Array = expected_families[family][tier].duplicate()
+			expected.sort()
+			assert(actual == expected)
+	assert(int(GameStats.ENEMIES[&"juggernaut"]["armor"]) == 0)
+	assert(not GameStats.ENEMIES[&"juggernaut"]["traits"].has(&"armored"))
 
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])

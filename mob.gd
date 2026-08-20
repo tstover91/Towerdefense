@@ -67,6 +67,9 @@ var beholder_mark_remaining := 0.0
 var beholder_mark_stacks := 0
 var beholder_mark_damage_per_stack := 0.0
 var beholder_mark_maximum_stacks := 0
+var maximum_ablative_shield_points := 0
+var ablative_shield_points := 0
+var shield_aura_radius := 0.0
 var fisherman_pull_immunity_remaining := 0.0
 var fisherman_pull_active := false
 var fisherman_minimum_progress := -1.0
@@ -99,6 +102,43 @@ func _draw() -> void:
 			2.0 + strength * 5.0,
 			true
 		)
+	if ablative_shield_points > 0:
+		var shield_ratio := (
+			float(ablative_shield_points)
+			/ float(maxi(maximum_ablative_shield_points, 1))
+		)
+		var shield_radius := get_projectile_hit_radius() + 7.0
+		draw_circle(
+			Vector2.ZERO,
+			shield_radius,
+			Color(0.15, 0.8, 1.0, 0.08 + shield_ratio * 0.08)
+		)
+		draw_arc(
+			Vector2.ZERO,
+			shield_radius,
+			0.0,
+			TAU,
+			32,
+			Color(0.45, 0.95, 1.0, 0.45 + shield_ratio * 0.45),
+			1.5 + shield_ratio * 1.5,
+			true
+		)
+		if shield_aura_radius > 0.0:
+			draw_circle(
+				Vector2.ZERO,
+				shield_aura_radius,
+				Color(0.1, 0.75, 0.9, 0.055)
+			)
+			draw_arc(
+				Vector2.ZERO,
+				shield_aura_radius,
+				0.0,
+				TAU,
+				64,
+				Color(0.35, 0.9, 1.0, 0.28),
+				1.25,
+				true
+			)
 
 
 func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
@@ -203,6 +243,14 @@ func load_stats() -> void:
 		roundi(float(stats.get("base_damage", health)) * damage_multiplier)
 	)
 	armor = maxf(float(stats.get("armor", 0.0)) + armor_bonus, 0.0)
+	maximum_ablative_shield_points = maxi(
+		int(stats.get("ablative_shield_points", 0)),
+		0
+	)
+	ablative_shield_points = maximum_ablative_shield_points
+	shield_aura_radius = maxf(float(stats.get("shield_aura_radius", 0.0)), 0.0)
+	if shield_aura_radius > 0.0 and ablative_shield_points > 0:
+		add_to_group("shield_projectors")
 	split_enemy_id = stats.get("split_enemy_id", &"")
 	split_count = stats.get("split_count", 0)
 	regeneration_per_second = stats.get("regeneration_per_second", 0)
@@ -594,6 +642,8 @@ func apply_damage(
 ) -> int:
 	if finished:
 		return 0
+	if amount > 0 and consume_ablative_shield_hit():
+		return 0
 	var is_electric_proc := (
 		damage_type == &"electric"
 		and attack_context != null
@@ -681,6 +731,54 @@ func apply_damage(
 			attack_context
 		)
 	return received_damage
+
+
+func consume_ablative_shield_hit() -> bool:
+	if ablative_shield_points > 0:
+		consume_projected_shield_hit()
+		return true
+	var provider := get_nearest_ablative_shield_provider()
+	if provider == null:
+		return false
+	provider.consume_projected_shield_hit()
+	return true
+
+
+func consume_projected_shield_hit() -> void:
+	if ablative_shield_points <= 0:
+		return
+	ablative_shield_points -= 1
+	queue_redraw()
+
+
+func get_nearest_ablative_shield_provider() -> Node2D:
+	var nearest_provider: Node2D
+	var nearest_distance := INF
+	for candidate in get_tree().get_nodes_in_group("shield_projectors"):
+		if (
+			candidate == self
+			or not is_instance_valid(candidate)
+			or candidate.is_queued_for_deletion()
+			or not candidate.has_method("can_project_ablative_shield_to")
+			or not candidate.can_project_ablative_shield_to(self)
+		):
+			continue
+		var distance := global_position.distance_to(candidate.global_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_provider = candidate
+	return nearest_provider
+
+
+func can_project_ablative_shield_to(candidate: Node2D) -> bool:
+	return (
+		not finished
+		and ablative_shield_points > 0
+		and shield_aura_radius > 0.0
+		and is_instance_valid(candidate)
+		and global_position.distance_to(candidate.global_position)
+			<= shield_aura_radius
+	)
 
 
 func register_electric_hit(
