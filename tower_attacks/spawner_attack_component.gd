@@ -6,6 +6,7 @@ const SPAWNED_UNIT_SCENE = preload("res://spawned_unit.tscn")
 
 var spawned_unit_id: StringName = &""
 var spawn_limit := 0
+var spawn_batch_size := 1
 var deployment_radius_pixels := 0.0
 var active_units: Array[Node] = []
 var drone_target_mode := 0
@@ -31,15 +32,15 @@ func load_level_stats(stats: Dictionary) -> void:
 	var tower_data := GameStats.get_tower(tower.tower_id)
 	spawned_unit_id = tower_data.get("spawned_unit_id", &"")
 	spawn_limit = maxi(int(stats.get("spawn_limit", 1)), 1)
+	spawn_batch_size = 1
 	if tower.get_owned_relic_count(&"trade_agreement") > 0:
 		spawn_limit *= GameStats.TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER
+		spawn_batch_size = GameStats.TRADE_AGREEMENT_SPAWN_BATCH_SIZE
 	deployment_radius_pixels = (
 		float(stats.get("deployment_radius", 1.0))
 		* BaseTower.RANGE_PIXELS_PER_UNIT
 	)
 	var spawn_interval := float(stats.get("spawn_interval", 1.0))
-	if tower.get_owned_relic_count(&"trade_agreement") > 0:
-		spawn_interval *= GameStats.TRADE_AGREEMENT_SPAWN_INTERVAL_MULTIPLIER
 	tower.damage_timer.wait_time = maxf(spawn_interval, 0.1)
 	_refresh_unit_stats(stats.get("unit_stats", {}))
 
@@ -62,6 +63,12 @@ func spawn_unit() -> void:
 	prune_units()
 	if active_units.size() >= spawn_limit:
 		return
+	var available_slots := spawn_limit - active_units.size()
+	for _unit_index in mini(spawn_batch_size, available_slots):
+		_spawn_one_unit()
+
+
+func _spawn_one_unit() -> void:
 	var spawned_unit: Node = SPAWNED_UNIT_SCENE.instantiate()
 	tower.get_tree().current_scene.add_child(spawned_unit)
 	spawned_unit.global_position = _get_spawned_unit_position()

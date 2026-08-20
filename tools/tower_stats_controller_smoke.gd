@@ -62,6 +62,14 @@ func run_test() -> void:
 	assert(invader.has_bonus_tag(&"pierce"))
 	assert(invader.pierce_count == 1)
 	assert(invader.damage_type == &"ballistic")
+	fake_main.relics[&"deep_penetration"] = 2
+	invader.load_base_tags()
+	invader.load_level_stats()
+	assert(invader.pierce_count == 3)
+	fake_main.relics.erase(&"deep_penetration")
+	invader.load_base_tags()
+	invader.load_level_stats()
+	assert(invader.pierce_count == 1)
 
 	fake_main.relics[&"heavy_rounds"] = 1
 	invader.load_base_tags()

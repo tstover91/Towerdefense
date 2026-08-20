@@ -2122,8 +2122,6 @@ func get_adjusted_build_cost(
 	if relic_count(state, &"holiday_sale") > 0:
 		var sale_id := StringName(state.get("holiday_sale_tower", &""))
 		result *= GameStats.HOLIDAY_SALE_DISCOUNT_MULTIPLIER if tower_id == sale_id else GameStats.HOLIDAY_SALE_OTHER_COST_MULTIPLIER
-	if relic_count(state, &"trade_agreement") > 0 and TRADE_TOWERS.has(tower_id):
-		result *= GameStats.TRADE_AGREEMENT_BUILD_COST_MULTIPLIER
 	return maxf(roundf(result), 0.0)
 
 
@@ -2495,8 +2493,14 @@ func get_relic_combat_multiplier(
 		multiplier *= 1.0 + 0.12 * float(relics.get(&"deep_penetration", 0))
 		if int(relics.get(&"follow_through", 0)) > 0:
 			multiplier *= 1.12
-	if types.has(&"technology") and TRADE_TOWERS.has(candidate["tower_id"]) and int(relics.get(&"trade_agreement", 0)) > 0:
-		multiplier *= float(GameStats.TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER) / GameStats.TRADE_AGREEMENT_SPAWN_INTERVAL_MULTIPLIER
+	if (
+		TRADE_TOWERS.has(candidate["tower_id"])
+		and int(relics.get(&"trade_agreement", 0)) > 0
+	):
+		multiplier *= (
+			float(GameStats.TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER)
+			* GameStats.TRADE_AGREEMENT_UNIT_DAMAGE_MULTIPLIER
+		)
 	return maxf(multiplier, 0.0)
 
 

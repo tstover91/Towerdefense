@@ -14,6 +14,7 @@ func run_checks() -> void:
 	assert(not GameStats.RELICS.has(&"opening_shot"))
 	assert(not GameStats.RELICS.has(&"long_term_investment"))
 	assert(not bool(GameStats.get_relic(&"pressure_point").get("enabled", true)))
+	assert(GameStats.get_relic(&"experimental_munitions")["rarity"] == &"rare")
 	assert(is_equal_approx(GameStats.HOLLOW_POINT_DAMAGE_PER_STACK, 0.25))
 
 	var director = MAIN_SCENE.instantiate()
@@ -76,6 +77,8 @@ func run_checks() -> void:
 		var expected_count := 4 if draft_round in [1, 5] else 3
 		assert(relic_offers.size() == expected_count)
 		for relic_id in relic_offers:
+			if draft_round == 20:
+				assert(relic_id != &"experimental_munitions")
 			assert(director.is_relic_applicable_to_current_loadout(
 				relic_id,
 				base_roster_tags

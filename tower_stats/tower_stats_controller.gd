@@ -140,6 +140,15 @@ func apply_relic_combat_stat_modifiers(
 	var interval_key := "attack_interval" if for_spawned_unit else "firerate"
 	var range_key := "aim_radius" if for_spawned_unit else "range"
 	var primary_type := get_primary_damage_type()
+	if (
+		for_spawned_unit
+		and tower.uses_standard_spawner_system()
+		and get_owned_relic_count(&"trade_agreement") > 0
+	):
+		stats[damage_key] = maxi(roundi(
+			float(stats[damage_key])
+				* GameStats.TRADE_AGREEMENT_UNIT_DAMAGE_MULTIPLIER
+		), 1)
 	if tower.has_type_tag(BaseTower.TYPE_TECHNOLOGY):
 		var network_stacks := get_owned_relic_count(&"network_upgrade")
 		if network_stacks > 0:
@@ -520,6 +529,10 @@ func load_base_tags() -> void:
 		if path.has("impact_mode"):
 			tower.impact_mode = path["impact_mode"]
 	set_pierce_count(loaded_pierce_count)
+	if tower.has_bonus_tag(BaseTower.BONUS_PIERCE):
+		set_pierce_count(
+			tower.pierce_count + get_owned_relic_count(&"deep_penetration")
+		)
 	if (
 		tower.has_damage_tag(BaseTower.DAMAGE_BEAM)
 		and get_owned_relic_count(&"death_ray") > 0

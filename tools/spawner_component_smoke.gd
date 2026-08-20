@@ -13,12 +13,13 @@ class FakeMain:
 	var sandbox_mode := true
 	var money := 1_000_000_000
 	var primary_path: Path2D
+	var relics: Dictionary = {}
 
 	func get_run_bonus(_effect: StringName) -> float:
 		return 0.0
 
-	func get_relic_count(_relic_id: StringName) -> int:
-		return 0
+	func get_relic_count(relic_id: StringName) -> int:
+		return int(relics.get(relic_id, 0))
 
 	func get_primary_enemy_path() -> Path2D:
 		return primary_path
@@ -57,6 +58,17 @@ func run_test() -> void:
 	assert(drone.unit_id == &"drone")
 	assert(drone.continuous_beam)
 	assert(drone.damage_tags.has(&"beam"))
+
+	component.clear_units()
+	fake_main.relics[&"trade_agreement"] = 1
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(component.spawn_limit == 6)
+	assert(component.spawn_batch_size == 2)
+	component.spawn_unit()
+	assert(component.active_units.size() == 2)
+	for trade_drone in component.active_units:
+		assert(trade_drone.damage == roundi(340.0 * 1.25 * 0.70))
 
 	var follow := PathFollow2D.new()
 	path.add_child(follow)

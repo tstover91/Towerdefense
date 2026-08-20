@@ -165,7 +165,7 @@ func get_sidebar_tower_id(slot_index: int, contraband_slot_index: int) -> String
 func get_tower_build_cost(
 	tower_id: StringName,
 	is_contraband: bool,
-	trade_agreement_tower_ids: Array[StringName]
+	_trade_agreement_tower_ids: Array[StringName]
 ) -> int:
 	if is_contraband and tower_id == contraband_tower_id:
 		return 0
@@ -176,9 +176,4 @@ func get_tower_build_cost(
 			if tower_id == holiday_sale_tower_id
 			else GameStats.HOLIDAY_SALE_OTHER_COST_MULTIPLIER
 		)
-	if (
-		get_relic_count(&"trade_agreement") > 0
-		and trade_agreement_tower_ids.has(tower_id)
-	):
-		cost *= GameStats.TRADE_AGREEMENT_BUILD_COST_MULTIPLIER
 	return maxi(roundi(cost), 0)

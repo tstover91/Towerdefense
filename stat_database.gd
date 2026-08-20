@@ -417,7 +417,7 @@ const RELICS := {
 	"armor_piercing": {"display_name": "Armor Piercing", "description": "Ballistic attacks gain Pierce 1.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"suppressive_fire": {"display_name": "Suppressive Fire", "description": "Ballistic attacks slow enemies for at least 1 second.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce once to another enemy within 3 tiles.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
-	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit, but their base critical multiplier is 1.5x before other relic modifiers.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
+	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit, but their base critical multiplier is 1.5x before other relic modifiers.", "rarity": &"rare", "category": &"ballistic", "stackable": false, "latest_draft_round": 11},
 	"frenzy": {"display_name": "Frenzy", "description": "Melee attacks become 6% faster per enemy in range per stack, counting up to 10 enemies.", "rarity": &"common", "category": &"melee", "stackable": true},
 	"duelist": {"display_name": "Duelist", "description": "Melee damage gains 45% per stack with one enemy in range or 25% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true},
 	"relentless": {"display_name": "Relentless", "description": "Gain 15% Melee attack speed after each attack against the same primary target, up to five stacks. Changing targets resets it.", "rarity": &"rare", "category": &"melee", "stackable": false},
@@ -448,15 +448,15 @@ const RELICS := {
 	"big_game_control": {"display_name": "Big Game Control", "description": "Stuns last 40% longer per stack against elites and 20% less per stack against normal enemies.", "rarity": &"common", "category": &"stun", "stackable": true},
 	"emergency_brake": {"display_name": "Emergency Brake", "description": "Stuns last 50% longer per stack against enemies with at least 130 movement speed.", "rarity": &"common", "category": &"stun", "stackable": true},
 	"youre_not_special": {"display_name": "You're Not Special", "description": "Bosses can be stunned for 50% of the normal duration.", "rarity": &"legendary", "category": &"stun", "stackable": false},
-	"trade_agreement": {"display_name": "Trade Agreement", "description": "Hive Mother, Drone Depot, and Mech Bay gain triple spawn limits, but take 50% longer to spawn units and cost twice as much to build. Saucer is unaffected.", "rarity": &"legendary", "category": &"spawner", "stackable": false},
+	"trade_agreement": {"display_name": "Trade Agreement", "description": "Hive Mother, Drone Depot, and Mech Bay deploy two units at a time and gain double spawn limits, but their spawned units deal 30% less damage. Saucer is unaffected.", "rarity": &"legendary", "category": &"spawner", "stackable": false},
 }
 
 const HOLIDAY_SALE_DISCOUNT_MULTIPLIER := 0.65
 const HOLIDAY_SALE_OTHER_COST_MULTIPLIER := 1.15
 const RUBBER_BULLETS_BOUNCE_RANGE := 3.0
-const TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER := 3
-const TRADE_AGREEMENT_SPAWN_INTERVAL_MULTIPLIER := 1.5
-const TRADE_AGREEMENT_BUILD_COST_MULTIPLIER := 2.0
+const TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER := 2
+const TRADE_AGREEMENT_SPAWN_BATCH_SIZE := 2
+const TRADE_AGREEMENT_UNIT_DAMAGE_MULTIPLIER := 0.70
 
 const TOWER_TEXTURES := {
 	&"invader": preload("res://assets/towers/invader.png"),

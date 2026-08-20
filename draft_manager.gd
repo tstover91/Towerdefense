@@ -59,6 +59,9 @@ func roll_relic_offers(
 		var item_stats: Dictionary = GameStats.get_relic(item_id)
 		if not bool(item_stats.get("enabled", true)):
 			continue
+		var latest_draft_round := int(item_stats.get("latest_draft_round", 0))
+		if latest_draft_round > 0 and round_number > latest_draft_round:
+			continue
 		if (
 			not item_stats.get("stackable", false)
 			and int(owned_items.get(item_id, 0)) > 0
