@@ -5,20 +5,21 @@ const MapData = preload("res://map_database.gd")
 const MOB_SCENE = preload("res://mob.tscn")
 const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
-const ReinforcementDropScript = preload("res://reinforcement_drop.gd")
-const ReinforcementDropPreviewScript = preload("res://reinforcement_drop_preview.gd")
 const WaveDirectorScript = preload("res://wave_director.gd")
 const DraftManagerScript = preload("res://draft_manager.gd")
 const BuildControllerScript = preload("res://build_controller.gd")
+const RoundControllerScript = preload("res://round_controller.gd")
+const ReinforcementControllerScript = preload("res://reinforcement_controller.gd")
+const RunStateScript = preload("res://run_state.gd")
 const ROLE_FODDER := WaveDirectorScript.ROLE_FODDER
 const ROLE_PRESSURE := WaveDirectorScript.ROLE_PRESSURE
 const ROLE_TANK := WaveDirectorScript.ROLE_TANK
 const ROLE_SUPPORT := WaveDirectorScript.ROLE_SUPPORT
-const ROUND_STANDARD: StringName = &"standard"
-const ROUND_HORDE: StringName = &"horde"
-const ROUND_ELITE: StringName = &"elite"
-const ROUND_GAUNTLET: StringName = &"gauntlet"
-const ROUND_PAYDAY: StringName = &"payday"
+const ROUND_STANDARD: StringName = RoundControllerScript.ROUND_STANDARD
+const ROUND_HORDE: StringName = RoundControllerScript.ROUND_HORDE
+const ROUND_ELITE: StringName = RoundControllerScript.ROUND_ELITE
+const ROUND_GAUNTLET: StringName = RoundControllerScript.ROUND_GAUNTLET
+const ROUND_PAYDAY: StringName = RoundControllerScript.ROUND_PAYDAY
 const VARIANT_NORMAL: StringName = &"normal"
 const VARIANT_HORDE: StringName = &"horde"
 const VARIANT_ELITE: StringName = &"elite"
@@ -83,10 +84,6 @@ signal round_ended(round_number: int)
 @onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerPathLabel
 @onready var tower_tags_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerTagsLabel
 @onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/UpgradeHeaderLabel
-var lives: int
-var max_lives: int
-var money: int
-var round_number := 0
 var mobs_left_to_spawn := 0
 var mobs_alive := 0
 var spawn_schedule: Array[Dictionary] = []
@@ -95,6 +92,9 @@ var wave_director = null
 var shop_rng := RandomNumberGenerator.new()
 var draft_manager = null
 var build_controller = null
+var round_controller = null
+var reinforcement_controller = null
+var run_state = null
 var place_mode: bool:
 	get:
 		ensure_build_controller()
@@ -144,15 +144,170 @@ var pending_tower_is_contraband: bool:
 	set(value):
 		ensure_build_controller()
 		build_controller.pending_tower_is_contraband = value
+var round_number: int:
+	get:
+		ensure_round_controller()
+		return round_controller.round_number
+	set(value):
+		ensure_round_controller()
+		round_controller.round_number = value
+var current_round_type: StringName:
+	get:
+		ensure_round_controller()
+		return round_controller.current_round_type
+	set(value):
+		ensure_round_controller()
+		round_controller.current_round_type = value
+var round_six_type: StringName:
+	get:
+		ensure_round_controller()
+		return round_controller.round_six_type
+	set(value):
+		ensure_round_controller()
+		round_controller.round_six_type = value
+var round_eleven_type: StringName:
+	get:
+		ensure_round_controller()
+		return round_controller.round_eleven_type
+	set(value):
+		ensure_round_controller()
+		round_controller.round_eleven_type = value
+var round_time_remaining: float:
+	get:
+		ensure_round_controller()
+		return round_controller.round_time_remaining
+	set(value):
+		ensure_round_controller()
+		round_controller.round_time_remaining = value
+var round_duration: float:
+	get:
+		ensure_round_controller()
+		return round_controller.round_duration
+	set(value):
+		ensure_round_controller()
+		round_controller.round_duration = value
+var round_elapsed: float:
+	get:
+		ensure_round_controller()
+		return round_controller.round_elapsed
+	set(value):
+		ensure_round_controller()
+		round_controller.round_elapsed = value
+var round_active: bool:
+	get:
+		ensure_round_controller()
+		return round_controller.round_active
+	set(value):
+		ensure_round_controller()
+		round_controller.round_active = value
+var game_ended: bool:
+	get:
+		ensure_round_controller()
+		return round_controller.game_ended
+	set(value):
+		ensure_round_controller()
+		round_controller.game_ended = value
+var max_rounds: int:
+	get:
+		ensure_round_controller()
+		return round_controller.max_rounds
+	set(value):
+		ensure_round_controller()
+		round_controller.max_rounds = value
+var selected_reinforcement_id: StringName:
+	get:
+		ensure_reinforcement_controller()
+		return reinforcement_controller.selected_reinforcement_id
+	set(value):
+		ensure_reinforcement_controller()
+		reinforcement_controller.selected_reinforcement_id = value
+var reinforcement_cooldown_remaining: float:
+	get:
+		ensure_reinforcement_controller()
+		return reinforcement_controller.cooldown_remaining
+	set(value):
+		ensure_reinforcement_controller()
+		reinforcement_controller.cooldown_remaining = value
+var reinforcement_targeting: bool:
+	get:
+		ensure_reinforcement_controller()
+		return reinforcement_controller.targeting
+	set(value):
+		ensure_reinforcement_controller()
+		reinforcement_controller.targeting = value
+var reinforcement_preview: Node2D:
+	get:
+		ensure_reinforcement_controller()
+		return reinforcement_controller.preview
+	set(value):
+		ensure_reinforcement_controller()
+		reinforcement_controller.preview = value
+var money: int:
+	get:
+		ensure_run_state()
+		return run_state.money
+	set(value):
+		ensure_run_state()
+		run_state.money = value
+var lives: int:
+	get:
+		ensure_run_state()
+		return run_state.lives
+	set(value):
+		ensure_run_state()
+		run_state.lives = value
+var max_lives: int:
+	get:
+		ensure_run_state()
+		return run_state.max_lives
+	set(value):
+		ensure_run_state()
+		run_state.max_lives = value
+var sandbox_mode: bool:
+	get:
+		ensure_run_state()
+		return run_state.sandbox_mode
+	set(value):
+		ensure_run_state()
+		run_state.sandbox_mode = value
+var tower_roster: Array[StringName]:
+	get:
+		ensure_run_state()
+		return run_state.tower_roster
+	set(value):
+		ensure_run_state()
+		run_state.tower_roster.assign(value)
+var contraband_tower_id: StringName:
+	get:
+		ensure_run_state()
+		return run_state.contraband_tower_id
+	set(value):
+		ensure_run_state()
+		run_state.contraband_tower_id = value
+var holiday_sale_tower_id: StringName:
+	get:
+		ensure_run_state()
+		return run_state.holiday_sale_tower_id
+	set(value):
+		ensure_run_state()
+		run_state.holiday_sale_tower_id = value
+var owned_shop_items: Dictionary:
+	get:
+		ensure_run_state()
+		return run_state.owned_shop_items
+	set(value):
+		ensure_run_state()
+		run_state.owned_shop_items = value
+var run_bonuses: Dictionary:
+	get:
+		ensure_run_state()
+		return run_state.run_bonuses
+	set(value):
+		ensure_run_state()
+		run_state.run_bonuses = value
 var enemy_debut_plan: Dictionary = {}
 var round_style_plan: Dictionary = {}
 var current_wave_spawn_style: StringName = &"standard"
-var current_round_type: StringName = ROUND_STANDARD
-var round_six_type: StringName = ROUND_HORDE
-var round_eleven_type: StringName = ROUND_ELITE
-var round_time_remaining := 0.0
-var round_duration := 0.0
-var round_elapsed := 0.0
 var next_elite_event_time := INF
 var final_elite_pack_spawned := false
 var last_gauntlet_spawn_style: StringName = &""
@@ -170,14 +325,11 @@ var pooled_hitscan_effects: Array[Node2D] = []
 var pooled_explosion_effects: Array[Node2D] = []
 var spawning_active := false
 var director_cooldown := 0.0
-var round_active := false
 var spore_network_last_refresh_msec := -1000000
 var spore_network_primary_owner_id := 0
 var spore_network_primary_target: Node2D
 var spore_network_secondary_owner_id := 0
 var spore_network_secondary_target: Node2D
-var game_ended := false
-var max_rounds: int
 var mode_id: StringName = &"easy"
 var shop_open := false
 var active_draft_type: StringName = &""
@@ -186,22 +338,12 @@ var active_draft_choice_quantities: Dictionary = {}
 var draft_health_purchased := false
 var pending_path_relic_tower_selection: StringName = &""
 var recent_relic_offers: Array[StringName] = []
-var tower_roster: Array[StringName] = []
-var contraband_tower_id: StringName = &""
-var holiday_sale_tower_id: StringName = &""
-var owned_shop_items: Dictionary = {}
-var run_bonuses: Dictionary = {}
 var pending_enemy_spawns: Array[Dictionary] = []
 var displayed_tower: Node = null
 var playable_map_width := 0.0
 var active_map: TowerDefenseMap
 var next_spawn_path_index := 0
 var game_speed := 1.0
-var sandbox_mode := false
-var selected_reinforcement_id: StringName = &"grunt_squad"
-var reinforcement_cooldown_remaining := 0.0
-var reinforcement_targeting := false
-var reinforcement_preview: Node2D
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
@@ -214,17 +356,16 @@ func _ready() -> void:
 	wave_director = WaveDirectorScript.new(enemy_rng, get_active_enemy_count)
 	draft_manager = DraftManagerScript.new(shop_rng)
 	ensure_build_controller()
+	round_controller = RoundControllerScript.new(enemy_rng)
+	ensure_reinforcement_controller()
 	generate_run_director_plan()
 	roll_challenge_round_order()
 	_align_sidebar_to_build_grid()
 	get_viewport().size_changed.connect(_align_sidebar_to_build_grid)
 	var mode: Dictionary = GameStats.get_mode(mode_id)
-	money = mode["starting_cash"]
-	lives = mode["starting_lives"]
-	max_lives = lives
+	run_state.initialize(mode, sandbox_mode)
 	max_rounds = mode["max_rounds"]
 	if sandbox_mode:
-		money = 1000000000
 		max_rounds = 100
 		tower_roster.clear()
 		for tower_key in GameStats.TOWERS:
@@ -417,37 +558,30 @@ func _process(delta: float) -> void:
 
 
 func _process_reinforcements(delta: float) -> void:
-	if (
+	ensure_reinforcement_controller()
+	reinforcement_controller.process_cooldown(
+		delta,
 		round_active
 		and not shop_open
 		and not game_ended
-		and reinforcement_cooldown_remaining > 0.0
-	):
-		reinforcement_cooldown_remaining = maxf(
-			reinforcement_cooldown_remaining - delta,
-			0.0
-		)
-	if reinforcement_targeting and is_instance_valid(reinforcement_preview):
-		var preview_position := get_global_mouse_position()
-		reinforcement_preview.set_preview_position(
-			preview_position,
-			is_valid_reinforcement_drop_position(preview_position)
-		)
+	)
+	reinforcement_controller.update_preview(get_global_mouse_position())
 	update_reinforcement_button()
 
 
 func get_selected_reinforcement_option() -> Dictionary:
-	return GameStats.get_reinforcement_option(selected_reinforcement_id)
+	ensure_reinforcement_controller()
+	return reinforcement_controller.get_selected_option()
 
 
 func can_begin_reinforcement_targeting() -> bool:
-	return (
-		not game_ended
-		and round_active
-		and not shop_open
-		and not build_mode
-		and not is_selecting_path_relic_tower()
-		and reinforcement_cooldown_remaining <= 0.0
+	ensure_reinforcement_controller()
+	return reinforcement_controller.can_begin_targeting(
+		game_ended,
+		round_active,
+		shop_open,
+		build_mode,
+		is_selecting_path_relic_tower()
 	)
 
 
@@ -462,52 +596,35 @@ func begin_reinforcement_targeting() -> void:
 	if not can_begin_reinforcement_targeting():
 		return
 	close_all_tower_menus()
-	reinforcement_targeting = true
-	var option := get_selected_reinforcement_option()
-	reinforcement_preview = ReinforcementDropPreviewScript.new()
-	add_child(reinforcement_preview)
-	reinforcement_preview.configure(
-		float(option.get("command_radius", 1.0))
-		* ReinforcementDropScript.RANGE_PIXELS_PER_UNIT
-	)
+	reinforcement_controller.begin_targeting()
 	update_reinforcement_button()
 
 
 func cancel_reinforcement_targeting() -> void:
-	reinforcement_targeting = false
-	if is_instance_valid(reinforcement_preview):
-		reinforcement_preview.queue_free()
-	reinforcement_preview = null
+	ensure_reinforcement_controller()
+	reinforcement_controller.cancel_targeting()
 	update_reinforcement_button()
 
 
 func is_valid_reinforcement_drop_position(world_position: Vector2) -> bool:
-	return is_world_position_in_playable_area(world_position)
+	ensure_reinforcement_controller()
+	return reinforcement_controller.is_valid_drop_position(world_position)
 
 
 func deploy_reinforcements(world_position: Vector2) -> bool:
-	if (
-		not reinforcement_targeting
-		or not is_valid_reinforcement_drop_position(world_position)
-	):
-		return false
-	var option := get_selected_reinforcement_option()
-	var drop := ReinforcementDropScript.new() as ReinforcementDrop
-	add_child(drop)
-	drop.global_position = world_position
-	drop.setup(option, maxi(round_number, 1))
-	reinforcement_cooldown_remaining = maxf(
-		float(option.get("cooldown", 0.0)),
-		0.0
+	ensure_reinforcement_controller()
+	var deployed: bool = reinforcement_controller.deploy(
+		world_position,
+		round_number
 	)
-	cancel_reinforcement_targeting()
-	return true
+	if deployed:
+		update_reinforcement_button()
+	return deployed
 
 
 func clear_reinforcement_drops() -> void:
-	for drop in get_tree().get_nodes_in_group("reinforcement_drops"):
-		if is_instance_valid(drop):
-			drop.queue_free()
+	ensure_reinforcement_controller()
+	reinforcement_controller.clear_drops()
 
 
 func update_reinforcement_button() -> void:
@@ -557,18 +674,13 @@ func update_tower_affordability() -> void:
 		tower_list.set_item_custom_fg_color(slot_index, price_color)
 
 func add_money(amount: int) -> void:
-	if sandbox_mode:
-		money = 1000000000
-		update_money()
-		return
-	money += amount
+	ensure_run_state()
+	run_state.add_money(amount)
 	update_money()
 
 func spend_money(amount: int) -> bool:
-	if sandbox_mode:
-		return true
-	if money >= amount:
-		money -= amount
+	ensure_run_state()
+	if run_state.spend_money(amount):
 		update_money()
 		return true
 	return false
@@ -600,12 +712,8 @@ func cancel_manual_tower_targeting() -> void:
 
 
 func roll_challenge_round_order() -> void:
-	if enemy_rng.randf() < 0.5:
-		round_six_type = ROUND_HORDE
-		round_eleven_type = ROUND_ELITE
-	else:
-		round_six_type = ROUND_ELITE
-		round_eleven_type = ROUND_HORDE
+	ensure_round_controller()
+	round_controller.roll_challenge_round_order()
 
 
 func generate_run_director_plan() -> void:
@@ -624,6 +732,27 @@ func ensure_build_controller() -> void:
 	if build_controller != null:
 		return
 	build_controller = BuildControllerScript.new()
+
+
+func ensure_round_controller() -> void:
+	if round_controller != null:
+		return
+	round_controller = RoundControllerScript.new(enemy_rng)
+
+
+func ensure_reinforcement_controller() -> void:
+	if reinforcement_controller != null:
+		return
+	reinforcement_controller = ReinforcementControllerScript.new(
+		self,
+		is_world_position_in_playable_area
+	)
+
+
+func ensure_run_state() -> void:
+	if run_state != null:
+		return
+	run_state = RunStateScript.new()
 
 
 func sync_wave_director_context() -> void:
@@ -645,37 +774,24 @@ func sync_wave_director_style_memory() -> void:
 
 
 func get_round_type(wave: int) -> StringName:
-	match wave:
-		6:
-			return round_six_type
-		11:
-			return round_eleven_type
-		16:
-			return ROUND_GAUNTLET
-		17:
-			return ROUND_PAYDAY
-		_:
-			return ROUND_STANDARD
+	ensure_round_controller()
+	return round_controller.get_round_type(wave)
 
 
 func start_round() -> void:
-	if (
-		round_active
-		or round_number >= max_rounds
-		or shop_open
-		or build_mode
-		or is_selecting_path_relic_tower()
-	):
+	ensure_round_controller()
+	var blocked_by_gameplay := (
+		shop_open or build_mode or is_selecting_path_relic_tower()
+	)
+	if not round_controller.can_start_round(blocked_by_gameplay):
 		return
 	close_all_tower_menus()
 	next_spawn_path_index = 0
 	pending_enemy_spawns.clear()
-	round_number += 1
 	spawn_schedule.clear()
-	current_round_type = get_round_type(round_number)
-	round_duration = get_wave_duration(round_number)
-	round_time_remaining = round_duration
-	round_elapsed = 0.0
+	var next_round := round_number + 1
+	if not round_controller.begin_round(get_wave_duration(next_round)):
+		return
 	threat_per_second = get_wave_threat_rate(round_number)
 	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
 		threat_per_second *= get_horde_threat_multiplier(round_number)
@@ -726,7 +842,6 @@ func start_round() -> void:
 	else:
 		spawn_schedule = build_debut_opening(round_number)
 	mobs_left_to_spawn = spawn_schedule.size()
-	round_active = true
 	round_started.emit(round_number)
 	spawntimer.one_shot = true
 	update_round_count()
@@ -741,9 +856,8 @@ func update_round_count() -> void:
 			else "Sandbox ready"
 		)
 		return
-	var displayed_round := round_number
-	if not round_active and round_number < max_rounds:
-		displayed_round += 1
+	ensure_round_controller()
+	var displayed_round: int = round_controller.get_displayed_round()
 	round_count_display.text = "Round: %d/%d" % [displayed_round, max_rounds]
 	var round_type_name := get_round_type_display_name(current_round_type)
 	if round_active and spawning_active:
@@ -769,23 +883,13 @@ func update_round_count() -> void:
 
 
 func get_round_type_display_name(round_type: StringName) -> String:
-	match round_type:
-		ROUND_HORDE:
-			return "Horde Round"
-		ROUND_ELITE:
-			return "Elite Round"
-		ROUND_GAUNTLET:
-			return "Gauntlet"
-		ROUND_PAYDAY:
-			return "Payday Round"
-		_:
-			return "Standard Round"
+	ensure_round_controller()
+	return round_controller.get_round_type_display_name(round_type)
 	
 func end_round() -> void:
-	if game_ended or not round_active:
+	ensure_round_controller()
+	if not round_controller.end_round():
 		return
-	
-	round_active = false
 	spawning_active = false
 	cancel_reinforcement_targeting()
 	clear_reinforcement_drops()
@@ -799,29 +903,33 @@ func end_round() -> void:
 	roll_holiday_sale_tower()
 	update_round_count()
 
-	if round_number >= max_rounds:
-		victory()
-	elif TOWER_DRAFT_ROUNDS.has(round_number):
-		open_tower_draft()
-	elif RELIC_DRAFT_ROUNDS.has(round_number):
-		open_relic_draft()
-	else:
-		enter_build_phase()
+	match round_controller.get_post_round_action(
+		TOWER_DRAFT_ROUNDS,
+		RELIC_DRAFT_ROUNDS
+	):
+		RoundControllerScript.POST_ROUND_VICTORY:
+			victory()
+		RoundControllerScript.POST_ROUND_TOWER_DRAFT:
+			open_tower_draft()
+		RoundControllerScript.POST_ROUND_RELIC_DRAFT:
+			open_relic_draft()
+		_:
+			enter_build_phase()
 
 
 func enter_build_phase() -> void:
+	ensure_round_controller()
+	round_controller.enter_build_phase()
 	update_round_count()
 	update_play_pause_button()
 
 
 func calculate_end_round_reward() -> int:
-	var reward := GameStats.get_round_cash_reward(round_number)
-	if get_relic_count(&"dividends") > 0:
-		reward += mini(
-			floori(float(money) * GameStats.DIVIDENDS_INTEREST_RATE),
-			GameStats.DIVIDENDS_INTEREST_CAP
-		)
-	return reward
+	ensure_round_controller()
+	return round_controller.calculate_end_round_reward(
+		money,
+		get_relic_count(&"dividends") > 0
+	)
 
 
 func clear_active_projectiles() -> void:
@@ -949,6 +1057,8 @@ func open_between_round_draft(
 	cancel_pending_tower_placement()
 	close_all_tower_menus()
 	shop_open = true
+	ensure_round_controller()
+	round_controller.enter_draft_phase()
 	active_draft_type = draft_type
 	active_draft_offers = offers.duplicate()
 	active_draft_choice_quantities = choice_quantities.duplicate()
@@ -971,7 +1081,8 @@ func open_between_round_draft(
 
 
 func get_draft_health_recovery() -> int:
-	return mini(DRAFT_HEALTH_RECOVERY, maxi(max_lives - lives, 0))
+	ensure_run_state()
+	return run_state.get_draft_health_recovery(DRAFT_HEALTH_RECOVERY)
 
 
 func get_draft_health_cost(health_recovery: int) -> int:
@@ -1009,7 +1120,7 @@ func _on_draft_health_requested() -> void:
 		)
 		return
 	draft_health_purchased = true
-	lives = mini(lives + health_recovery, max_lives)
+	run_state.restore_health(health_recovery)
 	update_lives()
 	between_round_shop.mark_health_purchased(health_recovery)
 
@@ -1080,21 +1191,8 @@ func has_dedicated_spawner_available() -> bool:
 
 
 func get_tower_roster_tags() -> Array[StringName]:
-	var roster_tags: Array[StringName] = []
-	for tower_id in tower_roster:
-		var tower_stats: Dictionary = GameStats.get_tower(tower_id)
-		for tag_group in ["type_tags", "damage_tags", "bonus_tags"]:
-			for tag in tower_stats.get(tag_group, []):
-				var typed_tag := StringName(tag)
-				if not roster_tags.has(typed_tag):
-					roster_tags.append(typed_tag)
-	if not contraband_tower_id.is_empty():
-		var contraband_stats := GameStats.get_tower(contraband_tower_id)
-		for tag_group in ["type_tags", "damage_tags", "bonus_tags"]:
-			for tag in contraband_stats.get(tag_group, []):
-				var typed_tag := StringName(tag)
-				if not roster_tags.has(typed_tag):
-					roster_tags.append(typed_tag)
+	ensure_run_state()
+	var roster_tags: Array[StringName] = run_state.get_roster_base_tags()
 	for tower in get_tree().get_nodes_in_group("towers"):
 		if not is_instance_valid(tower) or not tower.is_placed:
 			continue
@@ -1131,16 +1229,9 @@ func _on_draft_confirmed(item_id: StringName, quantity: int) -> void:
 
 
 func collect_relic(item_id: StringName, quantity := 1) -> void:
-	var item_stats: Dictionary = GameStats.get_relic(item_id)
-	if (
-		not item_stats.get("stackable", false)
-		and int(owned_shop_items.get(item_id, 0)) > 0
-	):
+	ensure_run_state()
+	if not run_state.collect_relic(item_id, quantity):
 		return
-	owned_shop_items[item_id] = (
-		int(owned_shop_items.get(item_id, 0))
-		+ maxi(quantity, 1)
-	)
 	if item_id == &"contraband_blueprint":
 		activate_contraband_blueprint()
 	elif item_id == &"holiday_sale":
@@ -1151,71 +1242,47 @@ func collect_relic(item_id: StringName, quantity := 1) -> void:
 
 
 func activate_contraband_blueprint() -> void:
-	if not contraband_tower_id.is_empty():
-		return
-	var available: Array[StringName] = []
-	for tower_key in GameStats.TOWERS:
-		var tower_id := StringName(tower_key)
-		if not tower_roster.has(tower_id):
-			available.append(tower_id)
-	if available.is_empty():
-		return
-	contraband_tower_id = available[shop_rng.randi_range(0, available.size() - 1)]
+	ensure_run_state()
+	run_state.activate_contraband_blueprint(shop_rng)
 
 
 func roll_holiday_sale_tower() -> void:
-	holiday_sale_tower_id = &""
-	if get_relic_count(&"holiday_sale") <= 0 or tower_roster.is_empty():
-		return
-	holiday_sale_tower_id = tower_roster[shop_rng.randi_range(0, tower_roster.size() - 1)]
+	ensure_run_state()
+	run_state.roll_holiday_sale_tower(shop_rng)
 	populate_tower_list()
 	update_tower_affordability()
 
 
 func get_sidebar_tower_id(slot_index: int) -> StringName:
-	if slot_index >= 0 and slot_index < tower_roster.size():
-		return tower_roster[slot_index]
-	if slot_index == CONTRABAND_SLOT_INDEX:
-		return contraband_tower_id
-	return &""
+	ensure_run_state()
+	return run_state.get_sidebar_tower_id(slot_index, CONTRABAND_SLOT_INDEX)
 
 
 func get_tower_build_cost(tower_id: StringName, is_contraband := false) -> int:
-	if is_contraband and tower_id == contraband_tower_id:
-		return 0
-	var cost := float(GameStats.get_tower(tower_id)["placement_cost"])
-	if get_relic_count(&"holiday_sale") > 0:
-		cost *= (
-			GameStats.HOLIDAY_SALE_DISCOUNT_MULTIPLIER
-			if tower_id == holiday_sale_tower_id
-			else GameStats.HOLIDAY_SALE_OTHER_COST_MULTIPLIER
-		)
-	if (
-		get_relic_count(&"trade_agreement") > 0
-		and TRADE_AGREEMENT_TOWER_IDS.has(tower_id)
-	):
-		cost *= GameStats.TRADE_AGREEMENT_BUILD_COST_MULTIPLIER
-	return maxi(roundi(cost), 0)
+	ensure_run_state()
+	return run_state.get_tower_build_cost(
+		tower_id,
+		is_contraband,
+		TRADE_AGREEMENT_TOWER_IDS
+	)
 
 func roll_random_starting_towers(count: int = 2) -> void:
 	ensure_draft_manager()
-	tower_roster.assign(draft_manager.roll_random_starting_towers(count))
+	ensure_run_state()
+	run_state.set_tower_roster(draft_manager.roll_random_starting_towers(count))
 
 
 func collect_tower(tower_id: StringName) -> void:
-	if tower_roster.has(tower_id) or tower_roster.size() >= TOWER_SLOT_COUNT:
+	ensure_run_state()
+	if not run_state.collect_tower(tower_id, TOWER_SLOT_COUNT):
 		return
-	GameStats.get_tower(tower_id)
-	tower_roster.append(tower_id)
 	populate_tower_list()
 	update_tower_affordability()
 
 
 func get_tower_roster_dictionary() -> Dictionary:
-	var roster: Dictionary = {}
-	for tower_id in tower_roster:
-		roster[tower_id] = 1
-	return roster
+	ensure_run_state()
+	return run_state.get_tower_roster_dictionary()
 
 
 func refresh_placed_tower_stats() -> void:
@@ -1228,13 +1295,13 @@ func refresh_placed_tower_stats() -> void:
 
 
 func get_run_bonus(effect: StringName) -> float:
-	return float(run_bonuses.get(effect, 0.0))
+	ensure_run_state()
+	return run_state.get_run_bonus(effect)
 
 
 func get_relic_count(relic_id: StringName) -> int:
-	if not bool(GameStats.get_relic(relic_id).get("enabled", true)):
-		return 0
-	return maxi(int(owned_shop_items.get(relic_id, 0)), 0)
+	ensure_run_state()
+	return run_state.get_relic_count(relic_id)
 
 
 func is_selecting_path_relic_tower() -> bool:
@@ -1289,6 +1356,7 @@ func try_assign_path_relic_to_tower(tower: Node) -> void:
 	for candidate in get_tree().get_nodes_in_group("towers"):
 		if is_instance_valid(candidate) and bool(candidate.get("is_placed")):
 			candidate.set_range_preview(false)
+	round_controller.enter_build_phase()
 	update_round_count()
 	update_play_pause_button()
 	show_tower_details(tower)
@@ -1520,7 +1588,7 @@ func sandbox_clear_enemies() -> void:
 func sandbox_restore_health() -> void:
 	if not sandbox_mode:
 		return
-	lives = max_lives
+	run_state.restore_full_health()
 	update_lives()
 	sandbox_panel.set_status("Health restored.")
 
@@ -1699,8 +1767,8 @@ func _process_round_director(delta: float) -> void:
 	if not round_active or not spawning_active:
 		return
 
-	round_elapsed += delta
-	round_time_remaining = maxf(round_time_remaining - delta, 0.0)
+	ensure_round_controller()
+	var duration_finished: bool = round_controller.advance_time(delta)
 	spawn_threat += threat_per_second * threat_continuous_ratio * delta
 	threat_chunk_elapsed += delta
 	while threat_chunk_interval > 0.0 and threat_chunk_elapsed >= threat_chunk_interval:
@@ -1714,7 +1782,7 @@ func _process_round_director(delta: float) -> void:
 	process_special_round_events()
 	update_round_count()
 
-	if round_time_remaining <= 0.0:
+	if duration_finished:
 		stop_timed_spawning()
 		return
 
@@ -1867,8 +1935,8 @@ func get_active_enemy_count(enemy_id: StringName) -> int:
 
 
 func _on_mob_reached_end(damage: int) -> void:
-	lives -= damage
-	lives = maxi(lives, 0)
+	ensure_run_state()
+	run_state.take_damage(damage)
 	update_lives()
 	
 	if lives == 0:
@@ -1887,12 +1955,11 @@ func victory() -> void:
 	finish_game("Victory!\nYou completed all %d rounds." % max_rounds)
 
 func finish_game(message: String) -> void:
-	if game_ended:
+	ensure_round_controller()
+	if not round_controller.finish_game():
 		return
-	game_ended = true
 	cancel_reinforcement_targeting()
 	clear_reinforcement_drops()
-	round_active = false
 	spawning_active = false
 	spawn_schedule.clear()
 	pending_enemy_spawns.clear()
@@ -1929,11 +1996,12 @@ func mob_finished() -> void:
 	mobs_alive = maxi(mobs_alive - 1, 0)
 	flush_pending_enemy_spawns()
 
-	if (
-		not spawning_active
-		and mobs_left_to_spawn == 0
-		and mobs_alive == 0
-		and pending_enemy_spawns.is_empty()
+	ensure_round_controller()
+	if round_controller.should_finish_round(
+		spawning_active,
+		mobs_left_to_spawn,
+		mobs_alive,
+		pending_enemy_spawns.size()
 	):
 		end_round()
 
@@ -2154,9 +2222,8 @@ func _on_tower_confirmed(tower: Node2D) -> void:
 	var placement_cost: int = build_controller.pending_tower_cost
 	var was_contraband: bool = build_controller.pending_tower_is_contraband
 	build_controller.clear_pending_placement()
-	money -= placement_cost
-	if was_contraband and tower.tower_id == contraband_tower_id:
-		contraband_tower_id = &""
+	run_state.spend_money(placement_cost)
+	if was_contraband and run_state.consume_contraband(tower.tower_id):
 		populate_tower_list()
 	update_money()
 	update_play_pause_button()
