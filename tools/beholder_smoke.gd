@@ -61,7 +61,8 @@ func run_test() -> void:
 	var component = tower.attack_component
 	assert(component != null)
 	assert(component.ramping_beam_enabled)
-	assert(not component.death_explosion_enabled)
+	assert(not component.psionic_link_enabled)
+	assert(not tower.has_bonus_tag(&"reveal"))
 
 	component.process_attack(0.0)
 	assert(component.beam_lock_target_id == target_mob.get_instance_id())
@@ -76,21 +77,24 @@ func run_test() -> void:
 	tower.load_base_tags()
 	tower.load_level_stats()
 	assert(not component.ramping_beam_enabled)
-	assert(component.death_explosion_enabled)
+	assert(component.psionic_link_enabled)
+	assert(tower.has_bonus_tag(&"psionic"))
+	assert(not tower.has_bonus_tag(&"reveal"))
+	assert(not tower.has_damage_tag(&"explosive"))
 	assert(is_equal_approx(
-		component.death_explosion_radius_pixels,
-		3.0 * BaseTower.RANGE_PIXELS_PER_UNIT
+		component.link_radius_pixels,
+		3.5 * BaseTower.RANGE_PIXELS_PER_UNIT
 	))
 	tower.target = target_mob
+	tower.mobs_in_range.assign([target_mob, nearby_mob])
+	component.on_round_started()
 	component.on_target_updated()
-	assert(component.observed_target == target_mob)
-	var previous_nearby_health: int = nearby_mob.health
-	target_mob.mob_died.emit(target_mob)
-	assert(target_mob.get_meta("beholder_death_explosion_triggered", false))
-	assert(nearby_mob.health < previous_nearby_health)
-	assert(component.observed_target == null)
+	assert(target_mob.brainiac_link_remaining > 0.0)
+	assert(is_equal_approx(component.link_cooldown_remaining, 6.0))
+	component.process_attack(1.0)
+	assert(is_equal_approx(component.link_cooldown_remaining, 5.0))
 
 	component.on_round_ended()
-	assert(component.observed_target == null)
-	print("Beholder smoke test passed: Escalating Beam ramp, target switching, Death Burst, and observer cleanup.")
+	assert(is_zero_approx(component.link_cooldown_remaining))
+	print("Brainiac beam smoke test passed: no Reveal, Escalating Beam, Psionic Link, and cooldown cleanup.")
 	get_tree().quit(0)

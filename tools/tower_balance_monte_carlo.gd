@@ -382,6 +382,14 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 			float(scenario["health"]) / maxf(base_single_dps, 1.0)
 		)
 		total *= get_beholder_ramp_average(values, expected_lock_duration)
+	if flags.get("beholder_damage_mark", false):
+		var maximum_mark_bonus := (
+			float(values.get("mark_damage_per_stack", 0.02))
+			* float(values.get("mark_maximum_stacks", 10))
+		)
+		var mark_ramp_duration := 1.0
+		var ramp_fraction := minf(mark_ramp_duration / maxf(duration, 0.01), 1.0)
+		total *= 1.0 + maximum_mark_bonus * (1.0 - ramp_fraction * 0.5)
 	if flags.get("beholder_death_explosion", false) and int(scenario["enemies"]) > 1:
 		var kill_count := total / maxf(float(scenario["health"]), 1.0)
 		var death_damage := apply_armor(
@@ -984,8 +992,8 @@ func percentile(values: Array[float], ratio: float) -> float:
 func get_model_note(tower_id: StringName) -> String:
 	match tower_id:
 		&"gauss_repeater": return "spread tightening; overclock; tracking and Heavy Shot approximated"
-		&"brainiac": return "wide convergence geometry; per-bolt Pierce and solo Psionic Link modeled"
-		&"beholder": return "turn alignment; target-reset ramp and death explosions modeled"
+		&"brainiac": return "Converging beams, interception/Pierce, and Withering Gaze self-amplification modeled"
+		&"beholder": return "turn alignment; target-reset ramp and Psionic Link modeled"
 		&"reaver": return "combo contact; stun fatigue; Time Bubble and Assassinate modeled"
 		&"longshot": return "distance curve and three-target mine availability modeled"
 		&"slinger": return "bounce availability; Pierce falloff and contact splash modeled"

@@ -63,6 +63,10 @@ var brainiac_link_remaining := 0.0
 var brainiac_link_radius := 0.0
 var brainiac_link_damage_share := 0.0
 var brainiac_link_context: AttackContext
+var beholder_mark_remaining := 0.0
+var beholder_mark_stacks := 0
+var beholder_mark_damage_per_stack := 0.0
+var beholder_mark_maximum_stacks := 0
 var fisherman_pull_immunity_remaining := 0.0
 var fisherman_pull_active := false
 var fisherman_minimum_progress := -1.0
@@ -71,19 +75,30 @@ var electric_proc_damage := 0.0
 
 
 func _draw() -> void:
-	if brainiac_link_remaining <= 0.0 or brainiac_link_radius <= 0.0:
-		return
-	draw_circle(Vector2.ZERO, brainiac_link_radius, Color(0.55, 0.2, 0.95, 0.08))
-	draw_arc(
-		Vector2.ZERO,
-		brainiac_link_radius,
-		0.0,
-		TAU,
-		64,
-		Color(0.75, 0.4, 1.0, 0.65),
-		1.5,
-		true
-	)
+	if brainiac_link_remaining > 0.0 and brainiac_link_radius > 0.0:
+		draw_circle(Vector2.ZERO, brainiac_link_radius, Color(0.55, 0.2, 0.95, 0.08))
+		draw_arc(
+			Vector2.ZERO,
+			brainiac_link_radius,
+			0.0,
+			TAU,
+			64,
+			Color(0.75, 0.4, 1.0, 0.65),
+			1.5,
+			true
+		)
+	if beholder_mark_remaining > 0.0 and beholder_mark_stacks > 0:
+		var strength := get_beholder_mark_damage_multiplier() - 1.0
+		draw_arc(
+			Vector2.ZERO,
+			18.0,
+			-PI * 0.75,
+			PI * 0.75,
+			24,
+			Color(0.9, 0.35 + strength, 1.0, 0.85),
+			2.0 + strength * 5.0,
+			true
+		)
 
 
 func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
@@ -97,6 +112,7 @@ func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
 	
 func _process(delta: float) -> void:
 	_process_brainiac_link(delta)
+	_process_beholder_damage_mark(delta)
 	if path_follow == null or finished:
 		return
 
@@ -369,6 +385,46 @@ func _process_brainiac_link(delta: float) -> void:
 		queue_redraw()
 
 
+func apply_beholder_damage_mark(
+	duration: float,
+	damage_per_stack: float,
+	maximum_stacks: int
+) -> void:
+	if finished or duration <= 0.0 or damage_per_stack <= 0.0:
+		return
+	beholder_mark_remaining = maxf(beholder_mark_remaining, duration)
+	beholder_mark_damage_per_stack = maxf(
+		beholder_mark_damage_per_stack,
+		damage_per_stack
+	)
+	beholder_mark_maximum_stacks = maxi(
+		beholder_mark_maximum_stacks,
+		maximum_stacks
+	)
+	beholder_mark_stacks = mini(
+		beholder_mark_stacks + 1,
+		beholder_mark_maximum_stacks
+	)
+	queue_redraw()
+
+
+func _process_beholder_damage_mark(delta: float) -> void:
+	if beholder_mark_remaining <= 0.0:
+		return
+	beholder_mark_remaining = maxf(beholder_mark_remaining - delta, 0.0)
+	if beholder_mark_remaining <= 0.0:
+		beholder_mark_stacks = 0
+		beholder_mark_damage_per_stack = 0.0
+		beholder_mark_maximum_stacks = 0
+		queue_redraw()
+
+
+func get_beholder_mark_damage_multiplier() -> float:
+	return 1.0 + (
+		float(beholder_mark_stacks) * beholder_mark_damage_per_stack
+	)
+
+
 func apply_stun(
 	duration: float,
 	affects_bosses := false,
@@ -551,6 +607,11 @@ func apply_damage(
 		remove_hidden_trait()
 	if not is_electric_proc:
 		amount = apply_relic_damage_modifiers(amount, damage_type, attack_context)
+	if beholder_mark_remaining > 0.0 and beholder_mark_stacks > 0:
+		amount = maxi(
+			roundi(float(amount) * get_beholder_mark_damage_multiplier()),
+			1
+		)
 	if (
 		attack_context != null
 		and bool(attack_context.metadata.get("was_critical", false))
