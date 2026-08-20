@@ -4,6 +4,12 @@ extends Node2D
 const LIFETIME := 0.32
 
 var elapsed := 0.0
+var area_radius := 0.0
+
+
+func setup_area_radius(radius: float) -> void:
+	area_radius = maxf(radius, 0.0)
+	queue_redraw()
 
 
 func _ready() -> void:
@@ -46,3 +52,15 @@ func _draw() -> void:
 		3.0,
 		true
 	)
+	if area_radius > 0.0:
+		var expansion := 0.65 + 0.35 * clampf(elapsed / LIFETIME, 0.0, 1.0)
+		draw_arc(
+			Vector2.ZERO,
+			area_radius * expansion,
+			0.0,
+			TAU,
+			32,
+			Color(0.35, 0.85, 1.0, 0.75 * alpha),
+			2.0,
+			true
+		)

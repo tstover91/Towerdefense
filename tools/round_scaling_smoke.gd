@@ -104,6 +104,9 @@ func _init() -> void:
 			assert(actual == expected)
 	assert(int(GameStats.ENEMIES[&"juggernaut"]["armor"]) == 0)
 	assert(not GameStats.ENEMIES[&"juggernaut"]["traits"].has(&"armored"))
+	var early_family_weights: Dictionary = GameStats.WAVE_ROLE_WEIGHTS[1]["weights"]
+	assert(is_equal_approx(float(early_family_weights[&"fodder"]), 50.0))
+	assert(is_equal_approx(float(early_family_weights[&"support"]), 10.0))
 
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])

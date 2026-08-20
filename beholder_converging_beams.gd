@@ -11,6 +11,8 @@ var tower_ref: WeakRef
 var target_ref: WeakRef
 var beam_origins: Array[Vector2] = []
 var beam_endpoints: Array[Vector2] = []
+var beam_spread_ratios: Array[float] = []
+var fan_half_angle := 0.0
 var total_damage_per_beam := 0
 var tick_index := 0
 var tick_remaining := TICK_INTERVAL
@@ -32,7 +34,9 @@ func _ready() -> void:
 func setup(
 	owner_tower: BaseTower,
 	attack_target: Node2D,
-	launch_positions: Array[Vector2],
+	launch_origin: Vector2,
+	spread_ratios: Array[float],
+	attack_fan_half_angle: float,
 	attack_damage: int,
 	ownership_context: AttackContext,
 	attack_applies_damage_mark := false,
@@ -42,8 +46,13 @@ func setup(
 ) -> void:
 	tower_ref = weakref(owner_tower)
 	target_ref = weakref(attack_target)
-	beam_origins.assign(launch_positions)
-	beam_endpoints.assign(launch_positions)
+	beam_spread_ratios.assign(spread_ratios)
+	beam_origins.clear()
+	beam_endpoints.clear()
+	for _spread_ratio in beam_spread_ratios:
+		beam_origins.append(launch_origin)
+		beam_endpoints.append(launch_origin)
+	fan_half_angle = maxf(attack_fan_half_angle, 0.0)
 	total_damage_per_beam = maxi(attack_damage, 0)
 	attack_context = ownership_context
 	damage_mark_enabled = attack_applies_damage_mark
@@ -88,10 +97,14 @@ func _apply_damage_tick() -> void:
 	if tower != null and target != null and tower.is_valid_target(target):
 		var marked_target_ids: Dictionary = {}
 		for beam_index in beam_origins.size():
+			var intended_endpoint := get_intended_beam_endpoint(
+				beam_index,
+				target.global_position
+			)
 			var hit_targets := _get_beam_targets(
 				tower,
 				beam_origins[beam_index],
-				target.global_position
+				intended_endpoint
 			)
 			for hit_index in hit_targets.size():
 				var hit_target := hit_targets[hit_index]
@@ -169,14 +182,37 @@ func _refresh_beam_endpoints() -> void:
 		return
 	var target_position := target.global_position
 	for beam_index in beam_origins.size():
+		var intended_endpoint := get_intended_beam_endpoint(
+			beam_index,
+			target_position
+		)
 		var hits := _get_beam_targets(
 			tower,
 			beam_origins[beam_index],
-			target_position
+			intended_endpoint
 		)
 		beam_endpoints[beam_index] = (
-			target_position if hits.is_empty() else hits.back().global_position
+			intended_endpoint if hits.is_empty() else hits.back().global_position
 		)
+
+
+func get_intended_beam_endpoint(
+	beam_index: int,
+	target_position: Vector2
+) -> Vector2:
+	if beam_index < 0 or beam_index >= beam_origins.size():
+		return target_position
+	var origin := beam_origins[beam_index]
+	var aim_offset := target_position - origin
+	if aim_offset.is_zero_approx():
+		return target_position
+	var spread_ratio := 0.0
+	if beam_index < beam_spread_ratios.size():
+		spread_ratio = beam_spread_ratios[beam_index]
+	return (
+		origin
+		+ aim_offset.rotated(fan_half_angle * spread_ratio)
+	)
 
 
 func _draw() -> void:

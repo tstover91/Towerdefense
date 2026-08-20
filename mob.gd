@@ -4,6 +4,7 @@ const GameStats = preload("res://stat_database.gd")
 const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const ELECTRIC_PROC_EFFECT = preload("res://electric_proc_effect.gd")
+const ELECTRIC_ARC_EFFECT = preload("res://electric_arc_effect.gd")
 const STUN_FATIGUE_MULTIPLIERS := [1.0, 0.65, 0.40, 0.25, 0.10]
 const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
 const FISHERMAN_MINIMUM_PROGRESS_RATIO := 0.25
@@ -790,19 +791,52 @@ func register_electric_hit(
 		float(received_damage)
 		* GameStats.ELECTRIC_PROC_DAMAGE_CONTRIBUTION
 	)
-	if electric_hit_count < GameStats.ELECTRIC_HITS_TO_PROC:
+	if electric_hit_count < get_electric_proc_hit_requirement(attack_context):
 		return
-	var lightning_damage := maxi(roundi(electric_proc_damage), 1)
+	var lightning_damage := maxi(roundi(
+		electric_proc_damage * get_electric_proc_damage_multiplier(attack_context)
+	), 1)
 	electric_hit_count = 0
 	electric_proc_damage = 0.0
 	trigger_electric_lightning_proc(lightning_damage, attack_context)
+
+
+func get_electric_proc_hit_requirement(attack_context: AttackContext) -> int:
+	var relic_count := get_attack_relic_count(
+		attack_context, &"overcharged_capacitor"
+	)
+	return ceili(
+		float(GameStats.ELECTRIC_HITS_TO_PROC)
+		* pow(GameStats.OVERCHARGED_CAPACITOR_HIT_MULTIPLIER, relic_count)
+	)
+
+
+func get_electric_proc_damage_multiplier(attack_context: AttackContext) -> float:
+	var relic_count := get_attack_relic_count(
+		attack_context, &"overcharged_capacitor"
+	)
+	return pow(GameStats.OVERCHARGED_CAPACITOR_DAMAGE_MULTIPLIER, relic_count)
+
+
+func get_attack_relic_count(
+	attack_context: AttackContext,
+	relic_id: StringName
+) -> int:
+	if attack_context == null:
+		return 0
+	return maxi(int(attack_context.metadata.get(relic_id, 0)), 0)
 
 
 func trigger_electric_lightning_proc(
 	lightning_damage: int,
 	source_context: AttackContext
 ) -> void:
-	spawn_electric_proc_effect()
+	var has_static_discharge := (
+		get_attack_relic_count(source_context, &"static_discharge") > 0
+	)
+	spawn_electric_proc_effect(
+		GameStats.STATIC_DISCHARGE_RADIUS if has_static_discharge else 0.0
+	)
 	if health <= 0 or finished:
 		return
 	var proc_context: AttackContext
@@ -827,9 +861,74 @@ func trigger_electric_lightning_proc(
 		false,
 		proc_context
 	)
+	if has_static_discharge:
+		apply_static_discharge(lightning_damage, proc_context)
+	if get_attack_relic_count(source_context, &"chain_lightning") > 0:
+		apply_chain_lightning(lightning_damage, proc_context)
 
 
-func spawn_electric_proc_effect() -> void:
+func apply_static_discharge(
+	lightning_damage: int,
+	proc_context: AttackContext
+) -> void:
+	var area_damage := maxi(roundi(
+		float(lightning_damage) * GameStats.STATIC_DISCHARGE_DAMAGE_RATIO
+	), 1)
+	var area_context := proc_context.derive(
+		self,
+		&"enemy",
+		&"electric_static_discharge",
+		true,
+		{"electric_proc": true, "area_damage": true}
+	)
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_electric_proc_secondary_target(candidate):
+			continue
+		if global_position.distance_to(candidate.global_position) > GameStats.STATIC_DISCHARGE_RADIUS:
+			continue
+		candidate.apply_damage(area_damage, &"electric", true, false, area_context)
+
+
+func apply_chain_lightning(
+	lightning_damage: int,
+	proc_context: AttackContext
+) -> void:
+	var closest_enemy: Node2D
+	var closest_distance := INF
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if not is_valid_electric_proc_secondary_target(candidate):
+			continue
+		var distance := global_position.distance_to(candidate.global_position)
+		if distance < closest_distance:
+			closest_distance = distance
+			closest_enemy = candidate
+	if closest_enemy == null:
+		return
+	spawn_electric_arc_effect(global_position, closest_enemy.global_position)
+	var chain_context := proc_context.derive(
+		self,
+		&"enemy",
+		&"electric_chain_lightning",
+		true,
+		{"electric_proc": true}
+	)
+	closest_enemy.apply_damage(
+		lightning_damage, &"electric", true, false, chain_context
+	)
+
+
+func is_valid_electric_proc_secondary_target(candidate: Node) -> bool:
+	return (
+		candidate != self
+		and candidate != null
+		and is_instance_valid(candidate)
+		and not candidate.is_queued_for_deletion()
+		and not bool(candidate.get("finished"))
+		and candidate.has_method("apply_damage")
+	)
+
+
+func spawn_electric_proc_effect(area_radius := 0.0) -> void:
 	if not is_inside_tree():
 		return
 	var effect := ELECTRIC_PROC_EFFECT.new() as Node2D
@@ -838,6 +937,21 @@ func spawn_electric_proc_effect() -> void:
 		effect_parent = get_tree().root
 	effect_parent.add_child(effect)
 	effect.global_position = global_position
+	effect.setup_area_radius(area_radius)
+
+
+func spawn_electric_arc_effect(
+	start_position: Vector2,
+	end_position: Vector2
+) -> void:
+	if not is_inside_tree():
+		return
+	var effect := ELECTRIC_ARC_EFFECT.new() as Node2D
+	var effect_parent: Node = get_tree().current_scene
+	if effect_parent == null:
+		effect_parent = get_tree().root
+	effect_parent.add_child(effect)
+	effect.setup(start_position, end_position)
 
 
 func trigger_microwave_explosion(

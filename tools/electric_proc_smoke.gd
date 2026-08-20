@@ -11,6 +11,7 @@ func _ready() -> void:
 func run_test() -> void:
 	assert(GameStats.ELECTRIC_HITS_TO_PROC == 5)
 	assert(is_equal_approx(GameStats.ELECTRIC_PROC_DAMAGE_CONTRIBUTION, 0.30))
+	assert(is_equal_approx(GameStats.STATIC_DISCHARGE_DAMAGE_RATIO, 0.35))
 	assert_electric_stat_nerfs()
 
 	var path := Path2D.new()
@@ -83,9 +84,69 @@ func run_test() -> void:
 		mob.electric_proc_damage,
 		float(mitigated_damage) * GameStats.ELECTRIC_PROC_DAMAGE_CONTRIBUTION
 	), "Buildup must use final damage received after mitigation.")
+	assert_overcharged_capacitor()
+	assert_static_discharge()
+	assert_chain_lightning()
 
-	print("Electric proc smoke test passed: shared buildup, exact fifth-hit proc, recursion guard, persistence, visuals, and stat nerfs.")
+	print("Electric proc smoke test passed: shared buildup, relic thresholds, area discharge, chain lightning, recursion guard, persistence, visuals, and stat nerfs.")
 	get_tree().quit()
+
+
+func assert_overcharged_capacitor() -> void:
+	var mob := spawn_test_mob(Vector2(2000.0, 0.0))
+	var context := AttackContext.legacy(&"gauss_repeater", &"projectile")
+	context.metadata["overcharged_capacitor"] = 1
+	assert(mob.get_electric_proc_hit_requirement(context) == 8)
+	assert(is_equal_approx(mob.get_electric_proc_damage_multiplier(context), 3.0))
+	var starting_health: int = mob.health
+	for _index in 7:
+		mob.apply_damage(10, &"electric", true, true, context)
+	assert(mob.health == starting_health - 70)
+	assert(mob.electric_hit_count == 7)
+	mob.apply_damage(10, &"electric", true, true, context)
+	assert(mob.health == starting_health - 152, "Eight 10-damage hits must store 24 damage, then proc for 72 damage.")
+	context.metadata["overcharged_capacitor"] = 2
+	assert(mob.get_electric_proc_hit_requirement(context) == 12)
+	assert(is_equal_approx(mob.get_electric_proc_damage_multiplier(context), 9.0))
+
+
+func assert_static_discharge() -> void:
+	var primary := spawn_test_mob(Vector2(3000.0, 0.0))
+	var nearby := spawn_test_mob(Vector2(3030.0, 0.0))
+	var outside := spawn_test_mob(
+		Vector2(3000.0 + GameStats.STATIC_DISCHARGE_RADIUS + 1.0, 0.0)
+	)
+	var primary_health: int = primary.health
+	var nearby_health: int = nearby.health
+	var outside_health: int = outside.health
+	var context := AttackContext.legacy(&"energycore", &"electric_primary")
+	context.metadata["static_discharge"] = 1
+	primary.trigger_electric_lightning_proc(100, context)
+	assert(primary.health == primary_health - 100)
+	assert(nearby.health == nearby_health - 35)
+	assert(outside.health == outside_health)
+
+
+func assert_chain_lightning() -> void:
+	var primary := spawn_test_mob(Vector2(4000.0, 0.0))
+	var closest := spawn_test_mob(Vector2(4070.0, 0.0))
+	var farther := spawn_test_mob(Vector2(4200.0, 0.0))
+	var closest_health: int = closest.health
+	var farther_health: int = farther.health
+	var context := AttackContext.legacy(&"saucer", &"electric_primary")
+	context.metadata["chain_lightning"] = 1
+	primary.trigger_electric_lightning_proc(100, context)
+	assert(closest.health == closest_health - 100)
+	assert(farther.health == farther_health)
+	assert(get_tree().get_node_count_in_group("electric_arc_effects") == 1)
+
+
+func spawn_test_mob(at_position: Vector2) -> Node2D:
+	var mob := MOB_SCENE.instantiate()
+	mob.enemy_id = &"brute"
+	add_child(mob)
+	mob.global_position = at_position
+	return mob
 
 
 func assert_electric_stat_nerfs() -> void:

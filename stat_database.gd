@@ -9,6 +9,10 @@ const DEFAULT_TOWER_ID := "invader"
 const BUILD_CELL_SIZE := 32.0
 const ELECTRIC_HITS_TO_PROC := 5
 const ELECTRIC_PROC_DAMAGE_CONTRIBUTION := 0.30
+const STATIC_DISCHARGE_DAMAGE_RATIO := 0.35
+const STATIC_DISCHARGE_RADIUS := BUILD_CELL_SIZE * 1.25
+const OVERCHARGED_CAPACITOR_HIT_MULTIPLIER := 1.50
+const OVERCHARGED_CAPACITOR_DAMAGE_MULTIPLIER := 3.0
 
 # Shared Normal-mode progression data. General-family enemies keep fixed beats;
 # three other families and two upgrades are selected separately for each run.
@@ -57,8 +61,8 @@ const WAVE_ROLE_WEIGHTS := [
 	{
 		"maximum_wave": 8,
 		"weights": {
-			&"fodder": 60.0, &"pressure": 25.0,
-			&"tank": 15.0, &"support": 0.0,
+			&"fodder": 50.0, &"pressure": 25.0,
+			&"tank": 15.0, &"support": 10.0,
 		},
 	},
 	{
@@ -423,6 +427,9 @@ const RELICS := {
 	"maximum_payload": {"display_name": "Maximum Payload", "description": "Explosion damage and radius increase by 50%, but explosive cooldowns take 75% longer.", "rarity": &"rare", "category": &"explosive", "stackable": false, "enabled": false},
 	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions permanently remove Hidden from enemies they hit.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"conductive": {"display_name": "Conductive", "description": "Armor increases Electric damage instead of reducing it.", "rarity": &"common", "category": &"electric", "stackable": false},
+	"overcharged_capacitor": {"display_name": "Overcharged Capacitor", "description": "Lightning procs take 1.5x as many hits to activate per stack, but deal 3x damage per stack.", "rarity": &"common", "category": &"electric", "stackable": true},
+	"static_discharge": {"display_name": "Static Discharge", "description": "Lightning procs deal 35% of the strike's damage to enemies in a small radius around the target.", "rarity": &"rare", "category": &"electric", "stackable": false},
+	"chain_lightning": {"display_name": "Chain Lightning", "description": "Lightning procs jump to the closest other enemy for full damage.", "rarity": &"rare", "category": &"electric", "stackable": false},
 	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 20 percentage points per stack.", "rarity": &"common", "category": &"critical", "stackable": true},
 	"glass_cannon": {"display_name": "Glass Cannon", "description": "Adds +2x critical damage, but non-critical attacks deal 30% less damage.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"pressure_point": {"display_name": "Pressure Point", "description": "Critical hits ignore armor.", "rarity": &"rare", "category": &"critical", "stackable": false},
@@ -1313,7 +1320,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Piercing Volley",
-				"description": "Each converging beam can pass through one enemy to damage the next enemy along its path.",
+				"description": "Each fanned beam can pass through one enemy to damage the next enemy along its path.",
 				"cost": 6150,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"pierce"],

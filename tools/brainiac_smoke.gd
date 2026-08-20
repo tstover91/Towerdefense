@@ -66,7 +66,7 @@ func run_test() -> void:
 	tower.tower_id = &"brainiac"
 	tower.tower_level = 3
 	tower.main = fake_main
-	tower.position = Vector2(500.0, 50.0)
+	tower.position = Vector2(500.0, 135.0)
 	add_child(tower)
 	tower.confirm_placement()
 	# Keep the shared acquisition scheduler from launching independently; this
@@ -100,9 +100,20 @@ func run_test() -> void:
 			snappedf(launch_position.x, 0.01),
 			snappedf(launch_position.y, 0.01)
 		)] = true
-	assert(distinct_launch_positions.size() == 5, "Beholder beams must fan out at launch.")
-	for endpoint in beams.beam_endpoints:
-		assert(endpoint.is_equal_approx(mob.global_position))
+	assert(distinct_launch_positions.size() == 1, "Beholder beams must share one launch point.")
+	assert(beams.beam_origins[2].is_equal_approx(tower.muzzle.global_position))
+	assert(beams.beam_endpoints[2].is_equal_approx(mob.global_position))
+	var left_endpoint := beams.get_intended_beam_endpoint(0, mob.global_position)
+	var right_endpoint := beams.get_intended_beam_endpoint(4, mob.global_position)
+	assert(not left_endpoint.is_equal_approx(mob.global_position))
+	assert(not right_endpoint.is_equal_approx(mob.global_position))
+	assert(left_endpoint.distance_to(right_endpoint) > 60.0)
+	follow.progress = 520.0
+	beams._refresh_beam_endpoints()
+	assert(
+		beams.beam_endpoints[2].is_equal_approx(mob.global_position),
+		"The center beam must continue tracking the selected target."
+	)
 	var blocker := FakeMob.new()
 	add_child(blocker)
 	blocker.add_to_group("mobs")
@@ -128,6 +139,8 @@ func run_test() -> void:
 	assert(center_hits.size() == 2)
 	assert(center_hits[0] == blocker and center_hits[1] == mob)
 	tower.pierce_count = 0
+	blocker.queue_free()
+	await get_tree().process_frame
 	var budgeted_damage := 0
 	for tick in BeholderConvergingBeams.TICK_COUNT:
 		budgeted_damage += BeholderConvergingBeams.get_budgeted_tick_damage(
@@ -178,5 +191,5 @@ func run_test() -> void:
 	assert(mob.beholder_mark_stacks == 0)
 	assert(is_equal_approx(mob.get_beholder_mark_damage_multiplier(), 1.0))
 
-	print("Beholder smoke test passed: converging beams, interception, Piercing Volley, base Reveal, and Withering Gaze.")
+	print("Beholder smoke test passed: outward beam fan, center tracking, interception, Piercing Volley, base Reveal, and Withering Gaze.")
 	get_tree().quit(0)

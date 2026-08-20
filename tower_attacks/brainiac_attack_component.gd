@@ -35,9 +35,7 @@ func execute_attack(current_target: Node2D, attack_damage: int) -> bool:
 	var aim_offset := current_target.global_position - tower.global_position
 	if aim_offset.is_zero_approx():
 		return true
-	var direction := aim_offset.normalized()
-	var perpendicular := direction.orthogonal()
-	var launch_positions: Array[Vector2] = []
+	var spread_ratios: Array[float] = []
 	var volley_context := tower.create_attack_context(
 		&"brainiac_volley", null, &"tower", null, false, true
 	)
@@ -45,19 +43,22 @@ func execute_attack(current_target: Node2D, attack_damage: int) -> bool:
 		var spread_ratio := 0.0
 		if tower.projectile_count > 1:
 			spread_ratio = (
-				float(index) / float(tower.projectile_count - 1) - 0.5
+				(float(index) / float(tower.projectile_count - 1) - 0.5)
+				* 2.0
 			)
-		var launch_position := (
-			tower.muzzle.global_position
-			+ perpendicular * tower.volley_width_pixels * spread_ratio
-		)
-		launch_positions.append(launch_position)
+		spread_ratios.append(spread_ratio)
+	var fan_half_angle := atan2(
+		tower.volley_width_pixels * 0.5,
+		maxf(tower.range_radius_pixels, 1.0)
+	)
 	var beams := CONVERGING_BEAMS.new() as BeholderConvergingBeams
 	tower.get_tree().current_scene.add_child(beams)
 	beams.setup(
 		tower,
 		current_target,
-		launch_positions,
+		tower.muzzle.global_position,
+		spread_ratios,
+		fan_half_angle,
 		attack_damage,
 		volley_context,
 		damage_mark_enabled,
