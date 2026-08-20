@@ -36,6 +36,37 @@ func run_checks() -> void:
 	assert(director.is_relic_applicable_to_current_loadout(
 		&"dividends", base_roster_tags
 	))
+	var third_draft_offers: Array[StringName] = [
+		&"overcharged_capacitor", &"conductive", &"static_discharge",
+	]
+	var third_draft_quantities: Dictionary = director.draft_manager.get_relic_choice_quantities(
+		11,
+		third_draft_offers
+	)
+	assert(int(third_draft_quantities.get(&"overcharged_capacitor", 1)) == 2)
+	assert(int(third_draft_quantities.get(&"conductive", 1)) == 1)
+	assert(int(third_draft_quantities.get(&"static_discharge", 1)) == 1)
+	var second_draft_offers: Array[StringName] = [&"overcharged_capacitor"]
+	assert(director.draft_manager.get_relic_choice_quantities(
+		5,
+		second_draft_offers
+	).is_empty())
+	var relic_card: ShopChoiceCard = director.between_round_shop.cards[0]
+	assert_relic_card_color(
+		relic_card, &"overcharged_capacitor", ShopChoiceCard.COMMON_COLOR
+	)
+	assert_relic_card_color(
+		relic_card, &"static_discharge", ShopChoiceCard.RARE_COLOR
+	)
+	assert_relic_card_color(
+		relic_card, &"contraband_blueprint", ShopChoiceCard.LEGENDARY_COLOR
+	)
+	relic_card.display_item(
+		GameStats.get_tower_draft_entry(&"invader"), 0, false
+	)
+	assert(relic_card.category_label.get_theme_color(
+		"font_color"
+	).is_equal_approx(relic_card.default_category_color))
 	director.shop_rng.seed = 481516
 	director.recent_relic_offers.clear()
 	for draft_round in [1, 5, 11, 20]:
@@ -100,3 +131,17 @@ func create_test_tower(
 	tower.global_position = world_position
 	tower.is_placed = true
 	return tower
+
+
+func assert_relic_card_color(
+	card: ShopChoiceCard,
+	relic_id: StringName,
+	expected_color: Color
+) -> void:
+	card.display_item(GameStats.get_relic(relic_id), 0, true)
+	var panel_style := card.get_theme_stylebox("panel") as StyleBoxFlat
+	assert(panel_style != null)
+	assert(panel_style.border_color.is_equal_approx(expected_color))
+	assert(card.category_label.get_theme_color(
+		"font_color"
+	).is_equal_approx(expected_color))

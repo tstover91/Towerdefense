@@ -6,6 +6,7 @@ const GameStats = preload("res://stat_database.gd")
 const SHOP_CHOICE_COUNT := 3
 const MINIMUM_APPLICABLE_RELIC_CHOICES := 2
 const RELIC_DRAFT_ROUNDS: Array[int] = [1, 5, 11, 20]
+const DOUBLE_COMMON_RELIC_DRAFT_ROUND := 11
 const RELIC_RARITY_WEIGHTS_BY_ROUND := {
 	1: {&"common": 100.0},
 	5: {&"common": 70.0, &"rare": 30.0},
@@ -29,10 +30,17 @@ func _init(random_source: RandomNumberGenerator) -> void:
 
 
 func get_relic_choice_quantities(
-	_round_number: int,
-	_offers: Array[StringName]
+	round_number: int,
+	offers: Array[StringName]
 ) -> Dictionary:
-	return {}
+	var quantities: Dictionary = {}
+	if round_number != DOUBLE_COMMON_RELIC_DRAFT_ROUND:
+		return quantities
+	for relic_id in offers:
+		var relic := GameStats.get_relic(relic_id)
+		if relic["rarity"] == &"common" and bool(relic.get("stackable", false)):
+			quantities[relic_id] = 2
+	return quantities
 
 
 func roll_relic_offers(

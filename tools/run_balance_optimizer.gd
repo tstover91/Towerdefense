@@ -2890,15 +2890,20 @@ func resolve_relic_draft(state: Dictionary, policy: Dictionary, round_number: in
 	var offers := roll_relic_offer_set(state, round_number, run_rng)
 	if offers.is_empty():
 		return
+	var choice_quantities := DraftManagerScript.new(run_rng).get_relic_choice_quantities(
+		round_number,
+		offers
+	)
 	var best := offers[0]
+	var best_quantity := int(choice_quantities.get(best, 1))
 	var best_score := -INF
 	for relic_id in offers:
-		var quantity := 1
+		var quantity := int(choice_quantities.get(relic_id, 1))
 		var score := get_relic_choice_score(state, policy, relic_id, quantity, round_number)
 		if score > best_score:
 			best_score = score
 			best = relic_id
-	var best_quantity := 1
+			best_quantity = quantity
 	state["relics"][best] = int(state["relics"].get(best, 0)) + best_quantity
 	if best == &"contraband_blueprint":
 		var outside: Array[StringName] = []
