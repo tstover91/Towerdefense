@@ -50,6 +50,17 @@ func run_test() -> void:
 	tower.position = Vector2(500.0, 0.0)
 	add_child(tower)
 	tower.confirm_placement()
+	var reaver_levels: Array = GameStats.get_tower(&"reaver")["levels"]
+	var expected_ranges := [9.0, 9.5, 10.0, 11.0]
+	for level_index in reaver_levels.size():
+		assert(is_equal_approx(
+			float(reaver_levels[level_index]["range"]),
+			expected_ranges[level_index]
+		))
+	assert(is_equal_approx(
+		tower.range_radius_pixels,
+		11.0 * BaseTower.RANGE_PIXELS_PER_UNIT
+	))
 	# Exercise the combo directly. Automatic acquisition is covered by the
 	# targeting smoke and made this test dependent on physics callback ordering.
 	tower.attack_on_cooldown = true

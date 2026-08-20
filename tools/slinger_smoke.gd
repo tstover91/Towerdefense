@@ -2,6 +2,7 @@ extends Node
 
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const MOB_SCENE = preload("res://mob.tscn")
+const GameStats = preload("res://stat_database.gd")
 
 
 class FakeMain:
@@ -52,6 +53,13 @@ func run_test() -> void:
 	var component = tower.attack_component
 	assert(component != null)
 	assert(component.contact_explosions_enabled)
+	var slinger_levels: Array = GameStats.get_tower(&"slinger")["levels"]
+	var expected_ranges := [11.0, 11.5, 13.0, 13.0]
+	for level_index in slinger_levels.size():
+		assert(is_equal_approx(
+			float(slinger_levels[level_index]["range"]),
+			expected_ranges[level_index]
+		))
 	assert(is_equal_approx(
 		component.contact_explosion_radius_pixels,
 		2.5 * BaseTower.RANGE_PIXELS_PER_UNIT
@@ -60,7 +68,7 @@ func run_test() -> void:
 	var projectiles := get_tree().get_nodes_in_group("tower_projectiles")
 	assert(projectiles.size() == 1)
 	assert(projectiles[0].contact_explosions_enabled)
-	assert(is_equal_approx(projectiles[0].contact_explosion_damage_multiplier, 0.75))
+	assert(is_equal_approx(projectiles[0].contact_explosion_damage_multiplier, 0.55))
 
 	projectiles[0].queue_free()
 	await get_tree().process_frame

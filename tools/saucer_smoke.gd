@@ -2,6 +2,7 @@ extends Node
 
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const MOB_SCENE = preload("res://mob.tscn")
+const GameStats = preload("res://stat_database.gd")
 
 
 class FakeMain:
@@ -60,7 +61,15 @@ func run_test() -> void:
 	tower.confirm_placement()
 	var component = tower.attack_component
 	assert(component != null)
+	var saucer_levels: Array = GameStats.get_tower(&"saucer")["levels"]
+	var expected_gun_damage := [154, 218, 336, 378]
+	for level_index in saucer_levels.size():
+		assert(
+			int(saucer_levels[level_index]["damage"])
+			== expected_gun_damage[level_index]
+		)
 	assert(component.twin_rockets_enabled)
+	assert(is_equal_approx(component.rocket_damage_multiplier, 3.571429))
 	assert(not component.monster_drop_enabled)
 	assert(is_instance_valid(component.active_flyer))
 	assert(component.active_flyer.saucer_behavior == component)
