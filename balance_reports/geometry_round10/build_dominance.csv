@@ -1,6 +1,0 @@
-rank,build,runs,wins,win_rate,average_round,average_lives,profiles_seen,clear_choice_flag
-1,slinger-L1x3,1472,0,0.0000,2.294,0.000,1,
-2,invader-L2x1+slinger-L1x2,1600,0,0.0000,2.734,0.000,1,
-3,invader-L2x2,1500,0,0.0000,2.000,0.000,1,
-4,slinger-L1x2+slinger-L2x1,128,0,0.0000,3.000,0.000,1,
-5,invader-L1x2+invader-L2x1,100,0,0.0000,2.000,0.000,1,

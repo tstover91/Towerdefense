@@ -7,7 +7,7 @@ func _ready() -> void:
 			continue
 		var script_path := argument.trim_prefix("--smoke-script=")
 		var smoke_script := load(script_path) as GDScript
-		if smoke_script == null:
+		if smoke_script == null or not smoke_script.can_instantiate():
 			push_error("Unable to load smoke test: %s" % script_path)
 			get_tree().quit(1)
 			return

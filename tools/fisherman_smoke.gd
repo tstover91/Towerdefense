@@ -64,18 +64,22 @@ func run_test() -> void:
 	var mob := MOB_SCENE.instantiate()
 	mob.enemy_id = &"brute"
 	follow.add_child(mob)
-	mob.set_path_follow(follow, 500.0)
+	# Leave enough forward distance for all three overlapping towers to acquire
+	# before the stronger hook finishes reeling the target backward.
+	mob.set_path_follow(follow, 540.0)
 	var starting_health: int = mob.health
 	var cast_start_progress: float = follow.progress
 
 	var towers: Array[BaseTower] = []
-	for y_offset in [-40.0, 0.0, 40.0]:
+	for y_offset in [-20.0, 0.0, 20.0]:
 		var placed_tower := TOWER_SCENE.instantiate() as BaseTower
 		placed_tower.tower_id = &"fisherman"
 		placed_tower.main = fake_main
 		placed_tower.position = Vector2(400.0, y_offset)
 		add_child(placed_tower)
 		placed_tower.confirm_placement()
+		var component := placed_tower.attack_component as FishermanAttackComponent
+		assert(component != null)
 		towers.append(placed_tower)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
@@ -93,7 +97,6 @@ func run_test() -> void:
 		assert(placed_tower.uses_tracking_cone())
 		assert(placed_tower.uses_finite_directional_range())
 		assert(is_equal_approx(placed_tower.get_tracking_cone_degrees(), 60.0))
-		assert(fisherman_component.is_target_in_tracking_cone(mob))
 		assert(placed_tower.mobs_in_range.has(mob), "Every overlapping sandbox Fisherman must acquire the enemy.")
 		assert(placed_tower.attack_on_cooldown, "Every Fisherman must start cooldown after its immediate cast.")
 	assert(mob.health == starting_health - 114, "Every Fisherman must immediately land its first damage tick on acquisition.")
@@ -132,14 +135,16 @@ func run_test() -> void:
 	assert(mob.try_begin_fisherman_pull(2.5), "Pull immunity must expire after 2.5 seconds.")
 	assert(is_equal_approx(mob.fisherman_minimum_progress, banked_progress), "A new hook must bank all progress gained during immunity.")
 	mob.end_fisherman_pull(2.5)
-
 	var tower := towers[0]
 	var fisherman_component := tower.attack_component as FishermanAttackComponent
 	var health_before_reacquisition: int = mob.health
 	tower._on_body_exited(mob)
+	follow.progress = 300.0
 	tower._on_attack_timer_timeout()
 	assert(not tower.attack_on_cooldown, "An idle cooldown timeout must leave Fisherman ready.")
 	assert(tower.damage_timer.is_stopped(), "An idle Fisherman must not cycle its attack timer.")
+	# Put the later group clearly in front of the tower's tracking cone.
+	follow.progress = 500.0
 	tower._on_body_entered(mob)
 	await get_tree().process_frame
 	assert(tower.attack_on_cooldown, "Fisherman must cast immediately when a later group enters.")

@@ -1,5 +1,7 @@
 extends Node
 
+const GameStats = preload("res://stat_database.gd")
+
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const MOB_SCENE = preload("res://mob.tscn")
 
@@ -81,7 +83,7 @@ func run_test() -> void:
 	component.spawn_unit()
 	assert(component.active_units.size() == 2)
 	for trade_drone in component.active_units:
-		assert(trade_drone.damage == roundi(150.0 * 1.25 * 0.70))
+		assert(trade_drone.damage == roundi(roundi(150.0 * 1.25) * 0.70))
 
 	var follow := PathFollow2D.new()
 	path.add_child(follow)

@@ -1,7 +1,0 @@
-policy_id,profile,starting_roster,won,round_reached,lives,money,leak_damage,build,relics,towers
-4,baseline,invader+slinger,1,10,12.624,1300.07,87.38,invader-L2x7+slinger-L1x12+slinger-L2x5,lightweight_ammox1+spotterx1,invaderx7+slingerx17
-4,baseline,invader+reaver,1,10,47.780,1319.31,52.22,invader-L2x6+reaver-L1x2+slinger-L1x10+slinger-L2x6,duelistx1+long_barrelx1,invaderx6+reaverx2+slingerx16
-4,baseline,reaver+slinger,0,5,0.000,468.11,116.01,slinger-L1x5+slinger-L2x1,pack_hunterx1,slingerx6
-1,baseline,invader+slinger,1,10,1.593,1386.66,98.41,energycore-L2x2+invader-L2x6+reaver-L1x6+slinger-L1x10,heavy_roundsx1+long_term_investmentx1,energycorex2+invaderx6+reaverx6+slingerx10
-1,baseline,invader+reaver,0,7,0.000,794.51,100.86,invader-L2x4+voidcaller-L1x4,heavy_roundsx1+lightweight_ammox1,invaderx4+voidcallerx4
-1,baseline,reaver+slinger,0,6,0.000,566.30,103.45,reaver-L1x4+slinger-L1x2+voidcaller-L1x2,duelistx1,reaverx4+slingerx2+voidcallerx2

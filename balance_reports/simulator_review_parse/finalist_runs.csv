@@ -1,7 +1,0 @@
-policy_id,profile,starting_roster,won,round_reached,lives,money,leak_damage,build,relics,towers
-4,baseline,invader+slinger,1,1,100.000,155.53,0.00,slinger-L1x2,heavy_roundsx1,slingerx2
-4,baseline,invader+reaver,1,1,99.635,162.80,0.37,reaver-L1x3,pack_hunterx1,reaverx3
-4,baseline,reaver+slinger,1,1,99.827,163.62,0.17,slinger-L1x2,predatory_instinctx1,slingerx2
-1,baseline,invader+slinger,1,1,100.000,155.16,0.00,slinger-L1x2,frenzyx1,slingerx2
-1,baseline,invader+reaver,1,1,99.720,154.47,0.28,reaver-L1x3,duelistx1,reaverx3
-1,baseline,reaver+slinger,1,1,96.741,232.60,3.26,reaver-L1x1+slinger-L1x1,duelistx1,reaverx1+slingerx1

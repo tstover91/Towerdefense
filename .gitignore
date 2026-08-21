@@ -15,5 +15,6 @@ export_credentials.cfg
 data_*/
 mono_crash.*.json
 
-# Long-running balance optimizer output is reproducible and can be very large.
-balance_reports/overnight/
+# Balance reports are reproducible generated data; keep only the Godot ignore marker.
+balance_reports/*
+!balance_reports/.gdignore

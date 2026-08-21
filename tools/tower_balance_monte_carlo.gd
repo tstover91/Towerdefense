@@ -406,7 +406,7 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 			continue
 		var hit_damage := apply_armor(attack_damage, primary_type, float(scenario["armor"]), int(stats.get("pierce_count", 0)) > 0)
 		if shield_hits_remaining > 0:
-			if tower_id == &"brainiac":
+			if tower_id == &"beholder":
 				var blocked_ticks := mini(
 					shield_hits_remaining,
 					BEHOLDER_BEAMS.TICK_COUNT
@@ -432,13 +432,13 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 				traits,
 				scenario
 			)
-	if flags.get("beholder_ramping_beam", false):
+	if flags.get("brainiac_ramping_beam", false):
 		var base_single_dps := damage / maxf(interval, 0.01)
 		var expected_lock_duration := minf(
 			duration,
 			float(scenario["health"]) / maxf(base_single_dps, 1.0)
 		)
-		total *= get_beholder_ramp_average(values, expected_lock_duration)
+		total *= get_brainiac_ramp_average(values, expected_lock_duration)
 	if flags.get("beholder_damage_mark", false):
 		var maximum_mark_bonus := (
 			float(values.get("mark_damage_per_stack", 0.02))
@@ -618,7 +618,7 @@ func get_reaver_combo_damage(damage: float, stats: Dictionary, flags: Dictionary
 
 
 func get_hit_chance(tower_id: StringName, stats: Dictionary, traits: Dictionary, scenario: Dictionary, distance_ratio: float, attack_index: int, attack_count: int) -> float:
-	if tower_id == &"brainiac":
+	if tower_id == &"beholder":
 		return clampf(
 			0.16
 			+ 0.64 * pow(distance_ratio, 2.5)
@@ -627,7 +627,7 @@ func get_hit_chance(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 			1.0
 		)
 	if traits["delivery"] == GameStats.DELIVERY_HITSCAN:
-		if tower_id == &"beholder":
+		if tower_id == &"brainiac":
 			var turn_speed := float(stats.get("beam_turn_speed_degrees", 480.0))
 			var width_bonus := float(stats.get("beam_half_width", 2.5)) * 0.015
 			var speed_penalty := float(scenario["speed"]) / 900.0
@@ -841,7 +841,7 @@ func apply_armor(amount: float, damage_type: StringName, armor: float, ignores_a
 	)
 
 
-func get_beholder_ramp_average(values: Dictionary, lock_duration: float) -> float:
+func get_brainiac_ramp_average(values: Dictionary, lock_duration: float) -> float:
 	var start := float(values.get("beam_ramp_start_multiplier", 0.5))
 	var step := float(values.get("beam_ramp_step_multiplier", 0.25))
 	var step_interval := float(values.get("beam_ramp_step_interval", 0.5))
@@ -1052,8 +1052,8 @@ func percentile(values: Array[float], ratio: float) -> float:
 func get_model_note(tower_id: StringName) -> String:
 	match tower_id:
 		&"gauss_repeater": return "spread tightening; overclock; tracking and Heavy Shot approximated"
-		&"brainiac": return "Converging beams, interception/Pierce, and Withering Gaze self-amplification modeled"
-		&"beholder": return "turn alignment; target-reset ramp and Psionic Link modeled"
+		&"brainiac": return "turn alignment; target-reset ramp and Psionic Link modeled"
+		&"beholder": return "Converging beams, interception/Pierce, and Withering Gaze self-amplification modeled"
 		&"reaver": return "combo contact; stun fatigue; Time Bubble and Assassinate modeled"
 		&"longshot": return "Anti-Materiel critical stats and Kill Chain execution reloads approximated"
 		&"slinger": return "bounce availability; Pierce falloff and contact splash modeled"

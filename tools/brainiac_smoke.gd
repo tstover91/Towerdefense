@@ -1,6 +1,5 @@
 extends Node
 
-const GameStats = preload("res://stat_database.gd")
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const MOB_SCENE = preload("res://mob.tscn")
 
@@ -22,28 +21,18 @@ class FakeMain:
 		return int(relics.get(relic_id, 0))
 
 
-class FakeMob:
-	extends Node2D
-	var traits: Array[StringName] = []
-	var finished := false
-	var damage_received := 0
-
-	func get_projectile_hit_radius() -> float:
-		return 12.0
-
-	func apply_damage_from_tower(
-		amount: int,
-		_damage_type: StringName,
-		_ignores_armor: bool,
-		_source_tower_id: StringName,
-		_attack_context: AttackContext = null
-	) -> int:
-		damage_received += amount
-		return amount
-
-
 func _ready() -> void:
 	call_deferred("run_test")
+
+
+func add_mob(path: Path2D, progress: float) -> Node2D:
+	var follow := PathFollow2D.new()
+	path.add_child(follow)
+	var mob := MOB_SCENE.instantiate()
+	mob.enemy_id = &"brute"
+	follow.add_child(mob)
+	mob.set_path_follow(follow, progress)
+	return mob
 
 
 func run_test() -> void:
@@ -55,153 +44,57 @@ func run_test() -> void:
 	curve.add_point(Vector2(1000.0, 0.0))
 	path.curve = curve
 	add_child(path)
-	var follow := PathFollow2D.new()
-	path.add_child(follow)
-	var mob := MOB_SCENE.instantiate()
-	mob.enemy_id = &"brute"
-	follow.add_child(mob)
-	mob.set_path_follow(follow, 500.0)
+	var target_mob := add_mob(path, 500.0)
+	var nearby_mob := add_mob(path, 520.0)
 
 	var tower := TOWER_SCENE.instantiate() as BaseTower
 	tower.tower_id = &"brainiac"
 	tower.tower_level = 3
+	tower.purchased_paths.assign([&"b"])
 	tower.main = fake_main
-	tower.position = Vector2(500.0, 135.0)
+	tower.position = Vector2(500.0, 50.0)
 	add_child(tower)
 	tower.confirm_placement()
-	# Keep the shared acquisition scheduler from launching independently; this
-	# test invokes the component once so projectile geometry is deterministic.
 	tower.attack_on_cooldown = true
-	var component := tower.attack_component as BrainiacAttackComponent
+	tower.target = target_mob
+	tower.mobs_in_range.assign([target_mob, nearby_mob])
+	var component = tower.attack_component
 	assert(component != null)
-	assert(tower.has_damage_tag(&"beam"))
-	assert(not tower.has_damage_tag(&"ballistic"))
-	assert(tower.get_primary_damage_type() == &"beam")
-	assert(tower.delivery_type == GameStats.DELIVERY_HITSCAN)
-	assert(tower.has_bonus_tag(&"reveal"))
-	assert(GameStats.get_tower(&"brainiac")["paths"].has(&"b"))
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	mob.max_health = 100_000
-	mob.health = 100_000
-	mob.health_bar.max_value = mob.max_health
-	mob.health_bar.value = mob.health
-	component.execute_attack(mob, tower.damage)
+	assert(component.ramping_beam_enabled)
+	assert(not component.psionic_link_enabled)
+	assert(not tower.has_bonus_tag(&"reveal"))
 
-	var projectiles := get_tree().get_nodes_in_group("tower_projectiles")
-	assert(projectiles.is_empty(), "Beholder must no longer launch projectiles.")
-	var active_beams := get_tree().get_nodes_in_group("beholder_converging_beams")
-	assert(active_beams.size() == 1)
-	var beams := active_beams[0] as BeholderConvergingBeams
-	assert(beams.beam_origins.size() == 5)
-	var distinct_launch_positions: Dictionary = {}
-	for launch_position in beams.beam_origins:
-		distinct_launch_positions[Vector2(
-			snappedf(launch_position.x, 0.01),
-			snappedf(launch_position.y, 0.01)
-		)] = true
-	assert(distinct_launch_positions.size() == 1, "Beholder beams must share one launch point.")
-	assert(beams.beam_origins[2].is_equal_approx(tower.muzzle.global_position))
-	assert(beams.beam_endpoints[2].is_equal_approx(mob.global_position))
-	var left_endpoint := beams.get_intended_beam_endpoint(0, mob.global_position)
-	var right_endpoint := beams.get_intended_beam_endpoint(4, mob.global_position)
-	assert(not left_endpoint.is_equal_approx(mob.global_position))
-	assert(not right_endpoint.is_equal_approx(mob.global_position))
-	assert(left_endpoint.distance_to(right_endpoint) > 60.0)
-	follow.progress = 520.0
-	beams._refresh_beam_endpoints()
-	assert(
-		beams.beam_endpoints[2].is_equal_approx(mob.global_position),
-		"The center beam must continue tracking the selected target."
-	)
-	var blocker := FakeMob.new()
-	add_child(blocker)
-	blocker.add_to_group("mobs")
-	blocker.global_position = beams.beam_origins[2].lerp(
-		mob.global_position,
-		0.5
-	)
-	beams._refresh_beam_endpoints()
-	var center_hits := beams._get_beam_targets(
-		tower,
-		beams.beam_origins[2],
-		mob.global_position
-	)
-	assert(center_hits.size() == 1)
-	assert(center_hits[0] == blocker, "An intervening enemy must intercept the beam.")
-	assert(beams.beam_endpoints[2].is_equal_approx(blocker.global_position))
-	tower.pierce_count = 1
-	center_hits = beams._get_beam_targets(
-		tower,
-		beams.beam_origins[2],
-		mob.global_position
-	)
-	assert(center_hits.size() == 2)
-	assert(center_hits[0] == blocker and center_hits[1] == mob)
-	tower.pierce_count = 0
-	blocker.queue_free()
-	await get_tree().process_frame
-	var budgeted_damage := 0
-	for tick in BeholderConvergingBeams.TICK_COUNT:
-		budgeted_damage += BeholderConvergingBeams.get_budgeted_tick_damage(
-			tower.damage,
-			tick,
-			BeholderConvergingBeams.TICK_COUNT
-		)
-	assert(budgeted_damage == tower.damage, "Beam ticks must preserve each former bolt's total damage.")
-	beams._process(BeholderConvergingBeams.BEAM_DURATION)
-	assert(beams.tick_index == BeholderConvergingBeams.TICK_COUNT)
+	component.process_attack(0.0)
+	assert(component.beam_lock_target_id == target_mob.get_instance_id())
+	var previous_damage := int(tower.get_effective_stats_for_level(2)["damage"])
+	assert(component.get_continuous_beam_damage(tower.damage) == roundi(previous_damage * 0.50))
+	component.process_attack(0.5)
+	assert(component.get_continuous_beam_damage(tower.damage) == roundi(previous_damage * 0.75))
+	component.beam_lock_elapsed = 20.0
+	assert(component.get_continuous_beam_damage(tower.damage) == roundi(previous_damage * 2.50))
 
-	# Piercing Volley lets each beam continue into one additional intersected enemy.
-	await get_tree().process_frame
 	tower.purchased_paths.assign([&"a"])
 	tower.load_base_tags()
 	tower.load_level_stats()
-	assert(tower.pierce_count == 1)
-	assert(tower.has_damage_tag(&"beam"))
-	assert(not tower.has_bonus_tag(&"psionic"))
-	component.execute_attack(mob, tower.damage)
-	active_beams = get_tree().get_nodes_in_group("beholder_converging_beams")
-	assert(active_beams.size() == 1)
-	beams = active_beams[0] as BeholderConvergingBeams
-	assert(beams.beam_origins.size() == 5)
-	beams.queue_free()
-	await get_tree().process_frame
+	assert(not component.ramping_beam_enabled)
+	assert(component.psionic_link_enabled)
+	assert(tower.has_bonus_tag(&"psionic"))
+	assert(not tower.has_bonus_tag(&"reveal"))
+	assert(not tower.has_damage_tag(&"explosive"))
+	assert(is_equal_approx(
+		component.link_radius_pixels,
+		3.5 * BaseTower.RANGE_PIXELS_PER_UNIT
+	))
+	tower.target = target_mob
+	tower.mobs_in_range.assign([target_mob, nearby_mob])
+	component.on_round_started()
+	component.on_target_updated()
+	assert(target_mob.brainiac_link_remaining > 0.0)
+	assert(is_equal_approx(component.link_cooldown_remaining, 6.0))
+	component.process_attack(1.0)
+	assert(is_equal_approx(component.link_cooldown_remaining, 5.0))
 
-	# Withering Gaze marks each touched enemy once per tick, not once per beam.
-	tower.purchased_paths.assign([&"b"])
-	tower.load_base_tags()
-	tower.load_level_stats()
-	assert(tower.pierce_count == 0)
-	assert(component.damage_mark_enabled)
-	assert(is_equal_approx(component.mark_damage_per_stack, 0.02))
-	assert(component.mark_maximum_stacks == 10)
-	component.execute_attack(mob, tower.damage)
-	active_beams = get_tree().get_nodes_in_group("beholder_converging_beams")
-	assert(active_beams.size() == 1)
-	beams = active_beams[0] as BeholderConvergingBeams
-	assert(mob.beholder_mark_stacks == 1)
-	beams._process(BeholderConvergingBeams.BEAM_DURATION)
-	assert(mob.beholder_mark_stacks == 10)
-	assert(is_equal_approx(mob.get_beholder_mark_damage_multiplier(), 1.20))
-	var health_before_marked_hit: int = mob.health
-	mob.apply_damage(100, &"ballistic")
-	assert(health_before_marked_hit - mob.health == 120)
-	mob._process_beholder_damage_mark(component.mark_duration)
-	assert(mob.beholder_mark_stacks == 0)
-	assert(is_equal_approx(mob.get_beholder_mark_damage_multiplier(), 1.0))
-
-	# Microwave adds a short pause on top of the source tower's current cooldown.
-	fake_main.relics[&"microwave"] = 1
-	tower.load_level_stats()
-	tower.damage_timer.start(0.5)
-	var microwave_context := tower.create_attack_context(&"beam_tick")
-	mob.trigger_microwave_explosion(tower.damage, microwave_context)
-	await get_tree().process_frame
-	assert(
-		tower.damage_timer.time_left
-		> 0.5 + GameStats.MICROWAVE_ATTACK_COOLDOWN - 0.1
-	)
-
-	print("Beholder smoke test passed: outward beam fan, center tracking, interception, Piercing Volley, base Reveal, and Withering Gaze.")
+	component.on_round_ended()
+	assert(is_zero_approx(component.link_cooldown_remaining))
+	print("Brainiac beam smoke test passed: no Reveal, Escalating Beam, Psionic Link, and cooldown cleanup.")
 	get_tree().quit(0)

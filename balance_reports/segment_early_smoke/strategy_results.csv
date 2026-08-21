@@ -1,5 +1,0 @@
-rank,policy_id,name,score,win_rate,average_round,average_lives,average_money,average_leaks,upgrade_bias,expansion_bias,diversity,reserve,patience,economy_weight
-1,4,expansion,90.6762,0.6667,8.000,34.572,955.91,66.81,0.750,1.550,0.823,0.269,0.709,1.250
-2,1,generalist,53.7506,0.3333,7.667,5.666,956.99,111.66,1.168,0.983,0.845,0.012,0.911,1.301
-3,2,economy,51.1345,0.3333,6.667,8.320,739.15,100.95,1.181,0.987,0.301,0.400,0.744,1.800
-4,3,upgrades,16.8393,0.0000,6.667,0.000,675.71,117.88,1.550,0.750,0.269,0.111,0.616,0.703

@@ -109,7 +109,8 @@ func run_checks() -> void:
 			float(base_unit_stats["damage_budget"])
 			/ (float(base_unit_stats["damage"]) / float(base_unit_stats["attack_interval"]))
 		)
-		assert(firing_duration >= 4.0 and firing_duration <= 5.0)
+		var expected_duration := 4.55 if level < 3 else 8.333333
+		assert(is_equal_approx(firing_duration, expected_duration))
 
 	depot.purchased_paths.append(&"b")
 	depot.load_base_tags()
@@ -122,18 +123,18 @@ func run_checks() -> void:
 		float(payload_stats["damage_budget"])
 		/ (float(payload_stats["damage"]) / float(payload_stats["attack_interval"]))
 	)
-	assert(payload_duration >= 4.0 and payload_duration <= 5.0)
+	assert(is_equal_approx(payload_duration, 8.333333))
 
-	depot.purchased_paths.append(&"a")
+	depot.purchased_paths.assign([&"a"])
 	depot.load_base_tags()
-	var dual_payload_stats: Dictionary = depot.get_effective_stats_for_level(3)["unit_stats"]
-	assert(int(dual_payload_stats["damage_budget"]) == 8750)
-	assert(int(dual_payload_stats["damage"]) == 425)
-	var dual_payload_duration := (
-		float(dual_payload_stats["damage_budget"])
-		/ (float(dual_payload_stats["damage"]) / float(dual_payload_stats["attack_interval"]))
+	var laser_stats: Dictionary = depot.get_effective_stats_for_level(3)["unit_stats"]
+	assert(int(laser_stats["damage_budget"]) == 6250)
+	assert(int(laser_stats["damage"]) == 188)
+	var laser_duration := (
+		float(laser_stats["damage_budget"])
+		/ (float(laser_stats["damage"]) / float(laser_stats["attack_interval"]))
 	)
-	assert(dual_payload_duration >= 4.0 and dual_payload_duration <= 5.0)
+	assert(is_equal_approx(laser_duration, 8.31117))
 
 	var drone := SPAWNED_UNIT_SCENE.instantiate()
 	root.add_child(drone)

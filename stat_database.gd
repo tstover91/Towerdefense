@@ -462,9 +462,9 @@ const TOWER_TEXTURES := {
 	&"invader": preload("res://assets/towers/invader.png"),
 	&"fisherman": preload("res://assets/towers/fisherman.png"),
 	&"gauss_repeater": preload("res://assets/towers/gauss_repeater.png"),
-	&"beholder": preload("res://assets/towers/brainiac.png"),
+	&"brainiac": preload("res://assets/towers/brainiac.png"),
 	&"reaver": preload("res://assets/towers/reaver.png"),
-	&"brainiac": preload("res://assets/towers/beholder.png"),
+	&"beholder": preload("res://assets/towers/beholder.png"),
 	&"longshot": preload("res://assets/towers/longshot.png"),
 	&"slinger": preload("res://assets/towers/slinger.png"),
 	&"voidcaller": preload("res://assets/towers/voidcaller.png"),
@@ -483,9 +483,9 @@ const TOWER_UPGRADED_SELL_VALUES := {
 	&"invader": [200, 233, 327, 633],
 	&"fisherman": [167, 223, 390, 946],
 	&"gauss_repeater": [800, 911, 1444, 2611],
-	&"beholder": [2000, 2222, 2888, 3888],
+	&"brainiac": [2000, 2222, 2888, 3888],
 	&"reaver": [175, 216, 450, 933],
-	&"brainiac": [400, 475, 650, 1316],
+	&"beholder": [400, 475, 650, 1316],
 	&"longshot": [1675, 1841, 2450, 3450],
 	&"slinger": [225, 325, 515, 965],
 	&"voidcaller": [675, 741, 941, 1608],
@@ -501,9 +501,9 @@ const TOWER_PATH_SELL_VALUE_ADDITIONS := {
 	&"invader": {&"a": 1533, &"b": 1516},
 	&"fisherman": {&"a": 1000, &"b": 1167},
 	&"gauss_repeater": {&"a": 4222, &"b": 4227,},
-	&"beholder": {&"a": 5574, &"b": 5668},
+	&"brainiac": {&"a": 5574, &"b": 5668},
 	&"reaver": {&"a": 1599, &"b": 1633},
-	&"brainiac": {&"a": 3333, &"b": 3366},
+	&"beholder": {&"a": 3333, &"b": 3366},
 	&"longshot": {&"a": 3600, &"b": 3723},
 	&"slinger": {&"a": 2215, &"b": 2215},
 	&"voidcaller": {&"a": 3274, &"b": 3108},
@@ -1164,7 +1164,7 @@ const TOWERS := {
 			},
 		],
 	},
-	"beholder": {
+	"brainiac": {
 		"display_name": "Brainiac",
 		"placement_cost": 2000,
 		"footprint_cells": Vector2i(2, 2),
@@ -1195,7 +1195,7 @@ const TOWERS := {
 				"cost": 6700,
 				"unlock_level": 3,
 				"behavior_flags": {
-					"beholder_ramping_beam": true,
+					"brainiac_ramping_beam": true,
 				},
 				"behavior_values": {
 					"beam_ramp_start_multiplier": 0.50,
@@ -1314,7 +1314,7 @@ const TOWERS := {
 			},
 		],
 	},
-	"brainiac": {
+	"beholder": {
 		"display_name": "Beholder",
 		"placement_cost": 400,
 		"footprint_cells": Vector2i(2, 2),
@@ -1965,7 +1965,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Laser Drones",
-				"description": "Replaces each drone's Ballistic weapon with a continuous Beam that deals 25% more damage and has a 50% larger damage budget. The Beam must remain physically aligned with its primary target to deal tick damage.",
+				"description": "Replaces each drone's Ballistic weapon with a continuous Beam that deals 25% more damage and has a 25% larger damage budget. The Beam must remain physically aligned with its primary target to deal tick damage.",
 				"cost": 4000,
 				"unlock_level": 3,
 				"remove_damage_tags": [&"ballistic"],

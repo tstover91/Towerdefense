@@ -69,7 +69,7 @@ func run_test() -> void:
 			== expected_gun_damage[level_index]
 		)
 	assert(component.twin_rockets_enabled)
-	assert(is_equal_approx(component.rocket_damage_multiplier, 3.571429))
+	assert(is_equal_approx(component.rocket_damage_multiplier, 2.0))
 	assert(not component.monster_drop_enabled)
 	assert(is_instance_valid(component.active_flyer))
 	assert(component.active_flyer.saucer_behavior == component)

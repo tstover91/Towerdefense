@@ -1,7 +1,0 @@
-policy_id,run_seed,forced_starter,starting_roster,round,survived,starting_money,spent,post_purchase_money,kill_income,round_reward,ending_money,round_leak_damage,lives,build,towers
-4,1628586084,,invader+slinger,1,1,500.00,450.00,50.00,68.53,37.00,155.53,0.000,100.000,slinger-L1x2,slingerx2
-4,1628589655,,invader+reaver,1,1,500.00,450.00,50.00,75.80,37.00,162.80,0.365,99.635,reaver-L1x3,reaverx3
-4,1628593226,,reaver+slinger,1,1,500.00,450.00,50.00,76.62,37.00,163.62,0.173,99.827,slinger-L1x2,slingerx2
-1,1628286075,,invader+slinger,1,1,500.00,450.00,50.00,68.16,37.00,155.16,0.000,100.000,slinger-L1x2,slingerx2
-1,1628289646,,invader+reaver,1,1,500.00,450.00,50.00,67.47,37.00,154.47,0.280,99.720,reaver-L1x3,reaverx3
-1,1628293217,,reaver+slinger,1,1,500.00,375.00,125.00,70.60,37.00,232.60,3.259,96.741,reaver-L1x1+slinger-L1x1,reaverx1+slingerx1

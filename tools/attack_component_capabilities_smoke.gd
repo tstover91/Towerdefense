@@ -68,9 +68,9 @@ func run_test() -> void:
 	assert(orbital.uses_manual_ground_targeting())
 	assert(not orbital.uses_directional_aim())
 
-	var beholder := create_tower(&"beholder", fake_main)
-	assert(beholder.uses_continuous_beam())
-	assert(beholder.get_continuous_beam_origin() == beholder.global_position)
+	var brainiac := create_tower(&"brainiac", fake_main)
+	assert(brainiac.uses_continuous_beam())
+	assert(brainiac.get_continuous_beam_origin() == brainiac.global_position)
 
 	var saucer := create_tower(&"saucer", fake_main)
 	assert(not saucer.attack_component.uses_standard_targeting())

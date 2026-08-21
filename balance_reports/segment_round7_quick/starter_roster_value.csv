@@ -1,4 +1,0 @@
-rank,starting_roster,runs,wins,win_rate,win_rate_delta,average_round,average_lives,profiles_seen,unique_winning_builds,clear_choice_flag
-1,invader+slinger,60,60,1.0000,0.3333,7.000,46.127,1,11,CLEAR_START
-2,reaver+slinger,60,60,1.0000,0.3333,7.000,51.029,1,14,CLEAR_START
-3,invader+reaver,60,0,0.0000,-0.6667,4.533,0.000,1,0,
