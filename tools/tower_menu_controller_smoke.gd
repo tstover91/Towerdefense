@@ -76,6 +76,11 @@ func run_test() -> void:
 	assert(gauss.menu_controller.direction_ui.visible)
 	assert(not gauss.get_node("targetui").visible)
 
+	var fisherman := create_tower(&"fisherman", fake_main)
+	assert(fisherman.menu_controller.direction_ui != null)
+	assert(fisherman.get_node("HBoxContainer/targetmode").text == "Aim\nDirection")
+	assert(fisherman.uses_finite_directional_range())
+
 	var orbital := create_tower(&"orbitalcannon", fake_main)
 	orbital.set_selected(true)
 	orbital._on_targetmode_pressed()

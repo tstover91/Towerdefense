@@ -15,7 +15,6 @@ var can_pull := false
 var pull_immunity_duration := 2.5
 var pull_released := false
 var electric_line := false
-var harpoon_line := false
 var attack_context: AttackContext
 var elapsed := 0.0
 var ticks_applied := 0
@@ -37,7 +36,6 @@ func setup(
 	pull_immunity_duration: float,
 	attack_can_pull: bool,
 	is_electric: bool,
-	is_harpoon: bool,
 	parent_context: AttackContext
 ) -> void:
 	source_tower = attack_source
@@ -50,7 +48,6 @@ func setup(
 	pull_speed = maxf(attack_pull_speed, 0.0)
 	self.pull_immunity_duration = maxf(pull_immunity_duration, 0.0)
 	electric_line = is_electric
-	harpoon_line = is_harpoon
 	attack_context = parent_context
 	tick_interval = duration / float(maxi(tick_count - 1, 1))
 	z_index = 12
@@ -110,11 +107,6 @@ func _draw() -> void:
 	_cache_live_line_endpoints()
 	var start := to_local(cached_line_start_world)
 	var finish := to_local(cached_line_end_world)
-	if harpoon_line:
-		draw_line(start, finish, Color(0.12, 0.16, 0.20, 0.90), 6.0, true)
-		draw_line(start, finish, Color(0.82, 0.88, 0.92, 1.0), 2.5, true)
-		draw_circle(finish, 5.0, Color(1.0, 0.38, 0.12, 0.95))
-		return
 	if electric_line:
 		draw_line(start, finish, Color(0.10, 0.75, 1.0, 0.28), 7.0, true)
 		var points := PackedVector2Array([start])

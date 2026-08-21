@@ -116,6 +116,10 @@ func uses_tracking_cone() -> bool:
 	return false
 
 
+func uses_finite_directional_range() -> bool:
+	return false
+
+
 func get_tracking_cone_degrees() -> float:
 	return 0.0
 

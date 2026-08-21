@@ -858,6 +858,21 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 	var total := 0.0
 	var enemies := int(scenario["enemies"])
 	var armor := float(scenario["armor"])
+	if flags.get("fisherman_mines", false):
+		var count := floori(duration / maxf(
+			float(values.get("mine_interval", 6.0)), 0.1
+		))
+		var mine_damage := minf(apply_armor(
+			damage * float(values.get("mine_damage_multiplier", 1.25)),
+			&"explosive",
+			armor,
+			false
+		), float(scenario["health"]))
+		var coverage := minf(
+			float(enemies),
+			maxf(float(values.get("mine_explosion_radius", 2.5)), 1.0)
+		)
+		total += float(count) * mine_damage * coverage * 0.65
 	if flags.get("gauss_heavy_shot", false):
 		var count := floori(duration / maxf(float(values.get("heavy_shot_interval", 4.0)), 0.1))
 		var heavy_damage := maxi(roundi(
@@ -1046,7 +1061,7 @@ func get_model_note(tower_id: StringName) -> String:
 		&"orbitalcannon": return "accurate manual placement assumed; area; stun; Lance ramp and Slow modeled"
 		&"energycore": return "distinct primary targets; Slow; Shockwave and Branching Current modeled"
 		&"saucer": return "pursuit uptime; abduction execution; split prevention; rockets and specimen uptime modeled"
-		&"fisherman": return "four-tick hook; shared pull immunity and three-target Harpoon Pierce modeled"
+		&"fisherman": return "forward cone placement assumed; four-tick hook, shared pull immunity, and Minefield modeled"
 		&"hivemother", &"dronedepot", &"mechbay": return "spawn ramp and combat uptime approximated"
 		_: return "generic event model"
 

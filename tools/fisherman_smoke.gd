@@ -20,6 +20,12 @@ class FakeMain:
 	func get_relic_count(_relic_id: StringName) -> int:
 		return 0
 
+	func get_path_cell_positions_near(
+		_center: Vector2,
+		_radius: float
+	) -> Array[Vector2]:
+		return [Vector2(475.0, 0.0), Vector2(525.0, 0.0)]
+
 
 func _ready() -> void:
 	call_deferred("run_test")
@@ -33,9 +39,11 @@ func run_test() -> void:
 	assert(float(tower_data["levels"][0]["firerate"]) == 2.0)
 	assert(int(tower_data["levels"][3]["damage"]) == 600)
 	assert(float(tower_data["levels"][3]["firerate"]) == 1.75)
-	assert(float(tower_data["levels"][0]["range"]) == 8.5)
-	assert(float(tower_data["levels"][3]["range"]) == 11.0)
-	assert(int(tower_data["paths"]["b"]["pierce_count_add"]) == 2)
+	assert(float(tower_data["levels"][0]["range"]) == 12.75)
+	assert(float(tower_data["levels"][3]["range"]) == 16.5)
+	assert(int(tower_data["paths"]["a"]["cost"]) == 3000)
+	assert(int(tower_data["paths"]["b"]["cost"]) == 3500)
+	assert(tower_data["paths"]["b"]["display_name"] == "Minefield")
 	assert(tower_data["type_tags"].has(&"biological"))
 	assert(tower_data["damage_tags"].has(&"melee"))
 	assert(not tower_data["damage_tags"].has(&"ballistic"))
@@ -65,7 +73,7 @@ func run_test() -> void:
 		var placed_tower := TOWER_SCENE.instantiate() as BaseTower
 		placed_tower.tower_id = &"fisherman"
 		placed_tower.main = fake_main
-		placed_tower.position = Vector2(500.0, y_offset)
+		placed_tower.position = Vector2(400.0, y_offset)
 		add_child(placed_tower)
 		placed_tower.confirm_placement()
 		towers.append(placed_tower)
@@ -81,6 +89,11 @@ func run_test() -> void:
 			placed_tower.attack_component as FishermanAttackComponent
 		)
 		assert(fisherman_component != null)
+		assert(placed_tower.uses_directional_aim())
+		assert(placed_tower.uses_tracking_cone())
+		assert(placed_tower.uses_finite_directional_range())
+		assert(is_equal_approx(placed_tower.get_tracking_cone_degrees(), 60.0))
+		assert(fisherman_component.is_target_in_tracking_cone(mob))
 		assert(placed_tower.mobs_in_range.has(mob), "Every overlapping sandbox Fisherman must acquire the enemy.")
 		assert(placed_tower.attack_on_cooldown, "Every Fisherman must start cooldown after its immediate cast.")
 	assert(mob.health == starting_health - 114, "Every Fisherman must immediately land its first damage tick on acquisition.")
@@ -146,13 +159,23 @@ func run_test() -> void:
 	tower.purchased_paths.assign([&"b"])
 	tower.load_base_tags()
 	tower.load_level_stats()
-	assert(tower.pierce_count == 2)
+	assert(tower.pierce_count == 0)
 	assert(tower.damage_type == &"melee")
 	assert(tower.has_type_tag(&"biological"))
 	assert(tower.has_damage_tag(&"melee"))
+	assert(tower.has_damage_tag(&"explosive"))
 	assert(not tower.has_damage_tag(&"electric"))
-	assert(fisherman_component.harpoon_enabled)
-	assert(fisherman_component.harpoon_target_count == 3)
+	assert(fisherman_component.mines_enabled)
+	assert(fisherman_component.mine_maximum_count == 3)
+	fisherman_component.place_mine()
+	assert(fisherman_component.active_mines.size() == 1)
+	var mine := fisherman_component.active_mines[0] as FishermanMine
+	assert(mine != null)
+	assert(mine.damage == 750)
+	assert(is_equal_approx(
+		mine.explosion_radius,
+		2.5 * BaseTower.RANGE_PIXELS_PER_UNIT
+	))
 
 	# A lethal first tick used to remove the target and hook before the line's
 	# first draw. Successful casts now retain cached endpoints for a brief flash.
@@ -178,5 +201,6 @@ func run_test() -> void:
 	await get_tree().create_timer(0.15).timeout
 	await get_tree().process_frame
 	assert(not is_instance_valid(lethal_hook), "The lethal line flash must clean itself up.")
-	print("Fisherman smoke test passed: four ticks, pull immunity, lethal line flashes, Live Wire, and Triple Harpoon.")
+	fisherman_component.clear_mines()
+	print("Fisherman smoke test passed: forward cone, four ticks, pull immunity, lethal line flashes, Live Wire, and Minefield.")
 	get_tree().quit()

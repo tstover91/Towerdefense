@@ -56,6 +56,13 @@ func run_test() -> void:
 	var gauss := create_tower(&"gauss_repeater", fake_main)
 	assert(gauss.uses_directional_aim())
 	assert(not gauss.uses_manual_ground_targeting())
+	assert(not gauss.uses_finite_directional_range())
+
+	var fisherman := create_tower(&"fisherman", fake_main)
+	assert(fisherman.uses_directional_aim())
+	assert(fisherman.uses_tracking_cone())
+	assert(fisherman.uses_finite_directional_range())
+	assert(is_equal_approx(fisherman.get_tracking_cone_degrees(), 60.0))
 
 	var orbital := create_tower(&"orbitalcannon", fake_main)
 	assert(orbital.uses_manual_ground_targeting())

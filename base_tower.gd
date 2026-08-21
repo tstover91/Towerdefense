@@ -158,7 +158,10 @@ func _draw() -> void:
 		draw_rect(footprint_rect, footprint_fill, true)
 		draw_rect(footprint_rect, footprint_border, false, 2.0)
 
-	if upgrade_range_radius_pixels >= 0.0:
+	if (
+		upgrade_range_radius_pixels >= 0.0
+		and not uses_finite_directional_range()
+	):
 		draw_circle(
 			Vector2.ZERO,
 			upgrade_range_radius_pixels,
@@ -182,17 +185,48 @@ func _draw() -> void:
 		fill_color = Color(1.0, 0.15, 0.15, 0.16)
 		border_color = Color(1.0, 0.2, 0.2, 0.8)
 	if uses_directional_aim():
+		var directional_distance := get_directional_max_distance()
+		if uses_finite_directional_range():
+			directional_distance = (
+				upgrade_range_radius_pixels
+				if upgrade_range_radius_pixels >= 0.0
+				else range_radius_pixels
+			)
 		if uses_tracking_cone():
 			var half_cone := deg_to_rad(get_tracking_cone_degrees() * 0.5)
+			if uses_finite_directional_range():
+				var cone_points := PackedVector2Array([Vector2.ZERO])
+				for point_index in range(33):
+					var point_ratio := float(point_index) / 32.0
+					cone_points.append(
+						aim_direction.rotated(lerpf(
+							-half_cone, half_cone, point_ratio
+						)) * directional_distance
+					)
+				draw_colored_polygon(cone_points, fill_color)
+				draw_arc(
+					Vector2.ZERO,
+					directional_distance,
+					aim_direction.angle() - half_cone,
+					aim_direction.angle() + half_cone,
+					32,
+					border_color,
+					2.0,
+					true
+				)
 			for boundary_direction in [
 				aim_direction.rotated(-half_cone),
 				aim_direction.rotated(half_cone),
 			]:
 				draw_line(
 					Vector2.ZERO,
-					boundary_direction * get_max_distance_in_direction(
-						boundary_direction,
-						global_position
+					boundary_direction * (
+						directional_distance
+						if uses_finite_directional_range()
+						else get_max_distance_in_direction(
+							boundary_direction,
+							global_position
+						)
 					),
 					border_color,
 					1.5,
@@ -200,7 +234,7 @@ func _draw() -> void:
 				)
 		draw_line(
 			Vector2.ZERO,
-			aim_direction * get_directional_max_distance(),
+			aim_direction * directional_distance,
 			border_color,
 			3.0,
 			true
@@ -453,6 +487,14 @@ func uses_tracking_cone() -> bool:
 		uses_directional_aim()
 		and attack_component != null
 		and attack_component.uses_tracking_cone()
+	)
+
+
+func uses_finite_directional_range() -> bool:
+	return (
+		uses_directional_aim()
+		and attack_component != null
+		and attack_component.uses_finite_directional_range()
 	)
 
 

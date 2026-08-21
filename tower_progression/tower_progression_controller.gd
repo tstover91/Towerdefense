@@ -140,7 +140,7 @@ func get_sell_price() -> int:
 
 
 func show_upgrade_range_preview() -> void:
-	if tower.uses_directional_aim():
+	if tower.uses_directional_aim() and not tower.uses_finite_directional_range():
 		tower.show_current_range_preview()
 		return
 	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
