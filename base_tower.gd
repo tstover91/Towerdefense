@@ -248,7 +248,7 @@ func _draw() -> void:
 func draw_active_beam() -> void:
 	if not uses_continuous_beam() or not is_placed:
 		return
-	if main == null or not main.round_active:
+	if not is_combat_active():
 		return
 	if not is_valid_target(target) or not mobs_in_range.has(target):
 		return
@@ -547,7 +547,7 @@ func confirm_placement() -> void:
 		request_attack_if_ready()
 	elif uses_standard_spawner_system():
 		damage_timer.start()
-	if uses_standard_spawner_system() and main != null and main.round_active:
+	if uses_standard_spawner_system() and is_combat_active():
 		call_deferred("_spawn_unit")
 
 
@@ -922,6 +922,10 @@ func _process(delta: float) -> void:
 	update_menu_layout()
 	if targeting_controller != null:
 		targeting_controller.process(delta)
+
+
+func is_combat_active() -> bool:
+	return GameStats.is_combat_active(main)
 
 
 func update_menu_layout() -> void:

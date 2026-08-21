@@ -66,7 +66,7 @@ func _process(delta: float) -> void:
 	if resolved:
 		return
 	var main := get_main()
-	if main == null or not bool(main.get("round_active")):
+	if not GameStats.is_combat_active(main):
 		resolved = true
 		queue_free()
 		return
@@ -90,7 +90,7 @@ func resolve() -> void:
 		return
 	resolved = true
 	var main := get_main()
-	if arrivals > 0 and main != null and bool(main.get("round_active")):
+	if arrivals > 0 and GameStats.is_combat_active(main):
 		trigger_explosion()
 	queue_free()
 

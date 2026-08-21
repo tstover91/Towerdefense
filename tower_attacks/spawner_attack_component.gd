@@ -57,7 +57,7 @@ func _exit_tree() -> void:
 func spawn_unit() -> void:
 	if not tower.is_placed or spawned_unit_id.is_empty():
 		return
-	if tower.main == null or not tower.main.round_active:
+	if not tower.is_combat_active():
 		tower.damage_timer.stop()
 		return
 	prune_units()
@@ -135,8 +135,7 @@ func schedule_unit_replacement(delay: float) -> void:
 func _spawn_scheduled_replacement() -> void:
 	if (
 		not tower.is_placed
-		or tower.main == null
-		or not tower.main.round_active
+		or not tower.is_combat_active()
 	):
 		return
 	prune_units()

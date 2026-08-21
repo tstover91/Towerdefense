@@ -113,7 +113,7 @@ func on_target_updated() -> void:
 
 
 func process_attack(delta: float) -> void:
-	if tower.main != null and tower.main.round_active:
+	if tower.is_combat_active():
 		link_cooldown_remaining = maxf(link_cooldown_remaining - delta, 0.0)
 	_apply_link_if_ready()
 	_process_beam_ramp(delta)
@@ -139,8 +139,7 @@ func _apply_link_if_ready() -> void:
 	if (
 		not psionic_link_enabled
 		or link_cooldown_remaining > 0.0
-		or tower.main == null
-		or not tower.main.round_active
+		or not tower.is_combat_active()
 		or not tower.is_valid_target(tower.target)
 		or not tower.mobs_in_range.has(tower.target)
 		or not tower.target.has_method("apply_brainiac_link")
@@ -161,8 +160,7 @@ func _process_beam_ramp(delta: float) -> void:
 		beam_lock_target_id = 0
 		return
 	if (
-		tower.main == null
-		or not tower.main.round_active
+		not tower.is_combat_active()
 		or not tower.is_valid_target(tower.target)
 		or not tower.mobs_in_range.has(tower.target)
 	):

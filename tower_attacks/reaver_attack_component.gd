@@ -101,7 +101,7 @@ func _reset_time_bubble() -> void:
 func process_attack(delta: float) -> void:
 	if not time_bubble_enabled or not tower.is_placed:
 		return
-	if tower.main == null or not tower.main.round_active:
+	if not tower.is_combat_active():
 		_reset_time_bubble()
 		return
 	if time_bubble_active_remaining <= 0.0:
@@ -138,7 +138,7 @@ func _has_valid_enemy_in_bubble() -> bool:
 func draw_attack_visuals() -> void:
 	if not time_bubble_enabled or not tower.is_placed or time_bubble_active_remaining <= 0.0:
 		return
-	if tower.main == null or not tower.main.round_active:
+	if not tower.is_combat_active():
 		return
 	tower.draw_circle(Vector2.ZERO, tower.range_radius_pixels, Color(0.20, 0.55, 1.0, 0.10))
 	tower.draw_arc(
@@ -193,7 +193,7 @@ func _apply_combo_hit(
 ) -> void:
 	if combo_sequence != active_combo_sequence:
 		return
-	if not tower.is_placed or tower.main == null or not tower.main.round_active:
+	if not tower.is_placed or not tower.is_combat_active():
 		active_combo_sequence += 1
 		return
 	var referenced_target: Variant = target_reference.get_ref()

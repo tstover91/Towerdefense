@@ -71,7 +71,7 @@ func _process(delta: float) -> void:
 	if tower == null:
 		finish()
 		return
-	if tower.main != null and not bool(tower.main.get("round_active")):
+	if not tower.is_combat_active():
 		finish()
 		return
 	elapsed += delta

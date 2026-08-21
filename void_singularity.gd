@@ -64,7 +64,7 @@ func _draw() -> void:
 func _process(delta: float) -> void:
 	if resolving:
 		return
-	if main == null or not main.round_active:
+	if not GameStats.is_combat_active(main):
 		cancel()
 		return
 	elapsed += delta

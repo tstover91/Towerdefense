@@ -202,7 +202,7 @@ func is_valid_manual_target_position(world_position: Vector2) -> bool:
 
 
 func has_manual_attack_opportunity() -> bool:
-	if tower.main == null or not tower.main.round_active or not has_target_position:
+	if not tower.is_combat_active() or not has_target_position:
 		return false
 	var activation_radius := tower.splash_radius_pixels
 	if solar_lance_enabled:
@@ -255,7 +255,7 @@ func _resolve_strike(
 	strike_damage: int,
 	strike_radius: float
 ) -> void:
-	if not tower.is_placed or tower.main == null or not tower.main.round_active:
+	if not tower.is_placed or not tower.is_combat_active():
 		return
 	if solar_lance_enabled:
 		_spawn_solar_lance(strike_position, strike_damage)

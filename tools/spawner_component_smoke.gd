@@ -9,7 +9,7 @@ class FakeMain:
 	signal money_changed(new_amount: int)
 	signal round_started(round_number: int)
 	signal round_ended(round_number: int)
-	var round_active := true
+	var round_active := false
 	var sandbox_mode := true
 	var money := 1_000_000_000
 	var primary_path: Path2D

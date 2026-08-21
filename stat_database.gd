@@ -2507,6 +2507,16 @@ static func get_explosion_damage(
 	)
 
 
+static func is_combat_active(main_node: Node) -> bool:
+	return (
+		main_node != null
+		and (
+			bool(main_node.get("round_active"))
+			or bool(main_node.get("sandbox_mode"))
+		)
+	)
+
+
 static func get_tower_level(tower_id: StringName, level: int) -> Dictionary:
 	var tower := get_tower(tower_id)
 	var levels: Array = tower["levels"]

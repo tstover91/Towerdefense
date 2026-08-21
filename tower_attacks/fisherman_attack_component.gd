@@ -156,7 +156,7 @@ func _exit_tree() -> void:
 func process_attack(delta: float) -> void:
 	if not mines_enabled or not tower.is_placed:
 		return
-	if tower.main == null or not tower.main.round_active:
+	if not tower.is_combat_active():
 		return
 	prune_mines()
 	if active_mines.size() >= mine_maximum_count:

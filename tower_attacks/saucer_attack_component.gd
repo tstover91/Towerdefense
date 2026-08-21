@@ -111,8 +111,7 @@ func ensure_flyer() -> void:
 func is_combat_active() -> bool:
 	return (
 		tower.is_placed
-		and tower.main != null
-		and tower.main.round_active
+		and tower.is_combat_active()
 		and not tower.is_queued_for_deletion()
 	)
 
@@ -303,7 +302,7 @@ func try_abduction(current_target: Node2D, saucer_position: Vector2) -> bool:
 
 
 func _spawn_monster(spawn_position: Vector2) -> void:
-	if not monster_drop_enabled or tower.main == null or not tower.main.round_active:
+	if not monster_drop_enabled or not tower.is_combat_active():
 		return
 	if is_instance_valid(active_monster) and not active_monster.is_queued_for_deletion():
 		return

@@ -167,11 +167,13 @@ func run_test() -> void:
 	assert(not tower.has_damage_tag(&"electric"))
 	assert(fisherman_component.mines_enabled)
 	assert(fisherman_component.mine_maximum_count == 3)
-	fisherman_component.place_mine()
+	fisherman_component.process_attack(fisherman_component.mine_interval)
 	assert(fisherman_component.active_mines.size() == 1)
 	var mine := fisherman_component.active_mines[0] as FishermanMine
 	assert(mine != null)
 	assert(mine.damage == 750)
+	mine._process(0.16)
+	assert(is_zero_approx(mine.arm_remaining), "Mine arming must advance while Sandbox has no formal round active.")
 	assert(is_equal_approx(
 		mine.explosion_radius,
 		2.5 * BaseTower.RANGE_PIXELS_PER_UNIT

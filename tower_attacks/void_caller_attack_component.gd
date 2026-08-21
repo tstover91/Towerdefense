@@ -106,7 +106,7 @@ func _exit_tree() -> void:
 func process_attack(delta: float) -> void:
 	if not singularity_enabled or not tower.is_placed:
 		return
-	if tower.main == null or not tower.main.round_active:
+	if not tower.is_combat_active():
 		return
 	prune_singularities()
 	singularity_remaining = maxf(singularity_remaining - delta, 0.0)
@@ -168,7 +168,7 @@ func _launch_delayed_volley_projectile(
 	attack_damage: int,
 	volley_context: AttackContext
 ) -> void:
-	if not tower.is_placed or tower.main == null or not tower.main.round_active:
+	if not tower.is_placed or not tower.is_combat_active():
 		return
 	var current_target: Node2D
 	var referenced_target: Variant = target_reference.get_ref()

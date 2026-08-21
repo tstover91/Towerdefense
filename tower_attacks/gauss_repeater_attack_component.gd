@@ -232,7 +232,7 @@ func _process_overclock(delta: float) -> void:
 	if not overclock_enabled or not tower.is_placed:
 		overclock_elapsed = 0.0
 		return
-	if tower.main == null or not tower.main.round_active:
+	if not tower.is_combat_active():
 		overclock_elapsed = 0.0
 		return
 	if tower.is_valid_target(tower.target):
@@ -267,7 +267,7 @@ func _process_spread(delta: float) -> void:
 func _process_heavy_shot(delta: float) -> void:
 	if not heavy_shot_enabled or not tower.is_placed:
 		return
-	if tower.main == null or not tower.main.round_active:
+	if not tower.is_combat_active():
 		return
 	heavy_shot_remaining = maxf(heavy_shot_remaining - delta, 0.0)
 	if heavy_shot_remaining > 0.0 or not tower.is_valid_target(tower.target):

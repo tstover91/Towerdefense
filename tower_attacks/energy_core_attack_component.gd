@@ -90,7 +90,7 @@ func process_attack(delta: float) -> void:
 	_process_visuals(delta)
 	if not shockwave_enabled or not tower.is_placed:
 		return
-	if tower.main == null or not tower.main.round_active:
+	if not tower.is_combat_active():
 		return
 	shockwave_remaining = maxf(shockwave_remaining - delta, 0.0)
 	if shockwave_remaining > 0.0:

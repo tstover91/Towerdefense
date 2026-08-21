@@ -50,7 +50,7 @@ func _draw() -> void:
 
 
 func _process(delta: float) -> void:
-	if detonating or main == null or not main.round_active:
+	if detonating or not GameStats.is_combat_active(main):
 		return
 	arm_remaining = maxf(arm_remaining - delta, 0.0)
 	if arm_remaining > 0.0:
