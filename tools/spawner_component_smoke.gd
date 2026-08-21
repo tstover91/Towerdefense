@@ -32,6 +32,19 @@ func _ready() -> void:
 func run_test() -> void:
 	var fake_main := FakeMain.new()
 	add_child(fake_main)
+	var depot_levels: Array = GameStats.get_tower(&"dronedepot")["levels"]
+	assert(int(depot_levels[1]["spawn_limit"]) == 2)
+	assert(int(depot_levels[2]["spawn_limit"]) == 3)
+	assert(depot_levels[1]["unit_stats"] == depot_levels[0]["unit_stats"])
+	assert(depot_levels[2]["unit_stats"] == depot_levels[0]["unit_stats"])
+	assert(float(depot_levels[1]["deployment_radius"]) == 11.0)
+	assert(float(depot_levels[2]["deployment_radius"]) == 11.0)
+	assert(int(depot_levels[3]["spawn_limit"]) == 3)
+	assert(float(depot_levels[3]["deployment_radius"]) == 13.0)
+	assert(int(depot_levels[3]["unit_stats"]["damage"]) == 150)
+	assert(float(depot_levels[3]["unit_stats"]["attack_interval"]) == 0.25)
+	assert(int(depot_levels[3]["unit_stats"]["damage_budget"]) == 5000)
+	assert(float(depot_levels[3]["unit_stats"]["recharge_duration"]) == 2.0)
 	var path := Path2D.new()
 	var curve := Curve2D.new()
 	curve.add_point(Vector2.ZERO)
@@ -68,7 +81,7 @@ func run_test() -> void:
 	component.spawn_unit()
 	assert(component.active_units.size() == 2)
 	for trade_drone in component.active_units:
-		assert(trade_drone.damage == roundi(175.0 * 1.25 * 0.70))
+		assert(trade_drone.damage == roundi(150.0 * 1.25 * 0.70))
 
 	var follow := PathFollow2D.new()
 	path.add_child(follow)

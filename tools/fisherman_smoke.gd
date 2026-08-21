@@ -110,8 +110,8 @@ func run_test() -> void:
 	assert(pulling_hook_count == 1, "Overlapping hooks must share one pull claim while all remain visible.")
 	await get_tree().create_timer(1.3).timeout
 	assert(mob.health == starting_health - 450, "All three casts must deal their exact four-tick totals.")
-	assert(follow.progress < unpulled_progress, "The claimed hook must reduce progress toward its tower.")
-	assert(mob.fisherman_minimum_progress > cast_start_progress, "The guaranteed progress floor must keep advancing during a hook.")
+	assert(follow.progress < cast_start_progress, "The claimed hook must visibly reel the enemy backward past its cast position.")
+	assert(mob.fisherman_minimum_progress < cast_start_progress, "The active hook floor must allow its configured backward reel distance.")
 	assert(not mob.fisherman_pull_active, "The pull claim must end when its line releases.")
 	assert(mob.fisherman_pull_immunity_remaining > 2.3, "The full pull immunity must begin after the line releases.")
 	assert(not mob.try_begin_fisherman_pull(2.5), "No Fisherman may pull during the post-release immunity window.")

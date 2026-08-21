@@ -55,7 +55,8 @@ func setup(
 	_cache_live_line_endpoints()
 	if attack_can_pull and hooked_target.has_method("try_begin_fisherman_pull"):
 		can_pull = hooked_target.try_begin_fisherman_pull(
-			pull_immunity_duration
+			pull_immunity_duration,
+			pull_speed * duration
 		)
 	_apply_damage_tick()
 	queue_redraw()
@@ -87,9 +88,14 @@ func _process(delta: float) -> void:
 			queue_redraw()
 		return
 	if can_pull and hooked_target.has_method("apply_fisherman_pull_toward"):
+		var reel_distance := pull_speed * delta
+		if hooked_target.has_method("get_effective_speed"):
+			# Cancel the enemy's own forward step so hook_pull_speed represents
+			# visible backward reel speed rather than only a slowing force.
+			reel_distance += hooked_target.get_effective_speed() * delta
 		hooked_target.apply_fisherman_pull_toward(
 			source_tower.global_position,
-			pull_speed * delta
+			reel_distance
 		)
 	while ticks_applied < tick_count and elapsed + 0.0001 >= tick_interval * ticks_applied:
 		_apply_damage_tick()

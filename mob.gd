@@ -160,7 +160,7 @@ func _process(delta: float) -> void:
 	_process_regeneration(delta)
 	_process_summoning(delta)
 	_process_control_effects(delta)
-	if fisherman_minimum_progress >= 0.0:
+	if fisherman_minimum_progress >= 0.0 and not fisherman_pull_active:
 		fisherman_minimum_progress += (
 			get_effective_speed()
 			* FISHERMAN_MINIMUM_PROGRESS_RATIO
@@ -349,7 +349,10 @@ func clear_slow_from_context(attack_context: AttackContext) -> void:
 	slow_context = null
 
 
-func try_begin_fisherman_pull(_immunity_duration: float) -> bool:
+func try_begin_fisherman_pull(
+	_immunity_duration: float,
+	maximum_reel_distance: float = 0.0
+) -> bool:
 	if (
 		finished
 		or path_follow == null
@@ -358,11 +361,14 @@ func try_begin_fisherman_pull(_immunity_duration: float) -> bool:
 	):
 		return false
 	fisherman_pull_active = true
-	# Bank all progress earned since the previous hook. A new cast may reel from
-	# here, but can never erase the ground gained during the protected window.
+	# Preserve the protected floor from previous casts while allowing this hook
+	# to reel backward by its configured maximum distance.
 	fisherman_minimum_progress = maxf(
-		fisherman_minimum_progress,
-		path_follow.progress
+		maxf(
+			fisherman_minimum_progress,
+			path_follow.progress - maxf(maximum_reel_distance, 0.0)
+		),
+		0.0
 	)
 	return true
 

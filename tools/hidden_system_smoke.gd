@@ -115,7 +115,7 @@ func run_checks() -> void:
 	depot.load_base_tags()
 	var payload_level_stats: Dictionary = depot.get_effective_stats_for_level(3)
 	var payload_stats: Dictionary = payload_level_stats["unit_stats"]
-	assert(int(payload_stats["damage_budget"]) == 7000)
+	assert(int(payload_stats["damage_budget"]) == 5000)
 	assert(is_equal_approx(float(payload_stats["budget_replacement_delay"]), 0.5))
 	assert(is_equal_approx(float(payload_level_stats["spawn_interval"]), 0.5))
 	var payload_duration := (
