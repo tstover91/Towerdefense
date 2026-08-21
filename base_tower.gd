@@ -621,6 +621,11 @@ func add_microwave_attack_cooldown() -> void:
 	call_deferred("_apply_microwave_attack_cooldown")
 
 
+func notify_enemy_killed(enemy: Node, attack_context: AttackContext) -> void:
+	if attack_component != null:
+		attack_component.on_enemy_killed(enemy, attack_context)
+
+
 func _apply_microwave_attack_cooldown() -> void:
 	if not is_inside_tree() or not is_placed:
 		return

@@ -590,6 +590,13 @@ func die(_context: AttackContext = null) -> void:
 		return
 
 	finished = true
+	if _context != null:
+		var root_tower := _context.get_root_tower()
+		if (
+			is_instance_valid(root_tower)
+			and root_tower.has_method("notify_enemy_killed")
+		):
+			root_tower.notify_enemy_killed(self, _context)
 	spawn_split_children()
 	mob_died.emit(self)
 	mob_killed.emit(cash_reward)

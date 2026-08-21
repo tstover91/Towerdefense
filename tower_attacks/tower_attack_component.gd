@@ -96,6 +96,10 @@ func on_target_updated() -> void:
 	pass
 
 
+func on_enemy_killed(_enemy: Node, _attack_context: AttackContext) -> void:
+	pass
+
+
 func modify_base_attack_damage(_current_target: Node2D, base_damage: int) -> int:
 	return base_damage
 

@@ -12,16 +12,12 @@ class FakeMain:
 	var sandbox_mode := true
 	var money := 1_000_000_000
 	var relics: Dictionary = {}
-	var path_positions: Array[Vector2] = []
 
 	func get_run_bonus(_effect: StringName) -> float:
 		return 0.0
 
 	func get_relic_count(relic_id: StringName) -> int:
 		return int(relics.get(relic_id, 0))
-
-	func get_path_cell_positions_near(_origin: Vector2, _radius: float) -> Array:
-		return path_positions.duplicate()
 
 
 func _ready() -> void:
@@ -39,48 +35,36 @@ func run_test() -> void:
 	tower.position = Vector2(300.0, 300.0)
 	add_child(tower)
 	tower.confirm_placement()
-	tower.attack_on_cooldown = true
 	var component = tower.attack_component
 	assert(component != null)
-	assert(component.distance_damage_enabled)
-	assert(not component.mines_enabled)
-
-	var target := Node2D.new()
-	add_child(target)
-	target.global_position = tower.global_position
-	assert(component.modify_base_attack_damage(target, tower.damage) == roundi(tower.damage * 0.75))
-	target.global_position = tower.global_position + Vector2(tower.range_radius_pixels * 0.5, 0.0)
-	assert(component.modify_base_attack_damage(target, tower.damage) == tower.damage)
-	target.global_position = tower.global_position + Vector2(tower.range_radius_pixels, 0.0)
-	assert(component.modify_base_attack_damage(target, tower.damage) == roundi(tower.damage * 2.25))
+	assert(not component.kill_chain_enabled)
+	assert(tower.damage == roundi(2325.0 * 2.07))
+	assert(is_equal_approx(tower.loaded_attack_interval, 1.65 * 1.25))
+	assert(is_equal_approx(tower.critical_multiplier, 3.0))
 
 	tower.purchased_paths.assign([&"b"])
 	tower.load_base_tags()
 	tower.load_level_stats()
-	assert(not component.distance_damage_enabled)
-	assert(component.mines_enabled)
-	assert(is_equal_approx(component.mine_interval, 6.0))
-	assert(component.mine_maximum_count == 3)
-	component.mine_remaining = 4.0
-	tower.load_level_stats()
-	assert(is_equal_approx(component.mine_remaining, 4.0))
+	assert(component.kill_chain_enabled)
+	assert(not tower.has_damage_tag(&"explosive"))
+	assert(is_equal_approx(component.kill_reload_remaining_multiplier, 0.50))
+	assert(is_equal_approx(
+		component.critical_kill_reload_remaining_multiplier, 0.10
+	))
 
-	fake_main.path_positions.assign([
-		tower.global_position + Vector2(20.0, 0.0),
-		tower.global_position + Vector2(40.0, 0.0),
-	])
-	component.mine_remaining = 0.0
-	component.process_attack(0.0)
-	assert(component.active_mines.size() == 1)
-	var mine = component.active_mines[0]
-	assert(mine.damage == roundi(tower.damage * 1.25))
-	assert(is_equal_approx(mine.trigger_radius, BaseTower.RANGE_PIXELS_PER_UNIT))
-	assert(is_equal_approx(mine.explosion_radius, 2.5 * BaseTower.RANGE_PIXELS_PER_UNIT))
-	assert(mine.attack_context != null)
-	assert(mine.attack_context.attack_kind == &"mine_explosion")
+	tower.attack_on_cooldown = true
+	tower.damage_timer.start(1.0)
+	# Merely firing or dealing nonlethal damage never invokes the kill callback,
+	# so a normal reload remains untouched.
+	var unreduced_reload := tower.damage_timer.time_left
+	assert(unreduced_reload > 0.95)
+	component._apply_kill_chain_reload_reduction(0.50)
+	assert(tower.damage_timer.time_left <= 0.50)
+	assert(tower.damage_timer.time_left > 0.45)
+	tower.damage_timer.start(1.0)
+	component._apply_kill_chain_reload_reduction(0.10)
+	assert(tower.damage_timer.time_left <= 0.10)
+	assert(tower.damage_timer.time_left > 0.05)
 
-	component.on_round_ended()
-	assert(component.active_mines.is_empty())
-	assert(is_equal_approx(component.mine_remaining, component.mine_interval))
-	print("Longshot smoke test passed: distance curve, Minefield placement, cooldown preservation, and cleanup.")
+	print("Longshot smoke test passed: Anti-Materiel stats and death-only Kill Chain reload reductions.")
 	get_tree().quit(0)

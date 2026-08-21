@@ -341,6 +341,42 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 	var flags: Dictionary = traits["flags"]
 	var values: Dictionary = traits["values"]
 	var primary_type: StringName = traits["primary_type"]
+	if flags.get("longshot_kill_chain", false):
+		var critical_chance := (
+			GameStats.DEFAULT_CRITICAL_CHANCE
+			if traits["bonus_tags"].has(&"critical")
+			else 0.0
+		)
+		var critical_multiplier := float(stats.get(
+			"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
+		))
+		var normal_kills := apply_armor(
+			damage, primary_type, float(scenario["armor"]), false
+		) >= float(scenario["health"])
+		var critical_kills := apply_armor(
+			damage * critical_multiplier,
+			primary_type,
+			float(scenario["armor"]),
+			false
+		) >= float(scenario["health"])
+		var normal_reload_factor := (
+			float(values.get("kill_reload_remaining_multiplier", 0.50))
+			if normal_kills else 1.0
+		)
+		var critical_reload_factor := (
+			float(values.get(
+				"critical_kill_reload_remaining_multiplier", 0.10
+			))
+			if critical_kills else 1.0
+		)
+		var expected_reload_factor := (
+			(1.0 - critical_chance) * normal_reload_factor
+			+ critical_chance * critical_reload_factor
+		)
+		attacks = floori(
+			(duration + rng.randf() * interval)
+			/ maxf(interval * expected_reload_factor, 0.01)
+		)
 	if tower_id not in [&"reaver", &"voidcaller"]:
 		var projectile_total := maxi(int(stats.get("projectile_count", 1)), 1)
 		if tower_id == &"energycore":
@@ -353,7 +389,9 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		if tower_id != &"reaver" and traits["bonus_tags"].has(&"critical"):
 			var guaranteed_finisher: bool = bool(flags.get("reaver_assassinate", false)) and attack_index % maxi(int(stats.get("combo_hit_count", 3)), 1) == maxi(int(stats.get("combo_hit_count", 3)), 1) - 1
 			if guaranteed_finisher or rng.randf() < GameStats.DEFAULT_CRITICAL_CHANCE:
-				attack_damage *= GameStats.DEFAULT_CRITICAL_MULTIPLIER
+				attack_damage *= float(stats.get(
+					"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
+				))
 		if flags.get("orbital_solar_lance", false):
 			attack_damage *= (
 				float(values.get("solar_lance_duration", 1.5))
@@ -363,8 +401,6 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		elif flags.get("orbital_bombardment", false):
 			attack_damage *= float(values.get("bombardment_damage_multiplier", 0.38))
 		var distance_ratio := rng.randf_range(float(scenario["distance_min"]), float(scenario["distance_max"]))
-		if flags.get("longshot_distance_damage", false):
-			attack_damage *= get_longshot_distance_multiplier(values, distance_ratio)
 		var hit_chance := get_hit_chance(tower_id, stats, traits, scenario, distance_ratio, attack_index, attacks)
 		if rng.randf() > hit_chance and primary_type != &"explosive":
 			continue
@@ -563,15 +599,6 @@ func simulate_orbital_path_trial(
 	if regeneration > 0.0:
 		total = maxf(total - regeneration * duration * float(enemy_count), 0.0)
 	return total / duration
-
-
-func get_longshot_distance_multiplier(values: Dictionary, distance_ratio: float) -> float:
-	var minimum := float(values.get("distance_minimum_multiplier", 1.0))
-	var midpoint := float(values.get("distance_midpoint_multiplier", 1.0))
-	var maximum := float(values.get("distance_maximum_multiplier", 2.0))
-	if distance_ratio <= 0.5:
-		return lerpf(minimum, midpoint, clampf(distance_ratio * 2.0, 0.0, 1.0))
-	return lerpf(midpoint, maximum, clampf((distance_ratio - 0.5) * 2.0, 0.0, 1.0))
 
 
 func get_reaver_combo_damage(damage: float, stats: Dictionary, flags: Dictionary) -> float:
@@ -847,9 +874,6 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 				true
 			), float(scenario["health"]))
 		total += float(count) * heavy_line_damage
-	if flags.get("longshot_mines", false):
-		var count := floori(duration / maxf(float(values.get("mine_interval", 6.0)), 0.1))
-		total += float(count) * minf(apply_armor(damage * float(values.get("mine_damage_multiplier", 1.25)), &"explosive", armor, false), float(scenario["health"])) * minf(float(enemies), 3.0)
 	if flags.get("void_singularity", false):
 		var count := floori(duration / maxf(float(values.get("singularity_cooldown", 10.0)), 0.1))
 		var coverage_target_cap := maxi(
@@ -1016,7 +1040,7 @@ func get_model_note(tower_id: StringName) -> String:
 		&"brainiac": return "Converging beams, interception/Pierce, and Withering Gaze self-amplification modeled"
 		&"beholder": return "turn alignment; target-reset ramp and Psionic Link modeled"
 		&"reaver": return "combo contact; stun fatigue; Time Bubble and Assassinate modeled"
-		&"longshot": return "distance curve and three-target mine availability modeled"
+		&"longshot": return "Anti-Materiel critical stats and Kill Chain execution reloads approximated"
 		&"slinger": return "bounce availability; Pierce falloff and contact splash modeled"
 		&"voidcaller": return "orb geometry; simultaneous Barrage and Singularity coverage modeled"
 		&"orbitalcannon": return "accurate manual placement assumed; area; stun; Lance ramp and Slow modeled"

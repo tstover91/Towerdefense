@@ -68,7 +68,7 @@ func run_test() -> void:
 	component.spawn_unit()
 	assert(component.active_units.size() == 2)
 	for trade_drone in component.active_units:
-		assert(trade_drone.damage == roundi(340.0 * 1.25 * 0.70))
+		assert(trade_drone.damage == roundi(225.0 * 1.25 * 0.70))
 
 	var follow := PathFollow2D.new()
 	path.add_child(follow)

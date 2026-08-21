@@ -482,37 +482,37 @@ const TOWER_TEXTURES := {
 const TOWER_UPGRADED_SELL_VALUES := {
 	&"invader": [200, 233, 327, 633],
 	&"fisherman": [167, 223, 390, 946],
-	&"gauss_repeater": [800, 911, 1444, 2944],
-	&"beholder": [2500, 2722, 3389, 4665],
+	&"gauss_repeater": [800, 911, 1444, 2611],
+	&"beholder": [2000, 2222, 2888, 3888],
 	&"reaver": [175, 216, 450, 933],
 	&"brainiac": [400, 475, 650, 1316],
-	&"longshot": [1675, 1841, 2450, 4200],
+	&"longshot": [1675, 1841, 2450, 3450],
 	&"slinger": [225, 325, 515, 965],
 	&"voidcaller": [675, 741, 941, 1608],
 	&"orbitalcannon": [350, 408, 658, 1408],
 	&"energycore": [225, 256, 366, 643],
 	&"saucer": [1675, 2033, 2366, 2900],
 	&"hivemother": [200, 300, 600, 1466],
-	&"dronedepot": [500, 650, 1016, 2016],
+	&"dronedepot": [500, 650, 1016, 1849],
 	&"mechbay": [900, 1050, 1350, 2400],
 }
 
 const TOWER_PATH_SELL_VALUE_ADDITIONS := {
 	&"invader": {&"a": 1533, &"b": 1516},
 	&"fisherman": {&"a": 1500, &"b": 1500},
-	&"gauss_repeater": {&"a": 5944, &"b": 5944,},
-	&"beholder": {&"a": 7632, &"b": 7699},
+	&"gauss_repeater": {&"a": 4222, &"b": 4227,},
+	&"beholder": {&"a": 5574, &"b": 5668},
 	&"reaver": {&"a": 1599, &"b": 1633},
 	&"brainiac": {&"a": 3333, &"b": 3366},
-	&"longshot": {&"a": 7200, &"b": 7033},
+	&"longshot": {&"a": 3600, &"b": 3723},
 	&"slinger": {&"a": 2215, &"b": 2215},
 	&"voidcaller": {&"a": 3274, &"b": 3108},
 	&"orbitalcannon": {&"a": 3074, &"b": 3241},
 	&"energycore": {&"a": 1476, &"b": 1643},
 	&"saucer": {&"a": 4066, &"b": 3966},
-	&"hivemother": {&"a": 3132, &"b": 3132},
-	&"dronedepot": {&"a": 3682, &"b": 3849},
-	&"mechbay": {&"a": 3733, &"b": 3733},
+	&"hivemother": {&"a": 2662, &"b": 2662},
+	&"dronedepot": {&"a": 2946, &"b": 3009},
+	&"mechbay": {&"a": 4480, &"b": 4480},
 }
 
 const ENEMIES := {
@@ -1080,7 +1080,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Heavy Accelerator",
 				"description": "Periodically fires a zero-spread heavy round straight along Gauss's current aim. The heavy round has unlimited Pierce.",
-				"cost": 9150,
+				"cost": 6500,
 				"unlock_level": 3,
 				"stat_multipliers": {
 					"projectile_speed": 1.10,
@@ -1097,7 +1097,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Threat Tracker",
 				"description": "Tracks and fires at the strongest enemy inside the selected 45-degree cone. Changing cone direction resets spread.",
-				"cost": 9000,
+				"cost": 6400,
 				"unlock_level": 3,
 				"stat_multipliers": {
 					"firerate": 0.7,
@@ -1146,7 +1146,7 @@ const TOWERS := {
 				"spread_recovery_per_second": 10.0,
 			},
 			{
-				"upgrade_cost": 4500,
+				"upgrade_cost": 3500,
 				"damage": 56,
 				"projectile_speed": 1200.0,
 				"firerate": 0.05,
@@ -1164,7 +1164,7 @@ const TOWERS := {
 	},
 	"beholder": {
 		"display_name": "Brainiac",
-		"placement_cost": 2500,
+		"placement_cost": 2000,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"beam"],
@@ -1176,7 +1176,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Psionic Link",
 				"description": "Every 6 seconds, links Brainiac's current target for 2 seconds. Thirty-five percent of the damage it receives from all towers is spread to enemies around it.",
-				"cost": 8900,
+				"cost": 6500,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"psionic"],
 				"behavior_flags": {"brainiac_psionic_link": true},
@@ -1190,7 +1190,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Escalating Beam",
 				"description": "Starts at 50% of the previous level's damage and gains 25% every 0.5 seconds of uninterrupted fire, up to 250%.",
-				"cost": 9100,
+				"cost": 6700,
 				"unlock_level": 3,
 				"behavior_flags": {
 					"beholder_ramping_beam": true,
@@ -1230,7 +1230,7 @@ const TOWERS := {
 				"beam_half_width": 5.0,
 			},
 			{
-				"upgrade_cost": 3833,
+				"upgrade_cost": 3000,
 				"damage": 405,
 				"firerate": 0.15,
 				"range": 9.0,
@@ -1400,31 +1400,27 @@ const TOWERS := {
 		"bonus_tags": [&"critical"],
 		"paths": {
 			"a": {
-				"display_name": "Extreme Range",
-				"description": "Longshot's direct shots deal 75% damage nearby, normal damage at half range, and 225% damage at maximum range.",
-				"cost": 9000,
+				"display_name": "Anti-Materiel",
+				"description": "Fires massively amplified shots with a 3x critical multiplier, but reloads 25% slower.",
+				"cost": 4500,
 				"unlock_level": 3,
-				"behavior_flags": {"longshot_distance_damage": true},
-				"behavior_values": {
-					"distance_minimum_multiplier": 0.75,
-					"distance_midpoint_multiplier": 1.0,
-					"distance_maximum_multiplier": 2.25,
+				"stat_multipliers": {
+					"damage": 2.07,
+					"firerate": 1.25,
+				},
+				"stat_additions": {
+					"critical_multiplier": 1.0,
 				},
 			},
 			"b": {
-				"display_name": "Minefield",
-				"description": "Periodically places up to three Explosive mines on nearby path cells. Mines clear after each round.",
-				"cost": 8500,
+				"display_name": "Kill Chain",
+				"description": "Kills reduce Longshot's remaining reload by 50%. Critical kills reduce the remaining reload by 90% instead.",
+				"cost": 4500,
 				"unlock_level": 3,
-				"add_damage_tags": [&"explosive"],
-				"behavior_flags": {"longshot_mines": true},
+				"behavior_flags": {"longshot_kill_chain": true},
 				"behavior_values": {
-					"mine_interval": 6.0,
-					"mine_maximum_count": 3,
-					"mine_placement_radius": 6.0,
-					"mine_trigger_radius": 1.0,
-					"mine_explosion_radius": 2.5,
-					"mine_damage_multiplier": 1.25,
+					"kill_reload_remaining_multiplier": 0.50,
+					"critical_kill_reload_remaining_multiplier": 0.10,
 				},
 			},
 		},
@@ -1435,24 +1431,28 @@ const TOWERS := {
 				"damage": 500,
 				"firerate": 2.20,
 				"range": 23.0,
+				"critical_multiplier": 2.0,
 			},
 			{
 				"upgrade_cost": 500,
 				"damage": 625,
 				"firerate": 2.10,
 				"range": 23.0,
+				"critical_multiplier": 2.0,
 			},
 			{
 				"upgrade_cost": 1825,
 				"damage": 1050,
 				"firerate": 1.95,
 				"range": 23,
+				"critical_multiplier": 2.0,
 			},
 			{
-				"upgrade_cost": 5250,
+				"upgrade_cost": 3000,
 				"damage": 2325,
 				"firerate": 1.65,
 				"range": 23.0,
+				"critical_multiplier": 2.0,
 			},
 		],
 	},
@@ -1896,7 +1896,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Triple Bloom",
 				"description": "Each Spore Turret fires three projectiles simultaneously from one point. The shots fan outward with distance, with each projectile dealing 65% damage.",
-				"cost": 5000,
+				"cost": 4250,
 				"unlock_level": 3,
 				"unit_stat_multipliers": {
 					"damage": 0.65,
@@ -1909,7 +1909,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Mycelial Network",
 				"description": "Reduces Spore Turret attack intervals by 35%. They can attack enemies locally targeted by a turret belonging to another Hive Mother, even beyond their own range.",
-				"cost": 5000,
+				"cost": 4250,
 				"unlock_level": 3,
 				"unit_stat_multipliers": {
 					"attack_interval": 0.65,
@@ -1964,7 +1964,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Laser Drones",
 				"description": "Replaces each drone's Ballistic weapon with a continuous Beam that deals 25% more damage and has a 50% larger damage budget. The Beam must remain physically aligned with its primary target to deal tick damage.",
-				"cost": 5000,
+				"cost": 4000,
 				"unlock_level": 3,
 				"remove_damage_tags": [&"ballistic"],
 				"add_damage_tags": [&"beam"],
@@ -1981,7 +1981,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Final Payload",
 				"description": "Adds Explosive. When a drone exhausts its damage budget, it self-destructs and the depot rebuilds it after 0.5 seconds.",
-				"cost": 5500,
+				"cost": 4300,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
 
@@ -1990,7 +1990,7 @@ const TOWERS := {
 					"explode_on_damage_budget": true,
 					"budget_replacement_delay": 0.5,
 					"budget_explosion_radius": 2.75,
-					"budget_explosion_damage_multiplier": 6.0,
+					"budget_explosion_damage_multiplier": 3.0,
 				},
 			},
 		},
@@ -2017,11 +2017,11 @@ const TOWERS := {
 				"unit_stats": {"damage": 155, "attack_interval": 0.29, "aim_radius": 2.5, "move_speed": 150.0, "damage_budget": 2400, "recharge_duration": 2.6},
 			},
 			{
-				"upgrade_cost": 3000,
+				"upgrade_cost": 2500,
 				"spawn_interval": 0.5,
 				"spawn_limit": 3,
 				"deployment_radius": 15.0,
-				"unit_stats": {"damage": 340, "attack_interval": 0.22, "aim_radius": 2.5, "move_speed": 190.0,  "damage_budget": 7000, "recharge_duration": 2.0},
+				"unit_stats": {"damage": 225, "attack_interval": 0.25, "aim_radius": 2.5, "move_speed": 190.0,  "damage_budget": 7000, "recharge_duration": 2.0},
 			},
 		],
 	},
@@ -2039,7 +2039,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Juggernaut",
 				"description": "Deploys larger, slower mechs whose area slams damage and stun every enemy around them.",
-				"cost": 4000,
+				"cost": 4800,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"stun"],
 				"unit_stat_multipliers": {
@@ -2057,7 +2057,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Hunter",
 				"description": "Deploys faster mechs that pursue targets in either direction, prioritizing bosses and elites with increased critical chance.",
-				"cost": 4000,
+				"cost": 4800,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"critical"],
 				"unit_stat_multipliers": {
@@ -2092,14 +2092,14 @@ const TOWERS := {
 				"spawn_interval": 11.0,
 				"spawn_limit": 2,
 				"deployment_radius": 3.0,
-				"unit_stats": {"damage": 210, "attack_interval": 0.85, "aim_radius": 3.0, "move_speed": 60.0},
+				"unit_stats": {"damage": 260, "attack_interval": 0.85, "aim_radius": 3.0, "move_speed": 60.0},
 			},
 			{
 				"upgrade_cost": 3150,
 				"spawn_interval": 8.0,
 				"spawn_limit": 3,
 				"deployment_radius": 3.0,
-				"unit_stats": {"damage": 300, "attack_interval": 0.7, "aim_radius": 4.0, "move_speed": 78.0},
+				"unit_stats": {"damage": 475, "attack_interval": 0.6, "aim_radius": 4.0, "move_speed": 78.0},
 			},
 		],
 	},

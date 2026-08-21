@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://longshot_mine.gd" id="1_mine"]
-
-[node name="LongshotMine" type="Node2D"]
-z_index = 4
-script = ExtResource("1_mine")
