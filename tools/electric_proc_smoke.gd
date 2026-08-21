@@ -161,9 +161,9 @@ func assert_electric_stat_nerfs() -> void:
 	var rockets: Dictionary = GameStats.get_tower_path(&"saucer", &"a")
 	assert(is_equal_approx(
 		float(rockets["behavior_values"]["saucer_rocket_damage_multiplier"]),
-		3.571429
+		2.0
 	))
-	var preserved_rocket_damage := [550, 779, 1200, 1350]
+	var preserved_rocket_damage := [308, 436, 672, 756]
 	var saucer_levels: Array = GameStats.get_tower(&"saucer")["levels"]
 	for level_index in saucer_levels.size():
 		assert(
