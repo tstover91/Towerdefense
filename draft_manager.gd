@@ -67,6 +67,8 @@ func roll_relic_offers(
 			and int(owned_items.get(item_id, 0)) > 0
 		):
 			continue
+		if has_owned_exclusive_relic(item_stats, owned_items):
+			continue
 		if (
 			item_id in [&"singularity_core", &"perfect_mutation"]
 			and not bool(path_relic_eligibility.get(item_id, false))
@@ -140,6 +142,16 @@ func roll_relic_offers(
 		"Unable to satisfy the relic draft guarantees for round %d." % round_number
 	)
 	return offers
+
+
+func has_owned_exclusive_relic(
+	item_stats: Dictionary,
+	owned_items: Dictionary
+) -> bool:
+	for exclusive_id in item_stats.get("exclusive_with", []):
+		if int(owned_items.get(StringName(exclusive_id), 0)) > 0:
+			return true
+	return false
 
 
 func get_relic_draft_choice_count(round_number: int) -> int:

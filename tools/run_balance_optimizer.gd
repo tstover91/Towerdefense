@@ -2367,7 +2367,21 @@ func get_relic_combat_multiplier(
 			# Explosion value is tempered by the post-explosion attack pause.
 			multiplier *= 1.10
 		if int(relics.get(&"death_ray", 0)) > 0:
-			multiplier *= 1.0 + minf(engagement_count - 1.0, 4.0) * 0.16
+			var death_ray_uptime := (
+				GameStats.DEATH_RAY_OVERCHARGE_DURATION
+				/ GameStats.DEATH_RAY_CYCLE_DURATION
+			)
+			multiplier *= (
+				1.0
+				+ death_ray_uptime
+					* (GameStats.DEATH_RAY_DAMAGE_MULTIPLIER - 1.0)
+			)
+			multiplier *= (
+				1.0
+				+ minf(engagement_count - 1.0, 4.0)
+					* 0.16
+					* death_ray_uptime
+			)
 	if damage_tags.has(&"ballistic"):
 		multiplier *= pow(GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER / GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER, float(relics.get(&"heavy_rounds", 0)))
 		multiplier *= pow(GameStats.LIGHTWEIGHT_AMMO_DAMAGE_MULTIPLIER / GameStats.LIGHTWEIGHT_AMMO_INTERVAL_MULTIPLIER, float(relics.get(&"lightweight_ammo", 0)))

@@ -219,6 +219,12 @@ func _draw() -> void:
 	var life_ratio := clampf(elapsed / BEAM_DURATION, 0.0, 1.0)
 	var pulse := 0.82 + sin(elapsed * 28.0) * 0.12
 	var fade := minf((1.0 - life_ratio) * 5.0, 1.0)
+	var width_multiplier := 1.0
+	var tower := get_tower()
+	if tower != null:
+		width_multiplier = (
+			tower.beam_hit_half_width_pixels / BaseTower.BEAM_HIT_HALF_WIDTH
+		)
 	for beam_index in mini(beam_origins.size(), beam_endpoints.size()):
 		var start := to_local(beam_origins[beam_index])
 		var finish_position := to_local(beam_endpoints[beam_index])
@@ -226,19 +232,19 @@ func _draw() -> void:
 			start,
 			finish_position,
 			Color(0.42, 0.08, 0.78, 0.42 * fade),
-			7.0,
+			7.0 * width_multiplier,
 			true
 		)
 		draw_line(
 			start,
 			finish_position,
 			Color(0.92, 0.58, 1.0, pulse * fade),
-			2.2,
+			2.2 * width_multiplier,
 			true
 		)
 		draw_circle(
 			finish_position,
-			3.0,
+			3.0 * width_multiplier,
 			Color(0.96, 0.78, 1.0, 0.9 * fade)
 		)
 

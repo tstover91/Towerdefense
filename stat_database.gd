@@ -237,7 +237,10 @@ const FOCUSED_LENS_DAMAGE_PER_STACK := 0.30
 const FOCUSED_LENS_RANGE_MULTIPLIER := 0.90
 const WIDE_LENS_RANGE_PER_STACK := 0.30
 const WIDE_LENS_DAMAGE_MULTIPLIER := 0.90
-const DEATH_RAY_TURN_SPEED_DEGREES := 90.0
+const DEATH_RAY_CYCLE_DURATION := 6.0
+const DEATH_RAY_OVERCHARGE_DURATION := 2.0
+const DEATH_RAY_DAMAGE_MULTIPLIER := 2.0
+const DEATH_RAY_WIDTH_MULTIPLIER := 2.0
 
 const HEAVY_ROUNDS_DAMAGE_MULTIPLIER := 1.35
 const HEAVY_ROUNDS_INTERVAL_MULTIPLIER := 1.15
@@ -404,30 +407,30 @@ const RELICS := {
 	"pack_hunter": {"display_name": "Pack Hunter", "description": "Biological attacks deal 25% more damage per stack when another Biological tower is targeting that enemy.", "rarity": &"common", "category": &"biological", "stackable": true},
 	"predatory_instinct": {"display_name": "Predatory Instinct", "description": "Biological attacks deal 50% more damage per stack to enemies at or below 25% health.", "rarity": &"common", "category": &"biological", "stackable": true},
 	"perfect_mutation": {"display_name": "Perfect Mutation", "description": "Choose one already-built Biological tower. That tower can purchase both final paths.", "rarity": &"legendary", "category": &"biological", "stackable": false},
-	"focused_lens": {"display_name": "Focused Lens", "description": "Beam damage increases by 30% per stack, but range is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true},
-	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases by 30% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true},
+	"focused_lens": {"display_name": "Focused Lens", "description": "Beam damage increases by 30% per stack, but range is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true, "exclusive_with": [&"wide_lens"]},
+	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases by 30% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true, "exclusive_with": [&"focused_lens"]},
 	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal 60% more damage to slowed or stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"microwave": {"display_name": "Microwave", "description": "An enemy killed by Beam damage explodes for 30% of its maximum health, capped at five times the killing damage. The source tower pauses briefly after each explosion.", "rarity": &"rare", "category": &"beam", "stackable": false},
-	"death_ray": {"display_name": "Death Ray", "description": "Beams gain infinite Pierce, but turn speed is reduced to 90 degrees per second.", "rarity": &"legendary", "category": &"beam", "stackable": false},
+	"death_ray": {"display_name": "Death Ray", "description": "Every 6 seconds, Beam towers overcharge for 2 seconds. Their beams deal double damage, become twice as wide, and gain infinite Pierce.", "rarity": &"legendary", "category": &"beam", "stackable": false},
 	"hollow_point": {"display_name": "Hollow Point", "description": "Ballistic attacks deal 25% more damage per stack to enemies above 75% health.", "rarity": &"common", "category": &"ballistic", "stackable": true},
-	"heavy_rounds": {"display_name": "Heavy Rounds", "description": "Ballistic damage increases by 35% per stack, but attacks take 15% longer per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true},
-	"lightweight_ammo": {"display_name": "Lightweight Ammo", "description": "Ballistic attacks are 25% faster per stack, but deal 10% less damage per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true},
-	"long_barrel": {"display_name": "Long Barrel", "description": "Ballistic damage gains up to 40% per stack based on distance from its source.", "rarity": &"common", "category": &"ballistic", "stackable": true},
-	"point_blank": {"display_name": "Point Blank", "description": "Ballistic damage gains up to 40% per stack at close range.", "rarity": &"common", "category": &"ballistic", "stackable": true},
+	"heavy_rounds": {"display_name": "Heavy Rounds", "description": "Ballistic damage increases by 35% per stack, but attacks take 15% longer per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"lightweight_ammo"]},
+	"lightweight_ammo": {"display_name": "Lightweight Ammo", "description": "Ballistic attacks are 25% faster per stack, but deal 10% less damage per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"heavy_rounds"]},
+	"long_barrel": {"display_name": "Long Barrel", "description": "Ballistic damage gains up to 40% per stack based on distance from its source.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"point_blank"]},
+	"point_blank": {"display_name": "Point Blank", "description": "Ballistic damage gains up to 40% per stack at close range.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"long_barrel"]},
 	"armor_piercing": {"display_name": "Armor Piercing", "description": "Ballistic attacks gain Pierce 1.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"suppressive_fire": {"display_name": "Suppressive Fire", "description": "Ballistic attacks slow enemies for at least 1 second.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce once to another enemy within 3 tiles.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
 	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit, but their base critical multiplier is 1.5x before other relic modifiers.", "rarity": &"rare", "category": &"ballistic", "stackable": false, "latest_draft_round": 11},
-	"frenzy": {"display_name": "Frenzy", "description": "Melee attacks become 6% faster per enemy in range per stack, counting up to 10 enemies.", "rarity": &"common", "category": &"melee", "stackable": true},
-	"duelist": {"display_name": "Duelist", "description": "Melee damage gains 45% per stack with one enemy in range or 25% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true},
+	"frenzy": {"display_name": "Frenzy", "description": "Melee attacks become 6% faster per enemy in range per stack, counting up to 10 enemies.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"duelist"]},
+	"duelist": {"display_name": "Duelist", "description": "Melee damage gains 45% per stack with one enemy in range or 25% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"frenzy"]},
 	"relentless": {"display_name": "Relentless", "description": "Gain 15% Melee attack speed after each attack against the same primary target, up to five stacks. Changing targets resets it.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"giant_killer": {"display_name": "Giant Killer", "description": "Melee attacks deal 75% more damage to elites and bosses, but 25% less to normal enemies.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"strength_in_numbers": {"display_name": "Strength in Numbers", "description": "Gain 20% Melee damage per nearby Melee tower, counting up to four.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"lone_wolf": {"display_name": "Lone Wolf", "description": "A Melee tower gains 50% damage, 35% attack speed, and 25% range while it is the only copy of that specific tower built. Mech Bay counts per bay, not per active mech.", "rarity": &"legendary", "category": &"melee", "stackable": false},
-	"high_yield": {"display_name": "High Yield", "description": "Explosion radius increases by 35% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true},
-	"concentrated_charge": {"display_name": "Concentrated Charge", "description": "Explosion radius is reduced by 20% per stack, but damage increases by 40% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true},
-	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosions gain 12% damage per enemy caught, up to 150% bonus damage.", "rarity": &"rare", "category": &"explosive", "stackable": false},
-	"direct_hit": {"display_name": "Direct Hit", "description": "Explosions gain 60% damage against one target, 30% against two, or 15% against three.", "rarity": &"rare", "category": &"explosive", "stackable": false},
+	"high_yield": {"display_name": "High Yield", "description": "Explosion radius increases by 35% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true, "exclusive_with": [&"concentrated_charge"]},
+	"concentrated_charge": {"display_name": "Concentrated Charge", "description": "Explosion radius is reduced by 20% per stack, but damage increases by 40% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true, "exclusive_with": [&"high_yield"]},
+	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosions gain 12% damage per enemy caught, up to 150% bonus damage.", "rarity": &"rare", "category": &"explosive", "stackable": false, "exclusive_with": [&"direct_hit"]},
+	"direct_hit": {"display_name": "Direct Hit", "description": "Explosions gain 60% damage against one target, 30% against two, or 15% against three.", "rarity": &"rare", "category": &"explosive", "stackable": false, "exclusive_with": [&"crowd_pleaser"]},
 	"thermite_bombs": {"display_name": "Thermite Bombs", "description": "Explosive hits deal no health damage to armored or shielded enemies, but remove 5 Armor or Shield instead.", "rarity": &"rare", "category": &"explosive", "stackable": false},
 	"maximum_payload": {"display_name": "Maximum Payload", "description": "Explosion damage and radius increase by 50%, but explosive cooldowns take 75% longer.", "rarity": &"rare", "category": &"explosive", "stackable": false, "enabled": false},
 	"charred_clothes": {"display_name": "Charred Clothes", "description": "Explosions permanently remove Hidden from enemies they hit.", "rarity": &"rare", "category": &"explosive", "stackable": false},
@@ -439,8 +442,8 @@ const RELICS := {
 	"glass_cannon": {"display_name": "Glass Cannon", "description": "Adds +2x critical damage, but non-critical attacks deal 30% less damage.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"pressure_point": {"display_name": "Pressure Point", "description": "Critical hits ignore armor.", "rarity": &"rare", "category": &"critical", "stackable": false, "enabled": false},
 	"deadeye": {"display_name": "Deadeye", "description": "Adds +2x to the critical-hit multiplier, but every attack has a 20% chance to miss.", "rarity": &"rare", "category": &"critical", "stackable": false},
-	"lingering_thoughts": {"display_name": "Lingering Thoughts", "description": "Psionic abilities last 35% longer per stack.", "rarity": &"common", "category": &"psionic", "stackable": true},
-	"quick_thinking": {"display_name": "Quick Thinking", "description": "Psionic duration and cooldown are both reduced by 30% per stack.", "rarity": &"common", "category": &"psionic", "stackable": true},
+	"lingering_thoughts": {"display_name": "Lingering Thoughts", "description": "Psionic abilities last 35% longer per stack.", "rarity": &"common", "category": &"psionic", "stackable": true, "exclusive_with": [&"quick_thinking"]},
+	"quick_thinking": {"display_name": "Quick Thinking", "description": "Psionic duration and cooldown are both reduced by 30% per stack.", "rarity": &"common", "category": &"psionic", "stackable": true, "exclusive_with": [&"lingering_thoughts"]},
 	"spotter": {"display_name": "Spotter", "description": "Hidden enemies inside any Reveal tower's range can be targeted by all towers until they leave every Reveal range.", "rarity": &"common", "category": &"reveal", "stackable": false},
 	"perfect_intelligence": {"display_name": "Perfect Intelligence", "description": "A Hidden enemy permanently loses Hidden when it enters any Reveal tower's range.", "rarity": &"rare", "category": &"reveal", "stackable": false},
 	"deep_penetration": {"display_name": "Deep Penetration", "description": "Adds +1 Pierce.", "rarity": &"common", "category": &"pierce", "stackable": true},
@@ -2564,6 +2567,13 @@ static func get_relic(relic_id: StringName) -> Dictionary:
 	assert(RELICS.has(relic_id), "Unknown relic ID: %s" % relic_id)
 	var relic: Dictionary = RELICS[relic_id].duplicate(true)
 	relic["id"] = relic_id
+	var exclusive_names := PackedStringArray()
+	for exclusive_id in relic.get("exclusive_with", []):
+		var exclusive_key := StringName(exclusive_id)
+		assert(RELICS.has(exclusive_key), "Unknown exclusive relic ID: %s" % exclusive_key)
+		exclusive_names.append(RELICS[exclusive_key]["display_name"])
+	if not exclusive_names.is_empty():
+		relic["description"] += " Exclusive with %s." % " and ".join(exclusive_names)
 	return relic
 
 static func get_round_cash_reward(round_number: int) -> int:

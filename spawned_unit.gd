@@ -68,9 +68,13 @@ var target_is_shared := false
 var shared_spore_targeting := false
 var continuous_beam := false
 var infinite_pierce := false
+var inherent_infinite_pierce := false
 var beam_aim_direction := Vector2.RIGHT
 var beam_has_aim := false
 var beam_turn_speed_radians := deg_to_rad(DEFAULT_BEAM_TURN_SPEED_DEGREES)
+var death_ray_overcharge_enabled := false
+var death_ray_cycle_elapsed := 0.0
+var death_ray_overcharge_active := false
 var explode_on_damage_budget := false
 var budget_explosion_radius_pixels := 0.0
 var budget_explosion_damage_multiplier := 1.0
@@ -95,6 +99,12 @@ func setup(
 	add_to_group("spawned_units")
 	load_definition()
 	apply_stats(unit_stats)
+	if (
+		death_ray_overcharge_enabled
+		and parent_tower.has_method("get_death_ray_cycle_elapsed")
+	):
+		death_ray_cycle_elapsed = parent_tower.get_death_ray_cycle_elapsed()
+	refresh_death_ray_overcharge_state()
 	home_position = global_position
 	if movement_type == GameStats.MOVEMENT_PATH_ASSAULT:
 		initialize_path_position()
@@ -196,7 +206,11 @@ func apply_stats(unit_stats: Dictionary) -> void:
 		unit_stats.get("shared_spore_targeting", false)
 	)
 	continuous_beam = bool(unit_stats.get("continuous_beam", false))
-	infinite_pierce = bool(unit_stats.get("infinite_pierce", false))
+	inherent_infinite_pierce = bool(unit_stats.get("infinite_pierce", false))
+	death_ray_overcharge_enabled = bool(
+		unit_stats.get("death_ray_overcharge", false)
+	)
+	refresh_death_ray_overcharge_state()
 	beam_turn_speed_radians = deg_to_rad(maxf(
 		float(unit_stats.get(
 			"beam_turn_speed_degrees",
@@ -262,6 +276,7 @@ func _physics_process(delta: float) -> void:
 			queue_free()
 			return
 
+	process_death_ray_overcharge(delta)
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
 	if (
 		relentless_target_instance_id > 0
@@ -1238,7 +1253,7 @@ func is_target_intersecting_beam(
 		hit_radius = candidate.get_projectile_hit_radius()
 	return (
 		candidate.global_position.distance_to(closest_point)
-		<= hit_radius + BEAM_HIT_HALF_WIDTH
+		<= hit_radius + get_current_beam_half_width()
 	)
 
 
@@ -1270,7 +1285,9 @@ func get_hitscan_pierce_targets(
 		var hit_radius := 12.0
 		if mob.has_method("get_projectile_hit_radius"):
 			hit_radius = mob.get_projectile_hit_radius()
-		var line_half_width := BEAM_HIT_HALF_WIDTH if use_beam_width else 0.0
+		var line_half_width := (
+			get_current_beam_half_width() if use_beam_width else 0.0
+		)
 		if (
 			mob.global_position.distance_to(closest_point)
 			> hit_radius + line_half_width
@@ -1311,8 +1328,61 @@ func roll_attack_damage(current_target: Node2D = null) -> int:
 		)
 	if has_bonus_tag(&"critical") and randf() < current_critical_chance:
 		last_attack_roll_was_critical = true
-		return maxi(roundi(float(damage) * critical_multiplier), 1)
-	return maxi(roundi(float(damage) * noncritical_damage_multiplier), 1)
+		return maxi(roundi(
+			float(damage)
+			* critical_multiplier
+			* get_death_ray_damage_multiplier()
+		), 1)
+	return maxi(roundi(
+		float(damage)
+		* noncritical_damage_multiplier
+		* get_death_ray_damage_multiplier()
+	), 1)
+
+
+func process_death_ray_overcharge(delta: float) -> void:
+	if death_ray_overcharge_enabled and is_combat_active():
+		death_ray_cycle_elapsed = fmod(
+			death_ray_cycle_elapsed + delta,
+			GameStats.DEATH_RAY_CYCLE_DURATION
+		)
+	refresh_death_ray_overcharge_state()
+
+
+func refresh_death_ray_overcharge_state() -> void:
+	var was_active := death_ray_overcharge_active
+	death_ray_overcharge_active = (
+		death_ray_overcharge_enabled
+		and is_combat_active()
+		and death_ray_cycle_elapsed < GameStats.DEATH_RAY_OVERCHARGE_DURATION
+	)
+	infinite_pierce = inherent_infinite_pierce or death_ray_overcharge_active
+	if death_ray_overcharge_active != was_active:
+		queue_redraw()
+
+
+func get_death_ray_damage_multiplier() -> float:
+	return (
+		GameStats.DEATH_RAY_DAMAGE_MULTIPLIER
+		if death_ray_overcharge_active
+		else 1.0
+	)
+
+
+func get_current_beam_half_width() -> float:
+	return BEAM_HIT_HALF_WIDTH * (
+		GameStats.DEATH_RAY_WIDTH_MULTIPLIER
+		if death_ray_overcharge_active
+		else 1.0
+	)
+
+
+func is_combat_active() -> bool:
+	return (
+		is_instance_valid(parent_tower)
+		and parent_tower.has_method("is_combat_active")
+		and parent_tower.is_combat_active()
+	)
 
 
 func get_last_attack_roll_metadata() -> Dictionary:
@@ -1442,10 +1512,21 @@ func _draw() -> void:
 			Vector2.ZERO,
 			to_local(beam_end),
 			Color(0.25, 0.85, 1.0, 0.9),
-			2.5,
+			get_current_beam_half_width(),
 			true
 		)
 		draw_circle(Vector2.ZERO, 3.5, Color(0.55, 0.95, 1.0, 0.9))
+	if death_ray_overcharge_active:
+		draw_arc(
+			Vector2.ZERO,
+			13.0,
+			0.0,
+			TAU,
+			24,
+			Color(0.35, 0.9, 1.0, 0.95),
+			2.5,
+			true
+		)
 	match unit_id:
 		&"spore_turret":
 			draw_circle(Vector2.ZERO, 9.0, Color(0.3, 0.9, 0.3))

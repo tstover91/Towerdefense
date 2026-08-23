@@ -283,7 +283,11 @@ func _spawn_solar_lance(strike_position: Vector2, strike_damage: int) -> void:
 	lance.global_position = strike_position
 	lance.setup(
 		tower.main,
-		BaseTower.BUILD_CELL_SIZE,
+		BaseTower.BUILD_CELL_SIZE * (
+			GameStats.DEATH_RAY_WIDTH_MULTIPLIER
+			if tower.death_ray_overcharge_active
+			else 1.0
+		),
 		maxi(roundi(float(strike_damage) * tick_start_multiplier), 1),
 		maxi(roundi(float(strike_damage) * tick_end_multiplier), 1),
 		solar_lance_duration,

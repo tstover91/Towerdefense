@@ -66,6 +66,9 @@ func get_draft_health_recovery(maximum_recovery: int) -> int:
 
 func collect_relic(item_id: StringName, quantity: int = 1) -> bool:
 	var item_stats: Dictionary = GameStats.get_relic(item_id)
+	for exclusive_id in item_stats.get("exclusive_with", []):
+		if int(owned_shop_items.get(StringName(exclusive_id), 0)) > 0:
+			return false
 	if (
 		not item_stats.get("stackable", false)
 		and int(owned_shop_items.get(item_id, 0)) > 0

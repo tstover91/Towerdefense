@@ -103,11 +103,16 @@ var stun_affects_bosses := false
 var bounce_count := 0
 var bounce_range_pixels := 0.0
 var infinite_pierce := false
+var inherent_infinite_pierce := false
 var continuous_beam_enabled := false
 var beam_aim_direction := Vector2.RIGHT
 var beam_has_aim := false
 var beam_turn_speed_radians := deg_to_rad(DEFAULT_BEAM_TURN_SPEED_DEGREES)
 var beam_hit_half_width_pixels := BEAM_HIT_HALF_WIDTH
+var base_beam_hit_half_width_pixels := BEAM_HIT_HALF_WIDTH
+var death_ray_overcharge_enabled := false
+var death_ray_cycle_elapsed := 0.0
+var death_ray_overcharge_active := false
 var projectile_count := 1
 var volley_width_pixels := 0.0
 var volley_stagger := 0.0
@@ -145,6 +150,17 @@ func _draw() -> void:
 	draw_active_beam()
 	if attack_component != null:
 		attack_component.draw_attack_visuals()
+	if death_ray_overcharge_active and is_placed:
+		draw_arc(
+			Vector2.ZERO,
+			maxf(footprint_size_pixels.length() * 0.32, 14.0),
+			0.0,
+			TAU,
+			32,
+			Color(0.35, 0.9, 1.0, 0.95),
+			3.0,
+			true
+		)
 	if not range_preview_visible:
 		return
 
@@ -620,6 +636,8 @@ func schedule_spawned_unit_replacement(delay: float) -> void:
 
 
 func _on_round_started(_round_number: int) -> void:
+	death_ray_cycle_elapsed = 0.0
+	refresh_death_ray_overcharge_state()
 	if attack_component != null:
 		attack_component.on_round_started()
 	if is_placed and uses_standard_spawner_system():
@@ -628,6 +646,8 @@ func _on_round_started(_round_number: int) -> void:
 
 
 func _on_round_ended(_round_number: int) -> void:
+	death_ray_cycle_elapsed = 0.0
+	refresh_death_ray_overcharge_state()
 	update_menu_buttons()
 	if attack_component != null:
 		attack_component.on_round_ended()
@@ -919,6 +939,7 @@ func get_targets_along_line(
 	)
 
 func _process(delta: float) -> void:
+	process_death_ray_overcharge(delta)
 	update_menu_layout()
 	if targeting_controller != null:
 		targeting_controller.process(delta)
@@ -926,6 +947,45 @@ func _process(delta: float) -> void:
 
 func is_combat_active() -> bool:
 	return GameStats.is_combat_active(main)
+
+
+func process_death_ray_overcharge(delta: float) -> void:
+	if death_ray_overcharge_enabled and is_placed and is_combat_active():
+		death_ray_cycle_elapsed = fmod(
+			death_ray_cycle_elapsed + delta,
+			GameStats.DEATH_RAY_CYCLE_DURATION
+		)
+	refresh_death_ray_overcharge_state()
+
+
+func refresh_death_ray_overcharge_state() -> void:
+	var was_active := death_ray_overcharge_active
+	death_ray_overcharge_active = (
+		death_ray_overcharge_enabled
+		and is_placed
+		and is_combat_active()
+		and death_ray_cycle_elapsed < GameStats.DEATH_RAY_OVERCHARGE_DURATION
+	)
+	infinite_pierce = inherent_infinite_pierce or death_ray_overcharge_active
+	beam_hit_half_width_pixels = base_beam_hit_half_width_pixels * (
+		GameStats.DEATH_RAY_WIDTH_MULTIPLIER
+		if death_ray_overcharge_active
+		else 1.0
+	)
+	if death_ray_overcharge_active != was_active:
+		queue_redraw()
+
+
+func get_death_ray_damage_multiplier() -> float:
+	return (
+		GameStats.DEATH_RAY_DAMAGE_MULTIPLIER
+		if death_ray_overcharge_active
+		else 1.0
+	)
+
+
+func get_death_ray_cycle_elapsed() -> float:
+	return death_ray_cycle_elapsed
 
 
 func update_menu_layout() -> void:

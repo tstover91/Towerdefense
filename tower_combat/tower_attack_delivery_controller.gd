@@ -204,14 +204,20 @@ func roll_critical_damage(base_damage: int, _current_target: Node2D = null) -> i
 	if tower.miss_chance > 0.0 and tower.spawn_rng.randf() < tower.miss_chance:
 		tower.last_attack_roll_missed = true
 		return 0
+	var rolled_damage := base_damage
 	if (
 		tower.has_bonus_tag(BaseTower.BONUS_CRITICAL)
 		and tower.spawn_rng.randf() < tower.critical_chance
 	):
 		tower.last_attack_roll_was_critical = true
-		return maxi(roundi(float(base_damage) * tower.critical_multiplier), 1)
+		rolled_damage = roundi(float(base_damage) * tower.critical_multiplier)
+	else:
+		rolled_damage = roundi(
+			float(base_damage) * tower.noncritical_damage_multiplier
+		)
 	return maxi(
-		roundi(float(base_damage) * tower.noncritical_damage_multiplier), 1
+		roundi(float(rolled_damage) * tower.get_death_ray_damage_multiplier()),
+		1
 	)
 
 
@@ -222,7 +228,11 @@ func roll_guaranteed_critical_damage(base_damage: int) -> int:
 		tower.last_attack_roll_missed = true
 		return 0
 	tower.last_attack_roll_was_critical = true
-	return maxi(roundi(float(base_damage) * tower.critical_multiplier), 1)
+	return maxi(roundi(
+		float(base_damage)
+		* tower.critical_multiplier
+		* tower.get_death_ray_damage_multiplier()
+	), 1)
 
 
 func get_last_attack_roll_metadata() -> Dictionary:

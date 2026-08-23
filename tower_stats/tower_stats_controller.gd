@@ -67,6 +67,11 @@ func load_level_stats() -> void:
 	tower.beam_hit_half_width_pixels = maxf(
 		float(stats.get("beam_half_width", BaseTower.BEAM_HIT_HALF_WIDTH)), 0.1
 	)
+	tower.base_beam_hit_half_width_pixels = tower.beam_hit_half_width_pixels
+	tower.death_ray_overcharge_enabled = bool(
+		stats.get("death_ray_overcharge", false)
+	)
+	tower.refresh_death_ray_overcharge_state()
 	tower.projectile_speed = stats.get("projectile_speed", 600.0)
 	tower.splash_radius_pixels = (
 		float(stats.get("splash_radius", 0.0))
@@ -196,8 +201,7 @@ func apply_relic_combat_stat_modifiers(
 				0.1
 			)
 		if get_owned_relic_count(&"death_ray") > 0:
-			stats["beam_turn_speed_degrees"] = GameStats.DEATH_RAY_TURN_SPEED_DEGREES
-			stats["infinite_pierce"] = true
+			stats["death_ray_overcharge"] = true
 	if primary_type == BaseTower.DAMAGE_BALLISTIC:
 		var heavy_count := get_owned_relic_count(&"heavy_rounds")
 		var lightweight_count := get_owned_relic_count(&"lightweight_ammo")
@@ -476,6 +480,7 @@ func set_pierce_count(value: int) -> void:
 
 
 func load_path_behaviors() -> void:
+	tower.inherent_infinite_pierce = false
 	if tower.attack_component != null:
 		tower.attack_component.reset_path_behaviors()
 	for path_id in tower.purchased_paths:
@@ -485,14 +490,10 @@ func load_path_behaviors() -> void:
 		if tower.attack_component != null:
 			tower.attack_component.apply_path_behavior(flags, values)
 		if flags.get("infinite_pierce", false):
-			tower.infinite_pierce = true
+			tower.inherent_infinite_pierce = true
 		if flags.get("continuous_beam", false):
 			tower.continuous_beam_enabled = true
-	if (
-		tower.has_damage_tag(BaseTower.DAMAGE_BEAM)
-		and get_owned_relic_count(&"death_ray") > 0
-	):
-		tower.infinite_pierce = true
+	tower.refresh_death_ray_overcharge_state()
 	if tower.attack_component != null:
 		tower.attack_component.finalize_path_behaviors()
 
@@ -533,12 +534,6 @@ func load_base_tags() -> void:
 		set_pierce_count(
 			tower.pierce_count + get_owned_relic_count(&"deep_penetration")
 		)
-	if (
-		tower.has_damage_tag(BaseTower.DAMAGE_BEAM)
-		and get_owned_relic_count(&"death_ray") > 0
-	):
-		set_pierce_count(maxi(tower.pierce_count, 1))
-		tower.infinite_pierce = true
 	if tower.has_damage_tag(BaseTower.DAMAGE_BALLISTIC):
 		if get_owned_relic_count(&"armor_piercing") > 0:
 			set_pierce_count(tower.pierce_count + 1)

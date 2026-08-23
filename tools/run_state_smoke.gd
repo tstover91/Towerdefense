@@ -32,6 +32,9 @@ func _ready() -> void:
 	assert(state.collect_relic(&"dividends"))
 	assert(not state.collect_relic(&"dividends"))
 	assert(state.get_relic_count(&"dividends") == 1)
+	assert(state.collect_relic(&"long_barrel", 2))
+	assert(state.get_relic_count(&"long_barrel") == 2)
+	assert(not state.collect_relic(&"point_blank"))
 	state.run_bonuses[&"kill_reward"] = 0.25
 	assert(is_equal_approx(state.get_run_bonus(&"kill_reward"), 0.25))
 
