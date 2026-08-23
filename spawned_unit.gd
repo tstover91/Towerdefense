@@ -106,6 +106,7 @@ func setup(
 		death_ray_cycle_elapsed = parent_tower.get_death_ray_cycle_elapsed()
 	refresh_death_ray_overcharge_state()
 	home_position = global_position
+	target_refresh_remaining = get_initial_target_refresh_delay()
 	if movement_type == GameStats.MOVEMENT_PATH_ASSAULT:
 		initialize_path_position()
 	queue_redraw()
@@ -276,7 +277,8 @@ func _physics_process(delta: float) -> void:
 			queue_free()
 			return
 
-	process_death_ray_overcharge(delta)
+	if death_ray_overcharge_enabled:
+		process_death_ray_overcharge(delta)
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
 	if (
 		relentless_target_instance_id > 0
@@ -287,7 +289,8 @@ func _physics_process(delta: float) -> void:
 	):
 		reset_relentless()
 	target_refresh_remaining = maxf(target_refresh_remaining - delta, 0.0)
-	update_continuous_beam_aim(delta)
+	if continuous_beam:
+		update_continuous_beam_aim(delta)
 	match movement_type:
 		GameStats.MOVEMENT_DRONE:
 			process_drone(delta)
@@ -302,23 +305,25 @@ func _physics_process(delta: float) -> void:
 
 
 func process_stationary() -> void:
-	if target_refresh_remaining <= 0.0 or not is_valid_target(local_target):
+	if not is_valid_target(target):
+		target = null
+	if target_refresh_remaining <= 0.0:
 		local_target = select_target(global_position, aim_radius_pixels)
 		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
-	target = local_target
-	locally_acquired_target = is_valid_target(local_target)
-	target_is_shared = false
-	if unit_id == &"spore_turret" and shared_spore_targeting:
-		var shared_target := select_shared_spore_target()
-		if (
-			is_valid_target(shared_target)
-			and (
-				not is_valid_target(target)
-				or get_target_progress(shared_target) > get_target_progress(target)
-			)
-		):
-			target = shared_target
-			target_is_shared = true
+		target = local_target
+		locally_acquired_target = is_valid_target(local_target)
+		target_is_shared = false
+		if unit_id == &"spore_turret" and shared_spore_targeting:
+			var shared_target := select_shared_spore_target()
+			if (
+				is_valid_target(shared_target)
+				and (
+					not is_valid_target(target)
+					or get_target_progress(shared_target) > get_target_progress(target)
+				)
+			):
+				target = shared_target
+				target_is_shared = true
 	try_attack_target()
 
 
@@ -343,7 +348,7 @@ func process_drone(delta: float) -> void:
 		target = null
 		target_refresh_remaining = 0.0
 		move_toward_position(parent_tower.global_position, delta)
-		if global_position.distance_to(parent_tower.global_position) <= ARRIVAL_DISTANCE:
+		if global_position.distance_squared_to(parent_tower.global_position) <= ARRIVAL_DISTANCE * ARRIVAL_DISTANCE:
 			global_position = parent_tower.global_position
 			returning_to_base = false
 			recharge_remaining = recharge_duration
@@ -359,21 +364,14 @@ func process_drone(delta: float) -> void:
 		return
 
 	var drone_target_eligible := is_valid_target(target)
-	var distributed_mode := (
-		parent_tower.has_method("get_drone_target_mode")
-		and int(parent_tower.get_drone_target_mode()) == 0
-	)
-	if distributed_mode:
-		if not drone_target_eligible:
-			get_tree().set_meta(DRONE_ASSIGNMENT_FRAME_META, -1)
-		target = select_drone_command_target()
-	elif target_refresh_remaining <= 0.0 or not drone_target_eligible:
+	if target_refresh_remaining <= 0.0:
 		target = select_drone_command_target()
 		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
+	elif not drone_target_eligible:
+		target = null
 	if is_valid_target(target):
 		var desired_distance := get_effective_attack_radius() * 0.9
-		var distance_to_target := global_position.distance_to(target.global_position)
-		if distance_to_target > desired_distance:
+		if global_position.distance_squared_to(target.global_position) > desired_distance * desired_distance:
 			move_toward_position(target.global_position, delta)
 		try_attack_target()
 		return
@@ -413,17 +411,26 @@ func select_distributed_drone_target() -> Node2D:
 			DRONE_ASSIGNMENT_CACHE_META,
 			{}
 		)
-		if cached_assignments.has(get_instance_id()):
-			return cached_assignments[get_instance_id()] as Node2D
+		return cached_assignments.get(get_instance_id()) as Node2D
 
 	var available_drones: Array[Node] = []
 	var reserved_targets: Dictionary = {}
+	var target_lists_by_drone: Dictionary = {}
+	var target_lists_by_tower: Dictionary = {}
 	for candidate in get_tree().get_nodes_in_group("spawned_units"):
 		if not is_available_combat_drone(candidate):
 			continue
+		var tower_id: int = candidate.parent_tower.get_instance_id()
+		var candidate_targets: Array[Node2D] = []
+		if target_lists_by_tower.has(tower_id):
+			candidate_targets.assign(target_lists_by_tower[tower_id])
+		else:
+			candidate_targets = candidate.get_sorted_drone_targets()
+			target_lists_by_tower[tower_id] = candidate_targets
+		target_lists_by_drone[candidate.get_instance_id()] = candidate_targets
 		if candidate.is_focus_max_health_drone():
 			var focused_target: Node2D = (
-				candidate.select_highest_max_health_drone_target()
+				candidate_targets[0] if not candidate_targets.is_empty() else null
 			)
 			if is_instance_valid(focused_target):
 				reserved_targets[focused_target.get_instance_id()] = true
@@ -431,8 +438,12 @@ func select_distributed_drone_target() -> Node2D:
 			available_drones.append(candidate)
 	available_drones.sort_custom(
 		func(a: Node, b: Node) -> bool:
-			var a_choice_count: int = a.get_sorted_drone_targets().size()
-			var b_choice_count: int = b.get_sorted_drone_targets().size()
+			var a_choice_count: int = (
+				target_lists_by_drone[a.get_instance_id()] as Array
+			).size()
+			var b_choice_count: int = (
+				target_lists_by_drone[b.get_instance_id()] as Array
+			).size()
 			if a_choice_count != b_choice_count:
 				return a_choice_count < b_choice_count
 			return a.get_instance_id() < b.get_instance_id()
@@ -440,7 +451,8 @@ func select_distributed_drone_target() -> Node2D:
 
 	var assignments: Dictionary = {}
 	for drone in available_drones:
-		var candidates: Array[Node2D] = drone.get_sorted_drone_targets()
+		var candidates: Array[Node2D] = []
+		candidates.assign(target_lists_by_drone[drone.get_instance_id()])
 		var chosen_target: Node2D
 		for candidate in candidates:
 			if not reserved_targets.has(candidate.get_instance_id()):
@@ -462,6 +474,7 @@ func is_available_combat_drone(candidate: Node) -> bool:
 		is_instance_valid(candidate)
 		and not candidate.is_queued_for_deletion()
 		and candidate.get("unit_id") == &"drone"
+		and is_instance_valid(candidate.get("parent_tower"))
 		and not bool(candidate.get("returning_to_base"))
 		and float(candidate.get("recharge_remaining")) <= 0.0
 		and candidate.has_method("get_sorted_drone_targets")
@@ -499,14 +512,16 @@ func get_sorted_drone_targets() -> Array[Node2D]:
 func process_guard(delta: float) -> void:
 	var guard_target_eligible := (
 		is_valid_target(target)
-		and home_position.distance_to(target.global_position)
-			<= acquisition_radius_pixels
+		and home_position.distance_squared_to(target.global_position)
+			<= acquisition_radius_pixels * acquisition_radius_pixels
 	)
-	if target_refresh_remaining <= 0.0 or not guard_target_eligible:
+	if target_refresh_remaining <= 0.0:
 		target = select_guard_target()
 		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
+	elif not guard_target_eligible:
+		target = null
 	if is_valid_target(target):
-		if global_position.distance_to(target.global_position) > aim_radius_pixels:
+		if global_position.distance_squared_to(target.global_position) > aim_radius_pixels * aim_radius_pixels:
 			move_toward_position(target.global_position, delta)
 			return
 		try_attack_target()
@@ -517,11 +532,12 @@ func process_guard(delta: float) -> void:
 
 func select_guard_target() -> Node2D:
 	var candidates: Array[Node2D] = []
+	var acquisition_radius_squared := acquisition_radius_pixels * acquisition_radius_pixels
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if (
 			is_valid_target(candidate)
-			and home_position.distance_to(candidate.global_position)
-				<= acquisition_radius_pixels
+			and home_position.distance_squared_to(candidate.global_position)
+				<= acquisition_radius_squared
 		):
 			candidates.append(candidate)
 	candidates.sort_custom(
@@ -555,14 +571,17 @@ func process_path_assault(delta: float) -> void:
 	if mech_hunter:
 		process_hunter_mech(delta)
 		return
+	var attack_radius := get_effective_attack_radius()
 	var assault_target_eligible := (
 		is_valid_target(target)
-		and global_position.distance_to(target.global_position)
-			<= get_effective_attack_radius()
+		and global_position.distance_squared_to(target.global_position)
+			<= attack_radius * attack_radius
 	)
-	if target_refresh_remaining <= 0.0 or not assault_target_eligible:
-		target = select_target(global_position, get_effective_attack_radius())
+	if target_refresh_remaining <= 0.0:
+		target = select_target(global_position, attack_radius)
 		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
+	elif not assault_target_eligible:
+		target = null
 	if is_valid_target(target):
 		try_attack_target()
 		return
@@ -581,11 +600,14 @@ func process_hunter_mech(delta: float) -> void:
 		and absf(float(target.path_follow.progress) - path_progress)
 			<= hunter_pursuit_radius_pixels
 	)
-	if target_refresh_remaining <= 0.0 or not hunter_target_eligible:
+	if target_refresh_remaining <= 0.0:
 		target = select_hunter_target()
 		target_refresh_remaining = MOBILE_TARGET_REFRESH_INTERVAL
+	elif not hunter_target_eligible:
+		target = null
 	if is_valid_target(target):
-		if global_position.distance_to(target.global_position) <= get_effective_attack_radius():
+		var attack_radius := get_effective_attack_radius()
+		if global_position.distance_squared_to(target.global_position) <= attack_radius * attack_radius:
 			try_attack_target()
 			return
 		var target_progress := float(target.path_follow.progress)
@@ -664,9 +686,11 @@ func move_toward_position(destination: Vector2, delta: float) -> void:
 func try_attack_target() -> void:
 	if attack_cooldown > 0.0 or not is_valid_target(target):
 		return
+	var attack_radius := get_effective_attack_radius()
 	if (
 		not target_is_shared
-		and global_position.distance_to(target.global_position) > get_effective_attack_radius()
+		and global_position.distance_squared_to(target.global_position)
+			> attack_radius * attack_radius
 	):
 		return
 	perform_attack(target)
@@ -731,11 +755,13 @@ func get_current_attack_interval() -> float:
 		var frenzy_stacks := int(parent_tower.get_owned_relic_count(&"frenzy"))
 		if frenzy_stacks > 0:
 			var enemy_count := 0
+			var attack_radius := get_effective_attack_radius()
+			var attack_radius_squared := attack_radius * attack_radius
 			for mob in get_tree().get_nodes_in_group("mobs"):
 				if (
 					is_valid_target(mob)
-					and global_position.distance_to(mob.global_position)
-						<= get_effective_attack_radius()
+					and global_position.distance_squared_to(mob.global_position)
+						<= attack_radius_squared
 				):
 					enemy_count += 1
 			enemy_count = mini(
@@ -812,20 +838,12 @@ func create_attack_context(
 			parent_tower.get_attack_relic_metadata(
 				global_position,
 				get_effective_attack_radius(),
-				type_tags
+				type_tags,
+				damage_tags
 			),
 			true
 		)
 		metadata["source_can_reveal"] = can_source_reveal()
-		var local_enemy_count := 0
-		for mob in get_tree().get_nodes_in_group("mobs"):
-			if (
-				is_valid_target(mob)
-				and global_position.distance_to(mob.global_position)
-					<= get_effective_attack_radius()
-			):
-				local_enemy_count += 1
-		metadata["enemies_in_range"] = local_enemy_count
 	if include_critical_roll:
 		metadata.merge(get_last_attack_roll_metadata(), true)
 	return AttackContext.from_tower(
@@ -1417,16 +1435,22 @@ func apply_control_effects(
 func select_target(origin: Vector2, maximum_distance: float) -> Node2D:
 	var selected_target: Node2D
 	var selected_progress := -INF
+	var maximum_distance_squared := maximum_distance * maximum_distance
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not is_valid_target(candidate):
 			continue
-		if origin.distance_to(candidate.global_position) > maximum_distance:
+		if origin.distance_squared_to(candidate.global_position) > maximum_distance_squared:
 			continue
 		var progress := float(candidate.path_follow.progress)
 		if progress > selected_progress:
 			selected_progress = progress
 			selected_target = candidate
 	return selected_target
+
+
+func get_initial_target_refresh_delay() -> float:
+	var phase := float(get_instance_id() % 997) / 997.0
+	return phase * MOBILE_TARGET_REFRESH_INTERVAL
 
 
 func is_valid_target(candidate: Variant) -> bool:

@@ -548,8 +548,7 @@ func begin_placement() -> void:
 
 func confirm_placement() -> void:
 	is_placed = true
-	tower_area.monitoring = true
-	$Tower/CollisionShape2D.disabled = false
+	refresh_range_monitoring_state()
 	$clickarea.monitoring = true
 	$clickarea.input_pickable = true
 	$clickarea/CollisionShape2D.disabled = false
@@ -570,6 +569,9 @@ func confirm_placement() -> void:
 func load_level_stats() -> void:
 	if stats_controller != null:
 		stats_controller.load_level_stats()
+	if attack_delivery_controller != null:
+		attack_delivery_controller.invalidate_relic_metadata_cache()
+	refresh_range_monitoring_state()
 
 
 func get_effective_stats_for_level(level: int) -> Dictionary:
@@ -638,6 +640,8 @@ func schedule_spawned_unit_replacement(delay: float) -> void:
 func _on_round_started(_round_number: int) -> void:
 	death_ray_cycle_elapsed = 0.0
 	refresh_death_ray_overcharge_state()
+	if attack_delivery_controller != null:
+		attack_delivery_controller.invalidate_relic_metadata_cache()
 	if attack_component != null:
 		attack_component.on_round_started()
 	if is_placed and uses_standard_spawner_system():
@@ -753,10 +757,11 @@ func create_attack_context(
 func get_attack_relic_metadata(
 	source_position: Vector2,
 	source_range: float,
-	source_type_tags: Array
+	source_type_tags: Array,
+	source_damage_tags: Array = []
 ) -> Dictionary:
 	return attack_delivery_controller.get_attack_relic_metadata(
-		source_position, source_range, source_type_tags
+		source_position, source_range, source_type_tags, source_damage_tags
 	)
 
 
@@ -939,7 +944,8 @@ func get_targets_along_line(
 	)
 
 func _process(delta: float) -> void:
-	process_death_ray_overcharge(delta)
+	if death_ray_overcharge_enabled:
+		process_death_ray_overcharge(delta)
 	update_menu_layout()
 	if targeting_controller != null:
 		targeting_controller.process(delta)
@@ -1196,6 +1202,25 @@ func uses_drone_targeting() -> bool:
 	return attack_component != null and attack_component.uses_drone_targeting()
 
 
+func requires_range_monitoring() -> bool:
+	return (
+		not uses_standard_spawner_system()
+		or uses_drone_targeting()
+		or has_bonus_tag(BONUS_REVEAL)
+	)
+
+
+func refresh_range_monitoring_state() -> void:
+	if not is_node_ready():
+		return
+	var should_monitor := is_placed and requires_range_monitoring()
+	tower_area.monitoring = should_monitor
+	$Tower/CollisionShape2D.disabled = not should_monitor
+	if not should_monitor and not mobs_in_range.is_empty():
+		remove_reveal_source_from_all_mobs()
+		mobs_in_range.clear()
+
+
 func get_drone_target_mode() -> DroneTargetMode:
 	return (
 		attack_component.get_drone_target_mode()
@@ -1209,11 +1234,12 @@ func get_drone_command_radius_pixels() -> float:
 
 
 func is_valid_drone_command_target(candidate: Variant) -> bool:
+	var command_radius := get_drone_command_radius_pixels()
 	return (
 		uses_drone_targeting()
 		and is_valid_target(candidate)
-		and global_position.distance_to(candidate.global_position)
-			<= get_drone_command_radius_pixels()
+		and global_position.distance_squared_to(candidate.global_position)
+			<= command_radius * command_radius
 	)
 
 

@@ -3,8 +3,32 @@ extends Node
 
 const GameStats = preload("res://stat_database.gd")
 const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
+const ATTACK_RELIC_METADATA_IDS: Array[StringName] = [
+	&"pack_hunter",
+	&"predatory_instinct",
+	&"interference_beam",
+	&"microwave",
+	&"hollow_point",
+	&"long_barrel",
+	&"point_blank",
+	&"giant_killer",
+	&"duelist",
+	&"strength_in_numbers",
+	&"crowd_pleaser",
+	&"direct_hit",
+	&"thermite_bombs",
+	&"charred_clothes",
+	&"conductive",
+	&"overcharged_capacitor",
+	&"static_discharge",
+	&"chain_lightning",
+	&"pressure_point",
+	&"big_game_control",
+	&"emergency_brake",
+]
 
 var tower: BaseTower
+var cached_relic_metadata: Dictionary = {}
 
 
 func setup(owner_tower: BaseTower) -> void:
@@ -103,7 +127,8 @@ func create_attack_context(
 	var metadata := get_attack_relic_metadata(
 		tower.global_position,
 		tower.range_radius_pixels,
-		tower.type_tags
+		tower.type_tags,
+		tower.damage_tags
 	)
 	if include_critical_roll:
 		metadata.merge(get_last_attack_roll_metadata(), true)
@@ -143,52 +168,49 @@ func reset_relentless() -> void:
 func get_attack_relic_metadata(
 	source_position: Vector2,
 	source_range: float,
-	source_type_tags: Array
+	source_type_tags: Array,
+	source_damage_tags: Array = []
 ) -> Dictionary:
-	return {
-		"source_position": source_position,
-		"source_range": maxf(source_range, 0.0),
-		"source_type_tags": source_type_tags.duplicate(),
-		"source_can_reveal": tower.has_bonus_tag(BaseTower.BONUS_REVEAL),
-		"enemies_in_range": count_valid_enemies_near(
+	var metadata := get_cached_relic_metadata()
+	metadata["source_position"] = source_position
+	metadata["source_range"] = maxf(source_range, 0.0)
+	metadata["source_type_tags"] = source_type_tags.duplicate()
+	metadata["source_can_reveal"] = tower.has_bonus_tag(BaseTower.BONUS_REVEAL)
+	metadata["enemies_in_range"] = 0
+	metadata["nearby_melee_towers"] = 0
+	var deals_melee_damage := source_damage_tags.has(BaseTower.DAMAGE_MELEE)
+	if deals_melee_damage and int(metadata.get("duelist", 0)) > 0:
+		metadata["enemies_in_range"] = count_valid_enemies_near(
 			source_position, source_range
-		),
-		"nearby_melee_towers": mini(
+		)
+	if deals_melee_damage and int(metadata.get("strength_in_numbers", 0)) > 0:
+		metadata["nearby_melee_towers"] = mini(
 			tower.stats_controller.get_nearby_tower_count(
 				BaseTower.DAMAGE_MELEE, 1.5 * BaseTower.BUILD_CELL_SIZE
 			),
 			GameStats.STRENGTH_IN_NUMBERS_MAXIMUM_NEIGHBORS
-		),
-		"pack_hunter": tower.get_owned_relic_count(&"pack_hunter"),
-		"predatory_instinct": tower.get_owned_relic_count(&"predatory_instinct"),
-		"interference_beam": tower.get_owned_relic_count(&"interference_beam"),
-		"microwave": tower.get_owned_relic_count(&"microwave"),
-		"hollow_point": tower.get_owned_relic_count(&"hollow_point"),
-		"long_barrel": tower.get_owned_relic_count(&"long_barrel"),
-		"point_blank": tower.get_owned_relic_count(&"point_blank"),
-		"giant_killer": tower.get_owned_relic_count(&"giant_killer"),
-		"duelist": tower.get_owned_relic_count(&"duelist"),
-		"strength_in_numbers": tower.get_owned_relic_count(&"strength_in_numbers"),
-		"crowd_pleaser": tower.get_owned_relic_count(&"crowd_pleaser"),
-		"direct_hit": tower.get_owned_relic_count(&"direct_hit"),
-		"thermite_bombs": tower.get_owned_relic_count(&"thermite_bombs"),
-		"charred_clothes": tower.get_owned_relic_count(&"charred_clothes"),
-		"conductive": tower.get_owned_relic_count(&"conductive"),
-		"overcharged_capacitor": tower.get_owned_relic_count(&"overcharged_capacitor"),
-		"static_discharge": tower.get_owned_relic_count(&"static_discharge"),
-		"chain_lightning": tower.get_owned_relic_count(&"chain_lightning"),
-		"pressure_point": tower.get_owned_relic_count(&"pressure_point"),
-		"big_game_control": tower.get_owned_relic_count(&"big_game_control"),
-		"emergency_brake": tower.get_owned_relic_count(&"emergency_brake"),
-	}
+		)
+	return metadata
+
+
+func get_cached_relic_metadata() -> Dictionary:
+	if cached_relic_metadata.is_empty():
+		for relic_id in ATTACK_RELIC_METADATA_IDS:
+			cached_relic_metadata[relic_id] = tower.get_owned_relic_count(relic_id)
+	return cached_relic_metadata.duplicate()
+
+
+func invalidate_relic_metadata_cache() -> void:
+	cached_relic_metadata.clear()
 
 
 func count_valid_enemies_near(origin: Vector2, radius: float) -> int:
 	var count := 0
+	var radius_squared := radius * radius
 	for mob in tower.get_tree().get_nodes_in_group("mobs"):
 		if (
 			tower.is_valid_target(mob)
-			and origin.distance_to(mob.global_position) <= radius
+			and origin.distance_squared_to(mob.global_position) <= radius_squared
 		):
 			count += 1
 	return count

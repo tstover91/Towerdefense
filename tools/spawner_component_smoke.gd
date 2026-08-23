@@ -16,11 +16,13 @@ class FakeMain:
 	var money := 1_000_000_000
 	var primary_path: Path2D
 	var relics: Dictionary = {}
+	var relic_lookup_calls := 0
 
 	func get_run_bonus(_effect: StringName) -> float:
 		return 0.0
 
 	func get_relic_count(relic_id: StringName) -> int:
+		relic_lookup_calls += 1
 		return int(relics.get(relic_id, 0))
 
 	func get_primary_enemy_path() -> Path2D:
@@ -63,6 +65,7 @@ func run_test() -> void:
 	tower.position = Vector2(400.0, 100.0)
 	add_child(tower)
 	tower.confirm_placement()
+	assert(tower.tower_area.monitoring)
 	var component = tower.attack_component
 	assert(component != null)
 	assert(component.spawned_unit_id == &"drone")
@@ -84,6 +87,15 @@ func run_test() -> void:
 	assert(component.active_units.size() == 2)
 	for trade_drone in component.active_units:
 		assert(trade_drone.damage == roundi(roundi(150.0 * 1.25) * 0.70))
+		assert(trade_drone.target_refresh_remaining >= 0.0)
+		assert(
+			trade_drone.target_refresh_remaining
+				< 0.15
+		)
+	assert(
+		component.active_units[0].target_refresh_remaining
+			!= component.active_units[1].target_refresh_remaining
+	)
 
 	var follow := PathFollow2D.new()
 	path.add_child(follow)
@@ -92,6 +104,39 @@ func run_test() -> void:
 	follow.add_child(mob)
 	mob.set_path_follow(follow, 450.0)
 	tower.mobs_in_range.assign([mob])
+	get_tree().set_meta(&"drone_assignment_refresh_bucket", -1)
+	get_tree().set_meta(&"drone_assignment_cache", {})
+	assert(component.active_units[0].select_distributed_drone_target() == mob)
+	var assignment_cache: Dictionary = get_tree().get_meta(
+		&"drone_assignment_cache", {}
+	)
+	assignment_cache[999_999] = true
+	get_tree().set_meta(&"drone_assignment_cache", assignment_cache)
+	assert(component.active_units[1].select_distributed_drone_target() == mob)
+	assert(
+		(get_tree().get_meta(&"drone_assignment_cache", {}) as Dictionary).has(
+			999_999
+		)
+	)
+
+	fake_main.relic_lookup_calls = 0
+	var first_metadata := tower.get_attack_relic_metadata(
+		tower.global_position,
+		tower.range_radius_pixels,
+		tower.type_tags,
+		tower.damage_tags
+	)
+	var first_lookup_count := fake_main.relic_lookup_calls
+	assert(first_lookup_count > 0)
+	var second_metadata := tower.get_attack_relic_metadata(
+		tower.global_position,
+		tower.range_radius_pixels,
+		tower.type_tags,
+		tower.damage_tags
+	)
+	assert(fake_main.relic_lookup_calls == first_lookup_count)
+	assert(not first_metadata.has("trade_agreement"))
+	assert(second_metadata["enemies_in_range"] == 0)
 	assert(tower.get_drone_target_mode() == BaseTower.DroneTargetMode.DISTRIBUTED)
 	component.set_drone_target_mode(BaseTower.DroneTargetMode.FOCUS_MAX_HEALTH)
 	assert(tower.get_drone_target_mode() == BaseTower.DroneTargetMode.FOCUS_MAX_HEALTH)
@@ -109,8 +154,11 @@ func run_test() -> void:
 		sibling.tower_id = tower_id
 		sibling.main = fake_main
 		add_child(sibling)
+		sibling.confirm_placement()
 		assert(sibling.attack_component != null)
 		assert(not sibling.attack_component.spawned_unit_id.is_empty())
+		assert(not sibling.tower_area.monitoring)
+		assert(sibling.get_node("Tower/CollisionShape2D").disabled)
 		sibling.queue_free()
 
 	print("Spawner smoke test passed: Drone Depot commands and shared Hive/Drone/Mech spawn lifecycle.")
