@@ -56,9 +56,12 @@ func run_checks() -> void:
 		"MainUI/HUDRoot"
 	))
 	assert(director.build_toggle_button.is_visible_in_tree())
-	assert(director.build_toggle_button.get_global_rect().position.x >= 0.0)
+	var build_button_rect: Rect2 = director.build_toggle_button.get_global_rect()
+	assert(build_button_rect.position.x >= 0.0)
+	assert(build_button_rect.end.x <= director.get_viewport_rect().size.x)
+	assert(build_button_rect.get_center().x < director.get_viewport_rect().size.x * 0.5)
 	assert(
-		director.build_toggle_button.get_global_rect().end.y
+		build_button_rect.end.y
 		<= director.get_viewport_rect().size.y
 	)
 	director.tower_roster.assign([&"invader"])
