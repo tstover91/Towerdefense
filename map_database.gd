@@ -8,6 +8,11 @@ const MAPS := {
 		"scene": preload("res://maps/farm_map.tscn"),
 		"preview": preload("res://assets/maps/farm.png"),
 	},
+	&"farm_gauntlet": {
+		"display_name": "Farm Gauntlet",
+		"scene": preload("res://maps/farm_gauntlet_map.tscn"),
+		"preview": preload("res://assets/maps/farm_gauntlet.png"),
+	},
 }
 
 

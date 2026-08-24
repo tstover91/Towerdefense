@@ -262,6 +262,14 @@ Attack: Melee
 Bonus: None"
 autowrap_mode = 2
 
+[node name="TowerRelicsLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "Relics: None"
+autowrap_mode = 2
+
 [node name="UpgradeHeaderLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout" unique_id=1926868415]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15

@@ -4,9 +4,14 @@ extends RefCounted
 const GameStats = preload("res://stat_database.gd")
 
 const SHOP_CHOICE_COUNT := 3
-const MINIMUM_APPLICABLE_RELIC_CHOICES := 2
 const RELIC_DRAFT_ROUNDS: Array[int] = [1, 5, 11, 20]
 const DOUBLE_COMMON_RELIC_DRAFT_ROUND := 11
+const RELIC_MINIMUM_APPLICABLE_BY_ROUND := {
+	1: 2,
+	5: 2,
+	11: 3,
+	20: 2,
+}
 const RELIC_RARITY_WEIGHTS_BY_ROUND := {
 	1: {&"common": 100.0},
 	5: {&"common": 70.0, &"rare": 30.0},
@@ -74,12 +79,6 @@ func roll_relic_offers(
 			and not bool(path_relic_eligibility.get(item_id, false))
 		):
 			continue
-		if not is_relic_applicable(
-			item_id,
-			current_tags,
-			has_dedicated_spawner
-		):
-			continue
 		eligible_relics.append(item_id)
 
 	var choice_count := get_relic_draft_choice_count(round_number)
@@ -115,13 +114,96 @@ func roll_relic_offers(
 	var minimum_rare_plus := int(
 		RELIC_MINIMUM_RARE_PLUS_BY_ROUND.get(round_number, 0)
 	)
-	minimum_rare_plus = mini(
-		minimum_rare_plus,
-		count_rare_plus_relics(available)
+	var minimum_applicable := int(
+		RELIC_MINIMUM_APPLICABLE_BY_ROUND.get(round_number, 0)
+	)
+	var roll_pool := get_relic_roll_pool(
+		available,
+		choice_count,
+		minimum_applicable,
+		current_tags,
+		has_dedicated_spawner
 	)
 	var offers: Array[StringName] = []
+	if roll_pool.size() >= choice_count:
+		offers = roll_qualified_relic_set(
+			roll_pool,
+			rarity_weights,
+			choice_count,
+			minimum_rare_plus,
+			minimum_applicable,
+			current_tags,
+			has_dedicated_spawner,
+			round_number
+		)
+	if offers.is_empty():
+		# Recent-offer suppression must never make a round's guarantees
+		# impossible. Relax only the history rule and retry from the full pool.
+		roll_pool = get_relic_roll_pool(
+			eligible_relics,
+			choice_count,
+			minimum_applicable,
+			current_tags,
+			has_dedicated_spawner
+		)
+		minimum_rare_plus = mini(
+			int(RELIC_MINIMUM_RARE_PLUS_BY_ROUND.get(round_number, 0)),
+			count_rare_plus_relics(roll_pool)
+		)
+		if roll_pool.size() >= choice_count:
+			offers = roll_qualified_relic_set(
+				roll_pool,
+				rarity_weights,
+				choice_count,
+				minimum_rare_plus,
+				minimum_applicable,
+				current_tags,
+				has_dedicated_spawner,
+				round_number
+			)
+	if not offers.is_empty():
+		remember_relic_offers(offers)
+		return offers
+
+	assert(
+		false,
+		"Unable to satisfy the relic draft guarantees for round %d." % round_number
+	)
+	return offers
+
+
+func get_relic_roll_pool(
+	available: Array[StringName],
+	choice_count: int,
+	minimum_applicable: int,
+	current_tags: Array[StringName],
+	has_dedicated_spawner: bool
+) -> Array[StringName]:
+	if minimum_applicable < choice_count:
+		return available
+	var applicable: Array[StringName] = []
+	for item_id in available:
+		if is_relic_applicable(
+			item_id,
+			current_tags,
+			has_dedicated_spawner
+		):
+			applicable.append(item_id)
+	return applicable
+
+
+func roll_qualified_relic_set(
+	available: Array[StringName],
+	rarity_weights: Dictionary,
+	choice_count: int,
+	minimum_rare_plus: int,
+	minimum_applicable: int,
+	current_tags: Array[StringName],
+	has_dedicated_spawner: bool,
+	round_number: int
+) -> Array[StringName]:
 	for _attempt in RELIC_ROLL_MAX_ATTEMPTS:
-		offers = roll_weighted_relic_set(
+		var offers := roll_weighted_relic_set(
 			available,
 			rarity_weights,
 			choice_count
@@ -132,16 +214,11 @@ func roll_relic_offers(
 				offers,
 				current_tags,
 				has_dedicated_spawner
-			) >= MINIMUM_APPLICABLE_RELIC_CHOICES
+			) >= minimum_applicable
+			and has_required_double_common(round_number, offers)
 		):
-			remember_relic_offers(offers)
 			return offers
-
-	assert(
-		false,
-		"Unable to satisfy the relic draft guarantees for round %d." % round_number
-	)
-	return offers
+	return []
 
 
 func has_owned_exclusive_relic(
@@ -169,51 +246,26 @@ func roll_opening_relic_offers(
 	round_number: int
 ) -> Array[StringName]:
 	var common_relics: Array[StringName] = []
-	var rare_relics: Array[StringName] = []
-	var other_relics: Array[StringName] = []
 	for item_id in available:
 		var rarity: StringName = GameStats.get_relic(item_id)["rarity"]
 		if rarity == &"common":
 			common_relics.append(item_id)
-		elif rarity == &"rare":
-			rare_relics.append(item_id)
-		else:
-			other_relics.append(item_id)
 	assert(
-		available.size() >= 4,
-		"Opening relic drafts need four eligible relics."
+		common_relics.size() >= 4,
+		"Opening relic drafts need four eligible common relics."
 	)
 	for _attempt in RELIC_ROLL_MAX_ATTEMPTS:
 		var remaining_commons := common_relics.duplicate()
-		var remaining_rares := rare_relics.duplicate()
-		var remaining_other := other_relics.duplicate()
 		var offers: Array[StringName] = []
-		while offers.size() < 3 and not remaining_commons.is_empty():
+		while offers.size() < 4:
 			offers.append(remaining_commons.pop_at(
 				rng.randi_range(0, remaining_commons.size() - 1)
-			))
-		while offers.size() < 4:
-			var selected_pool: Array[StringName]
-			if (
-				not remaining_rares.is_empty()
-				and (remaining_commons.is_empty() or rng.randf() < 0.25)
-			):
-				selected_pool = remaining_rares
-			elif not remaining_commons.is_empty():
-				selected_pool = remaining_commons
-			elif not remaining_rares.is_empty():
-				selected_pool = remaining_rares
-			else:
-				selected_pool = remaining_other
-			assert(not selected_pool.is_empty(), "No opening relic remains.")
-			offers.append(selected_pool.pop_at(
-				rng.randi_range(0, selected_pool.size() - 1)
 			))
 		if count_applicable_relics(
 			offers,
 			current_tags,
 			has_dedicated_spawner
-		) >= MINIMUM_APPLICABLE_RELIC_CHOICES:
+		) >= int(RELIC_MINIMUM_APPLICABLE_BY_ROUND.get(round_number, 0)):
 			return offers
 	assert(
 		false,
@@ -291,6 +343,22 @@ func count_rare_plus_relics(offers: Array[StringName]) -> int:
 		if GameStats.get_relic(item_id)["rarity"] in [&"rare", &"legendary"]:
 			count += 1
 	return count
+
+
+func has_required_double_common(
+	round_number: int,
+	offers: Array[StringName]
+) -> bool:
+	if round_number != DOUBLE_COMMON_RELIC_DRAFT_ROUND:
+		return true
+	for item_id in offers:
+		var relic := GameStats.get_relic(item_id)
+		if (
+			relic["rarity"] == &"common"
+			and bool(relic.get("stackable", false))
+		):
+			return true
+	return false
 
 
 func count_applicable_relics(

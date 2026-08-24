@@ -627,6 +627,14 @@ func get_owned_relic_count(relic_id: StringName) -> int:
 	return stats_controller.get_owned_relic_count(relic_id)
 
 
+func get_active_relic_effect_ids() -> Array[StringName]:
+	return stats_controller.get_active_relic_effect_ids()
+
+
+func receives_relic_effect(relic_id: StringName) -> bool:
+	return stats_controller.receives_relic_effect(relic_id)
+
+
 func _spawn_unit() -> void:
 	if attack_component != null:
 		attack_component.spawn_unit()

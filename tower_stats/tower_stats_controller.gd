@@ -345,6 +345,7 @@ func get_sidebar_stats() -> Dictionary:
 		"type_tags": tower.type_tags.duplicate(),
 		"attack_tags": tower.damage_tags.duplicate(),
 		"bonus_tags": tower.bonus_tags.duplicate(),
+		"active_relic_effects": get_active_relic_effect_ids(),
 		"has_next_level": next_level < levels.size(),
 		"show_upgrade_info": (
 			tower.is_placed
@@ -355,6 +356,82 @@ func get_sidebar_stats() -> Dictionary:
 	if next_level < levels.size():
 		result["next_level"] = next_level
 	return result
+
+
+func get_active_relic_effect_ids() -> Array[StringName]:
+	var active: Array[StringName] = []
+	if tower.main == null or not tower.is_placed:
+		return active
+	var owned_value: Variant = tower.main.get("owned_shop_items")
+	if not owned_value is Dictionary:
+		return active
+	var owned_items: Dictionary = owned_value
+	for relic_key in owned_items:
+		var relic_id := StringName(relic_key)
+		if (
+			int(owned_items[relic_key]) > 0
+			and receives_relic_effect(relic_id)
+		):
+			active.append(relic_id)
+	active.sort()
+	return active
+
+
+func receives_relic_effect(relic_id: StringName) -> bool:
+	if not tower.is_placed:
+		return false
+	if relic_id in [&"singularity_core", &"perfect_mutation"]:
+		return tower.dual_path_relic_source == relic_id
+	if relic_id == &"trade_agreement":
+		return tower.uses_standard_spawner_system()
+
+	var category: StringName = GameStats.get_relic(relic_id)["category"]
+	match category:
+		&"technology":
+			if not tower.has_type_tag(BaseTower.TYPE_TECHNOLOGY):
+				return false
+			if relic_id == &"network_upgrade":
+				return get_nearby_type_tower_count(
+					BaseTower.TYPE_TECHNOLOGY,
+					BaseTower.BUILD_CELL_SIZE
+				) > 0
+			return true
+		&"biological":
+			return tower.has_type_tag(BaseTower.TYPE_BIOLOGICAL)
+		&"beam":
+			return tower.has_damage_tag(BaseTower.DAMAGE_BEAM)
+		&"ballistic":
+			return tower.has_damage_tag(BaseTower.DAMAGE_BALLISTIC)
+		&"melee":
+			if not tower.has_damage_tag(BaseTower.DAMAGE_MELEE):
+				return false
+			if relic_id == &"lone_wolf":
+				return not has_other_placed_tower_with_same_id()
+			if relic_id == &"strength_in_numbers":
+				return get_nearby_tower_count(
+					BaseTower.DAMAGE_MELEE,
+					1.5 * BaseTower.BUILD_CELL_SIZE
+				) > 0
+			return true
+		&"explosive":
+			return tower.has_damage_tag(BaseTower.DAMAGE_EXPLOSIVE)
+		&"electric":
+			return tower.has_damage_tag(BaseTower.DAMAGE_ELECTRIC)
+		&"critical":
+			return tower.has_bonus_tag(BaseTower.BONUS_CRITICAL)
+		&"psionic":
+			return tower.has_bonus_tag(BaseTower.BONUS_PSIONIC)
+		&"reveal":
+			return tower.has_bonus_tag(BaseTower.BONUS_REVEAL)
+		&"pierce":
+			return tower.has_bonus_tag(BaseTower.BONUS_PIERCE)
+		&"stun":
+			return tower.has_bonus_tag(BaseTower.BONUS_STUN)
+		&"spawner":
+			return tower.has_bonus_tag(BaseTower.BONUS_SPAWNER)
+		_:
+			# Global economy and roster relics do not modify a built tower.
+			return false
 
 
 func apply_path_stat_modifiers(base_stats: Dictionary) -> Dictionary:

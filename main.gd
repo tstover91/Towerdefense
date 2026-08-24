@@ -84,6 +84,7 @@ signal round_ended(round_number: int)
 @onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerLevelLabel
 @onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerPathLabel
 @onready var tower_tags_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerTagsLabel
+@onready var tower_relics_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerRelicsLabel
 @onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/UpgradeHeaderLabel
 var mobs_left_to_spawn := 0
 var mobs_alive := 0
@@ -503,6 +504,9 @@ func show_tower_details(tower: Node) -> void:
 		format_tower_tags(stats.get("attack_tags", [])),
 		format_tower_tags(stats.get("bonus_tags", [])),
 	]
+	var active_relics: Array = stats.get("active_relic_effects", [])
+	tower_relics_label.text = "Relics: %s" % format_relic_names(active_relics)
+	tower_relics_label.tooltip_text = format_relic_effect_tooltip(active_relics)
 	tower_upgrade_header.visible = show_upgrade_info
 	if show_upgrade_info:
 		var next_level: int = stats["next_level"]
@@ -522,6 +526,25 @@ func format_tower_tags(tags: Array) -> String:
 			words[index] = words[index].capitalize()
 		display_tags.append(" ".join(words))
 	return ", ".join(display_tags)
+
+
+func format_relic_names(relic_ids: Array) -> String:
+	if relic_ids.is_empty():
+		return "None"
+	var names: Array[String] = []
+	for relic_id in relic_ids:
+		names.append(String(GameStats.get_relic(StringName(relic_id))["display_name"]))
+	return ", ".join(names)
+
+
+func format_relic_effect_tooltip(relic_ids: Array) -> String:
+	if relic_ids.is_empty():
+		return "No owned relic currently modifies this tower."
+	var lines: Array[String] = []
+	for relic_id in relic_ids:
+		var relic := GameStats.get_relic(StringName(relic_id))
+		lines.append("%s: %s" % [relic["display_name"], relic["description"]])
+	return "\n\n".join(lines)
 
 
 func clear_tower_details(tower: Node = null) -> void:
@@ -2068,7 +2091,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("ui_cancel") and not game_ended:
 		get_viewport().set_input_as_handled()
-		pause_menu.open_menu(owned_shop_items)
+		open_pause_menu()
 		return
 
 	if shop_open:
@@ -2331,9 +2354,33 @@ func _on_pause_button_pressed() -> void:
 	if game_ended or shop_open or is_selecting_path_relic_tower():
 		return
 	if round_active:
-		pause_menu.open_menu(owned_shop_items)
+		open_pause_menu()
 	else:
 		start_round()
+
+
+func open_pause_menu() -> void:
+	ensure_round_controller()
+	ensure_wave_director()
+	var enemy_round := clampi(
+		round_controller.get_displayed_round(),
+		1,
+		max_rounds
+	)
+	var placed_towers: Array[Node] = []
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if (
+			is_instance_valid(tower)
+			and not tower.is_queued_for_deletion()
+			and bool(tower.get("is_placed"))
+		):
+			placed_towers.append(tower)
+	pause_menu.open_menu(
+		owned_shop_items,
+		placed_towers,
+		wave_director.get_available_enemies(enemy_round),
+		enemy_round
+	)
 
 
 func update_play_pause_button() -> void:
