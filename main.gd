@@ -95,7 +95,6 @@ signal round_ended(round_number: int)
 @onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
 @onready var round_timer_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundtimer
 @onready var relic_icon_list: HBoxContainer = $MainUI/HUDRoot/RelicStrip/RelicIconList
-@onready var no_relics_label: Label = $MainUI/HUDRoot/RelicStrip/RelicIconList/NoRelicsLabel
 @onready var relic_info_panel: PanelContainer = $MainUI/HUDRoot/RelicInfoPanel
 @onready var relic_info_name: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/Header/NameLabel
 @onready var relic_info_affected: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/Header/AffectedLabel
@@ -850,7 +849,6 @@ func refresh_relic_hud() -> void:
 		var relic_id := StringName(relic_key)
 		if get_relic_count(relic_id) > 0:
 			owned_relic_ids.append(relic_id)
-	no_relics_label.visible = owned_relic_ids.is_empty()
 	for relic_id in owned_relic_ids:
 		var relic := GameStats.get_relic(relic_id)
 		var count := get_relic_count(relic_id)

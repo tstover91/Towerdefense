@@ -33,7 +33,25 @@ func run_checks() -> void:
 	var relic_strip := director.get_node("MainUI/HUDRoot/RelicStrip") as Control
 	var edge_controls := director.get_node("MainUI/HUDRoot/EdgeControls") as Control
 	assert(top_bar.size.x == director.get_viewport_rect().size.x - 16.0)
+	assert(top_bar.size.y <= 68.0)
+	var top_bar_style := top_bar.get_theme_stylebox("panel") as StyleBoxFlat
+	assert(Vector3(
+		top_bar_style.bg_color.r,
+		top_bar_style.bg_color.g,
+		top_bar_style.bg_color.b
+	).distance_to(Vector3(1.0, 0xf0 / 255.0, 0xc2 / 255.0)) < 0.001)
 	assert(relic_strip.get_global_rect().end.x <= edge_controls.get_global_rect().position.x)
+	assert(not director.has_node("MainUI/HUDRoot/RelicStrip/RelicLabel"))
+	assert(not director.has_node(
+		"MainUI/HUDRoot/RelicStrip/RelicIconList/NoRelicsLabel"
+	))
+	assert(director.build_toggle_button.visible)
+	assert(director.thumb_controls.z_index >= 20)
+	assert(director.build_toggle_button.get_global_rect().position.x >= 0.0)
+	assert(
+		director.build_toggle_button.get_global_rect().end.y
+		<= director.get_viewport_rect().size.y
+	)
 	director.tower_roster.assign([&"invader"])
 	var base_roster_tags: Array[StringName] = director.get_tower_roster_tags()
 	assert(base_roster_tags.has(&"biological"))
@@ -168,7 +186,6 @@ func run_checks() -> void:
 	var network_icon := director.relic_hud_buttons[&"network_upgrade"] as Button
 	assert(network_icon.text == "NU")
 	assert(network_icon.custom_minimum_size.x >= 48.0)
-	assert(not director.no_relics_label.visible)
 	director.show_relic_hud_selection(&"network_upgrade")
 	assert(director.relic_info_panel.visible)
 	assert(director.relic_info_name.text == "Network Upgrade")

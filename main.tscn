@@ -285,19 +285,14 @@ corner_radius_bottom_right = 40
 corner_radius_bottom_left = 40
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_top_bar"]
-bg_color = Color(0.1255, 0.1294, 0.2275, 0.97)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(1, 0.9412, 0.7608, 1)
-corner_radius_top_left = 18
-corner_radius_top_right = 18
-corner_radius_bottom_right = 18
-corner_radius_bottom_left = 18
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.72)
-shadow_size = 5
-shadow_offset = Vector2(0, 5)
+bg_color = Color(1, 0.9412, 0.7608, 1)
+border_width_bottom = 2
+border_color = Color(0.1255, 0.1294, 0.2275, 0.28)
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0.1255, 0.1294, 0.2275, 0.25)
+shadow_size = 3
+shadow_offset = Vector2(0, 3)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_relic_info"]
 bg_color = Color(1, 0.9412, 0.7608, 0.99)
@@ -344,9 +339,8 @@ layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 8.0
-offset_top = 8.0
 offset_right = -8.0
-offset_bottom = 120.0
+offset_bottom = 68.0
 grow_horizontal = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_top_bar")
@@ -354,9 +348,9 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_top_bar")
 [node name="TopLeftPanel" type="PanelContainer" parent="MainUI/HUDRoot" unique_id=219660479]
 layout_mode = 0
 offset_left = 12.0
-offset_top = 12.0
-offset_right = 300.0
-offset_bottom = 116.0
+offset_top = 8.0
+offset_right = 476.0
+offset_bottom = 64.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxEmpty_status")
 
@@ -367,50 +361,60 @@ theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 0
 theme_override_constants/margin_bottom = 0
 
-[node name="StatusGrid" type="GridContainer" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin" unique_id=872170004]
+[node name="StatusGrid" type="HBoxContainer" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin" unique_id=872170004]
 layout_mode = 2
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
-columns = 2
+theme_override_constants/separation = 5
 
 [node name="livesdisplay" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=854572826]
-custom_minimum_size = Vector2(140, 44)
+custom_minimum_size = Vector2(124, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9098, 0.298, 0.2392, 1)
-theme_override_colors/font_outline_color = Color(0.1255, 0.1294, 0.2275, 1)
-theme_override_constants/outline_size = 1
-theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_status_chip")
+theme_override_font_sizes/font_size = 14
 text = "Health: 100/100"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="HealthDivider" type="VSeparator" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid"]
+custom_minimum_size = Vector2(1, 26)
+layout_mode = 2
+size_flags_vertical = 4
+modulate = Color(0.1255, 0.1294, 0.2275, 0.22)
+
 [node name="roundcount" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1111336532]
-custom_minimum_size = Vector2(140, 44)
+custom_minimum_size = Vector2(104, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
-theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_status_chip")
+theme_override_font_sizes/font_size = 14
 text = "Round: 0/20"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="RoundDivider" type="VSeparator" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid"]
+custom_minimum_size = Vector2(1, 26)
+layout_mode = 2
+size_flags_vertical = 4
+modulate = Color(0.1255, 0.1294, 0.2275, 0.22)
+
 [node name="moneydisplay" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1926460251]
-custom_minimum_size = Vector2(140, 44)
+custom_minimum_size = Vector2(112, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7647, 0.4745, 0.0353, 1)
-theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_status_chip")
+theme_override_font_sizes/font_size = 14
 text = "Money: $0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="MoneyDivider" type="VSeparator" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid"]
+custom_minimum_size = Vector2(1, 26)
+layout_mode = 2
+size_flags_vertical = 4
+modulate = Color(0.1255, 0.1294, 0.2275, 0.22)
+
 [node name="roundtimer" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1101724491]
-custom_minimum_size = Vector2(140, 44)
+custom_minimum_size = Vector2(82, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.0549, 0.5137, 0.6, 1)
-theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_status_chip")
+theme_override_font_sizes/font_size = 14
 text = "Ready"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -419,34 +423,17 @@ vertical_alignment = 1
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 312.0
-offset_top = 17.0
+offset_left = 486.0
+offset_top = 8.0
 offset_right = -140.0
-offset_bottom = 69.0
+offset_bottom = 64.0
 grow_horizontal = 2
 theme_override_constants/separation = 8
-
-[node name="RelicLabel" type="Label" parent="MainUI/HUDRoot/RelicStrip"]
-custom_minimum_size = Vector2(56, 48)
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.9412, 0.7608, 1)
-theme_override_font_sizes/font_size = 12
-text = "RELICS"
-horizontal_alignment = 1
-vertical_alignment = 1
 
 [node name="RelicIconList" type="HBoxContainer" parent="MainUI/HUDRoot/RelicStrip"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 7
-
-[node name="NoRelicsLabel" type="Label" parent="MainUI/HUDRoot/RelicStrip/RelicIconList"]
-custom_minimum_size = Vector2(120, 48)
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.9412, 0.7608, 0.62)
-theme_override_font_sizes/font_size = 13
-text = "None acquired"
-vertical_alignment = 1
 
 [node name="EdgeControls" type="PanelContainer" parent="MainUI/HUDRoot"]
 layout_mode = 1
@@ -535,6 +522,7 @@ vertical_alignment = 1
 autowrap_mode = 2
 
 [node name="ThumbControls" type="Control" parent="MainUI/HUDRoot"]
+z_index = 20
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
