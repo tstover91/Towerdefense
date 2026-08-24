@@ -2409,11 +2409,22 @@ static func get_round_threat_budget(round_number: int) -> float:
 	return float(get_round_profile(round_number)["threat_budget"])
 
 
+static func get_late_difficulty_health_multiplier(round_number: int) -> float:
+	if round_number <= 10:
+		return 1.0
+	if round_number <= 19:
+		return lerpf(1.10, 1.15, float(round_number - 11) / 8.0)
+	return lerpf(1.20, 1.25, float(round_number - 20) / 4.0)
+
+
 static func get_round_health_multiplier(round_number: int, boss := false) -> float:
 	var profile := get_round_profile(round_number)
-	return float(profile[
-		"boss_health_multiplier" if boss else "standard_health_multiplier"
-	])
+	return (
+		float(profile[
+			"boss_health_multiplier" if boss else "standard_health_multiplier"
+		])
+		* get_late_difficulty_health_multiplier(round_number)
+	)
 
 
 static func get_enemy_health_multiplier(

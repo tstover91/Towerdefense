@@ -38,6 +38,11 @@ func _init() -> void:
 		7.40, 7.70, 8.00, 8.30, 8.60, 9.00,
 		9.40, 9.80, 10.20, 10.60, 11.00, 11.00,
 	]
+	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(10), 1.0))
+	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(11), 1.10))
+	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(19), 1.15))
+	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(20), 1.20))
+	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(24), 1.25))
 	var total_duration := 0.0
 	var previous_threat_budget := 0.0
 	for round_number in range(1, 25):
@@ -48,7 +53,10 @@ func _init() -> void:
 		)
 		var expected_boss_health := (
 			1.15 + float(round_number - 1) * 0.025
-		) * 1.10
+		) * 1.10 * GameStats.get_late_difficulty_health_multiplier(round_number)
+		expected_health_multipliers[round_number - 1] *= (
+			GameStats.get_late_difficulty_health_multiplier(round_number)
+		)
 
 		assert(is_equal_approx(
 			GameStats.get_round_duration(round_number),
@@ -115,15 +123,15 @@ func _init() -> void:
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"normal")
-	) == 366)
+	) == 453)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"bruiser"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"bruiser")
-	) == 2883)
+	) == 3568)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"brute"]["health"])
 		* GameStats.get_enemy_health_multiplier(24, &"brute")
-	) == 170775)
+	) == 213469)
 	assert(int(GameStats.ENEMIES[&"heavy_enforcer"]["health"]) == 1800)
 	assert(GameStats.ENEMIES[&"striker"]["role"] == &"pressure")
 	assert(int(GameStats.ENEMIES[&"striker"]["director_cost"]) == 8)
