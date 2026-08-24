@@ -55,7 +55,10 @@ const TRADE_AGREEMENT_TOWER_IDS: Array[StringName] = [
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
-const MIN_SIDEBAR_WIDTH := 256.0
+const DOCK_COLLAPSED_TOP_OFFSET := -88.0
+const DOCK_BUILD_TOP_OFFSET := -184.0
+const DOCK_INSPECTOR_TOP_OFFSET := -250.0
+const DOCK_PATH_INSPECTOR_TOP_OFFSET := -306.0
 const BUILD_BLOCKER_COLLISION_MASK := 4
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
@@ -70,10 +73,12 @@ signal round_ended(round_number: int)
 @onready var between_round_shop: Control = $MainUI/BetweenRoundShop
 @onready var pause_menu: Control = $MainUI/PauseMenu
 @onready var sandbox_panel: Control = $MainUI/SandboxPanel
-@onready var speed_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/SpeedButton
-@onready var pause_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton
+@onready var speed_button: Button = $MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons/SpeedButton
+@onready var pause_button: Button = $MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons/PauseButton
 @onready var build_sidebar_state: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState
-@onready var reinforcement_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/ReinforcementButton
+@onready var tower_selection_area: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/TowerSelectionArea
+@onready var build_toggle_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/IdleActions/BuildToggleButton
+@onready var reinforcement_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/IdleActions/ReinforcementButton
 @onready var tower_inspector: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector
 @onready var sidebar: Control = $MainUI/HUDRoot/Sidebar
 @onready var money_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/moneydisplay
@@ -104,7 +109,6 @@ signal round_ended(round_number: int)
 @onready var tower_manual_target_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/ManualTargetButton
 @onready var tower_sell_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorActions/SellButton
 @onready var tower_back_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorActions/BuildButton
-@onready var tower_close_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/BackButton
 var mobs_left_to_spawn := 0
 var mobs_alive := 0
 var spawn_schedule: Array[Dictionary] = []
@@ -516,6 +520,7 @@ func show_tower_details(tower: Node) -> void:
 
 	build_sidebar_state.hide()
 	tower_inspector.show()
+	tower_selection_area.hide()
 	tower_name_label.text = stats["display_name"]
 	tower_level_label.text = "Level %d of %d" % [current_level + 1, maximum_level + 1]
 	var path_status: String = stats.get("path_status", "")
@@ -533,6 +538,7 @@ func show_tower_details(tower: Node) -> void:
 	update_tower_path_controls(tower)
 	update_tower_target_controls(tower)
 	update_tower_sell_control(tower)
+	update_context_dock_layout()
 
 
 func connect_tower_inspector_signals() -> void:
@@ -552,7 +558,6 @@ func connect_tower_inspector_signals() -> void:
 	tower_manual_target_button.pressed.connect(_on_sidebar_manual_target_pressed)
 	tower_sell_button.pressed.connect(_on_sidebar_sell_pressed)
 	tower_back_button.pressed.connect(_on_sidebar_back_pressed)
-	tower_close_button.pressed.connect(_on_sidebar_back_pressed)
 
 
 func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
@@ -737,6 +742,7 @@ func _on_sidebar_back_pressed() -> void:
 		displayed_tower.set_selected(false)
 	else:
 		clear_tower_details()
+	set_build_drawer_open(true)
 
 
 func prepare_sidebar_double_tap(action: BaseTower.MenuAction) -> bool:
@@ -819,6 +825,34 @@ func clear_tower_details(tower: Node = null) -> void:
 	reset_sidebar_confirmation()
 	tower_inspector.hide()
 	build_sidebar_state.show()
+	update_context_dock_layout()
+
+
+func _on_build_toggle_pressed() -> void:
+	set_build_drawer_open(not tower_selection_area.visible)
+
+
+func set_build_drawer_open(is_open: bool) -> void:
+	if not build_sidebar_state.visible:
+		return
+	tower_selection_area.visible = is_open
+	build_toggle_button.text = "Close Towers" if is_open else "Build Towers"
+	if not is_open:
+		tower_list.deselect_all()
+	update_context_dock_layout()
+
+
+func update_context_dock_layout() -> void:
+	if tower_inspector.visible:
+		sidebar.offset_top = (
+			DOCK_PATH_INSPECTOR_TOP_OFFSET
+			if tower_path_section.visible
+			else DOCK_INSPECTOR_TOP_OFFSET
+		)
+	elif tower_selection_area.visible:
+		sidebar.offset_top = DOCK_BUILD_TOP_OFFSET
+	else:
+		sidebar.offset_top = DOCK_COLLAPSED_TOP_OFFSET
 
 
 func refresh_tower_details() -> void:
@@ -876,6 +910,7 @@ func can_begin_reinforcement_targeting() -> bool:
 
 
 func _on_reinforcement_button_pressed() -> void:
+	set_build_drawer_open(false)
 	if reinforcement_targeting:
 		cancel_reinforcement_targeting()
 		return
@@ -2404,6 +2439,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton and event.pressed and not build_mode:
 		close_all_tower_menus()
+		set_build_drawer_open(false)
 
 func can_place_tower(pos: Vector2) -> bool:
 	if not is_instance_valid(tower_to_place):
@@ -2497,14 +2533,13 @@ func is_world_position_in_playable_area(world_position: Vector2) -> bool:
 
 func _align_sidebar_to_build_grid() -> void:
 	var viewport_width := get_viewport_rect().size.x
-	var available_map_width := maxf(viewport_width - MIN_SIDEBAR_WIDTH, 0.0)
-	playable_map_width = floorf(available_map_width / BUILD_CELL_SIZE) * BUILD_CELL_SIZE
+	playable_map_width = floorf(viewport_width / BUILD_CELL_SIZE) * BUILD_CELL_SIZE
 	if active_map != null:
 		active_map.configure_runtime_build_bounds(Rect2(
 			Vector2.ZERO,
 			Vector2(playable_map_width, get_viewport_rect().size.y)
 		))
-	sidebar.offset_left = -(viewport_width - playable_map_width)
+	update_context_dock_layout()
 
 func is_build_cell_blocked_by_path(cell: Vector2i) -> bool:
 	if active_map == null:
@@ -2621,6 +2656,7 @@ func _on_item_list_item_selected(index: int) -> void:
 			selected_is_contraband
 		)
 		start_build_tower()
+		set_build_drawer_open(false)
 		tower_list.select(index)
 	else:
 		tower_list.deselect_all()

@@ -149,6 +149,22 @@ func run_checks() -> void:
 	director.show_tower_details(network_tower)
 	assert(director.tower_inspector.visible)
 	assert(not director.build_sidebar_state.visible)
+	assert(is_equal_approx(
+		director.sidebar.size.x,
+		director.get_viewport().get_visible_rect().size.x - 24.0
+	))
+	assert(is_equal_approx(
+		director.playable_map_width,
+		floorf(
+			director.get_viewport().get_visible_rect().size.x
+			/ GameStats.BUILD_CELL_SIZE
+		) * GameStats.BUILD_CELL_SIZE
+	))
+	assert(director.tower_name_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER)
+	assert(not director.has_node(
+		"MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/"
+		+ "TowerInspector/InspectorHeader/BackButton"
+	))
 	assert(
 		director.get_node(
 			"MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/"
@@ -162,6 +178,14 @@ func run_checks() -> void:
 	assert(director.tower_upgrade_button.text.contains("2 taps"))
 	assert(director.tower_sell_button.text.begins_with("Sell"))
 	assert(director.tower_sell_button.text.contains("2 taps"))
+	var upgrade_style := (
+		director.tower_upgrade_button.get_theme_stylebox("normal") as StyleBoxFlat
+	)
+	var sell_style := (
+		director.tower_sell_button.get_theme_stylebox("normal") as StyleBoxFlat
+	)
+	assert(upgrade_style.bg_color.g > upgrade_style.bg_color.r)
+	assert(sell_style.bg_color.r > sell_style.bg_color.g)
 	director.money = 100000
 	network_tower.selected = true
 	var starting_level: int = network_tower.tower_level
@@ -201,6 +225,12 @@ func run_checks() -> void:
 	assert(not director.tower_inspector.visible)
 	assert(director.build_sidebar_state.visible)
 	assert(director.reinforcement_button.visible)
+	assert(not director.tower_selection_area.visible)
+	director._on_build_toggle_pressed()
+	assert(director.tower_selection_area.visible)
+	assert(director.build_toggle_button.text == "Close Towers")
+	director._on_build_toggle_pressed()
+	assert(not director.tower_selection_area.visible)
 	var network_stats: Dictionary = network_tower.get_effective_stats_for_level(0)
 	assert(is_equal_approx(float(network_stats["firerate"]), 0.40 / 1.24))
 	var placed_towers: Array[Node] = [
