@@ -55,8 +55,7 @@ const TRADE_AGREEMENT_TOWER_IDS: Array[StringName] = [
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
-const DOCK_COLLAPSED_TOP_OFFSET := -88.0
-const DOCK_BUILD_TOP_OFFSET := -184.0
+const DOCK_BUILD_TOP_OFFSET := -230.0
 const DOCK_INSPECTOR_TOP_OFFSET := -250.0
 const DOCK_PATH_INSPECTOR_TOP_OFFSET := -306.0
 const BUILD_BLOCKER_COLLISION_MASK := 4
@@ -75,10 +74,12 @@ signal round_ended(round_number: int)
 @onready var sandbox_panel: Control = $MainUI/SandboxPanel
 @onready var speed_button: Button = $MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons/SpeedButton
 @onready var pause_button: Button = $MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons/PauseButton
+@onready var thumb_controls: Control = $MainUI/HUDRoot/ThumbControls
 @onready var build_sidebar_state: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState
 @onready var tower_selection_area: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/TowerSelectionArea
-@onready var build_toggle_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/IdleActions/BuildToggleButton
-@onready var reinforcement_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/IdleActions/ReinforcementButton
+@onready var build_toggle_button: Button = $MainUI/HUDRoot/ThumbControls/BuildToggleButton
+@onready var reinforcement_button: Button = $MainUI/HUDRoot/ThumbControls/ReinforcementButton
+@onready var reinforcement_cooldown_label: Label = $MainUI/HUDRoot/ThumbControls/ReinforcementButton/CooldownLabel
 @onready var tower_inspector: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector
 @onready var sidebar: Control = $MainUI/HUDRoot/Sidebar
 @onready var money_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/moneydisplay
@@ -367,6 +368,7 @@ var pending_enemy_spawns: Array[Dictionary] = []
 var displayed_tower: Node = null
 var sidebar_confirmation_tower_id := 0
 var sidebar_confirmation_action := -1
+var context_dock_tween: Tween
 var playable_map_width := 0.0
 var active_map: TowerDefenseMap
 var next_spawn_path_index := 0
@@ -835,24 +837,57 @@ func _on_build_toggle_pressed() -> void:
 func set_build_drawer_open(is_open: bool) -> void:
 	if not build_sidebar_state.visible:
 		return
+	if is_open and reinforcement_targeting:
+		cancel_reinforcement_targeting()
 	tower_selection_area.visible = is_open
-	build_toggle_button.text = "Close Towers" if is_open else "Build Towers"
+	build_toggle_button.button_pressed = is_open
+	build_toggle_button.tooltip_text = (
+		"Close tower choices" if is_open else "Build towers"
+	)
 	if not is_open:
 		tower_list.deselect_all()
 	update_context_dock_layout()
 
 
 func update_context_dock_layout() -> void:
+	thumb_controls.show()
 	if tower_inspector.visible:
-		sidebar.offset_top = (
+		build_toggle_button.hide()
+		show_context_dock(
+			(
 			DOCK_PATH_INSPECTOR_TOP_OFFSET
 			if tower_path_section.visible
 			else DOCK_INSPECTOR_TOP_OFFSET
+			),
+			-12.0
 		)
 	elif tower_selection_area.visible:
-		sidebar.offset_top = DOCK_BUILD_TOP_OFFSET
+		build_toggle_button.show()
+		show_context_dock(DOCK_BUILD_TOP_OFFSET, -96.0)
 	else:
-		sidebar.offset_top = DOCK_COLLAPSED_TOP_OFFSET
+		if context_dock_tween != null:
+			context_dock_tween.kill()
+		sidebar.modulate.a = 1.0
+		sidebar.hide()
+		build_toggle_button.show()
+
+
+func show_context_dock(target_top: float, target_bottom: float) -> void:
+	if context_dock_tween != null:
+		context_dock_tween.kill()
+	var opening := not sidebar.visible
+	if opening:
+		sidebar.offset_top = target_top + 18.0
+		sidebar.offset_bottom = target_bottom + 18.0
+		sidebar.modulate.a = 0.0
+		sidebar.show()
+	context_dock_tween = create_tween().set_parallel(true)
+	context_dock_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	context_dock_tween.tween_property(sidebar, "offset_top", target_top, 0.16)
+	context_dock_tween.tween_property(
+		sidebar, "offset_bottom", target_bottom, 0.16
+	)
+	context_dock_tween.tween_property(sidebar, "modulate:a", 1.0, 0.12)
 
 
 func refresh_tower_details() -> void:
@@ -957,19 +992,22 @@ func update_reinforcement_button() -> void:
 		return
 	var option := get_selected_reinforcement_option()
 	var display_name := String(option.get("display_name", "Reinforcements"))
+	reinforcement_button.text = ""
+	reinforcement_button.button_pressed = reinforcement_targeting
+	reinforcement_cooldown_label.hide()
 	if reinforcement_targeting:
-		reinforcement_button.text = "Cancel Drop"
-		reinforcement_button.tooltip_text = "Click the map to deploy; right-click to cancel"
+		reinforcement_button.tooltip_text = (
+			"Tap the map to deploy %s; tap again to cancel" % display_name
+		)
 		reinforcement_button.disabled = false
 	elif reinforcement_cooldown_remaining > 0.0:
-		reinforcement_button.text = "%s\n%ds" % [
-			display_name,
-			ceili(reinforcement_cooldown_remaining),
-		]
-		reinforcement_button.tooltip_text = "Reinforcements are recovering"
+		reinforcement_cooldown_label.show()
+		reinforcement_cooldown_label.text = "%d" % ceili(
+			reinforcement_cooldown_remaining
+		)
+		reinforcement_button.tooltip_text = "%s are recovering" % display_name
 		reinforcement_button.disabled = true
 	else:
-		reinforcement_button.text = "%s\nREADY" % display_name
 		reinforcement_button.tooltip_text = String(option.get("description", ""))
 		reinforcement_button.disabled = not can_begin_reinforcement_targeting()
 

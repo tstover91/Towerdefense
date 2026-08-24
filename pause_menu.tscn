@@ -1,18 +1,22 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://pause_menu.gd" id="1_pause"]
+[ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="2_theme"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxPausePanel"]
-bg_color = Color(0.035, 0.055, 0.08, 0.98)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.25, 0.4, 0.58, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+bg_color = Color(1, 0.9412, 0.7608, 0.99)
+border_width_left = 5
+border_width_top = 5
+border_width_right = 5
+border_width_bottom = 5
+border_color = Color(0.1255, 0.1294, 0.2275, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0.1255, 0.1294, 0.2275, 0.8)
+shadow_size = 8
+shadow_offset = Vector2(0, 8)
 
 [node name="PauseMenu" type="Control"]
 process_mode = 2
@@ -25,6 +29,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
+theme = ExtResource("2_theme")
 script = ExtResource("1_pause")
 
 [node name="Dimmer" type="ColorRect" parent="."]
@@ -35,7 +40,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
-color = Color(0, 0, 0, 0.72)
+color = Color(0.1255, 0.1294, 0.2275, 0.76)
 
 [node name="PausePanel" type="PanelContainer" parent="."]
 custom_minimum_size = Vector2(900, 500)

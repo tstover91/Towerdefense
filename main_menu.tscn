@@ -1,35 +1,39 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://main_menu.gd" id="1_menu"]
+[ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="2_theme"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBackground"]
-bg_color = Color(0.018, 0.031, 0.047, 1)
+bg_color = Color(0.1255, 0.1294, 0.2275, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleCard"]
-bg_color = Color(0.035, 0.059, 0.086, 0.98)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.18, 0.42, 0.55, 1)
+bg_color = Color(1, 0.9412, 0.7608, 1)
+border_width_left = 6
+border_width_top = 6
+border_width_right = 6
+border_width_bottom = 6
+border_color = Color(0.1255, 0.1294, 0.2275, 1)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+shadow_color = Color(0.6078, 0.8902, 0.2314, 0.65)
+shadow_size = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleButton"]
+bg_color = Color(0.2078, 0.8392, 0.9098, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.1255, 0.1294, 0.2275, 1)
 corner_radius_top_left = 14
 corner_radius_top_right = 14
 corner_radius_bottom_right = 14
 corner_radius_bottom_left = 14
-shadow_color = Color(0, 0, 0, 0.45)
-shadow_size = 16
-
-[sub_resource type="StyleBoxFlat" id="StyleButton"]
-bg_color = Color(0.075, 0.14, 0.19, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.2, 0.55, 0.7, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+shadow_color = Color(0.1255, 0.1294, 0.2275, 0.72)
+shadow_size = 4
+shadow_offset = Vector2(0, 4)
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -38,6 +42,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("2_theme")
 script = ExtResource("1_menu")
 
 [node name="Background" type="Panel" parent="."]
@@ -55,7 +60,7 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 6.0
 grow_horizontal = 2
-color = Color(0.16, 0.68, 0.78, 1)
+color = Color(1, 0.5412, 0.1686, 1)
 
 [node name="Content" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -84,14 +89,16 @@ layout_mode = 2
 
 [node name="Title" type="Label" parent="Content/Card/Content"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.64, 0.95, 1, 1)
+theme_override_colors/font_color = Color(0.6078, 0.8902, 0.2314, 1)
+theme_override_colors/font_outline_color = Color(0.1255, 0.1294, 0.2275, 1)
+theme_override_constants/outline_size = 5
 theme_override_font_sizes/font_size = 46
 text = "TOWER DEFENCE"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Content/Card/Content"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.68, 0.76, 0.82, 1)
+theme_override_colors/font_color = Color(0.2706, 0.2941, 0.3922, 1)
 theme_override_font_sizes/font_size = 18
 text = "Choose a level"
 horizontal_alignment = 1
@@ -138,7 +145,7 @@ text = "Quit"
 
 [node name="Footer" type="Label" parent="Content/Card/Content"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.42, 0.52, 0.6, 1)
+theme_override_colors/font_color = Color(0.2706, 0.2941, 0.3922, 1)
 text = "Choose a map, then select a game mode."
 horizontal_alignment = 1
 

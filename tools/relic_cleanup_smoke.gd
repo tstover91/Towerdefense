@@ -149,6 +149,46 @@ func run_checks() -> void:
 	director.show_tower_details(network_tower)
 	assert(director.tower_inspector.visible)
 	assert(not director.build_sidebar_state.visible)
+	assert(director.sidebar.visible)
+	assert(not director.build_toggle_button.visible)
+	assert(director.reinforcement_button.visible)
+	assert(director.reinforcement_button.icon != null)
+	assert(director.build_toggle_button.icon != null)
+	assert(director.reinforcement_button.text.is_empty())
+	assert(director.build_toggle_button.text.is_empty())
+	var reinforcement_style := (
+		director.reinforcement_button.get_theme_stylebox("normal")
+		as StyleBoxFlat
+	)
+	var build_style := (
+		director.build_toggle_button.get_theme_stylebox("normal")
+		as StyleBoxFlat
+	)
+	assert(reinforcement_style.corner_radius_top_left >= 36)
+	assert(build_style.corner_radius_top_left >= 36)
+	assert(build_style.border_width_left >= 4)
+	assert(reinforcement_style.border_width_left >= 4)
+	assert(Vector3(
+		build_style.bg_color.r,
+		build_style.bg_color.g,
+		build_style.bg_color.b
+	).distance_to(Vector3(0x35 / 255.0, 0xd6 / 255.0, 0xe8 / 255.0)) < 0.001)
+	assert(Vector3(
+		reinforcement_style.bg_color.r,
+		reinforcement_style.bg_color.g,
+		reinforcement_style.bg_color.b
+	).distance_to(Vector3(0x9b / 255.0, 0xe3 / 255.0, 0x3b / 255.0)) < 0.001)
+	var dock_style := director.sidebar.get_theme_stylebox("panel") as StyleBoxFlat
+	assert(Vector3(
+		dock_style.bg_color.r,
+		dock_style.bg_color.g,
+		dock_style.bg_color.b
+	).distance_to(Vector3(1.0, 0xf0 / 255.0, 0xc2 / 255.0)) < 0.001)
+	assert(Vector3(
+		dock_style.border_color.r,
+		dock_style.border_color.g,
+		dock_style.border_color.b
+	).distance_to(Vector3(0x20 / 255.0, 0x21 / 255.0, 0x3a / 255.0)) < 0.001)
 	assert(is_equal_approx(
 		director.sidebar.size.x,
 		director.get_viewport().get_visible_rect().size.x - 24.0
@@ -226,11 +266,22 @@ func run_checks() -> void:
 	assert(director.build_sidebar_state.visible)
 	assert(director.reinforcement_button.visible)
 	assert(not director.tower_selection_area.visible)
+	assert(not director.sidebar.visible)
+	assert(director.build_toggle_button.visible)
+	director.reinforcement_cooldown_remaining = 4.2
+	director.update_reinforcement_button()
+	assert(director.reinforcement_cooldown_label.visible)
+	assert(director.reinforcement_cooldown_label.text == "5")
+	assert(director.reinforcement_button.text.is_empty())
+	director.reinforcement_cooldown_remaining = 0.0
+	director.update_reinforcement_button()
 	director._on_build_toggle_pressed()
 	assert(director.tower_selection_area.visible)
-	assert(director.build_toggle_button.text == "Close Towers")
+	assert(director.sidebar.visible)
+	assert(director.build_toggle_button.button_pressed)
 	director._on_build_toggle_pressed()
 	assert(not director.tower_selection_area.visible)
+	assert(not director.sidebar.visible)
 	var network_stats: Dictionary = network_tower.get_effective_stats_for_level(0)
 	assert(is_equal_approx(float(network_stats["firerate"]), 0.40 / 1.24))
 	var placed_towers: Array[Node] = [
