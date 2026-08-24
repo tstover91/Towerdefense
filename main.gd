@@ -76,7 +76,11 @@ const TOWER_FAN_BUTTON_SIZE := 78.0
 const TOWER_FAN_RING_CAPACITIES: Array[int] = [2, 3, 4, 4]
 const TOWER_FAN_RING_RADII: Array[float] = [118.0, 202.0, 286.0, 370.0]
 const PLACEMENT_DRAG_THRESHOLD := 12.0
-const PLACEMENT_DRAG_PREVIEW_OFFSET := Vector2(0.0, -112.0)
+const PLACEMENT_DRAG_PREVIEW_OFFSET := Vector2(0.0, -75.0)
+const HUD_STRIP_LEFT := 488.0
+const HUD_STRIP_RIGHT_MARGIN := 112.0
+const HUD_STRIP_ICON_WIDTH := 30.0
+const HUD_STRIP_ICON_SEPARATION := 3.0
 const DRAG_KIND_TOWER: StringName = &"tower"
 const DRAG_KIND_REINFORCEMENT: StringName = &"reinforcement"
 
@@ -105,6 +109,12 @@ signal round_ended(round_number: int)
 @onready var lives_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/livesdisplay
 @onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
 @onready var round_timer_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundtimer
+@onready var enemy_strip: PanelContainer = $MainUI/HUDRoot/EnemyStrip
+@onready var enemy_icon_list: HBoxContainer = $MainUI/HUDRoot/EnemyStrip/EnemyIconList
+@onready var enemy_info_panel: PanelContainer = $MainUI/HUDRoot/EnemyInfoPanel
+@onready var enemy_info_name: Label = $MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout/NameLabel
+@onready var enemy_info_description: Label = $MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout/DescriptionLabel
+@onready var relic_strip: PanelContainer = $MainUI/HUDRoot/RelicStrip
 @onready var relic_icon_list: HBoxContainer = $MainUI/HUDRoot/RelicStrip/RelicIconList
 @onready var relic_info_panel: PanelContainer = $MainUI/HUDRoot/RelicInfoPanel
 @onready var relic_info_name: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/Header/NameLabel
@@ -397,6 +407,7 @@ var sidebar_confirmation_tower_id := 0
 var sidebar_confirmation_action := -1
 var context_dock_tween: Tween
 var relic_hud_buttons: Dictionary = {}
+var enemy_hud_buttons: Dictionary = {}
 var tower_fan_buttons: Array[Button] = []
 var tower_fan_tween: Tween
 var tower_fan_open := false
@@ -410,6 +421,8 @@ var placement_drag_start_screen_position := Vector2.ZERO
 var placement_drag_world_position := Vector2.ZERO
 var active_placement_drag_kind: StringName = &""
 var selected_relic_hud_id: StringName = &""
+var selected_enemy_hud_id: StringName = &""
+var enemy_hud_round := -1
 var playable_map_width := 0.0
 var active_map: TowerDefenseMap
 var next_spawn_path_index := 0
@@ -448,6 +461,7 @@ func _ready() -> void:
 	update_lives()
 	update_round_count()
 	refresh_relic_hud()
+	refresh_enemy_hud(true)
 	spawntimer.timeout.connect(_spawn_mob)
 	reinforcement_button.pressed.connect(_on_reinforcement_button_pressed)
 	reinforcement_button.gui_input.connect(_on_reinforcement_button_gui_input)
@@ -1081,6 +1095,203 @@ func format_relic_effect_tooltip(relic_ids: Array) -> String:
 	return "\n\n".join(lines)
 
 
+func refresh_enemy_hud(force := false) -> void:
+	if not is_instance_valid(enemy_icon_list) or wave_director == null:
+		return
+	var displayed_round := maxi(round_number, 1)
+	if round_controller != null:
+		displayed_round = clampi(
+			round_controller.get_displayed_round(),
+			1,
+			maxi(max_rounds, 1)
+		)
+	if not force and enemy_hud_round == displayed_round:
+		return
+	enemy_hud_round = displayed_round
+	for child in enemy_icon_list.get_children():
+		enemy_icon_list.remove_child(child)
+		child.queue_free()
+	enemy_hud_buttons.clear()
+
+	var enemy_ids: Array[StringName] = (
+		wave_director.get_available_enemies(displayed_round)
+	)
+	enemy_ids.sort_custom(
+		func(first: StringName, second: StringName) -> bool:
+			return String(GameStats.get_enemy(first)["display_name"]) < String(
+				GameStats.get_enemy(second)["display_name"]
+			)
+	)
+	for enemy_id in enemy_ids:
+		var enemy := GameStats.get_enemy(enemy_id)
+		var button := Button.new()
+		button.name = "Enemy_%s" % String(enemy_id)
+		button.custom_minimum_size = Vector2(30.0, 28.0)
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.text = get_enemy_icon_label(enemy_id)
+		button.tooltip_text = String(enemy["display_name"])
+		button.set_meta("enemy_id", enemy_id)
+		apply_enemy_icon_style(button, Color(enemy.get("color", UI_LIME)))
+		button.pressed.connect(_on_enemy_hud_pressed.bind(enemy_id))
+		enemy_icon_list.add_child(button)
+		enemy_hud_buttons[enemy_id] = button
+	if (
+		not selected_enemy_hud_id.is_empty()
+		and enemy_hud_buttons.has(selected_enemy_hud_id)
+	):
+		show_enemy_hud_selection(selected_enemy_hud_id)
+	else:
+		clear_enemy_hud_selection()
+	update_compact_hud_strip_layout()
+
+
+func get_enemy_icon_label(enemy_id: StringName) -> String:
+	var display_name := String(GameStats.get_enemy(enemy_id)["display_name"])
+	var words := display_name.split(" ", false)
+	if words.size() == 1:
+		return String(words[0]).left(2).to_upper()
+	var abbreviation := ""
+	for word in words:
+		abbreviation += String(word).left(1).to_upper()
+		if abbreviation.length() >= 2:
+			break
+	return abbreviation
+
+
+func make_enemy_icon_style(background: Color, pressed := false) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background.darkened(0.24 if pressed else 0.08)
+	style.border_color = UI_CREAM if pressed else Color(UI_CREAM, 0.86)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(9)
+	if not pressed:
+		style.shadow_color = Color(0.0, 0.0, 0.0, 0.58)
+		style.shadow_size = 2
+		style.shadow_offset = Vector2(0.0, 2.0)
+	return style
+
+
+func apply_enemy_icon_style(button: Button, enemy_color: Color) -> void:
+	var foreground := UI_CREAM
+	if enemy_color.get_luminance() > 0.62:
+		foreground = UI_INK
+	button.add_theme_color_override("font_color", foreground)
+	button.add_theme_color_override("font_hover_color", foreground)
+	button.add_theme_color_override("font_pressed_color", foreground)
+	button.add_theme_font_size_override("font_size", 10)
+	button.add_theme_stylebox_override(
+		"normal", make_enemy_icon_style(enemy_color)
+	)
+	button.add_theme_stylebox_override(
+		"hover", make_enemy_icon_style(enemy_color.lightened(0.12))
+	)
+	button.add_theme_stylebox_override(
+		"pressed", make_enemy_icon_style(enemy_color, true)
+	)
+	button.add_theme_stylebox_override(
+		"hover_pressed", make_enemy_icon_style(enemy_color, true)
+	)
+
+
+func get_short_enemy_description(enemy_id: StringName) -> String:
+	var enemy := GameStats.get_enemy(enemy_id)
+	var trait_descriptions := {
+		&"basic": "No special ability.",
+		&"fast": "Moves quickly.",
+		&"small": "Small and easy to overwhelm individually.",
+		&"swarm": "Arrives in large groups.",
+		&"slow": "Moves slowly.",
+		&"high_health": "Takes a lot of damage to bring down.",
+		&"splits": "Splits into smaller enemies when defeated.",
+		&"hidden": "Must be revealed before most towers can target it.",
+		&"armored": "Armor reduces incoming damage.",
+		&"speed_aura": "Speeds up nearby enemies.",
+		&"regenerates": "Regains health while moving.",
+		&"rushes": "Occasionally surges forward.",
+		&"summons": "Summons additional enemies.",
+		&"shielded": "Carries a shield that absorbs hits.",
+		&"shield_aura": "Shields nearby enemies.",
+		&"boss": "A major boss threat.",
+	}
+	var descriptions: Array[String] = []
+	for trait_value in enemy.get("traits", []):
+		var trait_id := StringName(trait_value)
+		if trait_descriptions.has(trait_id):
+			descriptions.append(String(trait_descriptions[trait_id]))
+	if descriptions.is_empty():
+		return "%s enemy." % String(enemy.get("role", &"standard")).capitalize()
+	return " ".join(descriptions)
+
+
+func _on_enemy_hud_pressed(enemy_id: StringName) -> void:
+	if selected_enemy_hud_id == enemy_id:
+		clear_enemy_hud_selection()
+	else:
+		clear_relic_hud_selection()
+		show_enemy_hud_selection(enemy_id)
+
+
+func show_enemy_hud_selection(enemy_id: StringName) -> void:
+	if not enemy_hud_buttons.has(enemy_id):
+		clear_enemy_hud_selection()
+		return
+	selected_enemy_hud_id = enemy_id
+	for button_id in enemy_hud_buttons:
+		var button := enemy_hud_buttons[button_id] as Button
+		button.button_pressed = StringName(button_id) == enemy_id
+	var enemy := GameStats.get_enemy(enemy_id)
+	enemy_info_name.text = String(enemy["display_name"])
+	enemy_info_description.text = get_short_enemy_description(enemy_id)
+	enemy_info_panel.show()
+
+
+func clear_enemy_hud_selection() -> void:
+	selected_enemy_hud_id = &""
+	for button_value in enemy_hud_buttons.values():
+		(button_value as Button).button_pressed = false
+	if is_instance_valid(enemy_info_panel):
+		enemy_info_panel.hide()
+
+
+func update_compact_hud_strip_layout() -> void:
+	if not is_instance_valid(enemy_strip) or not is_instance_valid(relic_strip):
+		return
+	var maximum_width := maxf(
+		get_viewport_rect().size.x - HUD_STRIP_LEFT - HUD_STRIP_RIGHT_MARGIN,
+		44.0
+	)
+	var enemy_width := clampf(
+		10.0 + float(enemy_hud_buttons.size()) * (
+			HUD_STRIP_ICON_WIDTH + HUD_STRIP_ICON_SEPARATION
+		),
+		44.0,
+		maximum_width
+	)
+	var relic_width := clampf(
+		10.0 + float(relic_hud_buttons.size()) * (
+			HUD_STRIP_ICON_WIDTH + HUD_STRIP_ICON_SEPARATION
+		),
+		44.0,
+		maximum_width
+	)
+	enemy_strip.offset_right = HUD_STRIP_LEFT + enemy_width
+	relic_strip.offset_right = HUD_STRIP_LEFT + relic_width
+	var info_left := HUD_STRIP_LEFT
+	var info_right := minf(
+		get_viewport_rect().size.x - 12.0,
+		HUD_STRIP_LEFT + 480.0
+	)
+	if info_right - info_left < 300.0:
+		info_left = 12.0
+	relic_info_panel.offset_left = info_left
+	relic_info_panel.offset_right = info_right
+	enemy_info_panel.offset_left = info_left
+	enemy_info_panel.offset_right = info_right
+	enemy_strip.visible = not enemy_hud_buttons.is_empty()
+	relic_strip.visible = not relic_hud_buttons.is_empty()
+
+
 func refresh_relic_hud() -> void:
 	if not is_instance_valid(relic_icon_list):
 		return
@@ -1099,13 +1310,13 @@ func refresh_relic_hud() -> void:
 		var count := get_relic_count(relic_id)
 		var button := Button.new()
 		button.name = "Relic_%s" % String(relic_id)
-		button.custom_minimum_size = Vector2(40.0, 40.0)
+		button.custom_minimum_size = Vector2(30.0, 28.0)
 		button.toggle_mode = true
 		button.focus_mode = Control.FOCUS_NONE
 		button.clip_text = true
 		button.text = get_relic_icon_label(relic_id)
 		if count > 1:
-			button.text += "\n×%d" % count
+			button.text += "×%d" % count
 		button.tooltip_text = String(relic["display_name"])
 		button.set_meta("relic_id", relic_id)
 		apply_relic_icon_style(button, StringName(relic["rarity"]))
@@ -1117,6 +1328,7 @@ func refresh_relic_hud() -> void:
 			show_relic_hud_selection(selected_relic_hud_id)
 		else:
 			clear_relic_hud_selection()
+	update_compact_hud_strip_layout()
 
 
 func get_relic_icon_label(relic_id: StringName) -> String:
@@ -1211,6 +1423,7 @@ func _on_relic_hud_pressed(relic_id: StringName) -> void:
 	if selected_relic_hud_id == relic_id:
 		clear_relic_hud_selection()
 	else:
+		clear_enemy_hud_selection()
 		show_relic_hud_selection(relic_id)
 
 
@@ -1769,9 +1982,11 @@ func update_round_count() -> void:
 			if spawning_active or mobs_left_to_spawn > 0
 			else "Sandbox ready"
 		)
+		refresh_enemy_hud()
 		return
 	ensure_round_controller()
 	var displayed_round: int = round_controller.get_displayed_round()
+	refresh_enemy_hud()
 	round_count_display.text = "Round: %d/%d" % [displayed_round, max_rounds]
 	var round_type_name := get_round_type_display_name(current_round_type)
 	if round_active and spawning_active:
@@ -3219,7 +3434,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if (
-		not selected_relic_hud_id.is_empty()
+		(
+			not selected_relic_hud_id.is_empty()
+			or not selected_enemy_hud_id.is_empty()
+		)
 		and (
 			(
 				event is InputEventMouseButton
@@ -3230,6 +3448,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		)
 	):
 		clear_relic_hud_selection()
+		clear_enemy_hud_selection()
 
 	if (
 		place_mode
@@ -3344,6 +3563,7 @@ func _align_sidebar_to_build_grid() -> void:
 		))
 	layout_tower_fan_buttons()
 	update_context_dock_layout()
+	update_compact_hud_strip_layout()
 
 func is_build_cell_blocked_by_path(cell: Vector2i) -> bool:
 	if active_map == null:

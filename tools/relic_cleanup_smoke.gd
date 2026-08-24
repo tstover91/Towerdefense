@@ -39,26 +39,28 @@ func run_checks() -> void:
 		assert(not icon_label.is_empty())
 		assert(not relic_icon_labels.has(icon_label))
 		relic_icon_labels[icon_label] = relic_id
-	var top_bar := director.get_node("MainUI/HUDRoot/TopBarBackground") as Control
+	var status_panel := director.get_node("MainUI/HUDRoot/TopLeftPanel") as Control
+	var enemy_strip := director.get_node("MainUI/HUDRoot/EnemyStrip") as Control
 	var relic_strip := director.get_node("MainUI/HUDRoot/RelicStrip") as Control
 	var edge_controls := director.get_node("MainUI/HUDRoot/EdgeControls") as Control
-	assert(top_bar.size.x == director.get_viewport_rect().size.x - 16.0)
-	assert(top_bar.size.y <= 52.0)
-	assert(edge_controls.get_global_rect().position.y >= top_bar.get_global_rect().position.y)
-	assert(edge_controls.get_global_rect().end.y <= top_bar.get_global_rect().end.y)
-	assert(director.pause_button.size.y < top_bar.size.y)
+	assert(not director.has_node("MainUI/HUDRoot/TopBarBackground"))
+	assert(status_panel.size.y <= 44.0)
+	assert(enemy_strip.get_global_rect().position.y < relic_strip.get_global_rect().position.y)
 	assert(edge_controls.get_theme_stylebox("panel") is StyleBoxEmpty)
-	var top_bar_style := top_bar.get_theme_stylebox("panel") as StyleBoxFlat
-	assert(Vector3(
-		top_bar_style.bg_color.r,
-		top_bar_style.bg_color.g,
-		top_bar_style.bg_color.b
-	).distance_to(Vector3(1.0, 0xf0 / 255.0, 0xc2 / 255.0)) < 0.001)
+	var status_style := status_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	assert(status_style.bg_color.get_luminance() < 0.15)
+	assert(enemy_strip.get_global_rect().end.x <= edge_controls.get_global_rect().position.x)
 	assert(relic_strip.get_global_rect().end.x <= edge_controls.get_global_rect().position.x)
 	assert(not director.has_node("MainUI/HUDRoot/RelicStrip/RelicLabel"))
 	assert(not director.has_node(
 		"MainUI/HUDRoot/RelicStrip/RelicIconList/NoRelicsLabel"
 	))
+	assert(director.enemy_hud_buttons.size() > 0)
+	var first_enemy_id := StringName(director.enemy_hud_buttons.keys()[0])
+	director.show_enemy_hud_selection(first_enemy_id)
+	assert(director.enemy_info_panel.visible)
+	assert(not director.enemy_info_description.text.is_empty())
+	director.clear_enemy_hud_selection()
 	assert(director.build_toggle_button.visible)
 	assert(director.thumb_controls.z_index >= 20)
 	assert(director.build_toggle_button.z_index > director.thumb_controls.z_index)
@@ -210,7 +212,7 @@ func run_checks() -> void:
 	assert(director.relic_hud_buttons.size() == 1)
 	var network_icon := director.relic_hud_buttons[&"network_upgrade"] as Button
 	assert(network_icon.text == "NU")
-	assert(network_icon.custom_minimum_size.x >= 40.0)
+	assert(network_icon.custom_minimum_size.x == 30.0)
 	director.show_relic_hud_selection(&"network_upgrade")
 	assert(director.relic_info_panel.visible)
 	assert(director.relic_info_name.text == "Network Upgrade")

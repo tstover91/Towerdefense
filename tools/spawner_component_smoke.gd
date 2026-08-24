@@ -104,35 +104,50 @@ func run_test() -> void:
 	follow.add_child(mob)
 	mob.set_path_follow(follow, 450.0)
 	tower.mobs_in_range.assign([mob])
-	get_tree().set_meta(&"drone_assignment_refresh_bucket", -1)
-	get_tree().set_meta(&"drone_assignment_cache", {})
 	component.clear_units()
 	fake_main.relics.erase(&"trade_agreement")
 	tower.load_base_tags()
 	tower.load_level_stats()
 	component.spawn_unit()
 	assert(component.active_units.size() == 1)
-	assert(not component.active_units[0].has_other_available_combat_drone())
 	assert(component.active_units[0].select_distributed_drone_target() == mob)
-	assert(int(get_tree().get_meta(&"drone_assignment_refresh_bucket", -1)) == -1)
 	component.clear_units()
 	fake_main.relics[&"trade_agreement"] = 1
 	tower.load_base_tags()
 	tower.load_level_stats()
 	component.spawn_unit()
 	assert(component.active_units.size() == 2)
+	# More drones than targets safely share the best target.
 	assert(component.active_units[0].select_distributed_drone_target() == mob)
-	var assignment_cache: Dictionary = get_tree().get_meta(
-		&"drone_assignment_cache", {}
-	)
-	assignment_cache[999_999] = true
-	get_tree().set_meta(&"drone_assignment_cache", assignment_cache)
 	assert(component.active_units[1].select_distributed_drone_target() == mob)
-	assert(
-		(get_tree().get_meta(&"drone_assignment_cache", {}) as Dictionary).has(
-			999_999
+
+	# Exercise the Android freeze trigger: two upgraded drones selecting from the
+	# full 160-enemy mobile cap. Siblings must choose distinct ranked targets
+	# without rebuilding a cross-map assignment cache.
+	var stress_mobs: Array[Node2D] = [mob]
+	var second_follow := PathFollow2D.new()
+	path.add_child(second_follow)
+	var second_mob := MOB_SCENE.instantiate()
+	second_mob.enemy_id = &"normal"
+	second_follow.add_child(second_mob)
+	second_mob.set_path_follow(second_follow, 449.0)
+	stress_mobs.append(second_mob)
+	for enemy_index in range(158):
+		var stress_follow := PathFollow2D.new()
+		path.add_child(stress_follow)
+		var stress_mob := MOB_SCENE.instantiate()
+		stress_mob.enemy_id = &"normal"
+		stress_follow.add_child(stress_mob)
+		stress_mob.set_path_follow(stress_follow, float(enemy_index % 400))
+		stress_mobs.append(stress_mob)
+	tower.mobs_in_range.assign(stress_mobs)
+	assert(tower.mobs_in_range.size() == 160)
+	for _selection_pass in range(50):
+		assert(component.active_units[0].select_distributed_drone_target() == mob)
+		assert(
+			component.active_units[1].select_distributed_drone_target()
+			== second_mob
 		)
-	)
 
 	fake_main.relic_lookup_calls = 0
 	var first_metadata := tower.get_attack_relic_metadata(

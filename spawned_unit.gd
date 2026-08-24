@@ -12,8 +12,6 @@ const BEAM_HIT_HALF_WIDTH := 2.5
 const DEFAULT_BEAM_TURN_SPEED_DEGREES := 720.0
 const MOBILE_TARGET_REFRESH_INTERVAL := 0.15
 const DRONE_ATTACK_RADIUS_UNITS := 2.5
-const DRONE_ASSIGNMENT_FRAME_META: StringName = &"drone_assignment_refresh_bucket"
-const DRONE_ASSIGNMENT_CACHE_META: StringName = &"drone_assignment_cache"
 
 var unit_id: StringName = &""
 var parent_tower: Node2D
@@ -405,76 +403,35 @@ func select_highest_max_health_drone_target() -> Node2D:
 
 
 func select_distributed_drone_target() -> Node2D:
-	# A base Drone Depot only controls one drone. Avoid building and sorting the
-	# global assignment tables in that common case, which is a noticeable
-	# allocation spike on mobile browsers.
-	if not has_other_available_combat_drone():
-		return select_highest_max_health_drone_target()
-	var current_frame := floori(
-		float(Time.get_ticks_msec())
-		/ (MOBILE_TARGET_REFRESH_INTERVAL * 1000.0)
-	)
-	if int(get_tree().get_meta(DRONE_ASSIGNMENT_FRAME_META, -1)) == current_frame:
-		var cached_assignments: Dictionary = get_tree().get_meta(
-			DRONE_ASSIGNMENT_CACHE_META,
-			{}
-		)
-		return cached_assignments.get(get_instance_id()) as Node2D
+	var candidates := get_drone_command_target_candidates()
+	if candidates.is_empty():
+		return null
 
-	var available_drones: Array[Node] = []
-	var reserved_targets: Dictionary = {}
-	var target_lists_by_drone: Dictionary = {}
-	var target_lists_by_tower: Dictionary = {}
-	for candidate in get_tree().get_nodes_in_group("spawned_units"):
-		if not is_available_combat_drone(candidate):
-			continue
-		var tower_id: int = candidate.parent_tower.get_instance_id()
-		var candidate_targets: Array[Node2D] = []
-		if target_lists_by_tower.has(tower_id):
-			candidate_targets.assign(target_lists_by_tower[tower_id])
-		else:
-			candidate_targets = candidate.get_sorted_drone_targets()
-			target_lists_by_tower[tower_id] = candidate_targets
-		target_lists_by_drone[candidate.get_instance_id()] = candidate_targets
-		if candidate.is_focus_max_health_drone():
-			var focused_target: Node2D = (
-				candidate_targets[0] if not candidate_targets.is_empty() else null
-			)
-			if is_instance_valid(focused_target):
-				reserved_targets[focused_target.get_instance_id()] = true
-		else:
-			available_drones.append(candidate)
-	available_drones.sort_custom(
-		func(a: Node, b: Node) -> bool:
-			var a_choice_count: int = (
-				target_lists_by_drone[a.get_instance_id()] as Array
-			).size()
-			var b_choice_count: int = (
-				target_lists_by_drone[b.get_instance_id()] as Array
-			).size()
-			if a_choice_count != b_choice_count:
-				return a_choice_count < b_choice_count
-			return a.get_instance_id() < b.get_instance_id()
-	)
+	# Only coordinate drones belonging to this depot. The previous global
+	# assignment pass copied and sorted every depot's enemy list whenever a
+	# second drone existed, producing a sharp allocation spike on Android.
+	var target_rank := get_available_sibling_drone_ordinal()
+	if target_rank >= candidates.size():
+		target_rank = 0
 
-	var assignments: Dictionary = {}
-	for drone in available_drones:
-		var candidates: Array[Node2D] = []
-		candidates.assign(target_lists_by_drone[drone.get_instance_id()])
-		var chosen_target: Node2D
+	# Drone counts are small, so selecting the requested rank in-place avoids a
+	# full enemy-list copy/sort and creates no per-refresh dictionaries.
+	var higher_ranked_targets: Array[Node2D] = []
+	var selected_target: Node2D
+	for _rank in range(target_rank + 1):
+		selected_target = null
 		for candidate in candidates:
-			if not reserved_targets.has(candidate.get_instance_id()):
-				chosen_target = candidate
-				break
-		# Once every valid enemy is occupied, sharing is allowed.
-		if chosen_target == null and not candidates.is_empty():
-			chosen_target = candidates[0]
-		if is_instance_valid(chosen_target):
-			assignments[drone.get_instance_id()] = chosen_target
-			reserved_targets[chosen_target.get_instance_id()] = true
-	get_tree().set_meta(DRONE_ASSIGNMENT_FRAME_META, current_frame)
-	get_tree().set_meta(DRONE_ASSIGNMENT_CACHE_META, assignments)
-	return assignments.get(get_instance_id()) as Node2D
+			if higher_ranked_targets.has(candidate):
+				continue
+			if (
+				selected_target == null
+				or is_better_drone_target(candidate, selected_target)
+			):
+				selected_target = candidate
+		if selected_target == null:
+			return null
+		higher_ranked_targets.append(selected_target)
+	return selected_target
 
 
 func is_available_combat_drone(candidate: Node) -> bool:
@@ -485,24 +442,27 @@ func is_available_combat_drone(candidate: Node) -> bool:
 		and is_instance_valid(candidate.get("parent_tower"))
 		and not bool(candidate.get("returning_to_base"))
 		and float(candidate.get("recharge_remaining")) <= 0.0
-		and candidate.has_method("get_sorted_drone_targets")
+		and candidate.has_method("get_drone_command_target_candidates")
 	)
 
 
-func is_focus_max_health_drone() -> bool:
-	return (
-		unit_id == &"drone"
-		and is_instance_valid(parent_tower)
-		and parent_tower.has_method("get_drone_target_mode")
-		and int(parent_tower.get_drone_target_mode()) == 1
-	)
-
-
-func has_other_available_combat_drone() -> bool:
-	for candidate in get_tree().get_nodes_in_group("spawned_units"):
-		if candidate != self and is_available_combat_drone(candidate):
-			return true
-	return false
+func get_available_sibling_drone_ordinal() -> int:
+	if not is_instance_valid(parent_tower):
+		return 0
+	var attack_component: Node = parent_tower.get("attack_component")
+	if not is_instance_valid(attack_component):
+		return 0
+	var ordinal := 0
+	var self_id := get_instance_id()
+	for candidate in attack_component.get("active_units") as Array:
+		if (
+			candidate != self
+			and is_available_combat_drone(candidate)
+			and candidate.get("parent_tower") == parent_tower
+			and candidate.get_instance_id() < self_id
+		):
+			ordinal += 1
+	return ordinal
 
 
 func get_drone_command_target_candidates() -> Array[Node2D]:
@@ -518,20 +478,11 @@ func get_drone_command_target_candidates() -> Array[Node2D]:
 func is_better_drone_target(candidate: Node2D, current: Node2D) -> bool:
 	if candidate.max_health != current.max_health:
 		return candidate.max_health > current.max_health
-	var candidate_progress := float(candidate.path_follow.progress)
-	var current_progress := float(current.path_follow.progress)
+	var candidate_progress := get_target_progress(candidate)
+	var current_progress := get_target_progress(current)
 	if not is_equal_approx(candidate_progress, current_progress):
 		return candidate_progress > current_progress
 	return candidate.get_instance_id() < current.get_instance_id()
-
-
-func get_sorted_drone_targets() -> Array[Node2D]:
-	var candidates := get_drone_command_target_candidates()
-	candidates.sort_custom(
-		func(a: Node2D, b: Node2D) -> bool:
-			return is_better_drone_target(a, b)
-	)
-	return candidates
 
 
 func process_guard(delta: float) -> void:

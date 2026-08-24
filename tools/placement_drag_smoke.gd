@@ -27,7 +27,7 @@ func run_checks() -> void:
 	assert(director.build_mode)
 	assert(is_instance_valid(director.tower_to_place))
 	assert(director.placement_drag_world_position.is_equal_approx(
-		Vector2(360.0, 318.0)
+		Vector2(360.0, 355.0)
 	))
 
 	var valid_release_screen := find_valid_tower_release_screen(director)
@@ -68,7 +68,7 @@ func run_checks() -> void:
 	assert(director.active_placement_drag_kind == &"reinforcement")
 	assert(director.reinforcement_targeting)
 	assert(director.reinforcement_preview.global_position.is_equal_approx(
-		Vector2(520.0, 338.0)
+		Vector2(520.0, 375.0)
 	))
 	var reinforcement_release := make_touch(
 		5, Vector2(520.0, 450.0), false

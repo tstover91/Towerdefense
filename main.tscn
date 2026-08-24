@@ -284,15 +284,58 @@ corner_radius_top_right = 48
 corner_radius_bottom_right = 48
 corner_radius_bottom_left = 48
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_top_bar"]
-bg_color = Color(1, 0.9412, 0.7608, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kr_status"]
+content_margin_left = 8.0
+content_margin_top = 2.0
+content_margin_right = 8.0
+content_margin_bottom = 2.0
+bg_color = Color(0.0588, 0.0627, 0.0824, 0.94)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.1255, 0.1294, 0.2275, 0.28)
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.25)
-shadow_size = 3
+border_color = Color(1, 0.9412, 0.7608, 0.62)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+shadow_color = Color(0, 0, 0, 0.62)
+shadow_size = 4
 shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kr_strip"]
+content_margin_left = 5.0
+content_margin_top = 3.0
+content_margin_right = 5.0
+content_margin_bottom = 3.0
+bg_color = Color(0.0588, 0.0627, 0.0824, 0.91)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.9412, 0.7608, 0.48)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+shadow_color = Color(0, 0, 0, 0.55)
+shadow_size = 3
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_enemy_info"]
+bg_color = Color(1, 0.9412, 0.7608, 0.99)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.6078, 0.8902, 0.2314, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+shadow_color = Color(0.1255, 0.1294, 0.2275, 0.72)
+shadow_size = 4
+shadow_offset = Vector2(0, 4)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_relic_info"]
 bg_color = Color(1, 0.9412, 0.7608, 0.99)
@@ -334,31 +377,20 @@ grow_vertical = 2
 mouse_filter = 2
 theme = ExtResource("9_invasion_theme")
 
-[node name="TopBarBackground" type="PanelContainer" parent="MainUI/HUDRoot"]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 8.0
-offset_right = -8.0
-offset_bottom = 52.0
-grow_horizontal = 2
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_top_bar")
-
 [node name="TopLeftPanel" type="PanelContainer" parent="MainUI/HUDRoot" unique_id=219660479]
 layout_mode = 0
 offset_left = 12.0
-offset_top = 2.0
+offset_top = 6.0
 offset_right = 476.0
 offset_bottom = 50.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxEmpty_status")
+theme_override_styles/panel = SubResource("StyleBoxFlat_kr_status")
 
 [node name="StatusMargin" type="MarginContainer" parent="MainUI/HUDRoot/TopLeftPanel" unique_id=886293298]
 layout_mode = 2
-theme_override_constants/margin_left = 0
+theme_override_constants/margin_left = 5
 theme_override_constants/margin_top = 0
-theme_override_constants/margin_right = 0
+theme_override_constants/margin_right = 5
 theme_override_constants/margin_bottom = 0
 
 [node name="StatusGrid" type="HBoxContainer" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin" unique_id=872170004]
@@ -368,7 +400,7 @@ theme_override_constants/separation = 5
 [node name="livesdisplay" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=854572826]
 custom_minimum_size = Vector2(124, 40)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.9098, 0.298, 0.2392, 1)
+theme_override_colors/font_color = Color(1, 0.3725, 0.2863, 1)
 theme_override_font_sizes/font_size = 14
 text = "Health: 100/100"
 horizontal_alignment = 1
@@ -378,12 +410,12 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(1, 26)
 layout_mode = 2
 size_flags_vertical = 4
-modulate = Color(0.1255, 0.1294, 0.2275, 0.22)
+modulate = Color(1, 0.9412, 0.7608, 0.22)
 
 [node name="roundcount" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1111336532]
 custom_minimum_size = Vector2(104, 40)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
+theme_override_colors/font_color = Color(1, 0.9412, 0.7608, 1)
 theme_override_font_sizes/font_size = 14
 text = "Round: 0/20"
 horizontal_alignment = 1
@@ -393,12 +425,12 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(1, 26)
 layout_mode = 2
 size_flags_vertical = 4
-modulate = Color(0.1255, 0.1294, 0.2275, 0.22)
+modulate = Color(1, 0.9412, 0.7608, 0.22)
 
 [node name="moneydisplay" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1926460251]
 custom_minimum_size = Vector2(112, 40)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7647, 0.4745, 0.0353, 1)
+theme_override_colors/font_color = Color(1, 0.8314, 0.2784, 1)
 theme_override_font_sizes/font_size = 14
 text = "Money: $0"
 horizontal_alignment = 1
@@ -408,32 +440,40 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(1, 26)
 layout_mode = 2
 size_flags_vertical = 4
-modulate = Color(0.1255, 0.1294, 0.2275, 0.22)
+modulate = Color(1, 0.9412, 0.7608, 0.22)
 
 [node name="roundtimer" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1101724491]
 custom_minimum_size = Vector2(82, 40)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.0549, 0.5137, 0.6, 1)
+theme_override_colors/font_color = Color(0.2078, 0.8392, 0.9098, 1)
 theme_override_font_sizes/font_size = 14
 text = "Ready"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="RelicStrip" type="HBoxContainer" parent="MainUI/HUDRoot"]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 520.0
-offset_top = 4.0
-offset_right = -112.0
-offset_bottom = 48.0
-grow_horizontal = 2
-theme_override_constants/separation = 8
+[node name="EnemyStrip" type="PanelContainer" parent="MainUI/HUDRoot"]
+layout_mode = 0
+offset_left = 488.0
+offset_top = 6.0
+offset_right = 532.0
+offset_bottom = 40.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_kr_strip")
+
+[node name="EnemyIconList" type="HBoxContainer" parent="MainUI/HUDRoot/EnemyStrip"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="RelicStrip" type="PanelContainer" parent="MainUI/HUDRoot"]
+layout_mode = 0
+offset_left = 488.0
+offset_top = 44.0
+offset_right = 532.0
+offset_bottom = 78.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_kr_strip")
 
 [node name="RelicIconList" type="HBoxContainer" parent="MainUI/HUDRoot/RelicStrip"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 7
+theme_override_constants/separation = 3
 
 [node name="EdgeControls" type="PanelContainer" parent="MainUI/HUDRoot"]
 layout_mode = 1
@@ -472,15 +512,11 @@ text = "▶"
 
 [node name="RelicInfoPanel" type="PanelContainer" parent="MainUI/HUDRoot"]
 visible = false
-layout_mode = 1
-anchors_preset = 10
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -300.0
-offset_top = 62.0
-offset_right = 300.0
-offset_bottom = 162.0
-grow_horizontal = 2
+layout_mode = 0
+offset_left = 488.0
+offset_top = 84.0
+offset_right = 968.0
+offset_bottom = 174.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_relic_info")
 
 [node name="RelicInfoMargin" type="MarginContainer" parent="MainUI/HUDRoot/RelicInfoPanel"]
@@ -519,6 +555,39 @@ theme_override_colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
 theme_override_font_sizes/font_size = 13
 text = "Short relic description."
 vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="EnemyInfoPanel" type="PanelContainer" parent="MainUI/HUDRoot"]
+visible = false
+layout_mode = 0
+offset_left = 488.0
+offset_top = 84.0
+offset_right = 928.0
+offset_bottom = 160.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_enemy_info")
+
+[node name="EnemyInfoMargin" type="MarginContainer" parent="MainUI/HUDRoot/EnemyInfoPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 8
+
+[node name="EnemyInfoLayout" type="VBoxContainer" parent="MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="NameLabel" type="Label" parent="MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2314, 0.4039, 0.0745, 1)
+theme_override_font_sizes/font_size = 16
+text = "Enemy"
+
+[node name="DescriptionLabel" type="Label" parent="MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
+theme_override_font_sizes/font_size = 13
+text = "Simple enemy description."
 autowrap_mode = 2
 
 [node name="ThumbControls" type="Control" parent="MainUI/HUDRoot"]
