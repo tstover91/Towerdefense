@@ -63,31 +63,31 @@ content_margin_left = 9.0
 content_margin_top = 5.0
 content_margin_right = 9.0
 content_margin_bottom = 5.0
-bg_color = Color(0.7059, 0.4235, 1, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
+bg_color = Color(0.1059, 0.0824, 0.1294, 0.72)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3529, 0.2549, 0.4157, 0.64)
 corner_radius_top_left = 10
 corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fakjx"]
-bg_color = Color(1, 0.9412, 0.7608, 0.98)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
+bg_color = Color(0.0471, 0.0529, 0.0706, 0.86)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.0196, 0.0235, 0.0353, 0.9)
 corner_radius_top_left = 18
 corner_radius_top_right = 18
 corner_radius_bottom_right = 18
 corner_radius_bottom_left = 18
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.78)
-shadow_size = 5
-shadow_offset = Vector2(0, 5)
+shadow_color = Color(0, 0, 0, 0.42)
+shadow_size = 4
+shadow_offset = Vector2(0, 4)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d42bq"]
 bg_color = Color(1, 0.9412, 0.7608, 0.98)
@@ -105,202 +105,202 @@ shadow_size = 4
 shadow_offset = Vector2(0, 4)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upgrade_normal"]
-bg_color = Color(0.6078, 0.8902, 0.2314, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
+bg_color = Color(0.1059, 0.1255, 0.0863, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2863, 0.3608, 0.2078, 0.68)
 corner_radius_top_left = 11
 corner_radius_top_right = 11
 corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.7)
-shadow_size = 3
-shadow_offset = Vector2(0, 3)
+shadow_color = Color(0, 0, 0, 0.3)
+shadow_size = 2
+shadow_offset = Vector2(0, 2)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upgrade_hover"]
-bg_color = Color(0.702, 0.949, 0.3098, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(1, 0.9412, 0.7608, 1)
+bg_color = Color(0.1451, 0.1686, 0.1216, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3961, 0.4706, 0.2863, 0.78)
 corner_radius_top_left = 11
 corner_radius_top_right = 11
 corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.7)
-shadow_size = 3
-shadow_offset = Vector2(0, 3)
+shadow_color = Color(0, 0, 0, 0.34)
+shadow_size = 2
+shadow_offset = Vector2(0, 2)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upgrade_pressed"]
-bg_color = Color(0.451, 0.7216, 0.1608, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
+bg_color = Color(0.1725, 0.2039, 0.1333, 0.94)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3961, 0.4706, 0.2863, 0.8)
 corner_radius_top_left = 11
 corner_radius_top_right = 11
 corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sell_normal"]
-bg_color = Color(0.9098, 0.298, 0.2392, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
+bg_color = Color(0.1529, 0.0784, 0.0745, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4196, 0.1922, 0.1686, 0.68)
 corner_radius_top_left = 11
 corner_radius_top_right = 11
 corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.7)
-shadow_size = 3
-shadow_offset = Vector2(0, 3)
+shadow_color = Color(0, 0, 0, 0.3)
+shadow_size = 2
+shadow_offset = Vector2(0, 2)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sell_hover"]
-bg_color = Color(1, 0.3882, 0.3216, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(1, 0.9412, 0.7608, 1)
+bg_color = Color(0.2118, 0.1059, 0.098, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.549, 0.2549, 0.2196, 0.78)
 corner_radius_top_left = 11
 corner_radius_top_right = 11
 corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.7)
-shadow_size = 3
-shadow_offset = Vector2(0, 3)
+shadow_color = Color(0, 0, 0, 0.34)
+shadow_size = 2
+shadow_offset = Vector2(0, 2)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sell_pressed"]
-bg_color = Color(0.7412, 0.2118, 0.1647, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
+bg_color = Color(0.251, 0.1176, 0.1059, 0.94)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.549, 0.2549, 0.2196, 0.82)
 corner_radius_top_left = 11
 corner_radius_top_right = 11
 corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_build_circle"]
-bg_color = Color(0.2078, 0.8392, 0.9098, 1)
-border_width_left = 5
-border_width_top = 5
-border_width_right = 5
-border_width_bottom = 5
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
-corner_radius_top_left = 48
-corner_radius_top_right = 48
-corner_radius_bottom_right = 48
-corner_radius_bottom_left = 48
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.86)
-shadow_size = 6
-shadow_offset = Vector2(0, 6)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_build_circle_hover"]
-bg_color = Color(0.3216, 0.898, 0.9451, 1)
-border_width_left = 5
-border_width_top = 5
-border_width_right = 5
-border_width_bottom = 5
-border_color = Color(1, 0.9412, 0.7608, 1)
-corner_radius_top_left = 48
-corner_radius_top_right = 48
-corner_radius_bottom_right = 48
-corner_radius_bottom_left = 48
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.86)
-shadow_size = 6
-shadow_offset = Vector2(0, 6)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_build_circle_pressed"]
-bg_color = Color(0.1451, 0.6667, 0.7412, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
-corner_radius_top_left = 48
-corner_radius_top_right = 48
-corner_radius_bottom_right = 48
-corner_radius_bottom_left = 48
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reinforce_circle"]
-bg_color = Color(0.6078, 0.8902, 0.2314, 1)
-border_width_left = 5
-border_width_top = 5
-border_width_right = 5
-border_width_bottom = 5
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
-corner_radius_top_left = 48
-corner_radius_top_right = 48
-corner_radius_bottom_right = 48
-corner_radius_bottom_left = 48
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.86)
-shadow_size = 6
-shadow_offset = Vector2(0, 6)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reinforce_circle_hover"]
-bg_color = Color(0.702, 0.949, 0.3098, 1)
-border_width_left = 5
-border_width_top = 5
-border_width_right = 5
-border_width_bottom = 5
-border_color = Color(1, 0.9412, 0.7608, 1)
-corner_radius_top_left = 48
-corner_radius_top_right = 48
-corner_radius_bottom_right = 48
-corner_radius_bottom_left = 48
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.86)
-shadow_size = 6
-shadow_offset = Vector2(0, 6)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reinforce_circle_pressed"]
-bg_color = Color(0.451, 0.7216, 0.1608, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
-corner_radius_top_left = 48
-corner_radius_top_right = 48
-corner_radius_bottom_right = 48
-corner_radius_bottom_left = 48
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_circle_disabled"]
-bg_color = Color(0.4078, 0.4431, 0.502, 0.9)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1255, 0.1294, 0.2275, 0.78)
-corner_radius_top_left = 48
-corner_radius_top_right = 48
-corner_radius_bottom_right = 48
-corner_radius_bottom_left = 48
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kr_status"]
-content_margin_left = 8.0
-content_margin_top = 2.0
-content_margin_right = 8.0
-content_margin_bottom = 2.0
-bg_color = Color(0.0588, 0.0627, 0.0824, 0.94)
+bg_color = Color(0.0706, 0.0784, 0.102, 0.74)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(1, 0.9412, 0.7608, 0.62)
-corner_radius_top_left = 9
-corner_radius_top_right = 9
-corner_radius_bottom_right = 9
-corner_radius_bottom_left = 9
-shadow_color = Color(0, 0, 0, 0.62)
-shadow_size = 4
+border_color = Color(0.0353, 0.0392, 0.0549, 0.88)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0, 0, 0, 0.38)
+shadow_size = 3
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_build_circle_hover"]
+bg_color = Color(0.1373, 0.1333, 0.1216, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5059, 0.4314, 0.2941, 0.72)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0, 0, 0, 0.42)
+shadow_size = 3
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_build_circle_pressed"]
+bg_color = Color(0.1843, 0.1569, 0.1176, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5059, 0.4314, 0.2941, 0.78)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reinforce_circle"]
+bg_color = Color(0.0706, 0.0784, 0.102, 0.74)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.0353, 0.0392, 0.0549, 0.88)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0, 0, 0, 0.38)
+shadow_size = 3
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reinforce_circle_hover"]
+bg_color = Color(0.1373, 0.1333, 0.1216, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5059, 0.4314, 0.2941, 0.72)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0, 0, 0, 0.42)
+shadow_size = 3
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reinforce_circle_pressed"]
+bg_color = Color(0.1843, 0.1569, 0.1176, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5059, 0.4314, 0.2941, 0.78)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_circle_disabled"]
+bg_color = Color(0.0902, 0.0941, 0.1098, 0.56)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.0353, 0.0392, 0.0549, 0.62)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kr_status"]
+content_margin_left = 10.0
+content_margin_top = 3.0
+content_margin_right = 10.0
+content_margin_bottom = 3.0
+bg_color = Color(0.0471, 0.0529, 0.0706, 0.82)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.0196, 0.0235, 0.0353, 0.88)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.38)
+shadow_size = 3
 shadow_offset = Vector2(0, 3)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kr_strip"]
@@ -308,49 +308,105 @@ content_margin_left = 5.0
 content_margin_top = 3.0
 content_margin_right = 5.0
 content_margin_bottom = 3.0
-bg_color = Color(0.0588, 0.0627, 0.0824, 0.91)
+bg_color = Color(0.0471, 0.0529, 0.0706, 0.76)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(1, 0.9412, 0.7608, 0.48)
+border_color = Color(0.0196, 0.0235, 0.0353, 0.82)
 corner_radius_top_left = 9
 corner_radius_top_right = 9
 corner_radius_bottom_right = 9
 corner_radius_bottom_left = 9
-shadow_color = Color(0, 0, 0, 0.55)
-shadow_size = 3
+shadow_color = Color(0, 0, 0, 0.32)
+shadow_size = 2
 shadow_offset = Vector2(0, 2)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hud_control_normal"]
+bg_color = Color(0.0706, 0.0784, 0.102, 0.72)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.0353, 0.0392, 0.0549, 0.84)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.34)
+shadow_size = 2
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hud_control_hover"]
+bg_color = Color(0.1373, 0.1333, 0.1216, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5059, 0.4314, 0.2941, 0.68)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.38)
+shadow_size = 2
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hud_control_pressed"]
+bg_color = Color(0.1843, 0.1569, 0.1176, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5059, 0.4314, 0.2941, 0.74)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_enemy_info"]
-bg_color = Color(1, 0.9412, 0.7608, 0.99)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.6078, 0.8902, 0.2314, 1)
+bg_color = Color(0.0471, 0.0529, 0.0706, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2863, 0.3608, 0.2078, 0.64)
 corner_radius_top_left = 15
 corner_radius_top_right = 15
 corner_radius_bottom_right = 15
 corner_radius_bottom_left = 15
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.72)
-shadow_size = 4
-shadow_offset = Vector2(0, 4)
+shadow_color = Color(0, 0, 0, 0.38)
+shadow_size = 3
+shadow_offset = Vector2(0, 3)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_relic_info"]
-bg_color = Color(1, 0.9412, 0.7608, 0.99)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.7059, 0.4235, 1, 1)
+bg_color = Color(0.0471, 0.0529, 0.0706, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3529, 0.2549, 0.4157, 0.64)
 corner_radius_top_left = 15
 corner_radius_top_right = 15
 corner_radius_bottom_right = 15
 corner_radius_bottom_left = 15
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.72)
-shadow_size = 4
-shadow_offset = Vector2(0, 4)
+shadow_color = Color(0, 0, 0, 0.38)
+shadow_size = 3
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="Theme" id="Theme_tower_inspector"]
+default_font_size = 15
+Button/colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
+Button/colors/font_hover_color = Color(0.9059, 0.8667, 0.7529, 1)
+Button/colors/font_pressed_color = Color(0.9059, 0.8667, 0.7529, 1)
+Button/colors/font_disabled_color = Color(0.5608, 0.5529, 0.5098, 0.72)
+Button/styles/normal = SubResource("StyleBoxFlat_hud_control_normal")
+Button/styles/hover = SubResource("StyleBoxFlat_hud_control_hover")
+Button/styles/pressed = SubResource("StyleBoxFlat_hud_control_pressed")
+Button/styles/hover_pressed = SubResource("StyleBoxFlat_hud_control_pressed")
+Button/styles/disabled = SubResource("StyleBoxFlat_circle_disabled")
+Button/styles/focus = SubResource("StyleBoxEmpty_status")
+Label/colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
 
 [node name="Main" type="Node2D" unique_id=625228475]
 script = ExtResource("1_h2yge")
@@ -381,8 +437,8 @@ theme = ExtResource("9_invasion_theme")
 layout_mode = 0
 offset_left = 12.0
 offset_top = 6.0
-offset_right = 476.0
-offset_bottom = 50.0
+offset_right = 450.0
+offset_bottom = 54.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_kr_status")
 
@@ -398,10 +454,10 @@ layout_mode = 2
 theme_override_constants/separation = 5
 
 [node name="livesdisplay" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=854572826]
-custom_minimum_size = Vector2(124, 40)
+custom_minimum_size = Vector2(116, 40)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.3725, 0.2863, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8588, 0.4784, 0.4196, 1)
+theme_override_font_sizes/font_size = 16
 text = "Health: 100/100"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -410,39 +466,59 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(1, 26)
 layout_mode = 2
 size_flags_vertical = 4
-modulate = Color(1, 0.9412, 0.7608, 0.22)
+modulate = Color(0.8471, 0.8078, 0.702, 0.2)
 
 [node name="roundcount" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1111336532]
-custom_minimum_size = Vector2(104, 40)
+custom_minimum_size = Vector2(96, 40)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.9412, 0.7608, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
+theme_override_font_sizes/font_size = 16
 text = "Round: 0/20"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="EnemyIntelButton" type="Button" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid"]
+custom_minimum_size = Vector2(44, 30)
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Open enemy intel"
+toggle_mode = true
+focus_mode = 0
+theme_override_colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
+theme_override_colors/font_hover_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_colors/font_pressed_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = SubResource("StyleBoxFlat_hud_control_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hud_control_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_hud_control_pressed")
+theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_hud_control_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_status")
+text = "Intel"
 
 [node name="RoundDivider" type="VSeparator" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid"]
 custom_minimum_size = Vector2(1, 26)
 layout_mode = 2
 size_flags_vertical = 4
-modulate = Color(1, 0.9412, 0.7608, 0.22)
+modulate = Color(0.8471, 0.8078, 0.702, 0.2)
 
 [node name="moneydisplay" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1926460251]
-custom_minimum_size = Vector2(112, 40)
+custom_minimum_size = Vector2(108, 40)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.8314, 0.2784, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8392, 0.702, 0.4039, 1)
+theme_override_font_sizes/font_size = 16
 text = "Money: $0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="MoneyDivider" type="VSeparator" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid"]
+visible = false
 custom_minimum_size = Vector2(1, 26)
 layout_mode = 2
 size_flags_vertical = 4
 modulate = Color(1, 0.9412, 0.7608, 0.22)
 
 [node name="roundtimer" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1101724491]
+visible = false
 custom_minimum_size = Vector2(82, 40)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2078, 0.8392, 0.9098, 1)
@@ -452,23 +528,36 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="EnemyStrip" type="PanelContainer" parent="MainUI/HUDRoot"]
+visible = false
+z_index = 25
 layout_mode = 0
-offset_left = 488.0
-offset_top = 6.0
-offset_right = 532.0
-offset_bottom = 40.0
+offset_left = 196.0
+offset_top = 62.0
+offset_right = 628.0
+offset_bottom = 220.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_kr_strip")
 
-[node name="EnemyIconList" type="HBoxContainer" parent="MainUI/HUDRoot/EnemyStrip"]
+[node name="EnemyStripContent" type="VBoxContainer" parent="MainUI/HUDRoot/EnemyStrip"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="IntelTitle" type="Label" parent="MainUI/HUDRoot/EnemyStrip/EnemyStripContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
+theme_override_font_sizes/font_size = 13
+text = "ENEMY INTEL"
+
+[node name="EnemyIconList" type="HFlowContainer" parent="MainUI/HUDRoot/EnemyStrip/EnemyStripContent"]
+custom_minimum_size = Vector2(420, 28)
 layout_mode = 2
 theme_override_constants/separation = 3
 
 [node name="RelicStrip" type="PanelContainer" parent="MainUI/HUDRoot"]
 layout_mode = 0
-offset_left = 488.0
-offset_top = 44.0
-offset_right = 532.0
-offset_bottom = 78.0
+offset_left = 12.0
+offset_top = 62.0
+offset_right = 56.0
+offset_bottom = 96.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_kr_strip")
 
 [node name="RelicIconList" type="HBoxContainer" parent="MainUI/HUDRoot/RelicStrip"]
@@ -503,20 +592,34 @@ custom_minimum_size = Vector2(48, 40)
 layout_mode = 2
 tooltip_text = "Game Speed: 1x"
 text = "1x"
+theme_override_colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
+theme_override_colors/font_hover_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_colors/font_pressed_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_hud_control_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hud_control_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_hud_control_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_status")
 
 [node name="PauseButton" type="Button" parent="MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons"]
 custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
 tooltip_text = "Start Round 1"
 text = "▶"
+theme_override_colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
+theme_override_colors/font_hover_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_colors/font_pressed_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_hud_control_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hud_control_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_hud_control_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_status")
 
 [node name="RelicInfoPanel" type="PanelContainer" parent="MainUI/HUDRoot"]
 visible = false
 layout_mode = 0
-offset_left = 488.0
-offset_top = 84.0
-offset_right = 968.0
-offset_bottom = 174.0
+offset_left = 12.0
+offset_top = 102.0
+offset_right = 492.0
+offset_bottom = 192.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_relic_info")
 
 [node name="RelicInfoMargin" type="MarginContainer" parent="MainUI/HUDRoot/RelicInfoPanel"]
@@ -536,13 +639,13 @@ layout_mode = 2
 [node name="NameLabel" type="Label" parent="MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.498, 0.2235, 0.7569, 1)
+theme_override_colors/font_color = Color(0.7412, 0.6039, 0.8039, 1)
 theme_override_font_sizes/font_size = 17
 text = "Relic"
 
 [node name="AffectedLabel" type="Label" parent="MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/Header"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2706, 0.2941, 0.3922, 1)
+theme_override_colors/font_color = Color(0.6588, 0.6549, 0.6196, 1)
 theme_override_font_sizes/font_size = 12
 text = "Affects 0 towers"
 horizontal_alignment = 2
@@ -551,41 +654,37 @@ vertical_alignment = 1
 [node name="DescriptionLabel" type="Label" parent="MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
+theme_override_colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
 theme_override_font_sizes/font_size = 13
 text = "Short relic description."
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="EnemyInfoPanel" type="PanelContainer" parent="MainUI/HUDRoot"]
+[node name="EnemyInfoPanel" type="PanelContainer" parent="MainUI/HUDRoot/EnemyStrip/EnemyStripContent"]
 visible = false
-layout_mode = 0
-offset_left = 488.0
-offset_top = 84.0
-offset_right = 928.0
-offset_bottom = 160.0
+layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_enemy_info")
 
-[node name="EnemyInfoMargin" type="MarginContainer" parent="MainUI/HUDRoot/EnemyInfoPanel"]
+[node name="EnemyInfoMargin" type="MarginContainer" parent="MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 8
 
-[node name="EnemyInfoLayout" type="VBoxContainer" parent="MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin"]
+[node name="EnemyInfoLayout" type="VBoxContainer" parent="MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel/EnemyInfoMargin"]
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="NameLabel" type="Label" parent="MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout"]
+[node name="NameLabel" type="Label" parent="MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2314, 0.4039, 0.0745, 1)
+theme_override_colors/font_color = Color(0.6196, 0.7137, 0.4824, 1)
 theme_override_font_sizes/font_size = 16
 text = "Enemy"
 
-[node name="DescriptionLabel" type="Label" parent="MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout"]
+[node name="DescriptionLabel" type="Label" parent="MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
+theme_override_colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
 theme_override_font_sizes/font_size = 13
 text = "Simple enemy description."
 autowrap_mode = 2
@@ -613,7 +712,7 @@ mouse_filter = 2
 
 [node name="BuildToggleButton" type="Button" parent="MainUI/HUDRoot"]
 z_index = 30
-custom_minimum_size = Vector2(88, 88)
+custom_minimum_size = Vector2(76, 76)
 layout_mode = 1
 anchors_preset = 3
 anchor_left = 0.0
@@ -621,15 +720,18 @@ anchor_top = 1.0
 anchor_right = 0.0
 anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = -104.0
-offset_right = 104.0
+offset_top = -92.0
+offset_right = 92.0
 offset_bottom = -16.0
 grow_vertical = 0
 tooltip_text = "Build towers"
 toggle_mode = true
 icon = ExtResource("7_build_icon")
 expand_icon = true
-icon_max_width = 50
+icon_max_width = 44
+theme_override_colors/icon_normal_color = Color(0.8471, 0.8078, 0.702, 0.94)
+theme_override_colors/icon_hover_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_colors/icon_pressed_color = Color(0.9059, 0.8667, 0.7529, 1)
 theme_override_styles/normal = SubResource("StyleBoxFlat_build_circle")
 theme_override_styles/hover = SubResource("StyleBoxFlat_build_circle_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_build_circle_pressed")
@@ -637,15 +739,15 @@ theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_build_circle_pre
 theme_override_styles/focus = SubResource("StyleBoxEmpty_status")
 
 [node name="ReinforcementButton" type="Button" parent="MainUI/HUDRoot/ThumbControls"]
-custom_minimum_size = Vector2(88, 88)
+custom_minimum_size = Vector2(76, 76)
 layout_mode = 1
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -104.0
-offset_top = -104.0
+offset_left = -92.0
+offset_top = -92.0
 offset_right = -16.0
 offset_bottom = -16.0
 grow_horizontal = 0
@@ -654,7 +756,11 @@ tooltip_text = "Deploy alien reinforcements"
 toggle_mode = true
 icon = ExtResource("8_reinforce_icon")
 expand_icon = true
-icon_max_width = 50
+icon_max_width = 44
+theme_override_colors/icon_normal_color = Color(0.8471, 0.8078, 0.702, 0.94)
+theme_override_colors/icon_hover_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_colors/icon_pressed_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_colors/icon_disabled_color = Color(0.5608, 0.5529, 0.5098, 0.72)
 theme_override_styles/normal = SubResource("StyleBoxFlat_reinforce_circle")
 theme_override_styles/hover = SubResource("StyleBoxFlat_reinforce_circle_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_reinforce_circle_pressed")
@@ -670,9 +776,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(1, 0.9412, 0.7608, 1)
-theme_override_colors/font_outline_color = Color(0.1255, 0.1294, 0.2275, 1)
-theme_override_constants/outline_size = 4
+theme_override_colors/font_color = Color(0.8471, 0.8078, 0.702, 1)
+theme_override_colors/font_outline_color = Color(0.0196, 0.0235, 0.0353, 0.82)
+theme_override_constants/outline_size = 2
 theme_override_font_sizes/font_size = 20
 text = "9"
 horizontal_alignment = 1
@@ -693,6 +799,7 @@ offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_fakjx")
+theme = SubResource("Theme_tower_inspector")
 clip_contents = true
 
 [node name="SidebarMargin" type="MarginContainer" parent="MainUI/HUDRoot/Sidebar" unique_id=2035356114]
@@ -763,10 +870,10 @@ tooltip_text = "Show tower information"
 toggle_mode = true
 expand_icon = true
 icon_max_width = 50
-theme_override_colors/icon_normal_color = Color(1, 1, 1, 1)
-theme_override_colors/icon_hover_color = Color(1, 1, 1, 1)
-theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
-theme_override_colors/icon_focus_color = Color(1, 1, 1, 1)
+theme_override_colors/icon_normal_color = Color(0.8471, 0.8078, 0.702, 0.94)
+theme_override_colors/icon_hover_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_colors/icon_pressed_color = Color(0.9059, 0.8667, 0.7529, 1)
+theme_override_colors/icon_focus_color = Color(0.8471, 0.8078, 0.702, 0.94)
 
 [node name="InspectorTitle" type="VBoxContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader"]
 layout_mode = 2
@@ -781,7 +888,7 @@ autowrap_mode = 2
 
 [node name="TowerLevelLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle" unique_id=570188361]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2706, 0.2941, 0.3922, 1)
+theme_override_colors/font_color = Color(0.6588, 0.6549, 0.6196, 1)
 theme_override_font_sizes/font_size = 13
 text = "Level 1/4"
 horizontal_alignment = 0
@@ -791,6 +898,9 @@ custom_minimum_size = Vector2(148, 52)
 layout_mode = 2
 size_flags_vertical = 4
 clip_text = true
+theme_override_colors/font_color = Color(0.7608, 0.8235, 0.651, 1)
+theme_override_colors/font_hover_color = Color(0.8275, 0.8745, 0.7412, 1)
+theme_override_colors/font_pressed_color = Color(0.8275, 0.8745, 0.7412, 1)
 theme_override_styles/normal = SubResource("StyleBoxFlat_upgrade_normal")
 theme_override_styles/hover = SubResource("StyleBoxFlat_upgrade_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_upgrade_pressed")
@@ -809,9 +919,9 @@ custom_minimum_size = Vector2(132, 52)
 layout_mode = 2
 size_flags_vertical = 4
 clip_text = true
-theme_override_colors/font_color = Color(1, 0.9412, 0.7608, 1)
-theme_override_colors/font_hover_color = Color(1, 0.9412, 0.7608, 1)
-theme_override_colors/font_pressed_color = Color(1, 0.9412, 0.7608, 1)
+theme_override_colors/font_color = Color(0.8588, 0.6196, 0.5725, 1)
+theme_override_colors/font_hover_color = Color(0.902, 0.6941, 0.6549, 1)
+theme_override_colors/font_pressed_color = Color(0.902, 0.6941, 0.6549, 1)
 theme_override_styles/normal = SubResource("StyleBoxFlat_sell_normal")
 theme_override_styles/hover = SubResource("StyleBoxFlat_sell_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_sell_pressed")
@@ -839,7 +949,7 @@ alignment = 1
 [node name="TowerPathLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent"]
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2706, 0.2941, 0.3922, 1)
+theme_override_colors/font_color = Color(0.6588, 0.6549, 0.6196, 1)
 theme_override_font_sizes/font_size = 13
 text = "Final paths available"
 horizontal_alignment = 1
@@ -865,7 +975,7 @@ autowrap_mode = 2
 [node name="TowerRelicsLabel" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent"]
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.9412, 0.7608, 1)
+theme_override_colors/font_color = Color(0.7412, 0.6039, 0.8039, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_relic_chip")
 text = "Relics: None"
@@ -890,7 +1000,7 @@ horizontal_alignment = 1
 
 [node name="UpgradeDescription" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2706, 0.2941, 0.3922, 1)
+theme_override_colors/font_color = Color(0.6588, 0.6549, 0.6196, 1)
 theme_override_font_sizes/font_size = 13
 text = "Advance to Level 2"
 horizontal_alignment = 1
@@ -931,7 +1041,7 @@ text = "Path B"
 [node name="PathDescription" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection"]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2706, 0.2941, 0.3922, 1)
+theme_override_colors/font_color = Color(0.6588, 0.6549, 0.6196, 1)
 theme_override_font_sizes/font_size = 12
 text = "Select a path to view its effect."
 horizontal_alignment = 1

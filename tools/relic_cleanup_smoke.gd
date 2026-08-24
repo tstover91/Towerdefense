@@ -44,18 +44,31 @@ func run_checks() -> void:
 	var relic_strip := director.get_node("MainUI/HUDRoot/RelicStrip") as Control
 	var edge_controls := director.get_node("MainUI/HUDRoot/EdgeControls") as Control
 	assert(not director.has_node("MainUI/HUDRoot/TopBarBackground"))
-	assert(status_panel.size.y <= 44.0)
-	assert(enemy_strip.get_global_rect().position.y < relic_strip.get_global_rect().position.y)
+	assert(status_panel.size.y <= 48.0)
+	assert(
+		relic_strip.get_global_rect().position.y
+		>= status_panel.get_global_rect().end.y
+	)
 	assert(edge_controls.get_theme_stylebox("panel") is StyleBoxEmpty)
 	var status_style := status_panel.get_theme_stylebox("panel") as StyleBoxFlat
 	assert(status_style.bg_color.get_luminance() < 0.15)
-	assert(enemy_strip.get_global_rect().end.x <= edge_controls.get_global_rect().position.x)
 	assert(relic_strip.get_global_rect().end.x <= edge_controls.get_global_rect().position.x)
 	assert(not director.has_node("MainUI/HUDRoot/RelicStrip/RelicLabel"))
 	assert(not director.has_node(
 		"MainUI/HUDRoot/RelicStrip/RelicIconList/NoRelicsLabel"
 	))
+	assert(director.relic_icon_list.get_child_count() == director.RELIC_HUD_SLOT_COUNT)
 	assert(director.enemy_hud_buttons.size() > 0)
+	assert(not director.enemy_strip_expanded)
+	assert(not enemy_strip.visible)
+	assert(director.enemy_icon_list.visible)
+	assert(director.enemy_toggle_button.get_parent() == director.get_node(
+		"MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid"
+	))
+	director.enemy_toggle_button.button_pressed = true
+	director._on_enemy_strip_toggled()
+	assert(director.enemy_strip_expanded)
+	assert(enemy_strip.visible)
 	var first_enemy_id := StringName(director.enemy_hud_buttons.keys()[0])
 	director.show_enemy_hud_selection(first_enemy_id)
 	assert(director.enemy_info_panel.visible)
@@ -76,8 +89,8 @@ func run_checks() -> void:
 		build_button_rect.end.y
 		<= director.get_viewport_rect().size.y
 	)
-	assert(director.build_toggle_button.size.x >= 88.0)
-	assert(director.reinforcement_button.size.x >= 88.0)
+	assert(director.build_toggle_button.size.x >= 76.0)
+	assert(director.reinforcement_button.size.x >= 76.0)
 	director.tower_roster.assign([&"invader"])
 	director.populate_tower_list()
 	var base_roster_tags: Array[StringName] = director.get_tower_roster_tags()
@@ -210,6 +223,7 @@ func run_checks() -> void:
 	)
 	director.refresh_relic_hud()
 	assert(director.relic_hud_buttons.size() == 1)
+	assert(director.relic_icon_list.get_child_count() == director.RELIC_HUD_SLOT_COUNT)
 	var network_icon := director.relic_hud_buttons[&"network_upgrade"] as Button
 	assert(network_icon.text == "NU")
 	assert(network_icon.custom_minimum_size.x == 30.0)
@@ -327,11 +341,12 @@ func run_checks() -> void:
 	assert(not director.sidebar.visible)
 	assert(director.tower_fan_buttons.size() == director.tower_roster.size())
 	for fan_button in director.tower_fan_buttons:
-		assert(fan_button.size.x >= 78.0)
+		assert(fan_button.size.x >= 76.0)
 		var fan_target: Vector2 = fan_button.get_meta("fan_target_position")
 		assert(fan_target.y < build_button_rect.position.y)
 		var fan_style := fan_button.get_theme_stylebox("normal") as StyleBoxFlat
-		assert(fan_style.corner_radius_top_left >= 39)
+		assert(fan_style.corner_radius_top_left >= 18)
+	assert_tower_fan_buttons_do_not_overlap(director.tower_fan_buttons)
 	assert(director.build_toggle_button.visible)
 	director.set_build_drawer_open(false)
 	director.show_tower_details(network_tower)
@@ -416,9 +431,31 @@ func run_checks() -> void:
 	assert(director.pause_menu.enemies_grid.get_child_count() == 2)
 	assert(director.pause_menu.enemy_header.text == "Enemy Pool — Round 2")
 
+	director.sandbox_mode = true
+	director.tower_roster.clear()
+	for tower_key in GameStats.TOWERS:
+		director.tower_roster.append(StringName(tower_key))
+	director.populate_tower_list()
+	director.set_build_drawer_open(true)
+	assert(director.tower_fan_buttons.size() == GameStats.TOWERS.size())
+	for fan_button in director.tower_fan_buttons:
+		assert(fan_button.has_meta("fan_target_position"))
+	assert_tower_fan_buttons_do_not_overlap(director.tower_fan_buttons)
+	director.set_build_drawer_open(false)
+
 	print("Relic cleanup smoke checks passed.")
 	director.queue_free()
 	get_tree().quit(0)
+
+
+func assert_tower_fan_buttons_do_not_overlap(buttons: Array[Button]) -> void:
+	for first_index in buttons.size():
+		var first_button := buttons[first_index]
+		var first_rect := Rect2(first_button.position, first_button.size)
+		for second_index in range(first_index + 1, buttons.size()):
+			var second_button := buttons[second_index]
+			var second_rect := Rect2(second_button.position, second_button.size)
+			assert(not first_rect.intersects(second_rect))
 
 
 func create_test_tower(

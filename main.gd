@@ -72,15 +72,16 @@ const UI_RED := Color("e84c3d")
 const UI_PURPLE := Color("b46cff")
 const UI_MAGENTA := Color("e94bd6")
 const UI_GOLD := Color("ffd447")
-const TOWER_FAN_BUTTON_SIZE := 78.0
-const TOWER_FAN_RING_CAPACITIES: Array[int] = [2, 3, 4, 4]
-const TOWER_FAN_RING_RADII: Array[float] = [118.0, 202.0, 286.0, 370.0]
+const TOWER_FAN_BUTTON_SIZE := 76.0
+const TOWER_FAN_BUTTON_GAP := 12.0
+const TOWER_FAN_MAX_COLUMNS := 5
 const PLACEMENT_DRAG_THRESHOLD := 12.0
 const PLACEMENT_DRAG_PREVIEW_OFFSET := Vector2(0.0, -75.0)
-const HUD_STRIP_LEFT := 488.0
-const HUD_STRIP_RIGHT_MARGIN := 112.0
+const HUD_STRIP_LEFT := 12.0
+const HUD_STRIP_RIGHT_MARGIN := 12.0
 const HUD_STRIP_ICON_WIDTH := 30.0
 const HUD_STRIP_ICON_SEPARATION := 3.0
+const RELIC_HUD_SLOT_COUNT := 5
 const DRAG_KIND_TOWER: StringName = &"tower"
 const DRAG_KIND_REINFORCEMENT: StringName = &"reinforcement"
 
@@ -110,10 +111,11 @@ signal round_ended(round_number: int)
 @onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
 @onready var round_timer_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundtimer
 @onready var enemy_strip: PanelContainer = $MainUI/HUDRoot/EnemyStrip
-@onready var enemy_icon_list: HBoxContainer = $MainUI/HUDRoot/EnemyStrip/EnemyIconList
-@onready var enemy_info_panel: PanelContainer = $MainUI/HUDRoot/EnemyInfoPanel
-@onready var enemy_info_name: Label = $MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout/NameLabel
-@onready var enemy_info_description: Label = $MainUI/HUDRoot/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout/DescriptionLabel
+@onready var enemy_toggle_button: Button = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/EnemyIntelButton
+@onready var enemy_icon_list: HFlowContainer = $MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyIconList
+@onready var enemy_info_panel: PanelContainer = $MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel
+@onready var enemy_info_name: Label = $MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout/NameLabel
+@onready var enemy_info_description: Label = $MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout/DescriptionLabel
 @onready var relic_strip: PanelContainer = $MainUI/HUDRoot/RelicStrip
 @onready var relic_icon_list: HBoxContainer = $MainUI/HUDRoot/RelicStrip/RelicIconList
 @onready var relic_info_panel: PanelContainer = $MainUI/HUDRoot/RelicInfoPanel
@@ -408,6 +410,7 @@ var sidebar_confirmation_action := -1
 var context_dock_tween: Tween
 var relic_hud_buttons: Dictionary = {}
 var enemy_hud_buttons: Dictionary = {}
+var enemy_strip_expanded := false
 var tower_fan_buttons: Array[Button] = []
 var tower_fan_tween: Tween
 var tower_fan_open := false
@@ -462,6 +465,7 @@ func _ready() -> void:
 	update_round_count()
 	refresh_relic_hud()
 	refresh_enemy_hud(true)
+	enemy_toggle_button.pressed.connect(_on_enemy_strip_toggled)
 	spawntimer.timeout.connect(_spawn_mob)
 	reinforcement_button.pressed.connect(_on_reinforcement_button_pressed)
 	reinforcement_button.gui_input.connect(_on_reinforcement_button_gui_input)
@@ -616,16 +620,30 @@ func create_tower_fan_button(
 	]
 	button.set_meta("slot_index", slot_index)
 	button.add_theme_stylebox_override(
-		"normal", make_tower_fan_button_style(UI_CREAM, UI_INK)
+		"normal", make_tower_fan_button_style(
+			Color(0.0706, 0.0784, 0.102, 0.74),
+			Color(0.0353, 0.0392, 0.0549, 0.88)
+		)
 	)
 	button.add_theme_stylebox_override(
-		"hover", make_tower_fan_button_style(UI_CYAN.lightened(0.25), UI_CREAM)
+		"hover", make_tower_fan_button_style(
+			Color(0.1373, 0.1333, 0.1216, 0.84),
+			Color(0.5059, 0.4314, 0.2941, 0.72)
+		)
 	)
 	button.add_theme_stylebox_override(
-		"pressed", make_tower_fan_button_style(UI_CYAN.darkened(0.12), UI_INK, false)
+		"pressed", make_tower_fan_button_style(
+			Color(0.1843, 0.1569, 0.1176, 0.9),
+			Color(0.5059, 0.4314, 0.2941, 0.78),
+			false
+		)
 	)
 	button.add_theme_stylebox_override(
-		"disabled", make_tower_fan_button_style(UI_CREAM.darkened(0.25), Color(UI_INK, 0.65), false)
+		"disabled", make_tower_fan_button_style(
+			Color(0.0902, 0.0941, 0.1098, 0.56),
+			Color(0.0353, 0.0392, 0.0549, 0.62),
+			false
+		)
 	)
 	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
@@ -656,11 +674,13 @@ func create_tower_fan_button(
 	price_label.text = "$%d" % cost
 	price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	price_label.add_theme_color_override("font_color", UI_CREAM)
+	price_label.add_theme_color_override(
+		"font_color", Color(0.82, 0.78, 0.67, 0.96)
+	)
 	price_label.add_theme_font_size_override("font_size", 12)
 	var price_style := StyleBoxFlat.new()
-	price_style.bg_color = Color(UI_INK, 0.94)
-	price_style.set_corner_radius_all(9)
+	price_style.bg_color = Color(0.025, 0.03, 0.045, 0.78)
+	price_style.set_corner_radius_all(7)
 	price_label.add_theme_stylebox_override("normal", price_style)
 	button.add_child(price_label)
 	button.pressed.connect(_on_tower_fan_button_pressed.bind(slot_index))
@@ -676,43 +696,53 @@ func make_tower_fan_button_style(
 	var style := StyleBoxFlat.new()
 	style.bg_color = background
 	style.border_color = border
-	style.set_border_width_all(4)
-	style.set_corner_radius_all(42)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(18)
 	if with_shadow:
-		style.shadow_color = Color(UI_INK, 0.76)
-		style.shadow_size = 5
-		style.shadow_offset = Vector2(0.0, 5.0)
+		style.shadow_color = Color(0.0, 0.0, 0.0, 0.38)
+		style.shadow_size = 3
+		style.shadow_offset = Vector2(0.0, 3.0)
 	return style
 
 
 func layout_tower_fan_buttons() -> void:
-	if not is_instance_valid(tower_fan):
+	if not is_instance_valid(tower_fan) or tower_fan_buttons.is_empty():
 		return
-	var origin := build_toggle_button.get_global_rect().get_center() - tower_fan.global_position
 	var button_half := Vector2.ONE * TOWER_FAN_BUTTON_SIZE * 0.5
-	var button_index := 0
-	for ring_index in TOWER_FAN_RING_CAPACITIES.size():
-		if button_index >= tower_fan_buttons.size():
-			break
-		var count := mini(
-			TOWER_FAN_RING_CAPACITIES[ring_index],
-			tower_fan_buttons.size() - button_index
+	var build_rect := build_toggle_button.get_global_rect()
+	var grid_left := build_rect.position.x - tower_fan.global_position.x
+	var grid_bottom := (
+		build_rect.position.y
+		- tower_fan.global_position.y
+		- TOWER_FAN_BUTTON_GAP
+	)
+	var available_width := maxf(
+		get_viewport_rect().size.x - build_rect.position.x - 16.0,
+		TOWER_FAN_BUTTON_SIZE
+	)
+	var maximum_columns_by_width := maxi(
+		int(floor(
+			(available_width + TOWER_FAN_BUTTON_GAP)
+			/ (TOWER_FAN_BUTTON_SIZE + TOWER_FAN_BUTTON_GAP)
+		)),
+		1
+	)
+	var column_count := mini(
+		mini(TOWER_FAN_MAX_COLUMNS, maximum_columns_by_width),
+		tower_fan_buttons.size()
+	)
+	var cell_step := TOWER_FAN_BUTTON_SIZE + TOWER_FAN_BUTTON_GAP
+	for button_index in tower_fan_buttons.size():
+		var row_index := button_index / column_count
+		var column_index := button_index % column_count
+		var target_position := Vector2(
+			grid_left + float(column_index) * cell_step,
+			grid_bottom - TOWER_FAN_BUTTON_SIZE - float(row_index) * cell_step
 		)
-		var start_angle := -72.0 if count <= 2 else -78.0
-		var end_angle := -28.0 if count <= 2 else -18.0
-		for ring_slot in count:
-			var angle_degrees := lerpf(
-				start_angle,
-				end_angle,
-				0.5 if count == 1 else float(ring_slot) / float(count - 1)
-			)
-			var angle := deg_to_rad(angle_degrees)
-			var target_position := origin + Vector2.from_angle(angle) * TOWER_FAN_RING_RADII[ring_index] - button_half
-			var button := tower_fan_buttons[button_index]
-			button.position = target_position
-			button.pivot_offset = button_half
-			button.set_meta("fan_target_position", target_position)
-			button_index += 1
+		var button := tower_fan_buttons[button_index]
+		button.position = target_position
+		button.pivot_offset = button_half
+		button.set_meta("fan_target_position", target_position)
 
 
 func _on_tower_fan_button_pressed(slot_index: int) -> void:
@@ -1161,21 +1191,23 @@ func get_enemy_icon_label(enemy_id: StringName) -> String:
 
 func make_enemy_icon_style(background: Color, pressed := false) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = background.darkened(0.24 if pressed else 0.08)
-	style.border_color = UI_CREAM if pressed else Color(UI_CREAM, 0.86)
+	var muted_background := background.darkened(0.68)
+	muted_background.a = 0.9 if pressed else 0.76
+	style.bg_color = muted_background
+	var muted_border := background.darkened(0.42)
+	muted_border.a = 0.72 if pressed else 0.48
+	style.border_color = muted_border
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(9)
+	style.set_corner_radius_all(8)
 	if not pressed:
-		style.shadow_color = Color(0.0, 0.0, 0.0, 0.58)
+		style.shadow_color = Color(0.0, 0.0, 0.0, 0.3)
 		style.shadow_size = 2
 		style.shadow_offset = Vector2(0.0, 2.0)
 	return style
 
 
 func apply_enemy_icon_style(button: Button, enemy_color: Color) -> void:
-	var foreground := UI_CREAM
-	if enemy_color.get_luminance() > 0.62:
-		foreground = UI_INK
+	var foreground := Color(0.8471, 0.8078, 0.702, 1.0)
 	button.add_theme_color_override("font_color", foreground)
 	button.add_theme_color_override("font_hover_color", foreground)
 	button.add_theme_color_override("font_pressed_color", foreground)
@@ -1184,7 +1216,7 @@ func apply_enemy_icon_style(button: Button, enemy_color: Color) -> void:
 		"normal", make_enemy_icon_style(enemy_color)
 	)
 	button.add_theme_stylebox_override(
-		"hover", make_enemy_icon_style(enemy_color.lightened(0.12))
+		"hover", make_enemy_icon_style(enemy_color.lightened(0.08))
 	)
 	button.add_theme_stylebox_override(
 		"pressed", make_enemy_icon_style(enemy_color, true)
@@ -1232,6 +1264,21 @@ func _on_enemy_hud_pressed(enemy_id: StringName) -> void:
 		show_enemy_hud_selection(enemy_id)
 
 
+func _on_enemy_strip_toggled() -> void:
+	set_enemy_intel_expanded(enemy_toggle_button.button_pressed)
+
+
+func set_enemy_intel_expanded(is_expanded: bool) -> void:
+	enemy_strip_expanded = is_expanded and not enemy_hud_buttons.is_empty()
+	enemy_strip.visible = enemy_strip_expanded
+	enemy_toggle_button.button_pressed = enemy_strip_expanded
+	enemy_toggle_button.tooltip_text = (
+		"Close enemy intel" if enemy_strip_expanded else "Open enemy intel"
+	)
+	if not enemy_strip_expanded:
+		clear_enemy_hud_selection()
+
+
 func show_enemy_hud_selection(enemy_id: StringName) -> void:
 	if not enemy_hud_buttons.has(enemy_id):
 		clear_enemy_hud_selection()
@@ -1261,21 +1308,14 @@ func update_compact_hud_strip_layout() -> void:
 		get_viewport_rect().size.x - HUD_STRIP_LEFT - HUD_STRIP_RIGHT_MARGIN,
 		44.0
 	)
-	var enemy_width := clampf(
-		10.0 + float(enemy_hud_buttons.size()) * (
-			HUD_STRIP_ICON_WIDTH + HUD_STRIP_ICON_SEPARATION
-		),
-		44.0,
-		maximum_width
-	)
+	enemy_toggle_button.button_pressed = enemy_strip_expanded
 	var relic_width := clampf(
-		10.0 + float(relic_hud_buttons.size()) * (
+		10.0 + float(maxi(RELIC_HUD_SLOT_COUNT, relic_hud_buttons.size())) * (
 			HUD_STRIP_ICON_WIDTH + HUD_STRIP_ICON_SEPARATION
 		),
 		44.0,
 		maximum_width
 	)
-	enemy_strip.offset_right = HUD_STRIP_LEFT + enemy_width
 	relic_strip.offset_right = HUD_STRIP_LEFT + relic_width
 	var info_left := HUD_STRIP_LEFT
 	var info_right := minf(
@@ -1286,49 +1326,79 @@ func update_compact_hud_strip_layout() -> void:
 		info_left = 12.0
 	relic_info_panel.offset_left = info_left
 	relic_info_panel.offset_right = info_right
-	enemy_info_panel.offset_left = info_left
-	enemy_info_panel.offset_right = info_right
-	enemy_strip.visible = not enemy_hud_buttons.is_empty()
-	relic_strip.visible = not relic_hud_buttons.is_empty()
+	enemy_strip.visible = enemy_strip_expanded and not enemy_hud_buttons.is_empty()
+	enemy_toggle_button.visible = not enemy_hud_buttons.is_empty()
+	relic_strip.show()
 
 
 func refresh_relic_hud() -> void:
 	if not is_instance_valid(relic_icon_list):
 		return
 	for child in relic_icon_list.get_children():
-		if child is Button:
-			relic_icon_list.remove_child(child)
-			child.queue_free()
+		relic_icon_list.remove_child(child)
+		child.queue_free()
 	relic_hud_buttons.clear()
 	var owned_relic_ids: Array[StringName] = []
 	for relic_key in GameStats.RELICS:
 		var relic_id := StringName(relic_key)
 		if get_relic_count(relic_id) > 0:
 			owned_relic_ids.append(relic_id)
+	var filled_slot_count := 0
 	for relic_id in owned_relic_ids:
+		if filled_slot_count >= RELIC_HUD_SLOT_COUNT:
+			break
 		var relic := GameStats.get_relic(relic_id)
 		var count := get_relic_count(relic_id)
-		var button := Button.new()
-		button.name = "Relic_%s" % String(relic_id)
-		button.custom_minimum_size = Vector2(30.0, 28.0)
-		button.toggle_mode = true
-		button.focus_mode = Control.FOCUS_NONE
-		button.clip_text = true
-		button.text = get_relic_icon_label(relic_id)
-		if count > 1:
-			button.text += "×%d" % count
-		button.tooltip_text = String(relic["display_name"])
-		button.set_meta("relic_id", relic_id)
-		apply_relic_icon_style(button, StringName(relic["rarity"]))
-		button.pressed.connect(_on_relic_hud_pressed.bind(relic_id))
-		relic_icon_list.add_child(button)
-		relic_hud_buttons[relic_id] = button
+		for stack_index in count:
+			if filled_slot_count >= RELIC_HUD_SLOT_COUNT:
+				break
+			var button := Button.new()
+			button.name = "Relic_%s_%d" % [String(relic_id), stack_index]
+			button.custom_minimum_size = Vector2(30.0, 28.0)
+			button.toggle_mode = stack_index == 0
+			button.focus_mode = Control.FOCUS_NONE
+			button.clip_text = true
+			button.text = get_relic_icon_label(relic_id)
+			button.tooltip_text = String(relic["display_name"])
+			if count > 1:
+				button.tooltip_text += " · Copy %d/%d" % [stack_index + 1, count]
+			button.set_meta("relic_id", relic_id)
+			apply_relic_icon_style(button, StringName(relic["rarity"]))
+			button.pressed.connect(_on_relic_hud_pressed.bind(relic_id))
+			relic_icon_list.add_child(button)
+			if stack_index == 0:
+				relic_hud_buttons[relic_id] = button
+			filled_slot_count += 1
+	for _slot_index in range(filled_slot_count, RELIC_HUD_SLOT_COUNT):
+		relic_icon_list.add_child(create_empty_relic_hud_slot())
 	if not selected_relic_hud_id.is_empty():
 		if get_relic_count(selected_relic_hud_id) > 0:
 			show_relic_hud_selection(selected_relic_hud_id)
 		else:
 			clear_relic_hud_selection()
 	update_compact_hud_strip_layout()
+
+
+func create_empty_relic_hud_slot() -> PanelContainer:
+	var slot := PanelContainer.new()
+	slot.custom_minimum_size = Vector2(30.0, 28.0)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.0706, 0.0784, 0.102, 0.38)
+	style.border_color = Color(0.2784, 0.2706, 0.251, 0.38)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	slot.add_theme_stylebox_override("panel", style)
+	var marker := Label.new()
+	marker.text = "·"
+	marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marker.add_theme_color_override(
+		"font_color", Color(0.6588, 0.6549, 0.6196, 0.5)
+	)
+	slot.add_child(marker)
+	return slot
 
 
 func get_relic_icon_label(relic_id: StringName) -> String:
@@ -1367,41 +1437,39 @@ func make_relic_icon_style(
 	pressed := false
 ) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = background.darkened(0.16) if pressed else background
-	style.border_color = border
-	style.set_border_width(SIDE_LEFT, 4)
-	style.set_border_width(SIDE_TOP, 4)
-	style.set_border_width(SIDE_RIGHT, 4)
-	style.set_border_width(SIDE_BOTTOM, 4)
-	style.set_corner_radius(CORNER_TOP_LEFT, 13)
-	style.set_corner_radius(CORNER_TOP_RIGHT, 13)
-	style.set_corner_radius(CORNER_BOTTOM_RIGHT, 13)
-	style.set_corner_radius(CORNER_BOTTOM_LEFT, 13)
+	var muted_background := background.darkened(0.72)
+	muted_background.a = 0.9 if pressed else 0.76
+	style.bg_color = muted_background
+	var muted_border := border.darkened(0.35)
+	muted_border.a = 0.72 if pressed else 0.5
+	style.border_color = muted_border
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
 	if not pressed:
-		style.shadow_color = Color(UI_INK, 0.72)
-		style.shadow_size = 3
-		style.shadow_offset = Vector2(0.0, 3.0)
+		style.shadow_color = Color(0.0, 0.0, 0.0, 0.3)
+		style.shadow_size = 2
+		style.shadow_offset = Vector2(0.0, 2.0)
 	return style
 
 
 func apply_relic_icon_style(button: Button, rarity: StringName) -> void:
 	var accent := get_relic_rarity_color(rarity)
-	var foreground := UI_CREAM if rarity == &"rare" else UI_INK
+	var foreground := Color(0.8471, 0.8078, 0.702, 1.0)
 	button.add_theme_color_override("font_color", foreground)
 	button.add_theme_color_override("font_hover_color", foreground)
 	button.add_theme_color_override("font_pressed_color", foreground)
 	button.add_theme_font_size_override("font_size", 11)
 	button.add_theme_stylebox_override(
-		"normal", make_relic_icon_style(accent, UI_INK)
+		"normal", make_relic_icon_style(accent, accent)
 	)
 	button.add_theme_stylebox_override(
-		"hover", make_relic_icon_style(accent.lightened(0.12), UI_CREAM)
+		"hover", make_relic_icon_style(accent.lightened(0.08), accent)
 	)
 	button.add_theme_stylebox_override(
-		"pressed", make_relic_icon_style(accent, UI_CREAM, true)
+		"pressed", make_relic_icon_style(accent, accent, true)
 	)
 	button.add_theme_stylebox_override(
-		"hover_pressed", make_relic_icon_style(accent, UI_CREAM, true)
+		"hover_pressed", make_relic_icon_style(accent, accent, true)
 	)
 
 
@@ -1797,7 +1865,7 @@ func update_tower_affordability() -> void:
 		button.modulate = (
 			Color.WHITE
 			if not button.disabled
-			else Color(1.0, 0.72, 0.72, 0.82)
+			else Color(0.72, 0.70, 0.68, 0.72)
 		)
 
 func add_money(amount: int) -> void:
@@ -3402,6 +3470,27 @@ func cancel_sidebar_confirmation_on_other_press(event: InputEvent) -> void:
 	cancel_sidebar_confirmation()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if enemy_strip_expanded:
+		if event.is_action_pressed("ui_cancel"):
+			set_enemy_intel_expanded(false)
+			get_viewport().set_input_as_handled()
+			return
+		var pointer_position := Vector2.ZERO
+		var is_pointer_press := false
+		if event is InputEventMouseButton:
+			is_pointer_press = event.pressed
+			pointer_position = event.position
+		elif event is InputEventScreenTouch:
+			is_pointer_press = event.pressed
+			pointer_position = event.position
+		if (
+			is_pointer_press
+			and not enemy_strip.get_global_rect().has_point(pointer_position)
+			and not enemy_toggle_button.get_global_rect().has_point(pointer_position)
+		):
+			set_enemy_intel_expanded(false)
+			get_viewport().set_input_as_handled()
+			return
 	if reinforcement_targeting:
 		if (
 			event.is_action_pressed("ui_cancel")
