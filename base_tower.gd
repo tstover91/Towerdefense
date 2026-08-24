@@ -135,6 +135,8 @@ var range_radius_pixels := 0.0
 var upgrade_range_radius_pixels := -1.0
 var range_preview_visible := false
 var range_preview_valid := true
+var relic_highlight_active := false
+var relic_highlight_affected := false
 var aim_direction := Vector2.RIGHT
 var main: Node
 var spawn_rng := RandomNumberGenerator.new()
@@ -159,6 +161,31 @@ func _draw() -> void:
 			32,
 			Color(0.35, 0.9, 1.0, 0.95),
 			3.0,
+			true
+		)
+	if relic_highlight_active and relic_highlight_affected and is_placed:
+		var highlight_radius := maxf(
+			footprint_size_pixels.length() * 0.56,
+			28.0
+		)
+		draw_arc(
+			Vector2.ZERO,
+			highlight_radius + 3.0,
+			0.0,
+			TAU,
+			40,
+			Color("20213a"),
+			8.0,
+			true
+		)
+		draw_arc(
+			Vector2.ZERO,
+			highlight_radius,
+			0.0,
+			TAU,
+			40,
+			Color("9be33b"),
+			5.0,
 			true
 		)
 	if not range_preview_visible:
@@ -311,6 +338,18 @@ func set_range_preview(value: bool, placement_is_valid := true) -> void:
 	range_preview_visible = value
 	range_preview_valid = placement_is_valid
 	upgrade_range_radius_pixels = -1.0
+	queue_redraw()
+
+
+func set_relic_highlight(is_active: bool, is_affected: bool = false) -> void:
+	relic_highlight_active = is_active
+	relic_highlight_affected = is_active and is_affected
+	if is_placed:
+		visual_sprite.modulate = (
+			Color.WHITE
+			if not is_active or is_affected
+			else Color(0.38, 0.38, 0.46, 0.58)
+		)
 	queue_redraw()
 
 

@@ -61,6 +61,14 @@ const DOCK_PATH_INSPECTOR_TOP_OFFSET := -306.0
 const BUILD_BLOCKER_COLLISION_MASK := 4
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
+const UI_INK := Color("20213a")
+const UI_CREAM := Color("fff0c2")
+const UI_LIME := Color("9be33b")
+const UI_CYAN := Color("35d6e8")
+const UI_ORANGE := Color("ff8a2b")
+const UI_RED := Color("e84c3d")
+const UI_PURPLE := Color("b46cff")
+const UI_GOLD := Color("ffd447")
 
 signal money_changed(new_amount: int)
 signal round_started(round_number: int)
@@ -86,6 +94,12 @@ signal round_ended(round_number: int)
 @onready var lives_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/livesdisplay
 @onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
 @onready var round_timer_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundtimer
+@onready var relic_icon_list: HBoxContainer = $MainUI/HUDRoot/RelicStrip/RelicIconList
+@onready var no_relics_label: Label = $MainUI/HUDRoot/RelicStrip/RelicIconList/NoRelicsLabel
+@onready var relic_info_panel: PanelContainer = $MainUI/HUDRoot/RelicInfoPanel
+@onready var relic_info_name: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/Header/NameLabel
+@onready var relic_info_affected: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/Header/AffectedLabel
+@onready var relic_info_description: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/DescriptionLabel
 @onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerNameLabel
 @onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerLevelLabel
 @onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TowerPathLabel
@@ -369,6 +383,8 @@ var displayed_tower: Node = null
 var sidebar_confirmation_tower_id := 0
 var sidebar_confirmation_action := -1
 var context_dock_tween: Tween
+var relic_hud_buttons: Dictionary = {}
+var selected_relic_hud_id: StringName = &""
 var playable_map_width := 0.0
 var active_map: TowerDefenseMap
 var next_spawn_path_index := 0
@@ -406,6 +422,7 @@ func _ready() -> void:
 	update_money()
 	update_lives()
 	update_round_count()
+	refresh_relic_hud()
 	spawntimer.timeout.connect(_spawn_mob)
 	reinforcement_button.pressed.connect(_on_reinforcement_button_pressed)
 	connect_tower_inspector_signals()
@@ -820,6 +837,211 @@ func format_relic_effect_tooltip(relic_ids: Array) -> String:
 	return "\n\n".join(lines)
 
 
+func refresh_relic_hud() -> void:
+	if not is_instance_valid(relic_icon_list):
+		return
+	for child in relic_icon_list.get_children():
+		if child is Button:
+			relic_icon_list.remove_child(child)
+			child.queue_free()
+	relic_hud_buttons.clear()
+	var owned_relic_ids: Array[StringName] = []
+	for relic_key in GameStats.RELICS:
+		var relic_id := StringName(relic_key)
+		if get_relic_count(relic_id) > 0:
+			owned_relic_ids.append(relic_id)
+	no_relics_label.visible = owned_relic_ids.is_empty()
+	for relic_id in owned_relic_ids:
+		var relic := GameStats.get_relic(relic_id)
+		var count := get_relic_count(relic_id)
+		var button := Button.new()
+		button.name = "Relic_%s" % String(relic_id)
+		button.custom_minimum_size = Vector2(50.0, 50.0)
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.clip_text = true
+		button.text = get_relic_icon_label(relic_id)
+		if count > 1:
+			button.text += "\n×%d" % count
+		button.tooltip_text = String(relic["display_name"])
+		button.set_meta("relic_id", relic_id)
+		apply_relic_icon_style(button, StringName(relic["category"]))
+		button.pressed.connect(_on_relic_hud_pressed.bind(relic_id))
+		relic_icon_list.add_child(button)
+		relic_hud_buttons[relic_id] = button
+	if not selected_relic_hud_id.is_empty():
+		if get_relic_count(selected_relic_hud_id) > 0:
+			show_relic_hud_selection(selected_relic_hud_id)
+		else:
+			clear_relic_hud_selection()
+
+
+func get_relic_icon_label(relic_id: StringName) -> String:
+	match relic_id:
+		&"charred_clothes":
+			return "CH"
+		&"perfect_intelligence":
+			return "INT"
+	var words := String(relic_id).split("_", false)
+	if words.size() == 1:
+		return String(words[0]).left(2).to_upper()
+	var abbreviation := ""
+	for word in words:
+		if not word.is_empty():
+			abbreviation += word.left(1).to_upper()
+		if abbreviation.length() >= 3:
+			break
+	return abbreviation
+
+
+func get_relic_category_color(category: StringName) -> Color:
+	match category:
+		&"technology", &"electric":
+			return UI_CYAN
+		&"biological", &"spawner":
+			return UI_LIME
+		&"beam", &"critical", &"psionic":
+			return UI_PURPLE
+		&"melee":
+			return UI_RED
+		&"explosive", &"reveal", &"stun":
+			return UI_GOLD
+		_:
+			return UI_ORANGE
+
+
+func make_relic_icon_style(
+	background: Color,
+	border: Color,
+	pressed := false
+) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background.darkened(0.16) if pressed else background
+	style.border_color = border
+	style.set_border_width(SIDE_LEFT, 4)
+	style.set_border_width(SIDE_TOP, 4)
+	style.set_border_width(SIDE_RIGHT, 4)
+	style.set_border_width(SIDE_BOTTOM, 4)
+	style.set_corner_radius(CORNER_TOP_LEFT, 13)
+	style.set_corner_radius(CORNER_TOP_RIGHT, 13)
+	style.set_corner_radius(CORNER_BOTTOM_RIGHT, 13)
+	style.set_corner_radius(CORNER_BOTTOM_LEFT, 13)
+	if not pressed:
+		style.shadow_color = Color(UI_INK, 0.72)
+		style.shadow_size = 3
+		style.shadow_offset = Vector2(0.0, 3.0)
+	return style
+
+
+func apply_relic_icon_style(button: Button, category: StringName) -> void:
+	var accent := get_relic_category_color(category)
+	var foreground := UI_CREAM if category in [
+		&"beam", &"critical", &"psionic", &"melee"
+	] else UI_INK
+	button.add_theme_color_override("font_color", foreground)
+	button.add_theme_color_override("font_hover_color", foreground)
+	button.add_theme_color_override("font_pressed_color", foreground)
+	button.add_theme_font_size_override("font_size", 13)
+	button.add_theme_stylebox_override(
+		"normal", make_relic_icon_style(accent, UI_INK)
+	)
+	button.add_theme_stylebox_override(
+		"hover", make_relic_icon_style(accent.lightened(0.12), UI_CREAM)
+	)
+	button.add_theme_stylebox_override(
+		"pressed", make_relic_icon_style(accent, UI_CREAM, true)
+	)
+	button.add_theme_stylebox_override(
+		"hover_pressed", make_relic_icon_style(accent, UI_CREAM, true)
+	)
+
+
+func get_short_relic_description(relic: Dictionary) -> String:
+	var description := String(relic.get("description", ""))
+	var exclusive_index := description.find(" Exclusive with ")
+	if exclusive_index >= 0:
+		description = description.left(exclusive_index)
+	const MAX_DESCRIPTION_LENGTH := 175
+	if description.length() <= MAX_DESCRIPTION_LENGTH:
+		return description
+	var cutoff := description.rfind(" ", MAX_DESCRIPTION_LENGTH)
+	if cutoff < 0:
+		cutoff = MAX_DESCRIPTION_LENGTH
+	return description.left(cutoff).trim_suffix(".") + "…"
+
+
+func _on_relic_hud_pressed(relic_id: StringName) -> void:
+	if selected_relic_hud_id == relic_id:
+		clear_relic_hud_selection()
+	else:
+		show_relic_hud_selection(relic_id)
+
+
+func show_relic_hud_selection(relic_id: StringName) -> void:
+	if get_relic_count(relic_id) <= 0:
+		clear_relic_hud_selection()
+		return
+	selected_relic_hud_id = relic_id
+	for button_id in relic_hud_buttons:
+		var button := relic_hud_buttons[button_id] as Button
+		button.button_pressed = StringName(button_id) == relic_id
+	var relic := GameStats.get_relic(relic_id)
+	var count := get_relic_count(relic_id)
+	relic_info_name.text = String(relic["display_name"])
+	if count > 1:
+		relic_info_name.text += " ×%d" % count
+	relic_info_description.text = get_short_relic_description(relic)
+	var affected_count := apply_relic_hud_highlights()
+	if StringName(relic["category"]) == &"global":
+		relic_info_affected.text = "Run-wide effect"
+	elif affected_count == 0:
+		relic_info_affected.text = "No towers affected"
+	else:
+		relic_info_affected.text = "Affects %d tower%s" % [
+			affected_count,
+			"" if affected_count == 1 else "s",
+		]
+	relic_info_panel.show()
+
+
+func apply_relic_hud_highlights() -> int:
+	var affected_count := 0
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if (
+			not is_instance_valid(tower)
+			or tower.is_queued_for_deletion()
+			or not bool(tower.get("is_placed"))
+			or not tower.has_method("set_relic_highlight")
+		):
+			continue
+		var affected: bool = (
+			not selected_relic_hud_id.is_empty()
+			and tower.has_method("receives_relic_effect")
+			and tower.receives_relic_effect(selected_relic_hud_id)
+		)
+		tower.set_relic_highlight(
+			not selected_relic_hud_id.is_empty(),
+			affected
+		)
+		if affected:
+			affected_count += 1
+	return affected_count
+
+
+func clear_relic_hud_selection() -> void:
+	selected_relic_hud_id = &""
+	for button_value in relic_hud_buttons.values():
+		(button_value as Button).button_pressed = false
+	relic_info_panel.hide()
+	apply_relic_hud_highlights()
+
+
+func refresh_relic_hud_highlights() -> void:
+	if selected_relic_hud_id.is_empty():
+		return
+	show_relic_hud_selection(selected_relic_hud_id)
+
+
 func clear_tower_details(tower: Node = null) -> void:
 	if tower != null and displayed_tower != tower:
 		return
@@ -831,6 +1053,8 @@ func clear_tower_details(tower: Node = null) -> void:
 
 
 func _on_build_toggle_pressed() -> void:
+	if tower_inspector.visible:
+		clear_tower_details()
 	set_build_drawer_open(not tower_selection_area.visible)
 
 
@@ -852,7 +1076,7 @@ func set_build_drawer_open(is_open: bool) -> void:
 func update_context_dock_layout() -> void:
 	thumb_controls.show()
 	if tower_inspector.visible:
-		build_toggle_button.hide()
+		build_toggle_button.show()
 		show_context_dock(
 			(
 			DOCK_PATH_INSPECTOR_TOP_OFFSET
@@ -1612,6 +1836,7 @@ func collect_relic(item_id: StringName, quantity := 1) -> void:
 	refresh_placed_tower_stats()
 	populate_tower_list()
 	update_tower_affordability()
+	refresh_relic_hud()
 
 
 func activate_contraband_blueprint() -> void:
@@ -1665,6 +1890,7 @@ func refresh_placed_tower_stats() -> void:
 			tower.load_level_stats()
 			tower.update_menu_buttons()
 	refresh_tower_details()
+	refresh_relic_hud_highlights()
 
 
 func get_run_bonus(effect: StringName) -> float:
@@ -1732,6 +1958,7 @@ func try_assign_path_relic_to_tower(tower: Node) -> void:
 	round_controller.enter_build_phase()
 	update_round_count()
 	update_play_pause_button()
+	refresh_relic_hud_highlights()
 	show_tower_details(tower)
 
 
@@ -2465,6 +2692,19 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if shop_open:
 		return
+
+	if (
+		not selected_relic_hud_id.is_empty()
+		and (
+			(
+				event is InputEventMouseButton
+				and event.button_index == MOUSE_BUTTON_LEFT
+				and event.pressed
+			)
+			or (event is InputEventScreenTouch and event.pressed)
+		)
+	):
+		clear_relic_hud_selection()
 
 	if (
 		place_mode

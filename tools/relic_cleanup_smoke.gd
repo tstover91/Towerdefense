@@ -20,6 +20,20 @@ func run_checks() -> void:
 
 	var director = MAIN_SCENE.instantiate()
 	get_tree().root.add_child(director)
+	var relic_icon_labels: Dictionary = {}
+	for relic_key in GameStats.RELICS:
+		var relic_id := StringName(relic_key)
+		if not bool(GameStats.get_relic(relic_id).get("enabled", true)):
+			continue
+		var icon_label: String = director.get_relic_icon_label(relic_id)
+		assert(not icon_label.is_empty())
+		assert(not relic_icon_labels.has(icon_label))
+		relic_icon_labels[icon_label] = relic_id
+	var top_bar := director.get_node("MainUI/HUDRoot/TopBarBackground") as Control
+	var relic_strip := director.get_node("MainUI/HUDRoot/RelicStrip") as Control
+	var edge_controls := director.get_node("MainUI/HUDRoot/EdgeControls") as Control
+	assert(top_bar.size.x == director.get_viewport_rect().size.x - 16.0)
+	assert(relic_strip.get_global_rect().end.x <= edge_controls.get_global_rect().position.x)
 	director.tower_roster.assign([&"invader"])
 	var base_roster_tags: Array[StringName] = director.get_tower_roster_tags()
 	assert(base_roster_tags.has(&"biological"))
@@ -146,11 +160,32 @@ func run_checks() -> void:
 	assert(network_tower.receives_relic_effect(&"network_upgrade"))
 	assert(gauss_tower.receives_relic_effect(&"network_upgrade"))
 	assert(network_tower.get_active_relic_effect_ids().has(&"network_upgrade"))
+	var biological_tower = create_test_tower(
+		director, &"hivemother", Vector2(420.0, 0.0)
+	)
+	director.refresh_relic_hud()
+	assert(director.relic_hud_buttons.size() == 1)
+	var network_icon := director.relic_hud_buttons[&"network_upgrade"] as Button
+	assert(network_icon.text == "NU")
+	assert(network_icon.custom_minimum_size.x >= 48.0)
+	assert(not director.no_relics_label.visible)
+	director.show_relic_hud_selection(&"network_upgrade")
+	assert(director.relic_info_panel.visible)
+	assert(director.relic_info_name.text == "Network Upgrade")
+	assert(director.relic_info_description.text.contains("attack speed"))
+	assert(network_tower.relic_highlight_affected)
+	assert(gauss_tower.relic_highlight_affected)
+	assert(not biological_tower.relic_highlight_affected)
+	assert(biological_tower.visual_sprite.modulate.a < 1.0)
+	director.clear_relic_hud_selection()
+	assert(not director.relic_info_panel.visible)
+	assert(not network_tower.relic_highlight_active)
+	assert(network_tower.visual_sprite.modulate.is_equal_approx(Color.WHITE))
 	director.show_tower_details(network_tower)
 	assert(director.tower_inspector.visible)
 	assert(not director.build_sidebar_state.visible)
 	assert(director.sidebar.visible)
-	assert(not director.build_toggle_button.visible)
+	assert(director.build_toggle_button.visible)
 	assert(director.reinforcement_button.visible)
 	assert(director.reinforcement_button.icon != null)
 	assert(director.build_toggle_button.icon != null)
@@ -218,6 +253,13 @@ func run_checks() -> void:
 	assert(director.tower_upgrade_button.text.contains("2 taps"))
 	assert(director.tower_sell_button.text.begins_with("Sell"))
 	assert(director.tower_sell_button.text.contains("2 taps"))
+	director._on_build_toggle_pressed()
+	assert(not director.tower_inspector.visible)
+	assert(director.build_sidebar_state.visible)
+	assert(director.tower_selection_area.visible)
+	assert(director.build_toggle_button.visible)
+	director.set_build_drawer_open(false)
+	director.show_tower_details(network_tower)
 	var upgrade_style := (
 		director.tower_upgrade_button.get_theme_stylebox("normal") as StyleBoxFlat
 	)
