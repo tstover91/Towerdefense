@@ -56,8 +56,10 @@ const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const DOCK_BUILD_TOP_OFFSET := -230.0
-const DOCK_INSPECTOR_TOP_OFFSET := -250.0
-const DOCK_PATH_INSPECTOR_TOP_OFFSET := -306.0
+const DOCK_COMPACT_INSPECTOR_TOP_OFFSET := -108.0
+const DOCK_INFO_INSPECTOR_TOP_OFFSET := -218.0
+const DOCK_PATH_INSPECTOR_TOP_OFFSET := -286.0
+const DOCK_TARGET_INSPECTOR_TOP_OFFSET := -188.0
 const BUILD_BLOCKER_COLLISION_MASK := 4
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
@@ -68,7 +70,15 @@ const UI_CYAN := Color("35d6e8")
 const UI_ORANGE := Color("ff8a2b")
 const UI_RED := Color("e84c3d")
 const UI_PURPLE := Color("b46cff")
+const UI_MAGENTA := Color("e94bd6")
 const UI_GOLD := Color("ffd447")
+const TOWER_FAN_BUTTON_SIZE := 78.0
+const TOWER_FAN_RING_CAPACITIES: Array[int] = [2, 3, 4, 4]
+const TOWER_FAN_RING_RADII: Array[float] = [118.0, 202.0, 286.0, 370.0]
+const PLACEMENT_DRAG_THRESHOLD := 12.0
+const PLACEMENT_DRAG_PREVIEW_OFFSET := Vector2(0.0, -112.0)
+const DRAG_KIND_TOWER: StringName = &"tower"
+const DRAG_KIND_REINFORCEMENT: StringName = &"reinforcement"
 
 signal money_changed(new_amount: int)
 signal round_started(round_number: int)
@@ -85,6 +95,7 @@ signal round_ended(round_number: int)
 @onready var thumb_controls: Control = $MainUI/HUDRoot/ThumbControls
 @onready var build_sidebar_state: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState
 @onready var tower_selection_area: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/TowerSelectionArea
+@onready var tower_fan: Control = $MainUI/HUDRoot/TowerFan
 @onready var build_toggle_button: Button = $MainUI/HUDRoot/BuildToggleButton
 @onready var reinforcement_button: Button = $MainUI/HUDRoot/ThumbControls/ReinforcementButton
 @onready var reinforcement_cooldown_label: Label = $MainUI/HUDRoot/ThumbControls/ReinforcementButton/CooldownLabel
@@ -101,18 +112,22 @@ signal round_ended(round_number: int)
 @onready var relic_info_description: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/DescriptionLabel
 @onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerNameLabel
 @onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerLevelLabel
-@onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TowerPathLabel
-@onready var tower_tags_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TowerTagsLabel
-@onready var tower_relics_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TowerRelicsLabel
-@onready var tower_upgrade_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/UpgradeSection
-@onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/UpgradeSection/UpgradeHeaderLabel
-@onready var tower_upgrade_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/UpgradeSection/UpgradeDescription
-@onready var tower_upgrade_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/UpgradeSection/UpgradeButton
-@onready var tower_path_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection
-@onready var tower_path_a_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection/PathButtons/PathAButton
-@onready var tower_path_b_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection/PathButtons/PathBButton
-@onready var tower_path_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection/PathDescription
-@onready var tower_path_confirm_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection/PathConfirmButton
+@onready var tower_portrait_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/PortraitButton
+@onready var tower_aim_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/AimButton
+@onready var tower_inspector_details: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll
+@onready var tower_information_content: HBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent
+@onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerPathLabel
+@onready var tower_tags_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerTagsLabel
+@onready var tower_relics_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerRelicsLabel
+@onready var tower_upgrade_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection
+@onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection/UpgradeHeaderLabel
+@onready var tower_upgrade_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection/UpgradeDescription
+@onready var tower_upgrade_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/UpgradeButton
+@onready var tower_path_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection
+@onready var tower_path_a_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathButtons/PathAButton
+@onready var tower_path_b_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathButtons/PathBButton
+@onready var tower_path_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathDescription
+@onready var tower_path_confirm_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathConfirmButton
 @onready var tower_target_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection
 @onready var tower_target_buttons: GridContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/TargetButtons
 @onready var tower_target_first: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/TargetButtons/TargetFirst
@@ -121,8 +136,7 @@ signal round_ended(round_number: int)
 @onready var tower_target_high: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/TargetButtons/TargetHigh
 @onready var tower_direction_buttons: GridContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/DirectionButtons
 @onready var tower_manual_target_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/ManualTargetButton
-@onready var tower_sell_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorActions/SellButton
-@onready var tower_back_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorActions/BuildButton
+@onready var tower_sell_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/SellButton
 var mobs_left_to_spawn := 0
 var mobs_alive := 0
 var spawn_schedule: Array[Dictionary] = []
@@ -383,6 +397,18 @@ var sidebar_confirmation_tower_id := 0
 var sidebar_confirmation_action := -1
 var context_dock_tween: Tween
 var relic_hud_buttons: Dictionary = {}
+var tower_fan_buttons: Array[Button] = []
+var tower_fan_tween: Tween
+var tower_fan_open := false
+var tower_info_expanded := false
+var tower_target_panel_open := false
+var tower_has_targeting_controls := false
+var placement_drag_candidate_kind: StringName = &""
+var placement_drag_candidate_slot := -1
+var placement_drag_pointer_index := -1
+var placement_drag_start_screen_position := Vector2.ZERO
+var placement_drag_world_position := Vector2.ZERO
+var active_placement_drag_kind: StringName = &""
 var selected_relic_hud_id: StringName = &""
 var playable_map_width := 0.0
 var active_map: TowerDefenseMap
@@ -424,6 +450,7 @@ func _ready() -> void:
 	refresh_relic_hud()
 	spawntimer.timeout.connect(_spawn_mob)
 	reinforcement_button.pressed.connect(_on_reinforcement_button_pressed)
+	reinforcement_button.gui_input.connect(_on_reinforcement_button_gui_input)
 	connect_tower_inspector_signals()
 	between_round_shop.draft_confirmed.connect(_on_draft_confirmed)
 	between_round_shop.draft_health_requested.connect(_on_draft_health_requested)
@@ -520,6 +547,175 @@ func populate_tower_list() -> void:
 			CONTRABAND_SLOT_INDEX,
 			"Contraband: %s" % GameStats.get_tower(contraband_tower_id)["display_name"]
 		)
+	populate_tower_fan()
+
+
+func populate_tower_fan() -> void:
+	for child in tower_fan.get_children():
+		tower_fan.remove_child(child)
+		child.queue_free()
+	tower_fan_buttons.clear()
+
+	var slot_indices: Array[int] = []
+	var roster_slot_count := tower_roster.size() if sandbox_mode else mini(
+		tower_roster.size(), TOWER_SLOT_COUNT
+	)
+	for slot_index in roster_slot_count:
+		slot_indices.append(slot_index)
+	if not sandbox_mode and not contraband_tower_id.is_empty():
+		slot_indices.append(CONTRABAND_SLOT_INDEX)
+
+	for slot_index in slot_indices:
+		var tower_id := get_sidebar_tower_id(slot_index)
+		if tower_id.is_empty():
+			continue
+		var is_contraband := (
+			not sandbox_mode and slot_index == CONTRABAND_SLOT_INDEX
+		)
+		var tower_data := GameStats.get_tower(tower_id)
+		var button := create_tower_fan_button(
+			slot_index,
+			tower_data,
+			is_contraband
+		)
+		tower_fan.add_child(button)
+		tower_fan_buttons.append(button)
+	layout_tower_fan_buttons()
+	update_tower_affordability()
+
+
+func create_tower_fan_button(
+	slot_index: int,
+	tower_data: Dictionary,
+	is_contraband: bool
+) -> Button:
+	var tower_id := get_sidebar_tower_id(slot_index)
+	var cost := get_tower_build_cost(tower_id, is_contraband)
+	var button := Button.new()
+	button.name = "Tower_%s" % String(tower_id)
+	button.custom_minimum_size = Vector2.ONE * TOWER_FAN_BUTTON_SIZE
+	button.size = Vector2.ONE * TOWER_FAN_BUTTON_SIZE
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.tooltip_text = "Drag %s onto the map · $%d" % [
+		tower_data["display_name"], cost
+	]
+	button.set_meta("slot_index", slot_index)
+	button.add_theme_stylebox_override(
+		"normal", make_tower_fan_button_style(UI_CREAM, UI_INK)
+	)
+	button.add_theme_stylebox_override(
+		"hover", make_tower_fan_button_style(UI_CYAN.lightened(0.25), UI_CREAM)
+	)
+	button.add_theme_stylebox_override(
+		"pressed", make_tower_fan_button_style(UI_CYAN.darkened(0.12), UI_INK, false)
+	)
+	button.add_theme_stylebox_override(
+		"disabled", make_tower_fan_button_style(UI_CREAM.darkened(0.25), Color(UI_INK, 0.65), false)
+	)
+	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+	var icon := TextureRect.new()
+	icon.name = "TowerIcon"
+	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = 13.0
+	icon.offset_top = 8.0
+	icon.offset_right = -13.0
+	icon.offset_bottom = -21.0
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.texture = tower_data.get("texture", DEFAULT_TOWER_ICON)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	button.add_child(icon)
+
+	var price_label := Label.new()
+	price_label.name = "PriceLabel"
+	price_label.anchor_left = 0.5
+	price_label.anchor_top = 1.0
+	price_label.anchor_right = 0.5
+	price_label.anchor_bottom = 1.0
+	price_label.offset_left = -27.0
+	price_label.offset_top = -25.0
+	price_label.offset_right = 27.0
+	price_label.offset_bottom = -5.0
+	price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	price_label.text = "$%d" % cost
+	price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	price_label.add_theme_color_override("font_color", UI_CREAM)
+	price_label.add_theme_font_size_override("font_size", 12)
+	var price_style := StyleBoxFlat.new()
+	price_style.bg_color = Color(UI_INK, 0.94)
+	price_style.set_corner_radius_all(9)
+	price_label.add_theme_stylebox_override("normal", price_style)
+	button.add_child(price_label)
+	button.pressed.connect(_on_tower_fan_button_pressed.bind(slot_index))
+	button.gui_input.connect(_on_tower_fan_button_gui_input.bind(slot_index))
+	return button
+
+
+func make_tower_fan_button_style(
+	background: Color,
+	border: Color,
+	with_shadow := true
+) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(4)
+	style.set_corner_radius_all(42)
+	if with_shadow:
+		style.shadow_color = Color(UI_INK, 0.76)
+		style.shadow_size = 5
+		style.shadow_offset = Vector2(0.0, 5.0)
+	return style
+
+
+func layout_tower_fan_buttons() -> void:
+	if not is_instance_valid(tower_fan):
+		return
+	var origin := build_toggle_button.get_global_rect().get_center() - tower_fan.global_position
+	var button_half := Vector2.ONE * TOWER_FAN_BUTTON_SIZE * 0.5
+	var button_index := 0
+	for ring_index in TOWER_FAN_RING_CAPACITIES.size():
+		if button_index >= tower_fan_buttons.size():
+			break
+		var count := mini(
+			TOWER_FAN_RING_CAPACITIES[ring_index],
+			tower_fan_buttons.size() - button_index
+		)
+		var start_angle := -72.0 if count <= 2 else -78.0
+		var end_angle := -28.0 if count <= 2 else -18.0
+		for ring_slot in count:
+			var angle_degrees := lerpf(
+				start_angle,
+				end_angle,
+				0.5 if count == 1 else float(ring_slot) / float(count - 1)
+			)
+			var angle := deg_to_rad(angle_degrees)
+			var target_position := origin + Vector2.from_angle(angle) * TOWER_FAN_RING_RADII[ring_index] - button_half
+			var button := tower_fan_buttons[button_index]
+			button.position = target_position
+			button.pivot_offset = button_half
+			button.set_meta("fan_target_position", target_position)
+			button_index += 1
+
+
+func _on_tower_fan_button_pressed(slot_index: int) -> void:
+	select_tower_build_slot(slot_index)
+
+
+func _on_tower_fan_button_gui_input(
+	event: InputEvent,
+	slot_index: int
+) -> void:
+	if is_pointer_press_event(event):
+		begin_placement_drag_candidate(
+			DRAG_KIND_TOWER,
+			slot_index,
+			get_pointer_screen_position(event),
+			get_pointer_index(event)
+		)
 
 
 func show_tower_details(tower: Node) -> void:
@@ -531,7 +727,11 @@ func show_tower_details(tower: Node) -> void:
 		clear_tower_details()
 		return
 
+	var selection_changed := displayed_tower != tower
 	displayed_tower = tower
+	if selection_changed:
+		tower_info_expanded = false
+		tower_target_panel_open = false
 	var stats: Dictionary = tower.get_sidebar_stats()
 	var current_level: int = stats["level"]
 	var maximum_level: int = stats["maximum_level"]
@@ -541,6 +741,9 @@ func show_tower_details(tower: Node) -> void:
 	tower_selection_area.hide()
 	tower_name_label.text = stats["display_name"]
 	tower_level_label.text = "Level %d of %d" % [current_level + 1, maximum_level + 1]
+	var tower_data := GameStats.get_tower(StringName(tower.get("tower_id")))
+	tower_portrait_button.icon = tower_data.get("texture", DEFAULT_TOWER_ICON)
+	tower_portrait_button.tooltip_text = "Show %s information" % stats["display_name"]
 	var path_status: String = stats.get("path_status", "")
 	tower_path_label.visible = not path_status.is_empty()
 	tower_path_label.text = path_status
@@ -554,12 +757,16 @@ func show_tower_details(tower: Node) -> void:
 	tower_relics_label.tooltip_text = format_relic_effect_tooltip(active_relics)
 	update_tower_upgrade_controls(tower, stats)
 	update_tower_path_controls(tower)
+	if tower_path_section.visible:
+		tower_path_label.hide()
 	update_tower_target_controls(tower)
 	update_tower_sell_control(tower)
-	update_context_dock_layout()
+	update_tower_inspector_panel_visibility()
 
 
 func connect_tower_inspector_signals() -> void:
+	tower_portrait_button.pressed.connect(_on_tower_portrait_pressed)
+	tower_aim_button.pressed.connect(_on_tower_aim_pressed)
 	tower_upgrade_button.pressed.connect(_on_sidebar_upgrade_pressed)
 	tower_path_a_button.pressed.connect(_on_sidebar_path_pressed.bind(&"a"))
 	tower_path_b_button.pressed.connect(_on_sidebar_path_pressed.bind(&"b"))
@@ -575,7 +782,35 @@ func connect_tower_inspector_signals() -> void:
 		)
 	tower_manual_target_button.pressed.connect(_on_sidebar_manual_target_pressed)
 	tower_sell_button.pressed.connect(_on_sidebar_sell_pressed)
-	tower_back_button.pressed.connect(_on_sidebar_back_pressed)
+
+
+func _on_tower_portrait_pressed() -> void:
+	tower_info_expanded = not tower_info_expanded
+	tower_target_panel_open = false
+	update_tower_inspector_panel_visibility()
+
+
+func _on_tower_aim_pressed() -> void:
+	if not tower_has_targeting_controls:
+		return
+	tower_target_panel_open = not tower_target_panel_open
+	tower_info_expanded = false
+	update_tower_inspector_panel_visibility()
+
+
+func update_tower_inspector_panel_visibility() -> void:
+	if not is_instance_valid(tower_inspector):
+		return
+	tower_information_content.visible = tower_info_expanded
+	tower_target_section.visible = (
+		tower_target_panel_open and tower_has_targeting_controls
+	)
+	tower_inspector_details.visible = (
+		tower_information_content.visible or tower_target_section.visible
+	)
+	tower_portrait_button.button_pressed = tower_info_expanded
+	tower_aim_button.button_pressed = tower_target_section.visible
+	update_context_dock_layout()
 
 
 func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
@@ -583,6 +818,7 @@ func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
 	var next_level := int(stats["level"]) + 1
 	var has_level_upgrade := next_level < levels.size()
 	tower_upgrade_section.visible = has_level_upgrade
+	tower_upgrade_button.visible = has_level_upgrade
 	if not has_level_upgrade:
 		return
 	var upgrade_cost := int(levels[next_level]["upgrade_cost"])
@@ -595,7 +831,7 @@ func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
 		levels.size(),
 	]
 	tower_upgrade_button.text = (
-		"Tap Again · $%d" if awaiting_confirmation else "Upgrade · $%d (2 taps)"
+		"Tap Again · $%d" if awaiting_confirmation else "Upgrade · $%d"
 	) % upgrade_cost
 	tower_upgrade_button.tooltip_text = (
 		"Tap twice to upgrade. Tapping anywhere else cancels confirmation."
@@ -660,8 +896,11 @@ func update_tower_target_controls(tower: Node) -> void:
 			or tower.uses_drone_targeting()
 		)
 	)
-	tower_target_section.visible = shows_targeting
+	tower_has_targeting_controls = shows_targeting
+	tower_aim_button.visible = shows_targeting
 	if not shows_targeting:
+		tower_target_panel_open = false
+		tower_target_section.hide()
 		return
 	var manual_targeting: bool = tower.uses_manual_ground_targeting()
 	var directional_targeting: bool = tower.uses_directional_aim()
@@ -705,7 +944,7 @@ func update_tower_sell_control(tower: Node) -> void:
 		int(tower.get("pending_action")) == BaseTower.MenuAction.SELL
 	)
 	tower_sell_button.text = (
-		"Tap Again · $%d" if awaiting_confirmation else "Sell · $%d (2 taps)"
+		"Tap Again · $%d" if awaiting_confirmation else "Sell · $%d"
 	) % sell_price
 	tower_sell_button.tooltip_text = (
 		"Tap twice to sell. Tapping anywhere else cancels confirmation."
@@ -734,16 +973,22 @@ func _on_sidebar_target_pressed(mode: int) -> void:
 	if not is_instance_valid(displayed_tower):
 		return
 	displayed_tower.select_sidebar_target_mode(mode)
+	tower_target_panel_open = false
+	update_tower_inspector_panel_visibility()
 
 
 func _on_sidebar_direction_pressed(direction_index: int) -> void:
 	if is_instance_valid(displayed_tower):
 		displayed_tower.select_aim_direction(direction_index)
+		tower_target_panel_open = false
+		update_tower_inspector_panel_visibility()
 
 
 func _on_sidebar_manual_target_pressed() -> void:
 	if is_instance_valid(displayed_tower):
+		tower_target_panel_open = false
 		displayed_tower.begin_manual_targeting()
+		update_tower_inspector_panel_visibility()
 
 
 func _on_sidebar_sell_pressed() -> void:
@@ -863,7 +1108,7 @@ func refresh_relic_hud() -> void:
 			button.text += "\n×%d" % count
 		button.tooltip_text = String(relic["display_name"])
 		button.set_meta("relic_id", relic_id)
-		apply_relic_icon_style(button, StringName(relic["category"]))
+		apply_relic_icon_style(button, StringName(relic["rarity"]))
 		button.pressed.connect(_on_relic_hud_pressed.bind(relic_id))
 		relic_icon_list.add_child(button)
 		relic_hud_buttons[relic_id] = button
@@ -892,20 +1137,16 @@ func get_relic_icon_label(relic_id: StringName) -> String:
 	return abbreviation
 
 
-func get_relic_category_color(category: StringName) -> Color:
-	match category:
-		&"technology", &"electric":
+func get_relic_rarity_color(rarity: StringName) -> Color:
+	match rarity:
+		&"common":
 			return UI_CYAN
-		&"biological", &"spawner":
-			return UI_LIME
-		&"beam", &"critical", &"psionic":
-			return UI_PURPLE
-		&"melee":
-			return UI_RED
-		&"explosive", &"reveal", &"stun":
+		&"rare":
+			return UI_MAGENTA
+		&"legendary":
 			return UI_GOLD
 		_:
-			return UI_ORANGE
+			return UI_CREAM
 
 
 func make_relic_icon_style(
@@ -931,11 +1172,9 @@ func make_relic_icon_style(
 	return style
 
 
-func apply_relic_icon_style(button: Button, category: StringName) -> void:
-	var accent := get_relic_category_color(category)
-	var foreground := UI_CREAM if category in [
-		&"beam", &"critical", &"psionic", &"melee"
-	] else UI_INK
+func apply_relic_icon_style(button: Button, rarity: StringName) -> void:
+	var accent := get_relic_rarity_color(rarity)
+	var foreground := UI_CREAM if rarity == &"rare" else UI_INK
 	button.add_theme_color_override("font_color", foreground)
 	button.add_theme_color_override("font_hover_color", foreground)
 	button.add_theme_color_override("font_pressed_color", foreground)
@@ -1044,8 +1283,12 @@ func clear_tower_details(tower: Node = null) -> void:
 	if tower != null and displayed_tower != tower:
 		return
 	displayed_tower = null
+	tower_info_expanded = false
+	tower_target_panel_open = false
+	tower_has_targeting_controls = false
 	reset_sidebar_confirmation()
 	tower_inspector.hide()
+	tower_inspector_details.hide()
 	build_sidebar_state.show()
 	update_context_dock_layout()
 
@@ -1053,39 +1296,82 @@ func clear_tower_details(tower: Node = null) -> void:
 func _on_build_toggle_pressed() -> void:
 	if tower_inspector.visible:
 		clear_tower_details()
-	set_build_drawer_open(not tower_selection_area.visible)
+	set_build_drawer_open(not tower_fan_open)
 
 
 func set_build_drawer_open(is_open: bool) -> void:
-	if not build_sidebar_state.visible:
+	if is_open and not build_sidebar_state.visible:
 		return
 	if is_open and reinforcement_targeting:
 		cancel_reinforcement_targeting()
-	tower_selection_area.visible = is_open
+	tower_fan_open = is_open
+	tower_selection_area.hide()
 	build_toggle_button.button_pressed = is_open
 	build_toggle_button.tooltip_text = (
 		"Close tower choices" if is_open else "Build towers"
 	)
 	if not is_open:
 		tower_list.deselect_all()
+	animate_tower_fan(is_open)
 	update_context_dock_layout()
+
+
+func animate_tower_fan(is_open: bool) -> void:
+	if tower_fan_tween != null:
+		tower_fan_tween.kill()
+	var origin := build_toggle_button.get_global_rect().get_center() - tower_fan.global_position
+	var closed_position := origin - Vector2.ONE * TOWER_FAN_BUTTON_SIZE * 0.5
+	if is_open:
+		layout_tower_fan_buttons()
+		tower_fan.show()
+		tower_fan_tween = create_tween().set_parallel(true)
+		tower_fan_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		for button_index in tower_fan_buttons.size():
+			var button := tower_fan_buttons[button_index]
+			var target_position: Vector2 = button.get_meta("fan_target_position")
+			button.position = closed_position
+			button.scale = Vector2.ONE * 0.62
+			button.modulate.a = 0.0
+			var delay := float(button_index) * 0.025
+			tower_fan_tween.tween_property(
+				button, "position", target_position, 0.20
+			).set_delay(delay)
+			tower_fan_tween.tween_property(
+				button, "scale", Vector2.ONE, 0.18
+			).set_delay(delay)
+			tower_fan_tween.tween_property(
+				button, "modulate:a", 1.0, 0.12
+			).set_delay(delay)
+		return
+
+	if not tower_fan.visible:
+		return
+	tower_fan_tween = create_tween().set_parallel(true)
+	tower_fan_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	for button in tower_fan_buttons:
+		tower_fan_tween.tween_property(button, "position", closed_position, 0.11)
+		tower_fan_tween.tween_property(button, "scale", Vector2.ONE * 0.72, 0.11)
+		tower_fan_tween.tween_property(button, "modulate:a", 0.0, 0.08)
+	tower_fan_tween.chain().tween_callback(Callable(tower_fan, "hide"))
 
 
 func update_context_dock_layout() -> void:
 	thumb_controls.show()
 	if tower_inspector.visible:
 		build_toggle_button.show()
+		var target_top := DOCK_COMPACT_INSPECTOR_TOP_OFFSET
+		if tower_target_section.visible:
+			target_top = DOCK_TARGET_INSPECTOR_TOP_OFFSET
+		elif tower_information_content.visible:
+			target_top = (
+				DOCK_PATH_INSPECTOR_TOP_OFFSET
+				if tower_path_section.visible
+				else DOCK_INFO_INSPECTOR_TOP_OFFSET
+			)
 		show_context_dock(
-			(
-			DOCK_PATH_INSPECTOR_TOP_OFFSET
-			if tower_path_section.visible
-			else DOCK_INSPECTOR_TOP_OFFSET
-			),
+			target_top,
 			-12.0
 		)
-	elif tower_selection_area.visible:
-		build_toggle_button.show()
-		show_context_dock(DOCK_BUILD_TOP_OFFSET, -96.0)
 	else:
 		if context_dock_tween != null:
 			context_dock_tween.kill()
@@ -1120,8 +1406,13 @@ func refresh_tower_details() -> void:
 
 func _process(delta: float) -> void:
 	if place_mode and tower_to_place:
+		var pointer_world_position := (
+			placement_drag_world_position
+			if active_placement_drag_kind == DRAG_KIND_TOWER
+			else get_global_mouse_position()
+		)
 		var snap := get_tower_build_position(
-			get_global_mouse_position(),
+			pointer_world_position,
 			pending_tower_type
 		)
 		var sprite = tower_to_place.get_node("Sprite2D")
@@ -1146,7 +1437,12 @@ func _process_reinforcements(delta: float) -> void:
 		and not shop_open
 		and not game_ended
 	)
-	reinforcement_controller.update_preview(get_global_mouse_position())
+	var preview_world_position := (
+		placement_drag_world_position
+		if active_placement_drag_kind == DRAG_KIND_REINFORCEMENT
+		else get_global_mouse_position()
+	)
+	reinforcement_controller.update_preview(preview_world_position)
 	update_reinforcement_button()
 
 
@@ -1174,6 +1470,16 @@ func _on_reinforcement_button_pressed() -> void:
 	begin_reinforcement_targeting()
 
 
+func _on_reinforcement_button_gui_input(event: InputEvent) -> void:
+	if is_pointer_press_event(event):
+		begin_placement_drag_candidate(
+			DRAG_KIND_REINFORCEMENT,
+			-1,
+			get_pointer_screen_position(event),
+			get_pointer_index(event)
+		)
+
+
 func begin_reinforcement_targeting() -> void:
 	if not can_begin_reinforcement_targeting():
 		return
@@ -1185,6 +1491,11 @@ func begin_reinforcement_targeting() -> void:
 func cancel_reinforcement_targeting() -> void:
 	ensure_reinforcement_controller()
 	reinforcement_controller.cancel_targeting()
+	if (
+		active_placement_drag_kind == DRAG_KIND_REINFORCEMENT
+		or placement_drag_candidate_kind == DRAG_KIND_REINFORCEMENT
+	):
+		clear_placement_drag_state()
 	update_reinforcement_button()
 
 
@@ -1219,7 +1530,7 @@ func update_reinforcement_button() -> void:
 	reinforcement_cooldown_label.hide()
 	if reinforcement_targeting:
 		reinforcement_button.tooltip_text = (
-			"Tap the map to deploy %s; tap again to cancel" % display_name
+			"Release to deploy %s; tap again to cancel" % display_name
 		)
 		reinforcement_button.disabled = false
 	elif reinforcement_cooldown_remaining > 0.0:
@@ -1230,7 +1541,9 @@ func update_reinforcement_button() -> void:
 		reinforcement_button.tooltip_text = "%s are recovering" % display_name
 		reinforcement_button.disabled = true
 	else:
-		reinforcement_button.tooltip_text = String(option.get("description", ""))
+		reinforcement_button.tooltip_text = "Drag onto the map · %s" % String(
+			option.get("description", "")
+		)
 		reinforcement_button.disabled = not can_begin_reinforcement_targeting()
 
 func update_lives() -> void:
@@ -1258,6 +1571,21 @@ func update_tower_affordability() -> void:
 			else UNAFFORDABLE_TOWER_COLOR
 		)
 		tower_list.set_item_custom_fg_color(slot_index, price_color)
+	for button in tower_fan_buttons:
+		var slot_index := int(button.get_meta("slot_index"))
+		var tower_id := get_sidebar_tower_id(slot_index)
+		if tower_id.is_empty():
+			continue
+		var placement_cost := get_tower_build_cost(
+			tower_id,
+			not sandbox_mode and slot_index == CONTRABAND_SLOT_INDEX
+		)
+		button.disabled = not sandbox_mode and money < placement_cost
+		button.modulate = (
+			Color.WHITE
+			if not button.disabled
+			else Color(1.0, 0.72, 0.72, 0.82)
+		)
 
 func add_money(amount: int) -> void:
 	ensure_run_state()
@@ -1973,6 +2301,11 @@ func cancel_pending_tower_placement() -> void:
 	if is_instance_valid(pending_tower):
 		clear_tower_details(pending_tower)
 		pending_tower.queue_free()
+	if (
+		active_placement_drag_kind == DRAG_KIND_TOWER
+		or placement_drag_candidate_kind == DRAG_KIND_TOWER
+	):
+		clear_placement_drag_state()
 	tower_list.deselect_all()
 	update_play_pause_button()
 	
@@ -2604,8 +2937,202 @@ func mob_finished() -> void:
 		end_round()
 
 
+func is_pointer_press_event(event: InputEvent) -> bool:
+	return (
+		(
+			event is InputEventMouseButton
+			and event.button_index == MOUSE_BUTTON_LEFT
+			and event.pressed
+		)
+		or (event is InputEventScreenTouch and event.pressed)
+	)
+
+
+func is_pointer_release_event(event: InputEvent) -> bool:
+	return (
+		(
+			event is InputEventMouseButton
+			and event.button_index == MOUSE_BUTTON_LEFT
+			and not event.pressed
+		)
+		or (event is InputEventScreenTouch and not event.pressed)
+	)
+
+
+func is_pointer_drag_event(event: InputEvent) -> bool:
+	return (
+		event is InputEventScreenDrag
+		or (
+			event is InputEventMouseMotion
+			and event.button_mask & MOUSE_BUTTON_MASK_LEFT != 0
+		)
+	)
+
+
+func get_pointer_screen_position(event: InputEvent) -> Vector2:
+	if event is InputEventMouseButton:
+		return event.position
+	if event is InputEventMouseMotion:
+		return event.position
+	if event is InputEventScreenTouch:
+		return event.position
+	if event is InputEventScreenDrag:
+		return event.position
+	return Vector2.ZERO
+
+
+func get_pointer_index(event: InputEvent) -> int:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		return event.index
+	return -1
+
+
+func begin_placement_drag_candidate(
+	kind: StringName,
+	slot_index: int,
+	screen_position: Vector2,
+	pointer_index: int
+) -> void:
+	if (
+		not active_placement_drag_kind.is_empty()
+		or not placement_drag_candidate_kind.is_empty()
+	):
+		return
+	placement_drag_candidate_kind = kind
+	placement_drag_candidate_slot = slot_index
+	placement_drag_pointer_index = pointer_index
+	placement_drag_start_screen_position = screen_position
+
+
+func clear_placement_drag_state() -> void:
+	placement_drag_candidate_kind = &""
+	placement_drag_candidate_slot = -1
+	placement_drag_pointer_index = -1
+	active_placement_drag_kind = &""
+
+
+func pointer_event_matches_drag(event: InputEvent) -> bool:
+	return get_pointer_index(event) == placement_drag_pointer_index
+
+
+func screen_to_placement_world_position(screen_position: Vector2) -> Vector2:
+	return get_canvas_transform().affine_inverse() * (
+		screen_position + PLACEMENT_DRAG_PREVIEW_OFFSET
+	)
+
+
+func begin_active_placement_drag(screen_position: Vector2) -> bool:
+	var candidate_kind := placement_drag_candidate_kind
+	if candidate_kind == DRAG_KIND_TOWER:
+		select_tower_build_slot(placement_drag_candidate_slot)
+		if not place_mode or not is_instance_valid(tower_to_place):
+			clear_placement_drag_state()
+			return false
+		clear_tower_details(tower_to_place)
+	elif candidate_kind == DRAG_KIND_REINFORCEMENT:
+		set_build_drawer_open(false)
+		begin_reinforcement_targeting()
+		if not reinforcement_targeting:
+			clear_placement_drag_state()
+			return false
+	else:
+		return false
+
+	active_placement_drag_kind = candidate_kind
+	placement_drag_candidate_kind = &""
+	placement_drag_world_position = screen_to_placement_world_position(
+		screen_position
+	)
+	update_active_placement_drag_preview()
+	return true
+
+
+func update_active_placement_drag_preview() -> void:
+	if (
+		active_placement_drag_kind == DRAG_KIND_TOWER
+		and place_mode
+		and is_instance_valid(tower_to_place)
+	):
+		var snap := get_tower_build_position(
+			placement_drag_world_position,
+			pending_tower_type
+		)
+		tower_to_place.position = snap
+		var placement_is_valid := can_place_tower(snap)
+		tower_to_place.set_range_preview(true, placement_is_valid)
+		var sprite := tower_to_place.get_node("Sprite2D") as CanvasItem
+		sprite.modulate = (
+			Color(1.0, 1.0, 1.0, 0.5)
+			if placement_is_valid
+			else Color(1.0, 0.0, 0.0, 0.5)
+		)
+	elif active_placement_drag_kind == DRAG_KIND_REINFORCEMENT:
+		ensure_reinforcement_controller()
+		reinforcement_controller.update_preview(placement_drag_world_position)
+
+
+func finish_active_placement_drag(screen_position: Vector2) -> void:
+	placement_drag_world_position = screen_to_placement_world_position(
+		screen_position
+	)
+	update_active_placement_drag_preview()
+	var completed_kind := active_placement_drag_kind
+	active_placement_drag_kind = &""
+
+	if completed_kind == DRAG_KIND_TOWER:
+		if (
+			is_instance_valid(tower_to_place)
+			and can_place_tower(tower_to_place.position)
+		):
+			var placed_tower := tower_to_place
+			finalize_tower_placement()
+			placed_tower._on_confirm_pressed()
+		else:
+			cancel_pending_tower_placement()
+	elif completed_kind == DRAG_KIND_REINFORCEMENT:
+		if not deploy_reinforcements(placement_drag_world_position):
+			cancel_reinforcement_targeting()
+	clear_placement_drag_state()
+
+
+func handle_placement_drag_input(event: InputEvent) -> bool:
+	if (
+		not active_placement_drag_kind.is_empty()
+		and pointer_event_matches_drag(event)
+	):
+		if is_pointer_drag_event(event):
+			placement_drag_world_position = screen_to_placement_world_position(
+				get_pointer_screen_position(event)
+			)
+			update_active_placement_drag_preview()
+			return true
+		if is_pointer_release_event(event):
+			finish_active_placement_drag(get_pointer_screen_position(event))
+			return true
+
+	if (
+		placement_drag_candidate_kind.is_empty()
+		or not pointer_event_matches_drag(event)
+	):
+		return false
+	if is_pointer_drag_event(event):
+		var screen_position := get_pointer_screen_position(event)
+		if screen_position.distance_to(
+			placement_drag_start_screen_position
+		) >= PLACEMENT_DRAG_THRESHOLD:
+			return begin_active_placement_drag(screen_position)
+	if is_pointer_release_event(event):
+		placement_drag_candidate_kind = &""
+		placement_drag_candidate_slot = -1
+		placement_drag_pointer_index = -1
+	return false
+
+
 func _input(event: InputEvent) -> void:
 	cancel_sidebar_confirmation_on_other_press(event)
+	if handle_placement_drag_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	ensure_build_controller()
 	if not is_instance_valid(build_controller.manual_targeting_tower):
 		build_controller.clear_invalid_manual_target()
@@ -2815,6 +3342,7 @@ func _align_sidebar_to_build_grid() -> void:
 			Vector2.ZERO,
 			Vector2(playable_map_width, get_viewport_rect().size.y)
 		))
+	layout_tower_fan_buttons()
 	update_context_dock_layout()
 
 func is_build_cell_blocked_by_path(cell: Vector2i) -> bool:
@@ -2904,6 +3432,10 @@ func can_select_tower() -> bool:
 
 @warning_ignore("unused_parameter")
 func _on_item_list_item_selected(index: int) -> void:
+	select_tower_build_slot(index)
+
+
+func select_tower_build_slot(index: int) -> void:
 	if game_ended or shop_open or is_selecting_path_relic_tower():
 		tower_list.deselect_all()
 		return

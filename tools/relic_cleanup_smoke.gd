@@ -20,6 +20,16 @@ func run_checks() -> void:
 
 	var director = MAIN_SCENE.instantiate()
 	get_tree().root.add_child(director)
+	var rarity_colors := {
+		&"common": Color("35d6e8"),
+		&"rare": Color("e94bd6"),
+		&"legendary": Color("ffd447"),
+	}
+	for rarity in rarity_colors:
+		var rarity_button := Button.new()
+		director.apply_relic_icon_style(rarity_button, StringName(rarity))
+		var rarity_style := rarity_button.get_theme_stylebox("normal") as StyleBoxFlat
+		assert(rarity_style.bg_color.is_equal_approx(rarity_colors[rarity]))
 	var relic_icon_labels: Dictionary = {}
 	for relic_key in GameStats.RELICS:
 		var relic_id := StringName(relic_key)
@@ -64,7 +74,10 @@ func run_checks() -> void:
 		build_button_rect.end.y
 		<= director.get_viewport_rect().size.y
 	)
+	assert(director.build_toggle_button.size.x >= 88.0)
+	assert(director.reinforcement_button.size.x >= 88.0)
 	director.tower_roster.assign([&"invader"])
+	director.populate_tower_list()
 	var base_roster_tags: Array[StringName] = director.get_tower_roster_tags()
 	assert(base_roster_tags.has(&"biological"))
 	assert(base_roster_tags.has(&"ballistic"))
@@ -255,8 +268,9 @@ func run_checks() -> void:
 	).distance_to(Vector3(0x20 / 255.0, 0x21 / 255.0, 0x3a / 255.0)) < 0.001)
 	assert(is_equal_approx(
 		director.sidebar.size.x,
-		director.get_viewport().get_visible_rect().size.x - 24.0
+		720.0
 	))
+	assert(director.sidebar.size.y <= 120.0)
 	assert(is_equal_approx(
 		director.playable_map_width,
 		floorf(
@@ -264,7 +278,7 @@ func run_checks() -> void:
 			/ GameStats.BUILD_CELL_SIZE
 		) * GameStats.BUILD_CELL_SIZE
 	))
-	assert(director.tower_name_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER)
+	assert(director.tower_name_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT)
 	assert(not director.has_node(
 		"MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/"
 		+ "TowerInspector/InspectorHeader/BackButton"
@@ -277,15 +291,45 @@ func run_checks() -> void:
 	)
 	assert(director.tower_tags_label.text.contains("Technology"))
 	assert(director.tower_relics_label.text.contains("Network Upgrade"))
+	assert(director.tower_portrait_button.icon != null)
+	assert(not director.tower_inspector_details.visible)
+	assert(not director.tower_tags_label.is_visible_in_tree())
+	assert(not director.tower_relics_label.is_visible_in_tree())
+	assert(director.tower_upgrade_button.get_parent() == director.get_node(
+		"MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/"
+		+ "TowerInspector/InspectorHeader"
+	))
+	assert(director.tower_aim_button.get_parent() == director.tower_upgrade_button.get_parent())
+	assert(director.tower_sell_button.get_parent() == director.tower_upgrade_button.get_parent())
 	assert(director.tower_upgrade_section.visible)
 	assert(director.tower_upgrade_button.text.begins_with("Upgrade"))
-	assert(director.tower_upgrade_button.text.contains("2 taps"))
+	assert(director.tower_upgrade_button.tooltip_text.contains("Tap twice"))
 	assert(director.tower_sell_button.text.begins_with("Sell"))
-	assert(director.tower_sell_button.text.contains("2 taps"))
+	assert(director.tower_sell_button.tooltip_text.contains("Tap twice"))
+	director._on_tower_portrait_pressed()
+	assert(director.tower_inspector_details.visible)
+	assert(director.tower_information_content.visible)
+	assert(not director.tower_target_section.visible)
+	assert(director.tower_tags_label.is_visible_in_tree())
+	assert(director.tower_relics_label.is_visible_in_tree())
+	if director.tower_aim_button.visible:
+		director._on_tower_aim_pressed()
+		assert(director.tower_inspector_details.visible)
+		assert(not director.tower_information_content.visible)
+		assert(director.tower_target_section.visible)
 	director._on_build_toggle_pressed()
 	assert(not director.tower_inspector.visible)
 	assert(director.build_sidebar_state.visible)
-	assert(director.tower_selection_area.visible)
+	assert(director.tower_fan.visible)
+	assert(not director.tower_selection_area.visible)
+	assert(not director.sidebar.visible)
+	assert(director.tower_fan_buttons.size() == director.tower_roster.size())
+	for fan_button in director.tower_fan_buttons:
+		assert(fan_button.size.x >= 78.0)
+		var fan_target: Vector2 = fan_button.get_meta("fan_target_position")
+		assert(fan_target.y < build_button_rect.position.y)
+		var fan_style := fan_button.get_theme_stylebox("normal") as StyleBoxFlat
+		assert(fan_style.corner_radius_top_left >= 39)
 	assert(director.build_toggle_button.visible)
 	director.set_build_drawer_open(false)
 	director.show_tower_details(network_tower)
@@ -337,6 +381,7 @@ func run_checks() -> void:
 	assert(director.build_sidebar_state.visible)
 	assert(director.reinforcement_button.visible)
 	assert(not director.tower_selection_area.visible)
+	assert(not director.tower_fan.visible or director.tower_fan_tween != null)
 	assert(not director.sidebar.visible)
 	assert(director.build_toggle_button.visible)
 	director.reinforcement_cooldown_remaining = 4.2
@@ -347,11 +392,12 @@ func run_checks() -> void:
 	director.reinforcement_cooldown_remaining = 0.0
 	director.update_reinforcement_button()
 	director._on_build_toggle_pressed()
-	assert(director.tower_selection_area.visible)
-	assert(director.sidebar.visible)
+	assert(director.tower_fan.visible)
+	assert(not director.tower_selection_area.visible)
+	assert(not director.sidebar.visible)
 	assert(director.build_toggle_button.button_pressed)
 	director._on_build_toggle_pressed()
-	assert(not director.tower_selection_area.visible)
+	assert(not director.tower_fan.visible or director.tower_fan_tween != null)
 	assert(not director.sidebar.visible)
 	var network_stats: Dictionary = network_tower.get_effective_stats_for_level(0)
 	assert(is_equal_approx(float(network_stats["firerate"]), 0.40 / 1.24))
