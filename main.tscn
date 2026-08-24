@@ -340,7 +340,7 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_left = 8.0
 offset_right = -8.0
-offset_bottom = 68.0
+offset_bottom = 52.0
 grow_horizontal = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_top_bar")
@@ -348,9 +348,9 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_top_bar")
 [node name="TopLeftPanel" type="PanelContainer" parent="MainUI/HUDRoot" unique_id=219660479]
 layout_mode = 0
 offset_left = 12.0
-offset_top = 8.0
+offset_top = 2.0
 offset_right = 476.0
-offset_bottom = 64.0
+offset_bottom = 50.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxEmpty_status")
 
@@ -366,7 +366,7 @@ layout_mode = 2
 theme_override_constants/separation = 5
 
 [node name="livesdisplay" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=854572826]
-custom_minimum_size = Vector2(124, 44)
+custom_minimum_size = Vector2(124, 40)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9098, 0.298, 0.2392, 1)
 theme_override_font_sizes/font_size = 14
@@ -381,7 +381,7 @@ size_flags_vertical = 4
 modulate = Color(0.1255, 0.1294, 0.2275, 0.22)
 
 [node name="roundcount" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1111336532]
-custom_minimum_size = Vector2(104, 44)
+custom_minimum_size = Vector2(104, 40)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
 theme_override_font_sizes/font_size = 14
@@ -396,7 +396,7 @@ size_flags_vertical = 4
 modulate = Color(0.1255, 0.1294, 0.2275, 0.22)
 
 [node name="moneydisplay" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1926460251]
-custom_minimum_size = Vector2(112, 44)
+custom_minimum_size = Vector2(112, 40)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7647, 0.4745, 0.0353, 1)
 theme_override_font_sizes/font_size = 14
@@ -411,7 +411,7 @@ size_flags_vertical = 4
 modulate = Color(0.1255, 0.1294, 0.2275, 0.22)
 
 [node name="roundtimer" type="Label" parent="MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid" unique_id=1101724491]
-custom_minimum_size = Vector2(82, 44)
+custom_minimum_size = Vector2(82, 40)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.0549, 0.5137, 0.6, 1)
 theme_override_font_sizes/font_size = 14
@@ -424,9 +424,9 @@ layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 486.0
-offset_top = 8.0
-offset_right = -140.0
-offset_bottom = 64.0
+offset_top = 4.0
+offset_right = -112.0
+offset_bottom = 48.0
 grow_horizontal = 2
 theme_override_constants/separation = 8
 
@@ -440,32 +440,32 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -128.0
-offset_top = 12.0
-offset_right = -12.0
-offset_bottom = 68.0
+offset_left = -104.0
+offset_top = 4.0
+offset_right = -8.0
+offset_bottom = 48.0
 grow_horizontal = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_d42bq")
+theme_override_styles/panel = SubResource("StyleBoxEmpty_status")
 
 [node name="ControlMargin" type="MarginContainer" parent="MainUI/HUDRoot/EdgeControls"]
 layout_mode = 2
-theme_override_constants/margin_left = 6
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 6
-theme_override_constants/margin_bottom = 6
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
 
 [node name="Buttons" type="HBoxContainer" parent="MainUI/HUDRoot/EdgeControls/ControlMargin"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="SpeedButton" type="Button" parent="MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons"]
-custom_minimum_size = Vector2(56, 44)
+custom_minimum_size = Vector2(48, 40)
 layout_mode = 2
 tooltip_text = "Game Speed: 1x"
 text = "1x"
 
 [node name="PauseButton" type="Button" parent="MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons"]
-custom_minimum_size = Vector2(44, 44)
+custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
 tooltip_text = "Start Round 1"
 text = "▶"
@@ -477,9 +477,9 @@ anchors_preset = 10
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -300.0
-offset_top = 128.0
+offset_top = 62.0
 offset_right = 300.0
-offset_bottom = 228.0
+offset_bottom = 162.0
 grow_horizontal = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_relic_info")
 
@@ -531,7 +531,8 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="BuildToggleButton" type="Button" parent="MainUI/HUDRoot/ThumbControls"]
+[node name="BuildToggleButton" type="Button" parent="MainUI/HUDRoot"]
+z_index = 30
 custom_minimum_size = Vector2(72, 72)
 layout_mode = 1
 anchors_preset = 3
@@ -960,7 +961,7 @@ text = "Main Menu"
 
 [connection signal="pressed" from="MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons/PauseButton" to="." method="_on_pause_button_pressed"]
 [connection signal="pressed" from="MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons/SpeedButton" to="." method="_on_speed_button_pressed"]
-[connection signal="pressed" from="MainUI/HUDRoot/ThumbControls/BuildToggleButton" to="." method="_on_build_toggle_pressed"]
+[connection signal="pressed" from="MainUI/HUDRoot/BuildToggleButton" to="." method="_on_build_toggle_pressed"]
 [connection signal="item_selected" from="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/TowerSelectionArea/ItemList" to="." method="_on_item_list_item_selected"]
 [connection signal="pressed" from="MainUI/endscreen/VBoxContainer/restartbutton" to="." method="_on_restartbutton_pressed"]
 [connection signal="pressed" from="MainUI/endscreen/VBoxContainer/quitbutton" to="." method="_on_quitbutton_pressed"]

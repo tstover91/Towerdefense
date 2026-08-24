@@ -33,7 +33,11 @@ func run_checks() -> void:
 	var relic_strip := director.get_node("MainUI/HUDRoot/RelicStrip") as Control
 	var edge_controls := director.get_node("MainUI/HUDRoot/EdgeControls") as Control
 	assert(top_bar.size.x == director.get_viewport_rect().size.x - 16.0)
-	assert(top_bar.size.y <= 68.0)
+	assert(top_bar.size.y <= 52.0)
+	assert(edge_controls.get_global_rect().position.y >= top_bar.get_global_rect().position.y)
+	assert(edge_controls.get_global_rect().end.y <= top_bar.get_global_rect().end.y)
+	assert(director.pause_button.size.y < top_bar.size.y)
+	assert(edge_controls.get_theme_stylebox("panel") is StyleBoxEmpty)
 	var top_bar_style := top_bar.get_theme_stylebox("panel") as StyleBoxFlat
 	assert(Vector3(
 		top_bar_style.bg_color.r,
@@ -47,6 +51,11 @@ func run_checks() -> void:
 	))
 	assert(director.build_toggle_button.visible)
 	assert(director.thumb_controls.z_index >= 20)
+	assert(director.build_toggle_button.z_index > director.thumb_controls.z_index)
+	assert(director.build_toggle_button.get_parent() == director.get_node(
+		"MainUI/HUDRoot"
+	))
+	assert(director.build_toggle_button.is_visible_in_tree())
 	assert(director.build_toggle_button.get_global_rect().position.x >= 0.0)
 	assert(
 		director.build_toggle_button.get_global_rect().end.y
@@ -185,7 +194,7 @@ func run_checks() -> void:
 	assert(director.relic_hud_buttons.size() == 1)
 	var network_icon := director.relic_hud_buttons[&"network_upgrade"] as Button
 	assert(network_icon.text == "NU")
-	assert(network_icon.custom_minimum_size.x >= 48.0)
+	assert(network_icon.custom_minimum_size.x >= 40.0)
 	director.show_relic_hud_selection(&"network_upgrade")
 	assert(director.relic_info_panel.visible)
 	assert(director.relic_info_name.text == "Network Upgrade")

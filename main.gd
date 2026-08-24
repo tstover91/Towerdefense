@@ -85,7 +85,7 @@ signal round_ended(round_number: int)
 @onready var thumb_controls: Control = $MainUI/HUDRoot/ThumbControls
 @onready var build_sidebar_state: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState
 @onready var tower_selection_area: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/TowerSelectionArea
-@onready var build_toggle_button: Button = $MainUI/HUDRoot/ThumbControls/BuildToggleButton
+@onready var build_toggle_button: Button = $MainUI/HUDRoot/BuildToggleButton
 @onready var reinforcement_button: Button = $MainUI/HUDRoot/ThumbControls/ReinforcementButton
 @onready var reinforcement_cooldown_label: Label = $MainUI/HUDRoot/ThumbControls/ReinforcementButton/CooldownLabel
 @onready var tower_inspector: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector
@@ -854,7 +854,7 @@ func refresh_relic_hud() -> void:
 		var count := get_relic_count(relic_id)
 		var button := Button.new()
 		button.name = "Relic_%s" % String(relic_id)
-		button.custom_minimum_size = Vector2(50.0, 50.0)
+		button.custom_minimum_size = Vector2(40.0, 40.0)
 		button.toggle_mode = true
 		button.focus_mode = Control.FOCUS_NONE
 		button.clip_text = true
@@ -939,7 +939,7 @@ func apply_relic_icon_style(button: Button, category: StringName) -> void:
 	button.add_theme_color_override("font_color", foreground)
 	button.add_theme_color_override("font_hover_color", foreground)
 	button.add_theme_color_override("font_pressed_color", foreground)
-	button.add_theme_font_size_override("font_size", 13)
+	button.add_theme_font_size_override("font_size", 11)
 	button.add_theme_stylebox_override(
 		"normal", make_relic_icon_style(accent, UI_INK)
 	)
