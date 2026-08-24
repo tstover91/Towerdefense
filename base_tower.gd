@@ -384,6 +384,24 @@ func purchase_selected_path() -> void:
 	progression_controller.purchase_selected_path()
 
 
+func request_upgrade() -> void:
+	progression_controller.handle_upgrade_pressed()
+
+
+func request_sell() -> void:
+	progression_controller.handle_sell_pressed()
+
+
+func select_sidebar_target_mode(mode: int) -> void:
+	if menu_controller != null:
+		menu_controller.select_target_option(mode)
+
+
+func select_aim_direction(direction_index: int) -> void:
+	if menu_controller != null:
+		menu_controller.select_aim_direction(direction_index)
+
+
 func get_path_status_text() -> String:
 	return progression_controller.get_path_status_text()
 

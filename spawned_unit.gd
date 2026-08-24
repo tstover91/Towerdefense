@@ -397,11 +397,19 @@ func select_drone_command_target() -> Node2D:
 
 
 func select_highest_max_health_drone_target() -> Node2D:
-	var candidates := get_sorted_drone_targets()
-	return candidates[0] if not candidates.is_empty() else null
+	var selected_target: Node2D
+	for candidate in get_drone_command_target_candidates():
+		if selected_target == null or is_better_drone_target(candidate, selected_target):
+			selected_target = candidate
+	return selected_target
 
 
 func select_distributed_drone_target() -> Node2D:
+	# A base Drone Depot only controls one drone. Avoid building and sorting the
+	# global assignment tables in that common case, which is a noticeable
+	# allocation spike on mobile browsers.
+	if not has_other_available_combat_drone():
+		return select_highest_max_health_drone_target()
 	var current_frame := floori(
 		float(Time.get_ticks_msec())
 		/ (MOBILE_TARGET_REFRESH_INTERVAL * 1000.0)
@@ -490,21 +498,38 @@ func is_focus_max_health_drone() -> bool:
 	)
 
 
-func get_sorted_drone_targets() -> Array[Node2D]:
+func has_other_available_combat_drone() -> bool:
+	for candidate in get_tree().get_nodes_in_group("spawned_units"):
+		if candidate != self and is_available_combat_drone(candidate):
+			return true
+	return false
+
+
+func get_drone_command_target_candidates() -> Array[Node2D]:
 	var candidates: Array[Node2D] = []
-	if not is_instance_valid(parent_tower):
-		return candidates
-	if parent_tower.has_method("get_drone_command_targets"):
+	if (
+		is_instance_valid(parent_tower)
+		and parent_tower.has_method("get_drone_command_targets")
+	):
 		candidates.assign(parent_tower.get_drone_command_targets())
+	return candidates
+
+
+func is_better_drone_target(candidate: Node2D, current: Node2D) -> bool:
+	if candidate.max_health != current.max_health:
+		return candidate.max_health > current.max_health
+	var candidate_progress := float(candidate.path_follow.progress)
+	var current_progress := float(current.path_follow.progress)
+	if not is_equal_approx(candidate_progress, current_progress):
+		return candidate_progress > current_progress
+	return candidate.get_instance_id() < current.get_instance_id()
+
+
+func get_sorted_drone_targets() -> Array[Node2D]:
+	var candidates := get_drone_command_target_candidates()
 	candidates.sort_custom(
 		func(a: Node2D, b: Node2D) -> bool:
-			if a.max_health != b.max_health:
-				return a.max_health > b.max_health
-			var a_progress := float(a.path_follow.progress)
-			var b_progress := float(b.path_follow.progress)
-			if not is_equal_approx(a_progress, b_progress):
-				return a_progress > b_progress
-			return a.get_instance_id() < b.get_instance_id()
+			return is_better_drone_target(a, b)
 	)
 	return candidates
 

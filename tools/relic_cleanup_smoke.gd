@@ -146,6 +146,61 @@ func run_checks() -> void:
 	assert(network_tower.receives_relic_effect(&"network_upgrade"))
 	assert(gauss_tower.receives_relic_effect(&"network_upgrade"))
 	assert(network_tower.get_active_relic_effect_ids().has(&"network_upgrade"))
+	director.show_tower_details(network_tower)
+	assert(director.tower_inspector.visible)
+	assert(not director.build_sidebar_state.visible)
+	assert(
+		director.get_node(
+			"MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/"
+			+ "TowerInspector/InspectorScroll"
+		) is VBoxContainer
+	)
+	assert(director.tower_tags_label.text.contains("Technology"))
+	assert(director.tower_relics_label.text.contains("Network Upgrade"))
+	assert(director.tower_upgrade_section.visible)
+	assert(director.tower_upgrade_button.text.begins_with("Upgrade"))
+	assert(director.tower_upgrade_button.text.contains("2 taps"))
+	assert(director.tower_sell_button.text.begins_with("Sell"))
+	assert(director.tower_sell_button.text.contains("2 taps"))
+	director.money = 100000
+	network_tower.selected = true
+	var starting_level: int = network_tower.tower_level
+	director._on_sidebar_upgrade_pressed()
+	assert(network_tower.tower_level == starting_level)
+	assert(network_tower.pending_action == BaseTower.MenuAction.UPGRADE)
+	assert(director.tower_upgrade_button.text.begins_with("Tap Again"))
+	director._on_sidebar_upgrade_pressed()
+	assert(network_tower.tower_level == starting_level + 1)
+	assert(network_tower.pending_action == BaseTower.MenuAction.NONE)
+	assert(director.sidebar_confirmation_action == -1)
+	director._on_sidebar_sell_pressed()
+	assert(network_tower.pending_action == BaseTower.MenuAction.SELL)
+	var outside_click := InputEventMouseButton.new()
+	outside_click.button_index = MOUSE_BUTTON_LEFT
+	outside_click.pressed = true
+	outside_click.position = Vector2.ZERO
+	director._input(outside_click)
+	assert(network_tower.pending_action == BaseTower.MenuAction.NONE)
+	assert(director.sidebar_confirmation_action == -1)
+
+	var sell_tower = create_test_tower(
+		director, &"invader", Vector2(192.0, 0.0)
+	)
+	sell_tower.selected = true
+	director.show_tower_details(sell_tower)
+	director._on_sidebar_sell_pressed()
+	assert(not sell_tower.is_queued_for_deletion())
+	assert(sell_tower.pending_action == BaseTower.MenuAction.SELL)
+	assert(director.tower_sell_button.text.begins_with("Tap Again"))
+	director._on_sidebar_sell_pressed()
+	assert(sell_tower.is_queued_for_deletion())
+	assert(director.sidebar_confirmation_action == -1)
+
+	director.show_tower_details(network_tower)
+	director.clear_tower_details(network_tower)
+	assert(not director.tower_inspector.visible)
+	assert(director.build_sidebar_state.visible)
+	assert(director.reinforcement_button.visible)
 	var network_stats: Dictionary = network_tower.get_effective_stats_for_level(0)
 	assert(is_equal_approx(float(network_stats["firerate"]), 0.40 / 1.24))
 	var placed_towers: Array[Node] = [

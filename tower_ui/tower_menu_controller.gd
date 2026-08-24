@@ -61,7 +61,6 @@ func setup(owner_tower: BaseTower) -> void:
 
 func set_selected(value: bool) -> void:
 	tower.selected = value
-	main_menu.visible = value
 	if value:
 		show_main_menu()
 		tower.show_current_range_preview()
@@ -74,12 +73,13 @@ func set_selected(value: bool) -> void:
 func show_main_menu() -> void:
 	tower.pending_action = BaseTower.MenuAction.NONE
 	tower.pending_path_choice = &""
-	main_menu.visible = true
+	main_menu.visible = false
 	target_menu.visible = false
 	path_menu.visible = false
 	if direction_ui != null:
 		direction_ui.visible = false
 	update_menu_buttons()
+	_show_tower_details_if_selected()
 
 
 func show_target_menu() -> void:
@@ -87,11 +87,12 @@ func show_target_menu() -> void:
 	tower.pending_path_choice = &""
 	tower.show_current_range_preview()
 	main_menu.visible = false
-	target_menu.visible = not tower.uses_directional_aim()
+	target_menu.visible = false
 	_configure_target_menu()
 	path_menu.visible = false
 	if direction_ui != null:
-		direction_ui.visible = tower.uses_directional_aim()
+		direction_ui.visible = false
+	_show_tower_details_if_selected()
 
 
 func show_path_menu() -> void:
@@ -104,7 +105,7 @@ func show_path_menu() -> void:
 	target_menu.visible = false
 	if direction_ui != null:
 		direction_ui.visible = false
-	path_menu.visible = true
+	path_menu.visible = false
 	update_path_menu()
 	_show_tower_details_if_selected()
 
@@ -247,11 +248,11 @@ func select_target_option(mode: int) -> void:
 		if tower.attack_component != null:
 			tower.attack_component.set_drone_target_mode(mode)
 		update_menu_buttons()
-		close_menus()
+		show_main_menu()
 		return
 	tower.target_mode = mode
 	tower._select_target()
-	close_menus()
+	show_main_menu()
 
 
 func update_layout() -> void:
@@ -360,7 +361,7 @@ func _create_direction_ui() -> void:
 		direction_ui.add_child(button)
 
 
-func _on_direction_button_pressed(index: int) -> void:
+func select_aim_direction(index: int) -> void:
 	if index < 0 or index >= AIM_DIRECTIONS.size():
 		return
 	tower.aim_direction = AIM_DIRECTIONS[index]
@@ -369,7 +370,11 @@ func _on_direction_button_pressed(index: int) -> void:
 	tower.target = null
 	tower.rotator.rotation = tower.aim_direction.angle()
 	tower.queue_redraw()
-	close_menus()
+	show_main_menu()
+
+
+func _on_direction_button_pressed(index: int) -> void:
+	select_aim_direction(index)
 
 
 func _show_tower_details_if_selected() -> void:

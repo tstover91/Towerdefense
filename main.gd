@@ -55,7 +55,7 @@ const TRADE_AGREEMENT_TOWER_IDS: Array[StringName] = [
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
-const MIN_SIDEBAR_WIDTH := 192.0
+const MIN_SIDEBAR_WIDTH := 256.0
 const BUILD_BLOCKER_COLLISION_MASK := 4
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
@@ -66,26 +66,45 @@ signal round_ended(round_number: int)
 
 @onready var spawntimer: Timer = $SpawnTimer
 @onready var map_container: Node2D = $MapContainer
-@onready var tower_list: ItemList = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerSelectionArea/ItemList
+@onready var tower_list: ItemList = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/TowerSelectionArea/ItemList
 @onready var between_round_shop: Control = $MainUI/BetweenRoundShop
 @onready var pause_menu: Control = $MainUI/PauseMenu
 @onready var sandbox_panel: Control = $MainUI/SandboxPanel
 @onready var speed_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/SpeedButton
 @onready var pause_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/SidebarHeader/PauseButton
-@onready var reinforcement_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/ReinforcementButton
+@onready var build_sidebar_state: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState
+@onready var reinforcement_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/ReinforcementButton
+@onready var tower_inspector: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector
 @onready var sidebar: Control = $MainUI/HUDRoot/Sidebar
 @onready var money_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/moneydisplay
 @onready var lives_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/livesdisplay
 @onready var round_count_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundcount
 @onready var round_timer_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/roundtimer
-@onready var tower_details_placeholder: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerDetailsPlaceholder
-@onready var tower_stats_layout: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout
-@onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerNameLabel
-@onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerLevelLabel
-@onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerPathLabel
-@onready var tower_tags_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerTagsLabel
-@onready var tower_relics_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/TowerRelicsLabel
-@onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerDetailsPanel/DetailsMargin/DetailsLayout/TowerStatsLayout/UpgradeHeaderLabel
+@onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerNameLabel
+@onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerLevelLabel
+@onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TowerPathLabel
+@onready var tower_tags_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TowerTagsLabel
+@onready var tower_relics_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TowerRelicsLabel
+@onready var tower_upgrade_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/UpgradeSection
+@onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/UpgradeSection/UpgradeHeaderLabel
+@onready var tower_upgrade_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/UpgradeSection/UpgradeDescription
+@onready var tower_upgrade_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/UpgradeSection/UpgradeButton
+@onready var tower_path_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection
+@onready var tower_path_a_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection/PathButtons/PathAButton
+@onready var tower_path_b_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection/PathButtons/PathBButton
+@onready var tower_path_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection/PathDescription
+@onready var tower_path_confirm_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/PathSection/PathConfirmButton
+@onready var tower_target_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection
+@onready var tower_target_buttons: GridContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/TargetButtons
+@onready var tower_target_first: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/TargetButtons/TargetFirst
+@onready var tower_target_last: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/TargetButtons/TargetLast
+@onready var tower_target_low: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/TargetButtons/TargetLow
+@onready var tower_target_high: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/TargetButtons/TargetHigh
+@onready var tower_direction_buttons: GridContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/DirectionButtons
+@onready var tower_manual_target_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection/ManualTargetButton
+@onready var tower_sell_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorActions/SellButton
+@onready var tower_back_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorActions/BuildButton
+@onready var tower_close_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/BackButton
 var mobs_left_to_spawn := 0
 var mobs_alive := 0
 var spawn_schedule: Array[Dictionary] = []
@@ -342,6 +361,8 @@ var pending_path_relic_tower_selection: StringName = &""
 var recent_relic_offers: Array[StringName] = []
 var pending_enemy_spawns: Array[Dictionary] = []
 var displayed_tower: Node = null
+var sidebar_confirmation_tower_id := 0
+var sidebar_confirmation_action := -1
 var playable_map_width := 0.0
 var active_map: TowerDefenseMap
 var next_spawn_path_index := 0
@@ -381,6 +402,7 @@ func _ready() -> void:
 	update_round_count()
 	spawntimer.timeout.connect(_spawn_mob)
 	reinforcement_button.pressed.connect(_on_reinforcement_button_pressed)
+	connect_tower_inspector_signals()
 	between_round_shop.draft_confirmed.connect(_on_draft_confirmed)
 	between_round_shop.draft_health_requested.connect(_on_draft_health_requested)
 	update_play_pause_button()
@@ -479,25 +501,25 @@ func populate_tower_list() -> void:
 
 
 func show_tower_details(tower: Node) -> void:
-	if not is_instance_valid(tower) or not tower.has_method("get_sidebar_stats"):
+	if (
+		not is_instance_valid(tower)
+		or not tower.has_method("get_sidebar_stats")
+		or not bool(tower.get("is_placed"))
+	):
 		clear_tower_details()
 		return
 
 	displayed_tower = tower
 	var stats: Dictionary = tower.get_sidebar_stats()
-	var is_placed: bool = stats["is_placed"]
 	var current_level: int = stats["level"]
 	var maximum_level: int = stats["maximum_level"]
 
-	tower_details_placeholder.hide()
-	tower_stats_layout.show()
+	build_sidebar_state.hide()
+	tower_inspector.show()
 	tower_name_label.text = stats["display_name"]
-	var show_upgrade_info: bool = stats["show_upgrade_info"] and stats["has_next_level"]
-	tower_level_label.visible = is_placed and not show_upgrade_info
-	if tower_level_label.visible:
-		tower_level_label.text = "Level %d/%d" % [current_level + 1, maximum_level + 1]
+	tower_level_label.text = "Level %d of %d" % [current_level + 1, maximum_level + 1]
 	var path_status: String = stats.get("path_status", "")
-	tower_path_label.visible = is_placed and not path_status.is_empty()
+	tower_path_label.visible = not path_status.is_empty()
 	tower_path_label.text = path_status
 	tower_tags_label.text = "Type: %s\nAttack: %s\nBonus: %s" % [
 		format_tower_tags(stats.get("type_tags", [])),
@@ -507,13 +529,256 @@ func show_tower_details(tower: Node) -> void:
 	var active_relics: Array = stats.get("active_relic_effects", [])
 	tower_relics_label.text = "Relics: %s" % format_relic_names(active_relics)
 	tower_relics_label.tooltip_text = format_relic_effect_tooltip(active_relics)
-	tower_upgrade_header.visible = show_upgrade_info
-	if show_upgrade_info:
-		var next_level: int = stats["next_level"]
-		tower_upgrade_header.text = "Upgrade to Level %d/%d" % [
-			next_level + 1,
-			maximum_level + 1,
-		]
+	update_tower_upgrade_controls(tower, stats)
+	update_tower_path_controls(tower)
+	update_tower_target_controls(tower)
+	update_tower_sell_control(tower)
+
+
+func connect_tower_inspector_signals() -> void:
+	tower_upgrade_button.pressed.connect(_on_sidebar_upgrade_pressed)
+	tower_path_a_button.pressed.connect(_on_sidebar_path_pressed.bind(&"a"))
+	tower_path_b_button.pressed.connect(_on_sidebar_path_pressed.bind(&"b"))
+	tower_path_confirm_button.pressed.connect(_on_sidebar_path_confirmed)
+	tower_target_first.pressed.connect(_on_sidebar_target_pressed.bind(0))
+	tower_target_last.pressed.connect(_on_sidebar_target_pressed.bind(1))
+	tower_target_low.pressed.connect(_on_sidebar_target_pressed.bind(2))
+	tower_target_high.pressed.connect(_on_sidebar_target_pressed.bind(3))
+	for direction_index in tower_direction_buttons.get_child_count():
+		var direction_button := tower_direction_buttons.get_child(direction_index) as Button
+		direction_button.pressed.connect(
+			_on_sidebar_direction_pressed.bind(direction_index)
+		)
+	tower_manual_target_button.pressed.connect(_on_sidebar_manual_target_pressed)
+	tower_sell_button.pressed.connect(_on_sidebar_sell_pressed)
+	tower_back_button.pressed.connect(_on_sidebar_back_pressed)
+	tower_close_button.pressed.connect(_on_sidebar_back_pressed)
+
+
+func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
+	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
+	var next_level := int(stats["level"]) + 1
+	var has_level_upgrade := next_level < levels.size()
+	tower_upgrade_section.visible = has_level_upgrade
+	if not has_level_upgrade:
+		return
+	var upgrade_cost := int(levels[next_level]["upgrade_cost"])
+	var awaiting_confirmation := (
+		int(tower.get("pending_action")) == BaseTower.MenuAction.UPGRADE
+	)
+	tower_upgrade_header.text = "CONFIRM UPGRADE" if awaiting_confirmation else "NEXT UPGRADE"
+	tower_upgrade_description.text = "Advance to Level %d of %d." % [
+		next_level + 1,
+		levels.size(),
+	]
+	tower_upgrade_button.text = (
+		"Tap Again · $%d" if awaiting_confirmation else "Upgrade · $%d (2 taps)"
+	) % upgrade_cost
+	tower_upgrade_button.tooltip_text = (
+		"Tap twice to upgrade. Tapping anywhere else cancels confirmation."
+	)
+	tower_upgrade_button.disabled = money < upgrade_cost
+
+
+func update_tower_path_controls(tower: Node) -> void:
+	var paths := GameStats.get_tower_paths(tower.tower_id)
+	var show_paths: bool = (
+		not paths.is_empty()
+		and tower.tower_level >= tower.get_path_unlock_level(&"a")
+		and (
+			tower.has_available_path_purchase()
+			or not tower.purchased_paths.is_empty()
+		)
+	)
+	tower_path_section.visible = show_paths
+	if not show_paths:
+		return
+	var path_buttons: Array[Button] = [tower_path_a_button, tower_path_b_button]
+	var path_ids: Array[StringName] = [&"a", &"b"]
+	for index in path_ids.size():
+		var path_id := path_ids[index]
+		var button := path_buttons[index]
+		if not paths.has(path_id):
+			button.hide()
+			continue
+		button.show()
+		var path: Dictionary = paths[path_id]
+		var path_name: String = String(path.get("display_name", "Path %s" % path_id.to_upper()))
+		var path_cost: int = int(path.get("cost", 0))
+		button.tooltip_text = String(path.get("description", ""))
+		if tower.purchased_paths.has(path_id):
+			button.text = "%s · OWNED" % path_name
+			button.disabled = true
+		elif not tower.purchased_paths.is_empty() and not tower.can_purchase_multiple_paths():
+			button.text = "%s · LOCKED" % path_name
+			button.disabled = true
+		else:
+			button.text = "%s · $%d" % [path_name, path_cost]
+			button.disabled = not tower.can_purchase_path(path_id)
+		button.button_pressed = tower.pending_path_choice == path_id
+	tower_path_confirm_button.disabled = tower.pending_path_choice.is_empty()
+	if tower.pending_path_choice.is_empty():
+		tower_path_confirm_button.text = "Select a Path"
+		tower_path_description.text = "Select a path to view its effect."
+	else:
+		tower_path_confirm_button.text = "Confirm Path"
+		tower_path_description.text = String(
+			paths[tower.pending_path_choice].get("description", "")
+		)
+
+
+func update_tower_target_controls(tower: Node) -> void:
+	var attack_component: Variant = tower.get("attack_component")
+	var shows_targeting: bool = (
+		attack_component != null
+		and attack_component.shows_target_mode_control()
+		and (
+			not tower.uses_standard_spawner_system()
+			or tower.uses_drone_targeting()
+		)
+	)
+	tower_target_section.visible = shows_targeting
+	if not shows_targeting:
+		return
+	var manual_targeting: bool = tower.uses_manual_ground_targeting()
+	var directional_targeting: bool = tower.uses_directional_aim()
+	tower_manual_target_button.visible = manual_targeting
+	tower_direction_buttons.visible = directional_targeting and not manual_targeting
+	tower_target_buttons.visible = not manual_targeting and not directional_targeting
+	if directional_targeting:
+		for direction_index in tower_direction_buttons.get_child_count():
+			var direction_button := tower_direction_buttons.get_child(
+				direction_index
+			) as Button
+			direction_button.toggle_mode = true
+			direction_button.button_pressed = tower.aim_direction.is_equal_approx(
+				TowerMenuController.AIM_DIRECTIONS[direction_index]
+			)
+	if manual_targeting or directional_targeting:
+		return
+	var drone_targeting: bool = tower.uses_drone_targeting()
+	tower_target_first.text = "Distributed" if drone_targeting else "First"
+	tower_target_last.text = "Focus Max HP" if drone_targeting else "Last"
+	tower_target_low.visible = not drone_targeting
+	tower_target_high.visible = not drone_targeting
+	var current_mode: int = (
+		int(tower.get_drone_target_mode())
+		if drone_targeting
+		else int(tower.get("target_mode"))
+	)
+	for index in 4:
+		var button := [
+			tower_target_first,
+			tower_target_last,
+			tower_target_low,
+			tower_target_high,
+		][index] as Button
+		button.button_pressed = current_mode == index
+
+
+func update_tower_sell_control(tower: Node) -> void:
+	var sell_price := int(tower.get_sell_price())
+	var awaiting_confirmation := (
+		int(tower.get("pending_action")) == BaseTower.MenuAction.SELL
+	)
+	tower_sell_button.text = (
+		"Tap Again · $%d" if awaiting_confirmation else "Sell · $%d (2 taps)"
+	) % sell_price
+	tower_sell_button.tooltip_text = (
+		"Tap twice to sell. Tapping anywhere else cancels confirmation."
+	)
+
+
+func _on_sidebar_upgrade_pressed() -> void:
+	if (
+		is_instance_valid(displayed_tower)
+		and prepare_sidebar_double_tap(BaseTower.MenuAction.UPGRADE)
+	):
+		displayed_tower.request_upgrade()
+
+
+func _on_sidebar_path_pressed(path_id: StringName) -> void:
+	if is_instance_valid(displayed_tower):
+		displayed_tower.select_path_choice(path_id)
+
+
+func _on_sidebar_path_confirmed() -> void:
+	if is_instance_valid(displayed_tower):
+		displayed_tower.purchase_selected_path()
+
+
+func _on_sidebar_target_pressed(mode: int) -> void:
+	if not is_instance_valid(displayed_tower):
+		return
+	displayed_tower.select_sidebar_target_mode(mode)
+
+
+func _on_sidebar_direction_pressed(direction_index: int) -> void:
+	if is_instance_valid(displayed_tower):
+		displayed_tower.select_aim_direction(direction_index)
+
+
+func _on_sidebar_manual_target_pressed() -> void:
+	if is_instance_valid(displayed_tower):
+		displayed_tower.begin_manual_targeting()
+
+
+func _on_sidebar_sell_pressed() -> void:
+	if (
+		is_instance_valid(displayed_tower)
+		and prepare_sidebar_double_tap(BaseTower.MenuAction.SELL)
+	):
+		displayed_tower.request_sell()
+
+
+func _on_sidebar_back_pressed() -> void:
+	reset_sidebar_confirmation()
+	if is_instance_valid(displayed_tower):
+		displayed_tower.set_selected(false)
+	else:
+		clear_tower_details()
+
+
+func prepare_sidebar_double_tap(action: BaseTower.MenuAction) -> bool:
+	if not is_instance_valid(displayed_tower):
+		return false
+	var tower_instance_id := displayed_tower.get_instance_id()
+	if (
+		sidebar_confirmation_action == int(action)
+		and sidebar_confirmation_tower_id == tower_instance_id
+		and int(displayed_tower.get("pending_action")) == int(action)
+	):
+		reset_sidebar_confirmation()
+		return true
+
+	if int(displayed_tower.get("pending_action")) != BaseTower.MenuAction.NONE:
+		displayed_tower.pending_action = BaseTower.MenuAction.NONE
+		displayed_tower.show_current_range_preview()
+	if action == BaseTower.MenuAction.UPGRADE:
+		displayed_tower.request_upgrade()
+	else:
+		displayed_tower.request_sell()
+	sidebar_confirmation_action = int(action)
+	sidebar_confirmation_tower_id = tower_instance_id
+	return false
+
+
+func reset_sidebar_confirmation() -> void:
+	sidebar_confirmation_action = -1
+	sidebar_confirmation_tower_id = 0
+
+
+func cancel_sidebar_confirmation() -> void:
+	var tower := displayed_tower
+	var action := sidebar_confirmation_action
+	var tower_id := sidebar_confirmation_tower_id
+	reset_sidebar_confirmation()
+	if (
+		is_instance_valid(tower)
+		and tower.get_instance_id() == tower_id
+		and int(tower.get("pending_action")) == action
+	):
+		tower.show_main_menu()
 
 
 func format_tower_tags(tags: Array) -> String:
@@ -551,8 +816,9 @@ func clear_tower_details(tower: Node = null) -> void:
 	if tower != null and displayed_tower != tower:
 		return
 	displayed_tower = null
-	tower_details_placeholder.show()
-	tower_stats_layout.hide()
+	reset_sidebar_confirmation()
+	tower_inspector.hide()
+	build_sidebar_state.show()
 
 
 func refresh_tower_details() -> void:
@@ -679,6 +945,7 @@ func update_money() -> void:
 	money_display.text = "Money: Unlimited" if sandbox_mode else "Money: $%d" % money
 	update_tower_affordability()
 	money_changed.emit(money)
+	refresh_tower_details()
 
 
 func update_tower_affordability() -> void:
@@ -2040,6 +2307,7 @@ func mob_finished() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	cancel_sidebar_confirmation_on_other_press(event)
 	ensure_build_controller()
 	if not is_instance_valid(build_controller.manual_targeting_tower):
 		build_controller.clear_invalid_manual_target()
@@ -2064,6 +2332,34 @@ func _input(event: InputEvent) -> void:
 		var targeting_tower: Node2D = build_controller.manual_targeting_tower
 		if targeting_tower.confirm_manual_target_position(get_global_mouse_position()):
 			finish_manual_tower_targeting(targeting_tower)
+
+
+func cancel_sidebar_confirmation_on_other_press(event: InputEvent) -> void:
+	if sidebar_confirmation_action < 0:
+		return
+	var press_position := Vector2.ZERO
+	if (
+		event is InputEventMouseButton
+		and event.button_index == MOUSE_BUTTON_LEFT
+		and event.pressed
+	):
+		press_position = event.position
+	elif event is InputEventScreenTouch and event.pressed:
+		press_position = event.position
+	else:
+		return
+
+	var confirmation_button: Button = (
+		tower_upgrade_button
+		if sidebar_confirmation_action == BaseTower.MenuAction.UPGRADE
+		else tower_sell_button
+	)
+	if (
+		is_instance_valid(confirmation_button)
+		and confirmation_button.get_global_rect().has_point(press_position)
+	):
+		return
+	cancel_sidebar_confirmation()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if reinforcement_targeting:

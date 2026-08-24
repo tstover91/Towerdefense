@@ -106,6 +106,21 @@ func run_test() -> void:
 	tower.mobs_in_range.assign([mob])
 	get_tree().set_meta(&"drone_assignment_refresh_bucket", -1)
 	get_tree().set_meta(&"drone_assignment_cache", {})
+	component.clear_units()
+	fake_main.relics.erase(&"trade_agreement")
+	tower.load_base_tags()
+	tower.load_level_stats()
+	component.spawn_unit()
+	assert(component.active_units.size() == 1)
+	assert(not component.active_units[0].has_other_available_combat_drone())
+	assert(component.active_units[0].select_distributed_drone_target() == mob)
+	assert(int(get_tree().get_meta(&"drone_assignment_refresh_bucket", -1)) == -1)
+	component.clear_units()
+	fake_main.relics[&"trade_agreement"] = 1
+	tower.load_base_tags()
+	tower.load_level_stats()
+	component.spawn_unit()
+	assert(component.active_units.size() == 2)
 	assert(component.active_units[0].select_distributed_drone_target() == mob)
 	var assignment_cache: Dictionary = get_tree().get_meta(
 		&"drone_assignment_cache", {}
