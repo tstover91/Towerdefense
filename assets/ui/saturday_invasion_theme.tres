@@ -1,23 +1,31 @@
-[gd_resource type="Theme" load_steps=10 format=3]
+[gd_resource type="Theme" format=3 uid="uid://b3cpgvx4587eo"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBox_button_normal"]
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_disabled"]
 content_margin_left = 12.0
 content_margin_top = 8.0
 content_margin_right = 12.0
 content_margin_bottom = 8.0
-bg_color = Color(0.2078, 0.8392, 0.9098, 1)
+bg_color = Color(0.4078, 0.4431, 0.502, 0.92)
 border_width_left = 3
 border_width_top = 3
 border_width_right = 3
 border_width_bottom = 3
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
+border_color = Color(0.1255, 0.1294, 0.2275, 0.72)
 corner_radius_top_left = 11
 corner_radius_top_right = 11
 corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.75)
-shadow_size = 3
-shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_focus"]
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 0.8314, 0.2784, 1)
+corner_radius_top_left = 11
+corner_radius_top_right = 11
+corner_radius_bottom_right = 11
+corner_radius_bottom_left = 11
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_button_hover"]
 content_margin_left = 12.0
@@ -54,40 +62,28 @@ corner_radius_top_right = 11
 corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
 
-[sub_resource type="StyleBoxFlat" id="StyleBox_button_disabled"]
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_normal"]
 content_margin_left = 12.0
 content_margin_top = 8.0
 content_margin_right = 12.0
 content_margin_bottom = 8.0
-bg_color = Color(0.4078, 0.4431, 0.502, 0.92)
+bg_color = Color(0.2078, 0.8392, 0.9098, 1)
 border_width_left = 3
 border_width_top = 3
 border_width_right = 3
 border_width_bottom = 3
-border_color = Color(0.1255, 0.1294, 0.2275, 0.72)
+border_color = Color(0.1255, 0.1294, 0.2275, 1)
 corner_radius_top_left = 11
 corner_radius_top_right = 11
 corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
-
-[sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
-content_margin_left = 10.0
-content_margin_top = 8.0
-content_margin_right = 10.0
-content_margin_bottom = 8.0
-bg_color = Color(1, 0.9412, 0.7608, 0.98)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
-corner_radius_top_left = 16
-corner_radius_top_right = 16
-corner_radius_bottom_right = 16
-corner_radius_bottom_left = 16
 shadow_color = Color(0.1255, 0.1294, 0.2275, 0.75)
-shadow_size = 4
-shadow_offset = Vector2(0, 4)
+shadow_size = 3
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxLine" id="StyleBox_separator"]
+color = Color(0.1255, 0.1294, 0.2275, 0.45)
+thickness = 3
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_item_panel"]
 bg_color = Color(0.9686, 0.9059, 0.7373, 1)
@@ -113,60 +109,64 @@ corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 
-[sub_resource type="StyleBoxFlat" id="StyleBox_focus"]
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(1, 0.8314, 0.2784, 1)
-corner_radius_top_left = 11
-corner_radius_top_right = 11
-corner_radius_bottom_right = 11
-corner_radius_bottom_left = 11
-
-[sub_resource type="StyleBoxLine" id="StyleBox_separator"]
-color = Color(0.1255, 0.1294, 0.2275, 0.45)
-thickness = 3
+[sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
+bg_color = Color(1, 0.9412, 0.7608, 0.98)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.1255, 0.1294, 0.2275, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0.1255, 0.1294, 0.2275, 0.75)
+shadow_size = 4
+shadow_offset = Vector2(0, 4)
 
 [resource]
 default_font_size = 15
 Button/colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
+Button/colors/font_disabled_color = Color(1, 0.9412, 0.7608, 0.68)
+Button/colors/font_focus_color = Color(0.1255, 0.1294, 0.2275, 1)
 Button/colors/font_hover_color = Color(0.1255, 0.1294, 0.2275, 1)
 Button/colors/font_pressed_color = Color(0.1255, 0.1294, 0.2275, 1)
-Button/colors/font_focus_color = Color(0.1255, 0.1294, 0.2275, 1)
-Button/colors/font_disabled_color = Color(1, 0.9412, 0.7608, 0.68)
-Button/colors/icon_normal_color = Color(1, 0.9412, 0.7608, 1)
 Button/colors/icon_hover_color = Color(1, 0.9412, 0.7608, 1)
+Button/colors/icon_normal_color = Color(1, 0.9412, 0.7608, 1)
 Button/colors/icon_pressed_color = Color(1, 0.9412, 0.7608, 1)
 Button/font_sizes/font_size = 15
-Button/styles/normal = SubResource("StyleBox_button_normal")
-Button/styles/hover = SubResource("StyleBox_button_hover")
-Button/styles/pressed = SubResource("StyleBox_button_pressed")
-Button/styles/hover_pressed = SubResource("StyleBox_button_pressed")
 Button/styles/disabled = SubResource("StyleBox_button_disabled")
 Button/styles/focus = SubResource("StyleBox_focus")
-OptionButton/colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
-OptionButton/colors/font_hover_color = Color(0.1255, 0.1294, 0.2275, 1)
-OptionButton/colors/font_pressed_color = Color(0.1255, 0.1294, 0.2275, 1)
-OptionButton/colors/font_focus_color = Color(0.1255, 0.1294, 0.2275, 1)
-OptionButton/styles/normal = SubResource("StyleBox_button_normal")
-OptionButton/styles/hover = SubResource("StyleBox_button_hover")
-OptionButton/styles/pressed = SubResource("StyleBox_button_pressed")
-OptionButton/styles/focus = SubResource("StyleBox_focus")
+Button/styles/hover = SubResource("StyleBox_button_hover")
+Button/styles/hover_pressed = SubResource("StyleBox_button_pressed")
+Button/styles/normal = SubResource("StyleBox_button_normal")
+Button/styles/pressed = SubResource("StyleBox_button_pressed")
+HSeparator/styles/separator = SubResource("StyleBox_separator")
+ItemList/colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
+ItemList/colors/font_hovered_color = Color(0.1255, 0.1294, 0.2275, 1)
+ItemList/colors/font_selected_color = Color(0.1255, 0.1294, 0.2275, 1)
+ItemList/colors/icon_hover_color = Color(1, 1, 1, 1)
+ItemList/colors/icon_hover_selected_color = Color(1, 1, 1, 1)
+ItemList/colors/icon_normal_color = Color(1, 1, 1, 1)
+ItemList/colors/icon_selected_color = Color(1, 1, 1, 1)
+ItemList/styles/focus = SubResource("StyleBox_focus")
+ItemList/styles/panel = SubResource("StyleBox_item_panel")
+ItemList/styles/selected = SubResource("StyleBox_item_selected")
+ItemList/styles/selected_focus = SubResource("StyleBox_item_selected")
 Label/colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
 Label/colors/font_shadow_color = Color(1, 0.9412, 0.7608, 0.35)
 Label/constants/shadow_offset_x = 1
 Label/constants/shadow_offset_y = 1
+OptionButton/colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
+OptionButton/colors/font_focus_color = Color(0.1255, 0.1294, 0.2275, 1)
+OptionButton/colors/font_hover_color = Color(0.1255, 0.1294, 0.2275, 1)
+OptionButton/colors/font_pressed_color = Color(0.1255, 0.1294, 0.2275, 1)
+OptionButton/styles/focus = SubResource("StyleBox_focus")
+OptionButton/styles/hover = SubResource("StyleBox_button_hover")
+OptionButton/styles/normal = SubResource("StyleBox_button_normal")
+OptionButton/styles/pressed = SubResource("StyleBox_button_pressed")
 PanelContainer/styles/panel = SubResource("StyleBox_panel")
-ItemList/colors/font_color = Color(0.1255, 0.1294, 0.2275, 1)
-ItemList/colors/font_selected_color = Color(0.1255, 0.1294, 0.2275, 1)
-ItemList/colors/font_hovered_color = Color(0.1255, 0.1294, 0.2275, 1)
-ItemList/colors/icon_normal_color = Color(1, 1, 1, 1)
-ItemList/colors/icon_hover_color = Color(1, 1, 1, 1)
-ItemList/colors/icon_hover_selected_color = Color(1, 1, 1, 1)
-ItemList/colors/icon_selected_color = Color(1, 1, 1, 1)
-ItemList/styles/panel = SubResource("StyleBox_item_panel")
-ItemList/styles/selected = SubResource("StyleBox_item_selected")
-ItemList/styles/selected_focus = SubResource("StyleBox_item_selected")
-ItemList/styles/focus = SubResource("StyleBox_focus")
-HSeparator/styles/separator = SubResource("StyleBox_separator")
