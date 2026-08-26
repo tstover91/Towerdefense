@@ -5,7 +5,13 @@ const GameStats = preload("res://stat_database.gd")
 
 func _init() -> void:
 	assert(GameStats.ROUND_PROFILES.size() == 24)
-	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.104))
+	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.122))
+	assert(is_equal_approx(GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER, 0.44))
+	assert(is_equal_approx(GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER, 1.30))
+	assert(is_equal_approx(
+		GameStats.STANDARD_ENEMY_THREAT_BUDGET_MULTIPLIER,
+		0.85
+	))
 	assert(GameStats.get_round_cash_reward(1) == 200)
 	assert(GameStats.get_round_cash_reward(2) == 225)
 	assert(GameStats.get_round_cash_reward(3) == 275)
@@ -19,15 +25,16 @@ func _init() -> void:
 	assert(GameStats.get_round_cash_reward(16) == 2400)
 	assert(GameStats.get_round_cash_reward(17) == 5000)
 	assert(GameStats.get_round_cash_reward(18) == 2500)
-	assert(is_equal_approx(GameStats.get_round_threat_budget(4), 56.0))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(5), 75.0))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(6), 90.0))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(7), 120.0))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(8), 160.0))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(9), 210.0))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(4), 47.6))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(5), 63.75))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(6), 76.5))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(7), 102.0))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(8), 136.0))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(9), 178.5))
 	assert(is_equal_approx(GameStats.get_elite_enemy_health_multiplier(6), 1.75))
-	assert(is_equal_approx(GameStats.get_elite_enemy_speed_multiplier(6), 1.15))
+	assert(is_equal_approx(GameStats.get_elite_enemy_speed_multiplier(6), 1.10))
 	assert(is_equal_approx(GameStats.get_elite_enemy_health_multiplier(11), 2.25))
+	assert(is_equal_approx(GameStats.get_elite_enemy_speed_multiplier(11), 1.15))
 	var total_round_cash := 0
 	for round_number in range(1, 25):
 		total_round_cash += GameStats.get_round_cash_reward(round_number)
@@ -119,15 +126,15 @@ func _init() -> void:
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(1, &"normal")
-	) == 75)
+	) == 98)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"normal")
-	) == 453)
+	) == 589)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"bruiser"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"bruiser")
-	) == 3568)
+	) == 4638)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"brute"]["health"])
 		* GameStats.get_enemy_health_multiplier(24, &"brute")

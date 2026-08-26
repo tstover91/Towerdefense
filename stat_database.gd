@@ -132,9 +132,9 @@ const EXPLOSIVE_ARMOR_MULTIPLIER := 1.25
 const ARMOR_RATING_CONSTANT := 50.0
 const MAXIMUM_ARMOR_DAMAGE_REDUCTION := 0.60
 
-# Enemy bounties remain composition-dependent. This value compensates for the
-# denser director budgets so added enemies do not also inflate the economy.
-const KILL_REWARD_MULTIPLIER := 0.104
+# Enemy bounties remain composition-dependent. This compensates for the smaller
+# spawn budget so expected kill income stays close to the previous pacing.
+const KILL_REWARD_MULTIPLIER := 0.122
 
 const ROUND_CASH_REWARDS := {
 	1: 200,
@@ -166,9 +166,10 @@ const ROUND_CASH_REWARDS := {
 # Explicit round scaling profiles. Standard health follows a deliberately flat
 # curve so late enemy identity comes primarily from base stats and composition.
 #
-# threat_budget is the nominal amount generated during timed spawning and is
-# used to derive the director's per-second rate. Chunk timing can leave a small
-# reserve unspent. The mode's starting_spawn_threat is a separate reserve.
+# threat_budget is the pre-pacing nominal amount generated during timed
+# spawning. get_round_threat_budget() applies the global pacing multiplier used
+# to trade crowd size for longer-lived individual enemies. Chunk timing can
+# leave a small reserve unspent. The mode's starting_spawn_threat is separate.
 const ROUND_PROFILES := {
 	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.50, "boss_health_multiplier": 1.2650},
 	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 2.00, "boss_health_multiplier": 1.2925},
@@ -219,13 +220,16 @@ const ENEMY_LATE_HEALTH_FACTORS := {
 }
 
 # Variants remain independent layers because they define special-round enemy
-# behavior rather than ordinary round progression.
-const STANDARD_ENEMY_SPEED_MULTIPLIER := 0.53
+# behavior rather than ordinary round progression. Standard enemies are slower,
+# tougher, and less numerous so their traits have time to become readable.
+const STANDARD_ENEMY_SPEED_MULTIPLIER := 0.44
+const STANDARD_ENEMY_HEALTH_MULTIPLIER := 1.30
+const STANDARD_ENEMY_THREAT_BUDGET_MULTIPLIER := 0.85
 const HORDE_ENEMY_HEALTH_MULTIPLIER := 0.55
 const ELITE_ENEMY_HEALTH_MULTIPLIER := 2.25
-const ELITE_ENEMY_SPEED_MULTIPLIER := 1.30
+const ELITE_ENEMY_SPEED_MULTIPLIER := 1.15
 const EARLY_ELITE_ENEMY_HEALTH_MULTIPLIER := 1.75
-const EARLY_ELITE_ENEMY_SPEED_MULTIPLIER := 1.15
+const EARLY_ELITE_ENEMY_SPEED_MULTIPLIER := 1.10
 const PAYDAY_ENEMY_HEALTH_MULTIPLIER := 0.50
 
 # Provisional relic balance values. These are centralized so later tuning does
@@ -2406,7 +2410,10 @@ static func get_round_duration(round_number: int) -> float:
 
 
 static func get_round_threat_budget(round_number: int) -> float:
-	return float(get_round_profile(round_number)["threat_budget"])
+	return (
+		float(get_round_profile(round_number)["threat_budget"])
+		* STANDARD_ENEMY_THREAT_BUDGET_MULTIPLIER
+	)
 
 
 static func get_late_difficulty_health_multiplier(round_number: int) -> float:
@@ -2439,6 +2446,7 @@ static func get_enemy_health_multiplier(
 	return (
 		get_round_health_multiplier(round_number, false)
 		* lerpf(1.0, late_factor, progress)
+		* STANDARD_ENEMY_HEALTH_MULTIPLIER
 	)
 
 
