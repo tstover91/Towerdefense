@@ -53,11 +53,13 @@ func run_test() -> void:
 	assert(invader.stats_controller.tower == invader)
 	var invader_stats := invader.get_effective_stats_for_level(3)
 	assert(invader_stats == invader.stats_controller.get_effective_stats_for_level(3))
-	assert(int(invader_stats["damage"]) == roundi(140.0 * 1.7 + 5.0))
+	assert(int(invader_stats["damage"]) == roundi(18.0 * 1.7 + 5.0))
 	assert(is_equal_approx(
-		float(invader_stats["firerate"]), 0.396 * 1.2 / 1.10
+		float(invader_stats["firerate"]), 0.05 * 1.2 / 1.10
 	))
-	assert(is_equal_approx(float(invader_stats["range"]), 11.9 * 1.20))
+	assert(not invader_stats.has("range"))
+	assert(invader.delivery_type == GameStats.DELIVERY_PROJECTILE)
+	assert(invader.uses_directional_aim())
 	assert(invader.has_damage_tag(&"ballistic"))
 	assert(invader.has_bonus_tag(&"pierce"))
 	assert(invader.pierce_count == 1)
@@ -76,12 +78,12 @@ func run_test() -> void:
 	invader.load_level_stats()
 	var heavy_stats := invader.get_effective_stats_for_level(3)
 	assert(int(heavy_stats["damage"]) == maxi(roundi(
-		float(roundi(140.0 * 1.7 + 5.0))
+		float(roundi(18.0 * 1.7 + 5.0))
 		* GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER
 	), 1))
 	assert(is_equal_approx(
 		float(heavy_stats["firerate"]),
-		0.396 * 1.2 / 1.10 * GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER
+		0.05 * 1.2 / 1.10 * GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER
 	))
 
 	var fisherman := create_tower(&"fisherman", fake_main, 3, [&"a"])

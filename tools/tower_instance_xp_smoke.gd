@@ -124,7 +124,7 @@ func run_test() -> void:
 	if not _check(first_tower.tower_level == 0, "XP changed the existing paid upgrade rank."):
 		return
 
-	print("Tower instance XP smoke test passed: unique state, damage, overkill, kills, derived attribution, and telemetry-only levels.")
+	print("Tower instance XP smoke test passed: unique state, damage, overkill, kills, derived attribution, and automatic levels.")
 	get_tree().quit(0)
 
 

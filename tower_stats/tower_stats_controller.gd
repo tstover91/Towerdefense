@@ -11,7 +11,7 @@ func setup(owner_tower: BaseTower) -> void:
 
 
 func load_level_stats() -> void:
-	var stats := get_effective_stats_for_level(tower.tower_level)
+	var stats := get_current_effective_stats()
 	var tower_data := GameStats.get_tower(tower.tower_id)
 	var tower_texture := tower_data.get("texture") as Texture2D
 	if tower_texture != null:
@@ -97,6 +97,29 @@ func load_level_stats() -> void:
 
 func get_effective_stats_for_level(level: int) -> Dictionary:
 	var stats := GameStats.get_tower_level(tower.tower_id, level)
+	return apply_effective_stat_modifiers(stats)
+
+
+func get_effective_stats_for_xp_level(xp_level: int) -> Dictionary:
+	var stats := GameStats.get_tower_xp_level_stats(tower.tower_id, xp_level)
+	return apply_effective_stat_modifiers(stats)
+
+
+func get_current_effective_stats() -> Dictionary:
+	if tower.instance_progression == null:
+		return get_effective_stats_for_level(tower.tower_level)
+	var expected_rank := GameStats.get_stat_rank_for_xp_level(
+		tower.instance_progression.level
+	)
+	# Preserve the legacy level API for focused tower tests and compatibility
+	# callers that intentionally set tower_level directly.
+	if tower.tower_level != expected_rank:
+		return get_effective_stats_for_level(tower.tower_level)
+	return get_effective_stats_for_xp_level(tower.instance_progression.level)
+
+
+func apply_effective_stat_modifiers(base_stats: Dictionary) -> Dictionary:
+	var stats := base_stats.duplicate(true)
 	stats = apply_path_stat_modifiers(stats)
 	if tower.uses_standard_spawner_system():
 		var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)

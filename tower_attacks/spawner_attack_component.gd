@@ -77,7 +77,7 @@ func _spawn_one_unit() -> void:
 		map_path = tower.main.get_primary_enemy_path()
 	spawned_unit.setup(
 		spawned_unit_id,
-		tower.get_effective_stats_for_level(tower.tower_level)["unit_stats"],
+		tower.get_current_effective_stats()["unit_stats"],
 		tower,
 		map_path
 	)

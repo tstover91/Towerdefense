@@ -92,14 +92,26 @@ func get_run_bonus(effect: StringName) -> float:
 
 
 func set_tower_roster(tower_ids: Array[StringName]) -> void:
-	tower_roster.assign(tower_ids)
+	tower_roster.clear()
+	for tower_id in tower_ids:
+		var family_id := GameStats.get_canonical_tower_family_id(tower_id)
+		if (
+			GameStats.is_playable_tower_family(family_id)
+			and not tower_roster.has(family_id)
+		):
+			tower_roster.append(family_id)
 
 
 func collect_tower(tower_id: StringName, maximum_size: int) -> bool:
-	if tower_roster.has(tower_id) or tower_roster.size() >= maximum_size:
+	var family_id := GameStats.get_canonical_tower_family_id(tower_id)
+	if (
+		not GameStats.is_playable_tower_family(family_id)
+		or tower_roster.has(family_id)
+		or tower_roster.size() >= maximum_size
+	):
 		return false
-	GameStats.get_tower(tower_id)
-	tower_roster.append(tower_id)
+	GameStats.get_tower(family_id)
+	tower_roster.append(family_id)
 	return true
 
 
@@ -132,8 +144,7 @@ func activate_contraband_blueprint(rng: RandomNumberGenerator) -> StringName:
 	if not contraband_tower_id.is_empty():
 		return contraband_tower_id
 	var available: Array[StringName] = []
-	for tower_key in GameStats.TOWERS:
-		var tower_id := StringName(tower_key)
+	for tower_id in GameStats.get_playable_tower_family_ids():
 		if not tower_roster.has(tower_id):
 			available.append(tower_id)
 	if available.is_empty():

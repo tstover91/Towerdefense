@@ -115,6 +115,23 @@ func get_path_status_text() -> String:
 
 
 func get_sell_price() -> int:
+	if tower.instance_progression != null:
+		var automatic_progression_sell_price := (
+			maxi(tower.purchase_price, 0)
+			if tower.purchase_price >= 0
+			else int(GameStats.get_tower(tower.tower_id)["placement_cost"])
+		)
+		var automatic_path_values: Variant = (
+			GameStats.TOWER_PATH_SELL_VALUE_ADDITIONS.get(tower.tower_id, {})
+		)
+		for automatic_path_id in tower.purchased_paths:
+			if automatic_path_values is Dictionary:
+				automatic_progression_sell_price += int(
+					automatic_path_values.get(automatic_path_id, 0)
+				)
+			else:
+				automatic_progression_sell_price += int(automatic_path_values)
+		return automatic_progression_sell_price
 	if tower.tower_level <= 0 and tower.purchased_paths.is_empty():
 		return (
 			maxi(tower.purchase_price, 0)
@@ -158,6 +175,12 @@ func show_upgrade_range_preview() -> void:
 
 
 func handle_upgrade_pressed() -> void:
+	if tower.instance_progression != null:
+		tower.pending_action = BaseTower.MenuAction.NONE
+		tower.show_current_range_preview()
+		tower.update_menu_buttons()
+		_show_tower_details_if_selected()
+		return
 	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
 	var next_level := tower.tower_level + 1
 	if next_level >= levels.size():

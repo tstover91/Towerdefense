@@ -473,6 +473,7 @@ func _ready() -> void:
 	spawn_rng.randomize()
 	instance_progression = TOWER_INSTANCE_PROGRESSION.new(tower_id)
 	instance_progression.progression_changed.connect(_on_instance_progression_changed)
+	instance_progression.level_changed.connect(_on_xp_level_changed)
 	configure_attack_component()
 	attack_delivery_controller = TOWER_ATTACK_DELIVERY_CONTROLLER.new()
 	attack_delivery_controller.name = "AttackDeliveryController"
@@ -645,6 +646,10 @@ func get_effective_stats_for_level(level: int) -> Dictionary:
 	return stats_controller.get_effective_stats_for_level(level)
 
 
+func get_current_effective_stats() -> Dictionary:
+	return stats_controller.get_current_effective_stats()
+
+
 func apply_relic_combat_stat_modifiers(
 	base_stats: Dictionary,
 	for_spawned_unit: bool
@@ -785,6 +790,16 @@ func _on_instance_progression_changed() -> void:
 		return
 	progression_ui_refresh_pending = true
 	call_deferred("_refresh_progression_ui")
+
+
+func _on_xp_level_changed(new_level: int, previous_level: int) -> void:
+	# A few compatibility tests and legacy tools intentionally set the old stat
+	# rank directly. Do not overwrite that explicit override when XP is recorded.
+	if tower_level != GameStats.get_stat_rank_for_xp_level(previous_level):
+		return
+	tower_level = GameStats.get_stat_rank_for_xp_level(new_level)
+	load_base_tags()
+	load_level_stats()
 
 
 func _refresh_progression_ui() -> void:

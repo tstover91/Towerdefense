@@ -395,11 +395,15 @@ func roll_tower_offers(
 	var available: Array[StringName] = []
 	var source_towers: Array[StringName] = tower_pool.duplicate()
 	if source_towers.is_empty():
-		for tower_key in GameStats.TOWERS:
-			source_towers.append(StringName(tower_key))
+		source_towers.assign(GameStats.get_playable_tower_family_ids())
 	for tower_id in source_towers:
-		if not tower_roster.has(tower_id):
-			available.append(tower_id)
+		var family_id := GameStats.get_canonical_tower_family_id(tower_id)
+		if (
+			GameStats.is_playable_tower_family(family_id)
+			and not tower_roster.has(family_id)
+			and not available.has(family_id)
+		):
+			available.append(family_id)
 	assert(
 		available.size() >= SHOP_CHOICE_COUNT,
 		"The tower draft needs at least %d available towers." % SHOP_CHOICE_COUNT
@@ -412,9 +416,7 @@ func roll_tower_offers(
 
 
 func roll_random_starting_towers(count: int = 2) -> Array[StringName]:
-	var available: Array[StringName] = []
-	for tower_key in GameStats.TOWERS:
-		available.append(StringName(tower_key))
+	var available := GameStats.get_playable_tower_family_ids()
 	var roster: Array[StringName] = []
 	for _index in mini(count, available.size()):
 		var random_index := rng.randi_range(0, available.size() - 1)

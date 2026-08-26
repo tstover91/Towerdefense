@@ -87,7 +87,8 @@ func run_test() -> void:
 		assert(spawner.uses_drone_targeting() == (spawner_id == &"dronedepot"))
 
 	var invader := create_tower(&"invader", fake_main)
-	assert(invader.attack_component == null)
+	assert(invader.attack_component != null)
+	assert(invader.uses_directional_aim())
 	assert(invader.uses_shared_attack_scheduler())
 	assert(not invader.uses_standard_spawner_system())
 

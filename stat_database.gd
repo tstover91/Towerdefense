@@ -919,16 +919,65 @@ const ENEMIES := {
 	},
 }
 
+## Buildable base families. Legacy tower definitions remain in TOWERS so their
+## combat components and tests stay available while their future evolutions are
+## migrated incrementally.
+const PLAYABLE_TOWER_FAMILY_IDS: Array[StringName] = [
+	&"invader",
+	&"longshot",
+	&"slinger",
+	&"energycore",
+	&"brainiac",
+	&"reaver",
+	&"fisherman",
+	&"voidcaller",
+	&"orbitalcannon",
+	&"saucer",
+	&"dronedepot",
+]
+const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
+	&"gauss_repeater": &"invader",
+	&"beholder": &"brainiac",
+	&"hivemother": &"dronedepot",
+	&"mechbay": &"dronedepot",
+}
+const XP_STAT_MILESTONE_LEVELS: Array[int] = [1, 5, 10, 15]
+const TOWER_XP_MAX_LEVEL := 20
+const TOWER_XP_TARGET_AT_MAX_LEVEL := 1500.0
+const XP_INTERPOLATED_TOP_LEVEL_STATS := [
+	&"damage",
+	&"firerate",
+	&"range",
+	&"projectile_speed",
+	&"spawn_interval",
+	&"deployment_radius",
+]
+const XP_INTERPOLATED_UNIT_STATS := [
+	&"damage",
+	&"attack_interval",
+	&"aim_radius",
+	&"move_speed",
+	&"projectile_speed",
+	&"damage_budget",
+	&"recharge_duration",
+]
+const XP_MASTERY_DAMAGE_MULTIPLIER := 1.20
+const XP_MASTERY_INTERVAL_MULTIPLIER := 0.90
+const XP_MASTERY_RANGE_MULTIPLIER := 1.05
+const XP_MASTERY_PROJECTILE_SPEED_MULTIPLIER := 1.10
+
 const TOWERS := {
 	"invader": {
 	"display_name": "Invader",
+	"description": "A general-purpose gunner whose rapid Gauss weapon becomes more accurate while it maintains fire.",
 	"placement_cost": 200,
 	"footprint_cells": Vector2i(2, 2),
 	"type_tags": [&"biological"],
 	"damage_tags": [&"ballistic"],
 	"primary_damage_type": &"ballistic",
-	"delivery_type": DELIVERY_HITSCAN,
-	"impact_mode": IMPACT_PRIMARY,
+	"delivery_type": DELIVERY_PROJECTILE,
+	"impact_mode": IMPACT_FIRST_CONTACT,
+	"pierce_count": 0,
 
 	# Invader no longer has Critical at base.
 	"bonus_tags": [],
@@ -965,28 +1014,51 @@ const TOWERS := {
 	"levels": [
 		{
 			"upgrade_cost": 0,
-			"damage": 30,
-			"firerate": 0.50,
-			"range": 9.35,
+			"damage": 5,
+			"projectile_speed": 900.0,
+			"firerate": 0.080,
+			"maximum_spread_degrees": 18.0,
+			"minimum_spread_degrees": 4.5,
+			"spread_tighten_duration": 5.0,
+			"spread_recovery_delay": 1.0,
+			"spread_recovery_per_second": 10.0,
 		},
 		{
-			"upgrade_cost": 100,
-			"damage": 36,
-			"firerate": 0.462,
-			"range": 9.775,
+			"upgrade_cost": 0,
+			"damage": 5,
+			"projectile_speed": 950.0,
+			"firerate": 0.060,
+			"maximum_spread_degrees": 18.0,
+			"minimum_spread_degrees": 4.5,
+			"spread_tighten_duration": 4.25,
+			"spread_recovery_delay": 1.0,
+			"spread_recovery_per_second": 10.0,
 		},
 		{
-			"upgrade_cost": 283,
-			"damage": 65,
-			"firerate": 0.462,
-			"range": 10.625,
-			"add_bonus_tags": [&"reveal"],
+			"upgrade_cost": 0,
+			"damage": 10,
+			"projectile_speed": 1050.0,
+			"firerate": 0.05,
+			"maximum_spread_degrees": 16.0,
+			"minimum_spread_degrees": 4.0,
+			"spread_tighten_duration": 3.25,
+			"spread_recovery_delay": 1.0,
+			"spread_recovery_per_second": 10.0,
 		},
 		{
-			"upgrade_cost": 917,
-			"damage": 140,
-			"firerate": 0.396,
-			"range": 11.9,
+			"upgrade_cost": 0,
+			"damage": 18,
+			"projectile_speed": 1200.0,
+			"firerate": 0.05,
+			"maximum_spread_degrees": 14.0,
+			"minimum_spread_degrees": 3.0,
+			"spread_tighten_duration": 2.0,
+			"spread_recovery_delay": 1.0,
+			"spread_recovery_per_second": 10.0,
+			"gauss_overclock_enabled": true,
+			"gauss_overclock_max_speed_bonus": 0.25,
+			"gauss_overclock_ramp_duration": 3.0,
+			"gauss_overclock_decay_duration": 1.0,
 		},
 	],
 },
@@ -1172,7 +1244,8 @@ const TOWERS := {
 		],
 	},
 	"brainiac": {
-		"display_name": "Brainiac",
+		"display_name": "Psion",
+		"description": "A focused psionic beam tower that will later specialize into distinct manipulation and beam evolutions.",
 		"placement_cost": 2000,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
@@ -1960,7 +2033,8 @@ const TOWERS := {
 		],
 	},
 	"dronedepot": {
-		"display_name": "Drone Depot",
+		"display_name": "Alien Outpost",
+		"description": "A versatile outpost that deploys mobile ranged units. Hive, drone, and mech specializations will become evolutions.",
 		"placement_cost": 500,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
@@ -2477,6 +2551,156 @@ static func get_tower(tower_id: StringName) -> Dictionary:
 	var tower: Dictionary = TOWERS[tower_id].duplicate(true)
 	tower["texture"] = TOWER_TEXTURES.get(tower_id)
 	return tower
+
+
+static func get_playable_tower_family_ids() -> Array[StringName]:
+	return PLAYABLE_TOWER_FAMILY_IDS.duplicate()
+
+
+static func is_playable_tower_family(tower_id: StringName) -> bool:
+	return PLAYABLE_TOWER_FAMILY_IDS.has(tower_id)
+
+
+static func get_canonical_tower_family_id(tower_id: StringName) -> StringName:
+	return StringName(LEGACY_TOWER_FAMILY_REPLACEMENTS.get(tower_id, tower_id))
+
+
+static func get_stat_rank_for_xp_level(xp_level: int) -> int:
+	var stat_rank := 0
+	for milestone_level in XP_STAT_MILESTONE_LEVELS:
+		if xp_level < milestone_level:
+			break
+		stat_rank += 1
+	return clampi(stat_rank - 1, 0, XP_STAT_MILESTONE_LEVELS.size() - 1)
+
+
+static func get_tower_xp_level_stats(
+	tower_id: StringName,
+	xp_level: int
+) -> Dictionary:
+	var safe_xp_level := clampi(xp_level, 1, TOWER_XP_MAX_LEVEL)
+	var maximum_milestone := XP_STAT_MILESTONE_LEVELS[-1]
+	if safe_xp_level >= maximum_milestone:
+		var final_stats := get_tower_level(
+			tower_id, XP_STAT_MILESTONE_LEVELS.size() - 1
+		)
+		var mastery_progress := (
+			float(safe_xp_level - maximum_milestone)
+			/ float(TOWER_XP_MAX_LEVEL - maximum_milestone)
+		)
+		_apply_xp_mastery(final_stats, clampf(mastery_progress, 0.0, 1.0))
+		return final_stats
+
+	for upper_rank in range(1, XP_STAT_MILESTONE_LEVELS.size()):
+		var upper_level := XP_STAT_MILESTONE_LEVELS[upper_rank]
+		if safe_xp_level > upper_level:
+			continue
+		var lower_rank := upper_rank - 1
+		var lower_level := XP_STAT_MILESTONE_LEVELS[lower_rank]
+		var progress := (
+			float(safe_xp_level - lower_level)
+			/ float(upper_level - lower_level)
+		)
+		if progress >= 1.0:
+			return get_tower_level(tower_id, upper_rank)
+		var stats := get_tower_level(tower_id, lower_rank)
+		var upper_stats := get_tower_level(tower_id, upper_rank)
+		_interpolate_stat_keys(
+			stats, upper_stats, XP_INTERPOLATED_TOP_LEVEL_STATS, progress
+		)
+		if stats.get("unit_stats") is Dictionary and upper_stats.get("unit_stats") is Dictionary:
+			var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
+			_interpolate_stat_keys(
+				unit_stats,
+				upper_stats["unit_stats"],
+				XP_INTERPOLATED_UNIT_STATS,
+				progress
+			)
+			stats["unit_stats"] = unit_stats
+		return stats
+	return get_tower_level(tower_id, 0)
+
+
+static func _interpolate_stat_keys(
+	result: Dictionary,
+	target: Dictionary,
+	keys: Array,
+	progress: float
+) -> void:
+	for key in keys:
+		if not result.has(key) or not target.has(key):
+			continue
+		var current_value: Variant = result[key]
+		var target_value: Variant = target[key]
+		if not current_value is int and not current_value is float:
+			continue
+		if not target_value is int and not target_value is float:
+			continue
+		var interpolated := lerpf(
+			float(current_value), float(target_value), progress
+		)
+		result[key] = (
+			roundi(interpolated)
+			if current_value is int and target_value is int
+			else interpolated
+		)
+
+
+static func _apply_xp_mastery(stats: Dictionary, progress: float) -> void:
+	_apply_mastery_multiplier(
+		stats, &"damage", lerpf(1.0, XP_MASTERY_DAMAGE_MULTIPLIER, progress)
+	)
+	_apply_mastery_multiplier(
+		stats, &"firerate", lerpf(1.0, XP_MASTERY_INTERVAL_MULTIPLIER, progress)
+	)
+	_apply_mastery_multiplier(
+		stats, &"range", lerpf(1.0, XP_MASTERY_RANGE_MULTIPLIER, progress)
+	)
+	_apply_mastery_multiplier(
+		stats,
+		&"projectile_speed",
+		lerpf(1.0, XP_MASTERY_PROJECTILE_SPEED_MULTIPLIER, progress)
+	)
+	_apply_mastery_multiplier(
+		stats, &"spawn_interval", lerpf(1.0, XP_MASTERY_INTERVAL_MULTIPLIER, progress)
+	)
+	_apply_mastery_multiplier(
+		stats, &"deployment_radius", lerpf(1.0, XP_MASTERY_RANGE_MULTIPLIER, progress)
+	)
+	if not stats.get("unit_stats") is Dictionary:
+		return
+	var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
+	_apply_mastery_multiplier(
+		unit_stats, &"damage", lerpf(1.0, XP_MASTERY_DAMAGE_MULTIPLIER, progress)
+	)
+	_apply_mastery_multiplier(
+		unit_stats,
+		&"attack_interval",
+		lerpf(1.0, XP_MASTERY_INTERVAL_MULTIPLIER, progress)
+	)
+	_apply_mastery_multiplier(
+		unit_stats, &"aim_radius", lerpf(1.0, XP_MASTERY_RANGE_MULTIPLIER, progress)
+	)
+	_apply_mastery_multiplier(
+		unit_stats,
+		&"projectile_speed",
+		lerpf(1.0, XP_MASTERY_PROJECTILE_SPEED_MULTIPLIER, progress)
+	)
+	stats["unit_stats"] = unit_stats
+
+
+static func _apply_mastery_multiplier(
+	stats: Dictionary,
+	key: StringName,
+	multiplier: float
+) -> void:
+	if not stats.has(key):
+		return
+	var current_value: Variant = stats[key]
+	if current_value is int:
+		stats[key] = roundi(float(current_value) * multiplier)
+	elif current_value is float:
+		stats[key] = current_value * multiplier
 
 
 static func get_spawned_unit(unit_id: StringName) -> Dictionary:

@@ -6,6 +6,7 @@ const SPAWNER_ATTACK_COMPONENT = preload(
 )
 
 const COMPONENT_SCRIPTS: Dictionary = {
+	&"invader": preload("res://tower_attacks/gauss_repeater_attack_component.gd"),
 	&"fisherman": preload("res://tower_attacks/fisherman_attack_component.gd"),
 	&"energycore": preload("res://tower_attacks/energy_core_attack_component.gd"),
 	&"reaver": preload("res://tower_attacks/reaver_attack_component.gd"),

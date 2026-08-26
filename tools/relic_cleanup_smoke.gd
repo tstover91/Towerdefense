@@ -432,12 +432,13 @@ func run_checks() -> void:
 	assert(director.pause_menu.enemy_header.text == "Enemy Pool — Round 2")
 
 	director.sandbox_mode = true
-	director.tower_roster.clear()
-	for tower_key in GameStats.TOWERS:
-		director.tower_roster.append(StringName(tower_key))
+	director.tower_roster = GameStats.get_playable_tower_family_ids()
 	director.populate_tower_list()
 	director.set_build_drawer_open(true)
-	assert(director.tower_fan_buttons.size() == GameStats.TOWERS.size())
+	assert(
+		director.tower_fan_buttons.size()
+		== GameStats.get_playable_tower_family_ids().size()
+	)
 	for fan_button in director.tower_fan_buttons:
 		assert(fan_button.has_meta("fan_target_position"))
 	assert_tower_fan_buttons_do_not_overlap(director.tower_fan_buttons)

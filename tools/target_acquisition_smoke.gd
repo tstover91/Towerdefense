@@ -42,7 +42,7 @@ func run_test() -> void:
 	mob.set_path_follow(follow, 500.0)
 
 	var tower := TOWER_SCENE.instantiate() as BaseTower
-	tower.tower_id = &"invader"
+	tower.tower_id = &"longshot"
 	tower.main = fake_main
 	tower.position = Vector2(500.0, 0.0)
 	add_child(tower)
@@ -57,7 +57,7 @@ func run_test() -> void:
 	assert(tower.mobs_in_range.has(mob))
 	assert(tower.is_valid_target(mob))
 	assert(tower.select_standard_target() == mob)
-	assert(mob.health < starting_health, "Invader must fire immediately on first target acquisition.")
+	assert(mob.health < starting_health, "A ready tower must fire immediately on first target acquisition.")
 	assert(tower.attack_on_cooldown)
 	assert(not tower.damage_timer.is_stopped())
 	var health_after_first_attack: int = mob.health

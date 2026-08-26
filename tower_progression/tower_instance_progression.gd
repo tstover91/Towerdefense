@@ -1,11 +1,13 @@
 class_name TowerInstanceProgression
 extends RefCounted
 
-signal progression_changed
-signal level_changed(new_level: int)
+const GameStats = preload("res://stat_database.gd")
 
-const MAX_LEVEL := 20
-const TARGET_XP_AT_MAX_LEVEL := 1500.0
+signal progression_changed
+signal level_changed(new_level: int, previous_level: int)
+
+const MAX_LEVEL := GameStats.TOWER_XP_MAX_LEVEL
+const TARGET_XP_AT_MAX_LEVEL := GameStats.TOWER_XP_TARGET_AT_MAX_LEVEL
 const RUNESCAPE_EXPONENT_LEVEL_SPAN := 7.0
 const RUNESCAPE_EXPONENTIAL_BASE := 300.0
 
@@ -47,7 +49,7 @@ func grant_xp(amount: float) -> void:
 	level = get_level_for_total_xp(xp)
 	progression_changed.emit()
 	if level != previous_level:
-		level_changed.emit(level)
+		level_changed.emit(level, previous_level)
 
 
 func get_level_for_total_xp(total_xp: float) -> int:

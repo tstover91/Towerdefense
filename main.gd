@@ -342,7 +342,7 @@ var tower_roster: Array[StringName]:
 		return run_state.tower_roster
 	set(value):
 		ensure_run_state()
-		run_state.tower_roster.assign(value)
+		run_state.set_tower_roster(value)
 var contraband_tower_id: StringName:
 	get:
 		ensure_run_state()
@@ -454,9 +454,7 @@ func _ready() -> void:
 	max_rounds = mode["max_rounds"]
 	if sandbox_mode:
 		max_rounds = 100
-		tower_roster.clear()
-		for tower_key in GameStats.TOWERS:
-			tower_roster.append(StringName(tower_key))
+		run_state.set_tower_roster(GameStats.get_playable_tower_family_ids())
 	else:
 		roll_random_starting_towers(2)
 	populate_tower_list()
@@ -778,22 +776,21 @@ func show_tower_details(tower: Node) -> void:
 		tower_info_expanded = false
 		tower_target_panel_open = false
 	var stats: Dictionary = tower.get_sidebar_stats()
-	var current_level: int = stats["level"]
-	var maximum_level: int = stats["maximum_level"]
-
 	build_sidebar_state.hide()
 	tower_inspector.show()
 	tower_selection_area.hide()
 	tower_name_label.text = stats["display_name"]
-	tower_level_label.text = "Upgrade Rank %d of %d" % [current_level + 1, maximum_level + 1]
 	var xp_level := int(stats.get("xp_level", 1))
+	tower_level_label.text = "Level %d of %d" % [
+		xp_level,
+		GameStats.TOWER_XP_MAX_LEVEL,
+	]
 	var xp_into_level := float(stats.get("xp_into_level", 0.0))
 	var xp_to_next_level := float(stats.get("xp_to_next_level", 0.0))
 	if xp_to_next_level <= 0.0:
-		tower_xp_label.text = "XP Level %d · MAX" % xp_level
+		tower_xp_label.text = "MAX LEVEL"
 	else:
-		tower_xp_label.text = "XP Level %d · %.1f / %.1f XP" % [
-			xp_level,
+		tower_xp_label.text = "%.1f / %.1f XP" % [
 			xp_into_level,
 			xp_to_next_level,
 		]
@@ -870,6 +867,10 @@ func update_tower_inspector_panel_visibility() -> void:
 
 
 func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
+	if tower.get("instance_progression") != null:
+		tower_upgrade_section.hide()
+		tower_upgrade_button.hide()
+		return
 	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
 	var next_level := int(stats["level"]) + 1
 	var has_level_upgrade := next_level < levels.size()
@@ -896,6 +897,10 @@ func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
 
 
 func update_tower_path_controls(tower: Node) -> void:
+	if tower.get("instance_progression") != null:
+		tower_path_section.hide()
+		tower_path_label.hide()
+		return
 	var paths := GameStats.get_tower_paths(tower.tower_id)
 	var show_paths: bool = (
 		not paths.is_empty()
