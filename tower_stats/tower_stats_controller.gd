@@ -353,6 +353,15 @@ func get_sidebar_stats() -> Dictionary:
 		),
 		"path_status": tower.get_path_status_text(),
 	}
+	if tower.instance_progression != null:
+		result["xp_level"] = tower.instance_progression.level
+		result["xp"] = tower.instance_progression.xp
+		result["xp_into_level"] = tower.instance_progression.get_xp_into_current_level()
+		result["xp_to_next_level"] = tower.instance_progression.get_xp_to_next_level()
+		result["xp_progress"] = tower.instance_progression.get_progress_ratio()
+		result["tower_instance_uid"] = tower.instance_progression.instance_uid
+		result["kills"] = tower.instance_progression.kills
+		result["actual_damage_dealt"] = tower.instance_progression.actual_damage_dealt
 	if next_level < levels.size():
 		result["next_level"] = next_level
 	return result

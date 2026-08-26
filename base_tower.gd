@@ -21,6 +21,12 @@ const TOWER_STATS_CONTROLLER = preload(
 const TOWER_PROGRESSION_CONTROLLER = preload(
 	"res://tower_progression/tower_progression_controller.gd"
 )
+const TOWER_INSTANCE_PROGRESSION = preload(
+	"res://tower_progression/tower_instance_progression.gd"
+)
+const TOWER_XP_CREDIT_SERVICE = preload(
+	"res://tower_progression/tower_xp_credit_service.gd"
+)
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const BEAM_HIT_HALF_WIDTH := 2.5
@@ -146,6 +152,8 @@ var targeting_controller: TowerTargetingController
 var attack_delivery_controller: TowerAttackDeliveryController
 var stats_controller: TowerStatsController
 var progression_controller: Node
+var instance_progression: RefCounted
+var progression_ui_refresh_pending := false
 
 
 func _draw() -> void:
@@ -463,6 +471,8 @@ func get_static_sell_price() -> int:
 
 func _ready() -> void:
 	spawn_rng.randomize()
+	instance_progression = TOWER_INSTANCE_PROGRESSION.new(tower_id)
+	instance_progression.progression_changed.connect(_on_instance_progression_changed)
 	configure_attack_component()
 	attack_delivery_controller = TOWER_ATTACK_DELIVERY_CONTROLLER.new()
 	attack_delivery_controller.name = "AttackDeliveryController"
@@ -753,8 +763,38 @@ func add_microwave_attack_cooldown() -> void:
 
 
 func notify_enemy_killed(enemy: Node, attack_context: AttackContext) -> void:
+	if instance_progression != null:
+		instance_progression.record_kill(
+			TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy, attack_context)
+		)
 	if attack_component != null:
 		attack_component.on_enemy_killed(enemy, attack_context)
+
+
+func notify_damage_dealt(actual_damage: int, attack_context: AttackContext) -> void:
+	if instance_progression == null or actual_damage <= 0:
+		return
+	instance_progression.record_damage(
+		actual_damage,
+		TOWER_XP_CREDIT_SERVICE.get_damage_xp(actual_damage, attack_context)
+	)
+
+
+func _on_instance_progression_changed() -> void:
+	if not selected or progression_ui_refresh_pending:
+		return
+	progression_ui_refresh_pending = true
+	call_deferred("_refresh_progression_ui")
+
+
+func _refresh_progression_ui() -> void:
+	progression_ui_refresh_pending = false
+	if (
+		selected
+		and main != null
+		and main.has_method("show_tower_details")
+	):
+		main.show_tower_details(self)
 
 
 func _apply_microwave_attack_cooldown() -> void:

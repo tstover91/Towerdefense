@@ -124,6 +124,7 @@ signal round_ended(round_number: int)
 @onready var relic_info_description: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/DescriptionLabel
 @onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerNameLabel
 @onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerLevelLabel
+@onready var tower_xp_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerXpLabel
 @onready var tower_portrait_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/PortraitButton
 @onready var tower_aim_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/AimButton
 @onready var tower_inspector_details: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll
@@ -784,7 +785,18 @@ func show_tower_details(tower: Node) -> void:
 	tower_inspector.show()
 	tower_selection_area.hide()
 	tower_name_label.text = stats["display_name"]
-	tower_level_label.text = "Level %d of %d" % [current_level + 1, maximum_level + 1]
+	tower_level_label.text = "Upgrade Rank %d of %d" % [current_level + 1, maximum_level + 1]
+	var xp_level := int(stats.get("xp_level", 1))
+	var xp_into_level := float(stats.get("xp_into_level", 0.0))
+	var xp_to_next_level := float(stats.get("xp_to_next_level", 0.0))
+	if xp_to_next_level <= 0.0:
+		tower_xp_label.text = "XP Level %d · MAX" % xp_level
+	else:
+		tower_xp_label.text = "XP Level %d · %.1f / %.1f XP" % [
+			xp_level,
+			xp_into_level,
+			xp_to_next_level,
+		]
 	var tower_data := GameStats.get_tower(StringName(tower.get("tower_id")))
 	tower_portrait_button.icon = tower_data.get("texture", DEFAULT_TOWER_ICON)
 	tower_portrait_button.tooltip_text = "Show %s information" % stats["display_name"]

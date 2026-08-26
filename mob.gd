@@ -729,6 +729,7 @@ func apply_damage(
 	health -= final_damage
 	health_bar.value = health
 	update_health_bar_visibility()
+	credit_tower_damage(received_damage, attack_context)
 	if damage_type == &"electric" and not is_electric_proc and received_damage > 0:
 		register_electric_hit(received_damage, attack_context)
 	if health <= 0:
@@ -747,6 +748,20 @@ func apply_damage(
 			attack_context
 		)
 	return received_damage
+
+
+func credit_tower_damage(
+	actual_damage: int,
+	attack_context: AttackContext
+) -> void:
+	if actual_damage <= 0 or attack_context == null:
+		return
+	var root_tower := attack_context.get_root_tower()
+	if (
+		is_instance_valid(root_tower)
+		and root_tower.has_method("notify_damage_dealt")
+	):
+		root_tower.notify_damage_dealt(actual_damage, attack_context)
 
 
 func consume_ablative_shield_hit() -> bool:
