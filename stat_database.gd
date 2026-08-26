@@ -944,6 +944,75 @@ const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 const XP_STAT_MILESTONE_LEVELS: Array[int] = [1, 5, 10, 15]
 const TOWER_XP_MAX_LEVEL := 20
 const TOWER_XP_TARGET_AT_MAX_LEVEL := 1500.0
+const TOWER_ITEM_SLOT_COUNT := 4
+const TOWER_ITEMS := {
+	&"ricochet_module": {
+		"display_name": "Ricochet Module",
+		"description": "+1 bounce. Towers without innate ricochet gain a 5-tile bounce search range.",
+		"rarity": &"common",
+		"category": &"projectile",
+		"price": 450,
+		"required_all_tags": [&"projectile"],
+		"stat_defaults": {"bounce_count": 0},
+		"stat_additions": {"bounce_count": 1},
+		"stat_minimums": {"bounce_range": 5.0},
+	},
+	&"penetrator_rounds": {
+		"display_name": "Penetrator Rounds",
+		"description": "+1 Pierce.",
+		"rarity": &"common",
+		"category": &"projectile",
+		"price": 400,
+		"required_all_tags": [&"projectile"],
+		"add_bonus_tags": [&"pierce"],
+		"pierce_count_add": 1,
+	},
+	&"targeting_computer": {
+		"display_name": "Targeting Computer",
+		"description": "+12 percentage points of critical-hit chance.",
+		"rarity": &"common",
+		"category": &"critical",
+		"price": 425,
+		"add_bonus_tags": [&"critical"],
+		"stat_defaults": {"critical_chance": DEFAULT_CRITICAL_CHANCE},
+		"stat_additions": {"critical_chance": 0.12},
+	},
+	&"overclocked_actuator": {
+		"display_name": "Overclocked Actuator",
+		"description": "Attack cooldown is 22% shorter, but damage is reduced by 18%.",
+		"rarity": &"rare",
+		"category": &"offense",
+		"price": 700,
+		"stat_multipliers": {"firerate": 0.78, "damage": 0.82},
+		"unit_stat_multipliers": {
+			"attack_interval": 0.78,
+			"damage": 0.82,
+		},
+	},
+	&"heavy_payload": {
+		"display_name": "Heavy Payload",
+		"description": "+35% damage and +30% blast radius, but attack cooldown is 25% longer.",
+		"rarity": &"rare",
+		"category": &"explosive",
+		"price": 750,
+		"required_all_tags": [&"explosive"],
+		"stat_multipliers": {
+			"damage": 1.35,
+			"splash_radius": 1.30,
+			"firerate": 1.25,
+		},
+	},
+	&"beam_optics": {
+		"display_name": "Beam Optics",
+		"description": "+15% range and +25% beam width.",
+		"rarity": &"rare",
+		"category": &"beam",
+		"price": 650,
+		"required_all_tags": [&"beam"],
+		"stat_defaults": {"beam_half_width": 2.5},
+		"stat_multipliers": {"range": 1.15, "beam_half_width": 1.25},
+	},
+}
 const TOWER_EVOLUTION_DEFAULT_LEVEL := 10
 const TOWER_EVOLUTIONS := {
 	&"slinger": {
@@ -2757,6 +2826,24 @@ static func get_tower_evolutions(tower_id: StringName) -> Dictionary:
 		)
 		evolutions[evolution_id] = evolution
 	return evolutions
+
+
+static func has_tower_item(item_id: StringName) -> bool:
+	return TOWER_ITEMS.has(item_id)
+
+
+static func get_tower_item(item_id: StringName) -> Dictionary:
+	assert(TOWER_ITEMS.has(item_id), "Unknown tower item ID: %s" % item_id)
+	var item: Dictionary = TOWER_ITEMS[item_id].duplicate(true)
+	item["id"] = item_id
+	return item
+
+
+static func get_tower_item_ids() -> Array[StringName]:
+	var item_ids: Array[StringName] = []
+	for item_key in TOWER_ITEMS:
+		item_ids.append(StringName(item_key))
+	return item_ids
 
 
 static func get_tower_evolution(

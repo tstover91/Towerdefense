@@ -22,12 +22,16 @@ var actual_damage_dealt := 0.0
 var control_credit := 0.0
 var evolution_id: StringName = &""
 var evolution_gold_spent := 0
+var equipped_item_ids: Array[StringName] = []
 
 
 func _init(family_id: StringName = &"") -> void:
 	tower_family_id = family_id
 	instance_uid = StringName("tower_%d" % _next_instance_sequence)
 	_next_instance_sequence += 1
+	equipped_item_ids.resize(GameStats.TOWER_ITEM_SLOT_COUNT)
+	for slot_index in equipped_item_ids.size():
+		equipped_item_ids[slot_index] = &""
 
 
 func record_damage(actual_damage: int, xp_award: float) -> void:
@@ -61,6 +65,33 @@ func choose_evolution(new_evolution_id: StringName, gold_spent: int) -> bool:
 	evolution_gold_spent = maxi(gold_spent, 0)
 	progression_changed.emit()
 	return true
+
+
+func set_equipped_item(slot_index: int, item_id: StringName) -> bool:
+	if (
+		slot_index < 0
+		or slot_index >= equipped_item_ids.size()
+		or item_id.is_empty()
+	):
+		return false
+	equipped_item_ids[slot_index] = item_id
+	progression_changed.emit()
+	return true
+
+
+func clear_equipped_item(slot_index: int) -> StringName:
+	if slot_index < 0 or slot_index >= equipped_item_ids.size():
+		return &""
+	var removed_item_id := equipped_item_ids[slot_index]
+	if removed_item_id.is_empty():
+		return &""
+	equipped_item_ids[slot_index] = &""
+	progression_changed.emit()
+	return removed_item_id
+
+
+func get_equipped_item_ids() -> Array[StringName]:
+	return equipped_item_ids.duplicate()
 
 
 func get_level_for_total_xp(total_xp: float) -> int:

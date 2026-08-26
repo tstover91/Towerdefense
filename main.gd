@@ -132,6 +132,8 @@ signal round_ended(round_number: int)
 @onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerPathLabel
 @onready var tower_tags_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerTagsLabel
 @onready var tower_relics_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerRelicsLabel
+@onready var tower_items_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/ItemsSection
+@onready var tower_items_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/ItemsSection/ItemsLabel
 @onready var tower_upgrade_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection
 @onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection/UpgradeHeaderLabel
 @onready var tower_upgrade_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection/UpgradeDescription
@@ -809,6 +811,7 @@ func show_tower_details(tower: Node) -> void:
 	var active_relics: Array = stats.get("active_relic_effects", [])
 	tower_relics_label.text = "Relics: %s" % format_relic_names(active_relics)
 	tower_relics_label.tooltip_text = format_relic_effect_tooltip(active_relics)
+	update_tower_item_controls(tower)
 	update_tower_upgrade_controls(tower, stats)
 	update_tower_path_controls(tower)
 	if tower_path_section.visible:
@@ -896,6 +899,40 @@ func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
 		"Tap twice to upgrade. Tapping anywhere else cancels confirmation."
 	)
 	tower_upgrade_button.disabled = money < upgrade_cost
+
+
+func update_tower_item_controls(tower: Node) -> void:
+	tower_items_section.visible = tower.get("instance_progression") != null
+	if not tower_items_section.visible or tower.get("item_controller") == null:
+		return
+	var item_lines: PackedStringArray = []
+	var tooltip_lines: PackedStringArray = []
+	var item_ids: Array[StringName] = tower.get_equipped_item_ids()
+	for slot_index in GameStats.TOWER_ITEM_SLOT_COUNT:
+		var item_id := item_ids[slot_index]
+		if item_id.is_empty():
+			item_lines.append("%d. Empty" % (slot_index + 1))
+			continue
+		var item := GameStats.get_tower_item(item_id)
+		var item_name := String(item.get("display_name", item_id))
+		var is_active: bool = tower.item_controller.is_item_active_in_slot(
+			slot_index
+		)
+		item_lines.append(
+			"%d. %s%s" % [
+				slot_index + 1,
+				item_name,
+				"" if is_active else " · INACTIVE",
+			]
+		)
+		var tooltip := "%s: %s" % [item_name, item.get("description", "")]
+		if not is_active:
+			tooltip += "\nInactive: %s" % tower.item_controller.get_incompatibility_reason(
+				item_id
+			)
+		tooltip_lines.append(tooltip)
+	tower_items_label.text = "\n".join(item_lines)
+	tower_items_label.tooltip_text = "\n\n".join(tooltip_lines)
 
 
 func update_tower_path_controls(tower: Node) -> void:

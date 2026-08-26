@@ -121,6 +121,8 @@ func get_current_effective_stats() -> Dictionary:
 func apply_effective_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 	var stats := base_stats.duplicate(true)
 	stats = apply_path_stat_modifiers(stats)
+	if tower.item_controller != null:
+		stats = tower.item_controller.apply_stat_modifiers(stats)
 	if tower.uses_standard_spawner_system():
 		var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
 		unit_stats["damage"] = roundi(
@@ -385,6 +387,8 @@ func get_sidebar_stats() -> Dictionary:
 		result["tower_instance_uid"] = tower.instance_progression.instance_uid
 		result["kills"] = tower.instance_progression.kills
 		result["actual_damage_dealt"] = tower.instance_progression.actual_damage_dealt
+		result["equipped_items"] = tower.get_equipped_item_ids()
+		result["active_items"] = tower.item_controller.get_active_item_ids()
 	if next_level < levels.size():
 		result["next_level"] = next_level
 	return result
@@ -638,6 +642,8 @@ func load_base_tags() -> void:
 			tower.delivery_type = path["delivery_type"]
 		if path.has("impact_mode"):
 			tower.impact_mode = path["impact_mode"]
+	if tower.item_controller != null:
+		loaded_pierce_count += tower.item_controller.apply_tag_changes()
 	set_pierce_count(loaded_pierce_count)
 	if tower.has_bonus_tag(BaseTower.BONUS_PIERCE):
 		set_pierce_count(

@@ -27,6 +27,9 @@ const TOWER_INSTANCE_PROGRESSION = preload(
 const TOWER_XP_CREDIT_SERVICE = preload(
 	"res://tower_progression/tower_xp_credit_service.gd"
 )
+const TOWER_ITEM_CONTROLLER = preload(
+	"res://tower_items/tower_item_controller.gd"
+)
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const BEAM_HIT_HALF_WIDTH := 2.5
@@ -153,6 +156,7 @@ var targeting_controller: TowerTargetingController
 var attack_delivery_controller: TowerAttackDeliveryController
 var stats_controller: TowerStatsController
 var progression_controller: Node
+var item_controller: Node
 var instance_progression: RefCounted
 var progression_ui_refresh_pending := false
 
@@ -455,6 +459,22 @@ func purchase_selected_evolution() -> void:
 	progression_controller.purchase_selected_evolution()
 
 
+func can_equip_item(item_id: StringName, slot_index := -1) -> bool:
+	return item_controller.can_equip_item(item_id, slot_index)
+
+
+func equip_item(item_id: StringName, slot_index := -1) -> bool:
+	return item_controller.equip_item(item_id, slot_index)
+
+
+func unequip_item(slot_index: int) -> StringName:
+	return item_controller.unequip_item(slot_index)
+
+
+func get_equipped_item_ids() -> Array[StringName]:
+	return item_controller.get_equipped_item_ids()
+
+
 func request_upgrade() -> void:
 	progression_controller.handle_upgrade_pressed()
 
@@ -511,6 +531,10 @@ func _ready() -> void:
 	progression_controller.name = "ProgressionController"
 	add_child(progression_controller)
 	progression_controller.setup(self)
+	item_controller = TOWER_ITEM_CONTROLLER.new()
+	item_controller.name = "ItemController"
+	add_child(item_controller)
+	item_controller.setup(self)
 	targeting_controller = TOWER_TARGETING_CONTROLLER.new()
 	targeting_controller.name = "TargetingController"
 	add_child(targeting_controller)
