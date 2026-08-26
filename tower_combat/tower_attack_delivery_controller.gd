@@ -3,7 +3,7 @@ extends Node
 
 const GameStats = preload("res://stat_database.gd")
 const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
-const ATTACK_RELIC_METADATA_IDS: Array[StringName] = [
+const ATTACK_EFFECT_METADATA_IDS: Array[StringName] = [
 	&"pack_hunter",
 	&"predatory_instinct",
 	&"interference_beam",
@@ -28,7 +28,7 @@ const ATTACK_RELIC_METADATA_IDS: Array[StringName] = [
 ]
 
 var tower: BaseTower
-var cached_relic_metadata: Dictionary = {}
+var cached_effect_metadata: Dictionary = {}
 
 
 func setup(owner_tower: BaseTower) -> void:
@@ -124,7 +124,7 @@ func create_attack_context(
 				if include_critical_roll
 				else {}
 		)
-	var metadata := get_attack_relic_metadata(
+	var metadata := get_attack_effect_metadata(
 		tower.global_position,
 		tower.range_radius_pixels,
 		tower.type_tags,
@@ -146,7 +146,7 @@ func create_attack_context(
 func register_relentless_primary_attack(current_target: Node2D) -> void:
 	if (
 		not tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
-		or tower.get_owned_relic_count(&"relentless") <= 0
+		or tower.get_effect_stack_count(&"relentless") <= 0
 		or not tower.is_valid_target(current_target)
 	):
 		reset_relentless()
@@ -167,13 +167,13 @@ func reset_relentless() -> void:
 	tower.relentless_stacks = 0
 
 
-func get_attack_relic_metadata(
+func get_attack_effect_metadata(
 	source_position: Vector2,
 	source_range: float,
 	source_type_tags: Array,
 	source_damage_tags: Array = []
 ) -> Dictionary:
-	var metadata := get_cached_relic_metadata()
+	var metadata := get_cached_effect_metadata()
 	metadata["source_position"] = source_position
 	metadata["source_range"] = maxf(source_range, 0.0)
 	metadata["source_type_tags"] = source_type_tags.duplicate()
@@ -195,15 +195,31 @@ func get_attack_relic_metadata(
 	return metadata
 
 
-func get_cached_relic_metadata() -> Dictionary:
-	if cached_relic_metadata.is_empty():
-		for relic_id in ATTACK_RELIC_METADATA_IDS:
-			cached_relic_metadata[relic_id] = tower.get_owned_relic_count(relic_id)
-	return cached_relic_metadata.duplicate()
+func get_cached_effect_metadata() -> Dictionary:
+	if cached_effect_metadata.is_empty():
+		for effect_id in ATTACK_EFFECT_METADATA_IDS:
+			cached_effect_metadata[effect_id] = tower.get_effect_stack_count(effect_id)
+	return cached_effect_metadata.duplicate()
+
+
+func invalidate_effect_metadata_cache() -> void:
+	cached_effect_metadata.clear()
+
+
+# Compatibility aliases for the dormant relic system and its existing tests.
+func get_attack_relic_metadata(
+	source_position: Vector2,
+	source_range: float,
+	source_type_tags: Array,
+	source_damage_tags: Array = []
+) -> Dictionary:
+	return get_attack_effect_metadata(
+		source_position, source_range, source_type_tags, source_damage_tags
+	)
 
 
 func invalidate_relic_metadata_cache() -> void:
-	cached_relic_metadata.clear()
+	invalidate_effect_metadata_cache()
 
 
 func count_valid_enemies_near(origin: Vector2, radius: float) -> int:

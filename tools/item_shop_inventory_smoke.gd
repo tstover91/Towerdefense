@@ -85,22 +85,42 @@ func run_test() -> void:
 	tower.is_placed = true
 	var service = InventoryServiceScript.new()
 	service.setup(run_state)
-	run_state.add_tower_item(&"targeting_computer")
-	if not _check(service.equip_item(tower, &"ricochet_module", 0), "Inventory item could not be equipped."):
-		return
-	if not _check(run_state.get_tower_item_count(&"ricochet_module") == 0, "Equipping did not consume inventory quantity."):
-		return
-	if not _check(service.equip_item(tower, &"targeting_computer", 0), "Inventory item could not replace an occupied slot."):
+	run_state.add_tower_item(&"live_wire")
+	run_state.add_tower_item(&"ricochet_module", 2)
+	if not _check(
+		service.equip_item(tower, &"ricochet_module", 0)
+		and service.equip_item(tower, &"ricochet_module", 1)
+		and service.equip_item(tower, &"ricochet_module", 2),
+		"Stackable inventory items could not be equipped."
+	):
 		return
 	if not _check(
-		run_state.get_tower_item_count(&"ricochet_module") == 1
-		and tower.get_equipped_item_ids()[0] == &"targeting_computer",
-		"Swapping did not return the replaced item to global inventory."
+		run_state.get_tower_item_count(&"ricochet_module") == 0
+		and tower.get_equipped_item_ids().count(&"ricochet_module") == 1
+		and tower.get_equipped_item_count(0) == 3,
+		"Duplicate items did not combine into one equipped slot."
+	):
+		return
+	if not _check(
+		service.unequip_item(tower, 0)
+		and tower.get_equipped_item_count(0) == 2
+		and run_state.get_tower_item_count(&"ricochet_module") == 1
+		and service.equip_item(tower, &"ricochet_module", 2)
+		and tower.get_equipped_item_count(0) == 3,
+		"A stacked item could not be split and re-equipped one copy at a time."
+	):
+		return
+	if not _check(service.equip_item(tower, &"live_wire", 0), "Inventory item could not replace an occupied slot."):
+		return
+	if not _check(
+		run_state.get_tower_item_count(&"ricochet_module") == 3
+		and tower.get_equipped_item_ids()[0] == &"live_wire",
+		"Swapping did not return the replaced stack to global inventory."
 	):
 		return
 	if not _check(service.unequip_item(tower, 0), "Equipped item could not be returned to inventory."):
 		return
-	if not _check(run_state.get_tower_item_count(&"targeting_computer") == 1, "Unequipping did not restore inventory quantity."):
+	if not _check(run_state.get_tower_item_count(&"live_wire") == 1, "Unequipping did not restore inventory quantity."):
 		return
 	run_state.add_tower_item(&"beam_optics")
 	if not _check(
@@ -111,19 +131,19 @@ func run_test() -> void:
 		return
 	if not _check(
 		service.equip_item(tower, &"ricochet_module", 0)
-		and service.equip_item(tower, &"targeting_computer", 1),
+		and service.equip_item(tower, &"live_wire", 1),
 		"Could not prepare equipped items for tower-sale return testing."
 	):
 		return
 	if not _check(
 		service.return_all_items(tower) == 2
-		and run_state.get_tower_item_count(&"ricochet_module") == 1
-		and run_state.get_tower_item_count(&"targeting_computer") == 1,
+		and run_state.get_tower_item_count(&"ricochet_module") == 3
+		and run_state.get_tower_item_count(&"live_wire") == 1,
 		"Removing a tower did not return all equipped items to inventory."
 	):
 		return
 
-	print("Item shop/inventory smoke test passed: offers, locks, rerolls, global quantities, swaps, removals, compatibility, and tower-sale returns.")
+	print("Item shop/inventory smoke test passed: offers, locks, rerolls, global quantities, single-slot stacks, whole-stack swaps, removals, compatibility, and tower-sale returns.")
 	get_tree().quit(0)
 
 

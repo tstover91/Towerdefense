@@ -61,6 +61,11 @@ func run_test() -> void:
 	assert(trigger_tower.equip_item(&"kill_chain"))
 	assert(trigger_tower.equip_item(&"explosive_payload"))
 	assert(trigger_tower.equip_item(&"split_chamber"))
+	assert(trigger_tower.equip_item(&"split_chamber"))
+	assert(trigger_tower.get_equipped_item_ids().count(&"split_chamber") == 1)
+	assert(trigger_tower.item_controller.get_trigger_total(
+		&"additional_projectiles"
+	) == 2.0)
 
 	trigger_tower.damage_timer.start(10.0)
 	var critical_context := AttackContext.from_tower(
@@ -92,7 +97,7 @@ func run_test() -> void:
 		assert(received_combat_events.has(event_id))
 
 	trigger_tower.attack_delivery_controller.launch_projectile(primary, 20)
-	assert(get_tree().get_nodes_in_group("tower_projectiles").size() == 2)
+	assert(get_tree().get_nodes_in_group("tower_projectiles").size() == 3)
 	for projectile in get_tree().get_nodes_in_group("tower_projectiles"):
 		projectile.queue_free()
 

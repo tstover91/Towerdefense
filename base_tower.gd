@@ -471,8 +471,24 @@ func unequip_item(slot_index: int) -> StringName:
 	return item_controller.unequip_item(slot_index)
 
 
+func unequip_item_copy(slot_index: int) -> StringName:
+	return item_controller.unequip_item_copy(slot_index)
+
+
+func unequip_item_stack(slot_index: int) -> Dictionary:
+	return item_controller.unequip_item_stack(slot_index)
+
+
 func get_equipped_item_ids() -> Array[StringName]:
 	return item_controller.get_equipped_item_ids()
+
+
+func get_equipped_item_counts() -> Array[int]:
+	return item_controller.get_equipped_item_counts()
+
+
+func get_equipped_item_count(slot_index: int) -> int:
+	return item_controller.get_equipped_item_count(slot_index)
 
 
 func request_upgrade() -> void:
@@ -686,7 +702,7 @@ func load_level_stats() -> void:
 	if stats_controller != null:
 		stats_controller.load_level_stats()
 	if attack_delivery_controller != null:
-		attack_delivery_controller.invalidate_relic_metadata_cache()
+		attack_delivery_controller.invalidate_effect_metadata_cache()
 	refresh_range_monitoring_state()
 
 
@@ -698,13 +714,20 @@ func get_current_effective_stats() -> Dictionary:
 	return stats_controller.get_current_effective_stats()
 
 
+func apply_effect_combat_stat_modifiers(
+	base_stats: Dictionary,
+	for_spawned_unit: bool
+) -> Dictionary:
+	return stats_controller.apply_effect_combat_stat_modifiers(
+		base_stats, for_spawned_unit
+	)
+
+
 func apply_relic_combat_stat_modifiers(
 	base_stats: Dictionary,
 	for_spawned_unit: bool
 ) -> Dictionary:
-	return stats_controller.apply_relic_combat_stat_modifiers(
-		base_stats, for_spawned_unit
-	)
+	return apply_effect_combat_stat_modifiers(base_stats, for_spawned_unit)
 
 
 func get_explosion_damage_multiplier() -> float:
@@ -747,6 +770,10 @@ func get_owned_relic_count(relic_id: StringName) -> int:
 	return stats_controller.get_owned_relic_count(relic_id)
 
 
+func get_effect_stack_count(effect_id: StringName) -> int:
+	return stats_controller.get_effect_stack_count(effect_id)
+
+
 func get_active_relic_effect_ids() -> Array[StringName]:
 	return stats_controller.get_active_relic_effect_ids()
 
@@ -769,7 +796,7 @@ func _on_round_started(_round_number: int) -> void:
 	death_ray_cycle_elapsed = 0.0
 	refresh_death_ray_overcharge_state()
 	if attack_delivery_controller != null:
-		attack_delivery_controller.invalidate_relic_metadata_cache()
+		attack_delivery_controller.invalidate_effect_metadata_cache()
 	if item_controller != null:
 		item_controller.reset_runtime_state()
 	if attack_component != null:
@@ -837,7 +864,9 @@ func notify_damage_dealt(
 		return
 	instance_progression.record_damage(
 		actual_damage,
-		TOWER_XP_CREDIT_SERVICE.get_damage_xp(actual_damage, attack_context)
+		TOWER_XP_CREDIT_SERVICE.get_damage_xp(
+			actual_damage, enemy, attack_context
+		)
 	)
 	if item_controller != null:
 		item_controller.notify_damage_dealt(enemy, actual_damage, attack_context)
@@ -959,13 +988,24 @@ func create_attack_context(
 	)
 
 
+func get_attack_effect_metadata(
+	source_position: Vector2,
+	source_range: float,
+	source_type_tags: Array,
+	source_damage_tags: Array = []
+) -> Dictionary:
+	return attack_delivery_controller.get_attack_effect_metadata(
+		source_position, source_range, source_type_tags, source_damage_tags
+	)
+
+
 func get_attack_relic_metadata(
 	source_position: Vector2,
 	source_range: float,
 	source_type_tags: Array,
 	source_damage_tags: Array = []
 ) -> Dictionary:
-	return attack_delivery_controller.get_attack_relic_metadata(
+	return get_attack_effect_metadata(
 		source_position, source_range, source_type_tags, source_damage_tags
 	)
 

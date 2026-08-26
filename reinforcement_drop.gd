@@ -60,6 +60,19 @@ func get_owned_relic_count(_relic_id: StringName) -> int:
 	return 0
 
 
+func get_effect_stack_count(_effect_id: StringName) -> int:
+	return 0
+
+
+func get_attack_effect_metadata(
+	_source_position: Vector2,
+	_source_range: float,
+	_source_type_tags: Array[StringName],
+	_source_damage_tags: Array = []
+) -> Dictionary:
+	return {}
+
+
 func get_attack_relic_metadata(
 	_source_position: Vector2,
 	_source_range: float,
@@ -71,6 +84,16 @@ func get_attack_relic_metadata(
 
 func has_bonus_tag(_tag: StringName) -> bool:
 	return false
+
+
+func notify_status_applied(
+	_enemy: Node,
+	_status_id: StringName,
+	_attack_context: AttackContext
+) -> void:
+	# Reinforcements do not own tower items, but spawned-unit combat can report
+	# status applications through the same optional owner interface.
+	pass
 
 
 func _draw() -> void:

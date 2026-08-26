@@ -244,7 +244,7 @@ func apply_reveal_relics_to_mob(mob: Node) -> void:
 		or not mob.get("traits").has(&"hidden")
 	):
 		return
-	if tower.get_owned_relic_count(&"perfect_intelligence") > 0:
+	if tower.get_effect_stack_count(&"perfect_intelligence") > 0:
 		if mob.has_method("remove_hidden_trait"):
 			mob.remove_hidden_trait()
 		else:

@@ -726,9 +726,9 @@ func get_current_attack_interval() -> float:
 	if (
 		has_damage_tag(&"melee")
 		and is_instance_valid(parent_tower)
-		and parent_tower.has_method("get_owned_relic_count")
+		and parent_tower.has_method("get_effect_stack_count")
 	):
-		var frenzy_stacks := int(parent_tower.get_owned_relic_count(&"frenzy"))
+		var frenzy_stacks := int(parent_tower.get_effect_stack_count(&"frenzy"))
 		if frenzy_stacks > 0:
 			var enemy_count := 0
 			var attack_radius := get_effective_attack_radius()
@@ -753,8 +753,8 @@ func get_current_attack_interval() -> float:
 	if (
 		has_damage_tag(&"melee")
 		and is_instance_valid(parent_tower)
-		and parent_tower.has_method("get_owned_relic_count")
-		and int(parent_tower.get_owned_relic_count(&"relentless")) > 0
+		and parent_tower.has_method("get_effect_stack_count")
+		and int(parent_tower.get_effect_stack_count(&"relentless")) > 0
 		and relentless_stacks > 0
 	):
 		interval /= (
@@ -767,8 +767,8 @@ func register_relentless_primary_attack(current_target: Node2D) -> void:
 	if (
 		not has_damage_tag(&"melee")
 		or not is_instance_valid(parent_tower)
-		or not parent_tower.has_method("get_owned_relic_count")
-		or int(parent_tower.get_owned_relic_count(&"relentless")) <= 0
+		or not parent_tower.has_method("get_effect_stack_count")
+		or int(parent_tower.get_effect_stack_count(&"relentless")) <= 0
 		or not is_valid_target(current_target)
 	):
 		reset_relentless()
@@ -808,10 +808,10 @@ func create_attack_context(
 	var metadata := {"spawned_unit_id": unit_id}
 	if (
 		is_instance_valid(parent_tower)
-		and parent_tower.has_method("get_attack_relic_metadata")
+		and parent_tower.has_method("get_attack_effect_metadata")
 	):
 		metadata.merge(
-			parent_tower.get_attack_relic_metadata(
+			parent_tower.get_attack_effect_metadata(
 				global_position,
 				get_effective_attack_radius(),
 				type_tags,
@@ -1400,7 +1400,10 @@ func apply_control_effects(
 		resolved_context = create_attack_context(&"spawned_status_effect")
 	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
 		current_target.apply_slow(slow_duration, resolved_context)
-		if is_instance_valid(parent_tower):
+		if (
+			is_instance_valid(parent_tower)
+			and parent_tower.has_method("notify_status_applied")
+		):
 			parent_tower.notify_status_applied(
 				current_target, &"slow", resolved_context
 			)
@@ -1410,7 +1413,10 @@ func apply_control_effects(
 			stun_affects_bosses,
 			resolved_context
 		)
-		if is_instance_valid(parent_tower):
+		if (
+			is_instance_valid(parent_tower)
+			and parent_tower.has_method("notify_status_applied")
+		):
 			parent_tower.notify_status_applied(
 				current_target, &"stun", resolved_context
 			)

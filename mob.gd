@@ -507,7 +507,10 @@ func apply_stun(
 		var emergency_brake_count := int(
 			attack_context.metadata.get("emergency_brake", 0)
 		)
-		if emergency_brake_count > 0 and speed >= 130.0:
+		if (
+			emergency_brake_count > 0
+			and (traits.has(&"fast") or speed >= 130.0)
+		):
 			duration *= pow(
 				GameStats.EMERGENCY_BRAKE_DURATION_PER_STACK,
 				emergency_brake_count
@@ -679,7 +682,9 @@ func apply_damage(
 	):
 		remove_hidden_trait()
 	if not is_electric_proc:
-		amount = apply_relic_damage_modifiers(amount, damage_type, attack_context)
+		amount = apply_attack_effect_damage_modifiers(
+			amount, damage_type, attack_context
+		)
 	if beholder_mark_remaining > 0.0 and beholder_mark_stacks > 0:
 		amount = maxi(
 			roundi(float(amount) * get_beholder_mark_damage_multiplier()),
@@ -864,29 +869,29 @@ func register_electric_hit(
 
 
 func get_electric_proc_hit_requirement(attack_context: AttackContext) -> int:
-	var relic_count := get_attack_relic_count(
+	var effect_count := get_attack_effect_count(
 		attack_context, &"overcharged_capacitor"
 	)
 	return ceili(
 		float(GameStats.ELECTRIC_HITS_TO_PROC)
-		* pow(GameStats.OVERCHARGED_CAPACITOR_HIT_MULTIPLIER, relic_count)
+		* pow(GameStats.OVERCHARGED_CAPACITOR_HIT_MULTIPLIER, effect_count)
 	)
 
 
 func get_electric_proc_damage_multiplier(attack_context: AttackContext) -> float:
-	var relic_count := get_attack_relic_count(
+	var effect_count := get_attack_effect_count(
 		attack_context, &"overcharged_capacitor"
 	)
-	return pow(GameStats.OVERCHARGED_CAPACITOR_DAMAGE_MULTIPLIER, relic_count)
+	return pow(GameStats.OVERCHARGED_CAPACITOR_DAMAGE_MULTIPLIER, effect_count)
 
 
-func get_attack_relic_count(
+func get_attack_effect_count(
 	attack_context: AttackContext,
-	relic_id: StringName
+	effect_id: StringName
 ) -> int:
 	if attack_context == null:
 		return 0
-	return maxi(int(attack_context.metadata.get(relic_id, 0)), 0)
+	return maxi(int(attack_context.metadata.get(effect_id, 0)), 0)
 
 
 func trigger_electric_lightning_proc(
@@ -894,7 +899,7 @@ func trigger_electric_lightning_proc(
 	source_context: AttackContext
 ) -> void:
 	var has_static_discharge := (
-		get_attack_relic_count(source_context, &"static_discharge") > 0
+		get_attack_effect_count(source_context, &"static_discharge") > 0
 	)
 	spawn_electric_proc_effect(
 		GameStats.STATIC_DISCHARGE_RADIUS if has_static_discharge else 0.0
@@ -933,8 +938,13 @@ func trigger_electric_lightning_proc(
 	)
 	if has_static_discharge:
 		apply_static_discharge(lightning_damage, proc_context)
-	if get_attack_relic_count(source_context, &"chain_lightning") > 0:
-		apply_chain_lightning(lightning_damage, proc_context)
+	var chain_lightning_count := get_attack_effect_count(
+		source_context, &"chain_lightning"
+	)
+	if chain_lightning_count > 0:
+		apply_chain_lightning(
+			lightning_damage, proc_context, chain_lightning_count
+		)
 
 
 func apply_static_discharge(
@@ -961,30 +971,43 @@ func apply_static_discharge(
 
 func apply_chain_lightning(
 	lightning_damage: int,
-	proc_context: AttackContext
+	proc_context: AttackContext,
+	jump_count := 1
 ) -> void:
-	var closest_enemy: Node2D
-	var closest_distance := INF
-	for candidate in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_electric_proc_secondary_target(candidate):
-			continue
-		var distance := global_position.distance_to(candidate.global_position)
-		if distance < closest_distance:
-			closest_distance = distance
-			closest_enemy = candidate
-	if closest_enemy == null:
-		return
-	spawn_electric_arc_effect(global_position, closest_enemy.global_position)
-	var chain_context := proc_context.derive(
-		self,
-		&"enemy",
-		&"electric_chain_lightning",
-		true,
-		{"electric_proc": true}
-	)
-	closest_enemy.apply_damage(
-		lightning_damage, &"electric", true, false, chain_context
-	)
+	var visited_ids: Dictionary = {get_instance_id(): true}
+	var previous_enemy: Node2D = self
+	for _jump_index in maxi(jump_count, 0):
+		var closest_enemy: Node2D
+		var closest_distance := INF
+		for candidate in get_tree().get_nodes_in_group("mobs"):
+			if (
+				visited_ids.has(candidate.get_instance_id())
+				or not is_valid_electric_proc_secondary_target(candidate)
+			):
+				continue
+			var distance := previous_enemy.global_position.distance_to(
+				candidate.global_position
+			)
+			if distance < closest_distance:
+				closest_distance = distance
+				closest_enemy = candidate
+		if closest_enemy == null:
+			break
+		spawn_electric_arc_effect(
+			previous_enemy.global_position, closest_enemy.global_position
+		)
+		var chain_context := proc_context.derive(
+			previous_enemy,
+			&"enemy",
+			&"electric_chain_lightning",
+			true,
+			{"electric_proc": true}
+		)
+		closest_enemy.apply_damage(
+			lightning_damage, &"electric", true, false, chain_context
+		)
+		visited_ids[closest_enemy.get_instance_id()] = true
+		previous_enemy = closest_enemy
 
 
 func is_valid_electric_proc_secondary_target(candidate: Node) -> bool:
@@ -1087,7 +1110,7 @@ func trigger_microwave_explosion(
 		)
 
 
-func apply_relic_damage_modifiers(
+func apply_attack_effect_damage_modifiers(
 	amount: int,
 	damage_type: StringName,
 	attack_context: AttackContext
@@ -1156,12 +1179,19 @@ func apply_relic_damage_modifiers(
 					* (1.0 - distance_ratio)
 			)
 
-	if damage_type == &"melee" and int(metadata.get("giant_killer", 0)) > 0:
-		multiplier *= (
-			GameStats.GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER
-			if traits.has(&"elite") or traits.has(&"boss")
-			else GameStats.GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER
-		)
+	if damage_type == &"melee":
+		var giant_killer_count := int(metadata.get("giant_killer", 0))
+		if giant_killer_count > 0:
+			multiplier *= (
+				1.0 + (
+					GameStats.GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER - 1.0
+				) * float(giant_killer_count)
+				if traits.has(&"elite") or traits.has(&"boss")
+				else pow(
+					GameStats.GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER,
+					giant_killer_count
+				)
+			)
 	if damage_type == &"melee":
 		var enemy_count := int(metadata.get("enemies_in_range", 0))
 		var duelist_count := int(metadata.get("duelist", 0))
@@ -1178,11 +1208,13 @@ func apply_relic_damage_modifiers(
 					+ GameStats.DUELIST_TWO_ENEMY_DAMAGE_PER_STACK
 						* float(duelist_count)
 				)
-		if int(metadata.get("strength_in_numbers", 0)) > 0:
+		var strength_count := int(metadata.get("strength_in_numbers", 0))
+		if strength_count > 0:
 			multiplier *= (
 				1.0
 				+ GameStats.STRENGTH_IN_NUMBERS_DAMAGE_PER_NEIGHBOR
 					* float(int(metadata.get("nearby_melee_towers", 0)))
+					* float(strength_count)
 			)
 
 	if damage_type == &"explosive":

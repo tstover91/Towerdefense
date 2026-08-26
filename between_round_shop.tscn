@@ -29,88 +29,94 @@ color = Color(0.1255, 0.1294, 0.2275, 0.9)
 [node name="ShopPanel" type="PanelContainer" parent="InputBlocker"]
 layout_mode = 1
 anchors_preset = 15
-anchor_left = 0.06
-anchor_top = 0.07
-anchor_right = 0.94
-anchor_bottom = 0.93
+anchor_left = 0.025
+anchor_top = 0.025
+anchor_right = 0.975
+anchor_bottom = 0.975
 grow_horizontal = 2
 grow_vertical = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="InputBlocker/ShopPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
 
-[node name="ShopLayout" type="VBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer"]
+[node name="ShopContent" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 14
 
-[node name="TitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+[node name="MainColumn" type="VBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 30
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
 text = "Round Complete"
 horizontal_alignment = 1
 
-[node name="SubtitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+[node name="SubtitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
 layout_mode = 2
 text = "Choose one relic"
 horizontal_alignment = 1
 
-[node name="ShopCards" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+[node name="ShopCards" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 18
+theme_override_constants/separation = 10
 alignment = 1
 
-[node name="ShopChoiceCard1" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards" instance=ExtResource("2_card")]
+[node name="ShopChoiceCard1" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards" instance=ExtResource("2_card")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
 
-[node name="ShopChoiceCard2" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards" instance=ExtResource("2_card")]
+[node name="ShopChoiceCard2" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards" instance=ExtResource("2_card")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
 
-[node name="ShopChoiceCard3" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards" instance=ExtResource("2_card")]
+[node name="ShopChoiceCard3" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards" instance=ExtResource("2_card")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
 
-[node name="ShopChoiceCard4" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards" instance=ExtResource("2_card")]
+[node name="ShopChoiceCard4" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards" instance=ExtResource("2_card")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
 
-[node name="OwnedItemsLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+[node name="OwnedItemsLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
 layout_mode = 2
 text = "Owned relics: None"
 horizontal_alignment = 1
 text_overrun_behavior = 3
 
-[node name="TowerItemInventoryPanel" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout" instance=ExtResource("4_inventory")]
+[node name="TowerItemInventoryPanel" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent" instance=ExtResource("4_inventory")]
+custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 
-[node name="ShopActions" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+[node name="ShopActions" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="RerollButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopActions"]
+[node name="RerollButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopActions"]
 visible = false
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Reroll · $50"
 
-[node name="HealthButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
-custom_minimum_size = Vector2(0, 42)
+[node name="HealthButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
+custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 text = "Recover 20 Health - $150"
 
-[node name="ContinueButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
-custom_minimum_size = Vector2(0, 48)
+[node name="ContinueButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 disabled = true
 text = "Choose a Relic"

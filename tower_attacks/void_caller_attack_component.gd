@@ -74,8 +74,8 @@ func _apply_relic_modifiers() -> void:
 	if not singularity_enabled:
 		return
 	if tower.has_bonus_tag(BaseTower.BONUS_PSIONIC):
-		var lingering_count := tower.get_owned_relic_count(&"lingering_thoughts")
-		var quick_count := tower.get_owned_relic_count(&"quick_thinking")
+		var lingering_count := tower.get_effect_stack_count(&"lingering_thoughts")
+		var quick_count := tower.get_effect_stack_count(&"quick_thinking")
 		singularity_pull_duration *= (
 			pow(GameStats.LINGERING_THOUGHTS_DURATION_MULTIPLIER, lingering_count)
 			* pow(GameStats.QUICK_THINKING_DURATION_MULTIPLIER, quick_count)

@@ -943,15 +943,15 @@ const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 }
 const XP_STAT_MILESTONE_LEVELS: Array[int] = [1, 5, 10, 15]
 const TOWER_XP_MAX_LEVEL := 20
-const TOWER_XP_TARGET_AT_MAX_LEVEL := 1500.0
+const TOWER_XP_TARGET_AT_MAX_LEVEL := 3000.0
 const TOWER_ITEM_SLOT_COUNT := 4
 const TOWER_ITEMS := {
 	&"ricochet_module": {
 		"display_name": "Ricochet Module",
 		"description": "+1 bounce. Towers without innate ricochet gain a 5-tile bounce search range.",
-		"rarity": &"common",
+		"rarity": &"uncommon",
 		"category": &"projectile",
-		"price": 450,
+		"price": 600,
 		"required_all_tags": [&"projectile"],
 		"stat_defaults": {"bounce_count": 0},
 		"stat_additions": {"bounce_count": 1},
@@ -960,9 +960,9 @@ const TOWER_ITEMS := {
 	&"penetrator_rounds": {
 		"display_name": "Penetrator Rounds",
 		"description": "+1 Pierce.",
-		"rarity": &"common",
+		"rarity": &"uncommon",
 		"category": &"projectile",
-		"price": 400,
+		"price": 600,
 		"required_all_tags": [&"projectile"],
 		"add_bonus_tags": [&"pierce"],
 		"pierce_count_add": 1,
@@ -973,16 +973,16 @@ const TOWER_ITEMS := {
 		"rarity": &"common",
 		"category": &"critical",
 		"price": 425,
-		"add_bonus_tags": [&"critical"],
+		"required_all_tags": [&"critical"],
 		"stat_defaults": {"critical_chance": DEFAULT_CRITICAL_CHANCE},
 		"stat_additions": {"critical_chance": 0.12},
 	},
 	&"overclocked_actuator": {
 		"display_name": "Overclocked Actuator",
 		"description": "Attack cooldown is 22% shorter, but damage is reduced by 18%.",
-		"rarity": &"rare",
+		"rarity": &"common",
 		"category": &"offense",
-		"price": 700,
+		"price": 450,
 		"stat_multipliers": {"firerate": 0.78, "damage": 0.82},
 		"unit_stat_multipliers": {
 			"attack_interval": 0.78,
@@ -992,9 +992,9 @@ const TOWER_ITEMS := {
 	&"heavy_payload": {
 		"display_name": "Heavy Payload",
 		"description": "+35% damage and +30% blast radius, but attack cooldown is 25% longer.",
-		"rarity": &"rare",
+		"rarity": &"common",
 		"category": &"explosive",
-		"price": 750,
+		"price": 475,
 		"required_all_tags": [&"explosive"],
 		"stat_multipliers": {
 			"damage": 1.35,
@@ -1005,9 +1005,9 @@ const TOWER_ITEMS := {
 	&"beam_optics": {
 		"display_name": "Beam Optics",
 		"description": "+15% range and +25% beam width.",
-		"rarity": &"rare",
+		"rarity": &"common",
 		"category": &"beam",
-		"price": 650,
+		"price": 425,
 		"required_all_tags": [&"beam"],
 		"stat_defaults": {"beam_half_width": 2.5},
 		"stat_multipliers": {"range": 1.15, "beam_half_width": 1.25},
@@ -1017,7 +1017,8 @@ const TOWER_ITEMS := {
 		"description": "Kills cut 25% from the remaining attack cooldown. Critical kills cut 55% instead.",
 		"rarity": &"rare",
 		"category": &"trigger",
-		"price": 700,
+		"price": 850,
+		"max_copies_per_tower": 1,
 		"trigger_effects": {
 			"kill_cooldown_remaining_multiplier": 0.75,
 			"critical_kill_cooldown_remaining_multiplier": 0.45,
@@ -1028,7 +1029,8 @@ const TOWER_ITEMS := {
 		"description": "Primary projectile hits explode for 35% damage in a 2-tile radius. Item explosions cannot trigger items.",
 		"rarity": &"rare",
 		"category": &"projectile",
-		"price": 775,
+		"price": 875,
+		"max_copies_per_tower": 1,
 		"required_all_tags": [&"projectile"],
 		"trigger_effects": {
 			"primary_hit_explosion_damage_multiplier": 0.35,
@@ -1038,9 +1040,9 @@ const TOWER_ITEMS := {
 	&"split_chamber": {
 		"display_name": "Split Chamber",
 		"description": "Slinger fires one additional projectile at a slight angle, but deals 20% less damage.",
-		"rarity": &"rare",
+		"rarity": &"uncommon",
 		"category": &"projectile",
-		"price": 800,
+		"price": 650,
 		"required_all_tags": [&"projectile"],
 		"allowed_tower_ids": [&"slinger"],
 		"stat_multipliers": {"damage": 0.80},
@@ -1051,7 +1053,8 @@ const TOWER_ITEMS := {
 		"description": "Every fourth damaging hit arcs 40% Electric damage to up to two nearby enemies.",
 		"rarity": &"rare",
 		"category": &"electric",
-		"price": 750,
+		"price": 850,
+		"max_copies_per_tower": 1,
 		"trigger_effects": {
 			"hits_per_arc": 4,
 			"arc_damage_multiplier": 0.40,
@@ -1059,6 +1062,60 @@ const TOWER_ITEMS := {
 			"arc_range": 4.0,
 		},
 	},
+	&"scanner_implant": {
+		"display_name": "Scanner Implant",
+		"description": "Grants Reveal, allowing this tower to target Hidden enemies.",
+		"rarity": &"uncommon",
+		"category": &"reveal",
+		"price": 600,
+		"max_copies_per_tower": 1,
+		"add_bonus_tags": [&"reveal"],
+	},
+}
+
+## Tower-local adapters for approved legacy relic mechanics. These definitions
+## reuse the proven effect implementations while relic rewards remain disabled.
+const CONVERTED_RELIC_ITEM_CONFIG := {
+	&"focused_lens": {"rarity": &"common", "price": 425, "required_all_tags": [&"beam"]},
+	&"wide_lens": {"rarity": &"common", "price": 425, "required_all_tags": [&"beam"]},
+	&"interference_beam": {"rarity": &"rare", "price": 875, "required_all_tags": [&"beam"]},
+	&"microwave": {"rarity": &"rare", "price": 950, "required_all_tags": [&"beam"]},
+	&"death_ray": {"rarity": &"legendary", "price": 1600, "required_all_tags": [&"beam"], "description": "Every 6 seconds, this tower overcharges for 2 seconds: double Beam damage and width with infinite Pierce."},
+	&"hollow_point": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"]},
+	&"heavy_rounds": {"rarity": &"common", "price": 400, "required_all_tags": [&"ballistic"]},
+	&"lightweight_ammo": {"rarity": &"common", "price": 400, "required_all_tags": [&"ballistic"]},
+	&"long_barrel": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"]},
+	&"point_blank": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"]},
+	&"suppressive_fire": {"rarity": &"uncommon", "price": 625, "required_all_tags": [&"ballistic"]},
+	&"experimental_munitions": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"ballistic"], "description": "Grants Critical to this Ballistic tower with a base 1.5x critical multiplier."},
+	&"frenzy": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"]},
+	&"duelist": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"]},
+	&"relentless": {"rarity": &"rare", "price": 900, "required_all_tags": [&"melee"]},
+	&"giant_killer": {"rarity": &"common", "price": 450, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "Per copy: +75% Melee damage to elites and bosses, but 25% less damage to normal enemies."},
+	&"strength_in_numbers": {"rarity": &"common", "price": 425, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "+20% Melee damage per nearby Melee tower per copy, counting up to four neighbors."},
+	&"lone_wolf": {"rarity": &"uncommon", "price": 700, "required_all_tags": [&"melee"]},
+	&"high_yield": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"]},
+	&"concentrated_charge": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"]},
+	&"crowd_pleaser": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"]},
+	&"direct_hit": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"]},
+	&"thermite_bombs": {"rarity": &"rare", "price": 925, "required_all_tags": [&"explosive"]},
+	&"charred_clothes": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"explosive"]},
+	&"conductive": {"rarity": &"rare", "price": 850, "required_all_tags": [&"electric"]},
+	&"overcharged_capacitor": {"rarity": &"uncommon", "price": 625, "required_all_tags": [&"electric"]},
+	&"static_discharge": {"rarity": &"rare", "price": 875, "required_all_tags": [&"electric"]},
+	&"chain_lightning": {"rarity": &"uncommon", "price": 675, "required_all_tags": [&"electric"], "max_copies_per_tower": 4, "description": "Lightning procs jump to one additional nearby enemy per copy for full damage."},
+	&"lucky_shot": {"rarity": &"common", "price": 400, "required_all_tags": [&"critical"]},
+	&"glass_cannon": {"rarity": &"common", "price": 450, "required_all_tags": [&"critical"], "max_copies_per_tower": 4, "description": "Per copy: +2x critical damage, but non-critical damage is multiplied by 0.7."},
+	&"pressure_point": {"rarity": &"rare", "price": 900, "required_all_tags": [&"critical"]},
+	&"deadeye": {"rarity": &"common", "price": 450, "required_all_tags": [&"critical"], "max_copies_per_tower": 4, "description": "Per copy: +2x critical damage, but adds a compounding 20% miss chance."},
+	&"lingering_thoughts": {"rarity": &"common", "price": 400, "required_all_tags": [&"psionic"]},
+	&"quick_thinking": {"rarity": &"common", "price": 400, "required_all_tags": [&"psionic"]},
+	&"perfect_intelligence": {"rarity": &"rare", "price": 850, "required_all_tags": [&"reveal"], "description": "Hidden enemies permanently lose Hidden when they enter this tower's Reveal range."},
+	&"follow_through": {"rarity": &"rare", "price": 875, "required_all_tags": [&"pierce"]},
+	&"big_game_control": {"rarity": &"common", "price": 375, "required_all_tags": [&"stun"]},
+	&"emergency_brake": {"rarity": &"common", "price": 375, "required_all_tags": [&"stun"], "description": "Stuns last 50% longer per copy against Fast enemies."},
+	&"youre_not_special": {"rarity": &"legendary", "price": 1500, "required_all_tags": [&"stun"], "description": "This tower can stun bosses for 50% of the normal duration."},
+	&"trade_agreement": {"rarity": &"legendary", "price": 1500, "required_all_tags": [&"spawner"], "description": "This Spawner deploys two units at a time and doubles its unit limit, but its units deal 30% less damage."},
 }
 const TOWER_EVOLUTION_DEFAULT_LEVEL := 10
 const TOWER_EVOLUTIONS := {
@@ -2876,12 +2933,27 @@ static func get_tower_evolutions(tower_id: StringName) -> Dictionary:
 
 
 static func has_tower_item(item_id: StringName) -> bool:
-	return TOWER_ITEMS.has(item_id)
+	return TOWER_ITEMS.has(item_id) or CONVERTED_RELIC_ITEM_CONFIG.has(item_id)
 
 
 static func get_tower_item(item_id: StringName) -> Dictionary:
-	assert(TOWER_ITEMS.has(item_id), "Unknown tower item ID: %s" % item_id)
-	var item: Dictionary = TOWER_ITEMS[item_id].duplicate(true)
+	assert(has_tower_item(item_id), "Unknown tower item ID: %s" % item_id)
+	var item: Dictionary
+	if TOWER_ITEMS.has(item_id):
+		item = TOWER_ITEMS[item_id].duplicate(true)
+	else:
+		item = RELICS[item_id].duplicate(true)
+		item.merge(CONVERTED_RELIC_ITEM_CONFIG[item_id], true)
+		item.erase("exclusive_with")
+		item.erase("exclusive_names")
+		item["item_effects"] = {item_id: 1}
+		if not item.has("max_copies_per_tower"):
+			item["max_copies_per_tower"] = (
+				TOWER_ITEM_SLOT_COUNT
+				if bool(RELICS[item_id].get("stackable", false))
+				else 1
+			)
+		item.erase("enabled")
 	item["id"] = item_id
 	return item
 
@@ -2889,6 +2961,8 @@ static func get_tower_item(item_id: StringName) -> Dictionary:
 static func get_tower_item_ids() -> Array[StringName]:
 	var item_ids: Array[StringName] = []
 	for item_key in TOWER_ITEMS:
+		item_ids.append(StringName(item_key))
+	for item_key in CONVERTED_RELIC_ITEM_CONFIG:
 		item_ids.append(StringName(item_key))
 	return item_ids
 

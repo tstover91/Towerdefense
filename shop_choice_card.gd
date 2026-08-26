@@ -5,10 +5,12 @@ signal chosen(item_id: StringName, quantity: int)
 signal lock_toggled(is_locked: bool)
 
 const COMMON_COLOR := Color(0.15, 0.85, 0.96)
+const UNCOMMON_COLOR := Color(0.35, 0.92, 0.42)
 const RARE_COLOR := Color(0.94, 0.27, 0.83)
 const LEGENDARY_COLOR := Color(1.0, 0.72, 0.16)
 const RELIC_RARITY_COLORS := {
 	&"common": COMMON_COLOR,
+	&"uncommon": UNCOMMON_COLOR,
 	&"rare": RARE_COLOR,
 	&"legendary": LEGENDARY_COLOR,
 }

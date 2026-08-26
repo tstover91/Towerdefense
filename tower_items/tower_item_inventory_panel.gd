@@ -103,14 +103,17 @@ func _populate_slots() -> void:
 			var item_id: StringName = tower.get_equipped_item_ids()[slot_index]
 			if not item_id.is_empty():
 				var item := GameStats.get_tower_item(item_id)
+				var quantity: int = tower.get_equipped_item_count(slot_index)
+				var quantity_text := " ×%d" % quantity if quantity > 1 else ""
 				var inactive_text := (
 					" · INACTIVE"
 					if not tower.item_controller.is_item_active_in_slot(slot_index)
 					else ""
 				)
-				slot_text = "%d. %s%s" % [
+				slot_text = "%d. %s%s%s" % [
 					slot_index + 1,
 					item["display_name"],
+					quantity_text,
 					inactive_text,
 				]
 		slot_option.add_item(slot_text)
@@ -130,10 +133,15 @@ func _refresh_controls() -> void:
 	var item_is_compatible: bool = (
 		is_instance_valid(tower)
 		and not item_id.is_empty()
-		and tower.item_controller.is_item_compatible(item_id)
+		and tower.item_controller.can_equip_or_swap_item(item_id, slot_index)
 	)
 	equip_button.disabled = not can_manage or not item_is_compatible
 	unequip_button.disabled = not can_manage or not has_equipped_item
+	unequip_button.text = (
+		"Unequip One"
+		if has_equipped_item and tower.get_equipped_item_count(slot_index) > 1
+		else "Unequip"
+	)
 	if not can_manage:
 		status_label.text = "Equipment is locked during active waves."
 	elif not is_instance_valid(tower):
@@ -141,9 +149,22 @@ func _refresh_controls() -> void:
 	elif item_id.is_empty():
 		status_label.text = "Select an inventory item or remove the selected slot."
 	elif not item_is_compatible:
-		status_label.text = tower.item_controller.get_incompatibility_reason(item_id)
+		var incompatibility_reason: String = (
+			tower.item_controller.get_incompatibility_reason(item_id, slot_index)
+		)
+		status_label.text = (
+			incompatibility_reason
+			if not incompatibility_reason.is_empty()
+			else "This tower already has the maximum number of this item."
+		)
+	elif tower.item_controller.find_equipped_item_slot(item_id) >= 0:
+		var stack_slot: int = tower.item_controller.find_equipped_item_slot(item_id)
+		status_label.text = "Adds to the ×%d stack in slot %d." % [
+			tower.get_equipped_item_count(stack_slot),
+			stack_slot + 1,
+		]
 	elif has_equipped_item:
-		status_label.text = "Equip will swap the current item back into inventory."
+		status_label.text = "Equip will return the entire current stack to inventory."
 	else:
 		status_label.text = "Equip the selected item into this slot."
 

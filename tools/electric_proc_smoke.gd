@@ -134,11 +134,11 @@ func assert_chain_lightning() -> void:
 	var closest_health: int = closest.health
 	var farther_health: int = farther.health
 	var context := AttackContext.legacy(&"saucer", &"electric_primary")
-	context.metadata["chain_lightning"] = 1
+	context.metadata["chain_lightning"] = 2
 	primary.trigger_electric_lightning_proc(100, context)
 	assert(closest.health == closest_health - 100)
-	assert(farther.health == farther_health)
-	assert(get_tree().get_node_count_in_group("electric_arc_effects") == 1)
+	assert(farther.health == farther_health - 100)
+	assert(get_tree().get_node_count_in_group("electric_arc_effects") == 2)
 
 
 func spawn_test_mob(at_position: Vector2) -> Node2D:

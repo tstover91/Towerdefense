@@ -12,18 +12,18 @@ const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
 const DRAFT_ITEM: StringName = &"item"
 
-@onready var title_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/TitleLabel
-@onready var subtitle_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/SubtitleLabel
-@onready var owned_items_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/OwnedItemsLabel
-@onready var health_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/HealthButton
-@onready var reroll_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopActions/RerollButton
-@onready var continue_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/ContinueButton
-@onready var inventory_panel: Control = $InputBlocker/ShopPanel/MarginContainer/ShopLayout/TowerItemInventoryPanel
+@onready var title_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/TitleLabel
+@onready var subtitle_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/SubtitleLabel
+@onready var owned_items_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/OwnedItemsLabel
+@onready var health_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HealthButton
+@onready var reroll_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopActions/RerollButton
+@onready var continue_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ContinueButton
+@onready var inventory_panel: Control = $InputBlocker/ShopPanel/MarginContainer/ShopContent/TowerItemInventoryPanel
 @onready var cards: Array[Control] = [
-	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard1,
-	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard2,
-	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard3,
-	$InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopCards/ShopChoiceCard4,
+	$InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards/ShopChoiceCard1,
+	$InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards/ShopChoiceCard2,
+	$InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards/ShopChoiceCard3,
+	$InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards/ShopChoiceCard4,
 ]
 
 var selected_item_id: StringName = &""

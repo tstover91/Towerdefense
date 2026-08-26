@@ -68,13 +68,13 @@ func run_test() -> void:
 		return
 	if not _check(equipped_slinger.equip_item(&"penetrator_rounds"), "Penetrator Rounds could not be equipped."):
 		return
-	if not _check(equipped_slinger.equip_item(&"targeting_computer"), "Targeting Computer could not be equipped."):
+	if not _check(equipped_slinger.equip_item(&"live_wire"), "Live Wire could not be equipped."):
 		return
 	if not _check(equipped_slinger.equip_item(&"overclocked_actuator"), "Overclocked Actuator could not be equipped."):
 		return
 	if not _check(
-		not equipped_slinger.equip_item(&"ricochet_module"),
-		"A fifth item bypassed the four-slot cap."
+		not equipped_slinger.equip_item(&"scanner_implant"),
+		"A fifth distinct item bypassed the four-slot cap."
 	):
 		return
 
@@ -92,9 +92,8 @@ func run_test() -> void:
 	):
 		return
 	if not _check(
-		is_equal_approx(equipped_slinger.critical_chance, 0.22)
-		and equipped_slinger.has_bonus_tag(BaseTower.BONUS_CRITICAL),
-		"Targeting Computer did not add critical chance and its tag."
+		not equipped_slinger.can_equip_item(&"targeting_computer"),
+		"A non-Critical tower accepted the Common Critical stat item."
 	):
 		return
 	if not _check(
@@ -113,10 +112,18 @@ func run_test() -> void:
 
 	var removed_item := equipped_slinger.unequip_item(2)
 	if not _check(
-		removed_item == &"targeting_computer"
+		removed_item == &"live_wire"
 		and equipped_slinger.get_equipped_item_ids()[2].is_empty()
 		and is_equal_approx(equipped_slinger.critical_chance, 0.10),
 		"Unequipping did not clear the slot and recalculate the tower."
+	):
+		return
+
+	var longshot := await _create_tower(fake_main, &"longshot")
+	if not _check(
+		longshot.equip_item(&"targeting_computer")
+		and is_equal_approx(longshot.critical_chance, 0.22),
+		"Targeting Computer did not improve a tower with innate Critical."
 	):
 		return
 

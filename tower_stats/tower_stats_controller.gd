@@ -137,7 +137,7 @@ func apply_effective_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 			float(unit_stats["aim_radius"])
 			* get_main_multiplier(&"tower_range")
 		)
-		unit_stats = apply_relic_combat_stat_modifiers(unit_stats, true)
+		unit_stats = apply_effect_combat_stat_modifiers(unit_stats, true)
 		stats["unit_stats"] = unit_stats
 		stats["damage"] = unit_stats["damage"]
 		stats["firerate"] = unit_stats["attack_interval"]
@@ -158,10 +158,10 @@ func apply_effective_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 		stats["range"] = (
 			float(stats["range"]) * get_main_multiplier(&"tower_range")
 		)
-	return apply_relic_combat_stat_modifiers(stats, false)
+	return apply_effect_combat_stat_modifiers(stats, false)
 
 
-func apply_relic_combat_stat_modifiers(
+func apply_effect_combat_stat_modifiers(
 	base_stats: Dictionary,
 	for_spawned_unit: bool
 ) -> Dictionary:
@@ -173,7 +173,7 @@ func apply_relic_combat_stat_modifiers(
 	if (
 		for_spawned_unit
 		and tower.uses_standard_spawner_system()
-		and get_owned_relic_count(&"trade_agreement") > 0
+		and get_effect_stack_count(&"trade_agreement") > 0
 	):
 		stats[damage_key] = maxi(roundi(
 			float(stats[damage_key])
@@ -194,7 +194,7 @@ func apply_relic_combat_stat_modifiers(
 			)
 	if (
 		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
-		and get_owned_relic_count(&"lone_wolf") > 0
+		and get_effect_stack_count(&"lone_wolf") > 0
 		and not has_other_placed_tower_with_same_id()
 	):
 		stats[damage_key] = maxi(roundi(
@@ -211,8 +211,8 @@ func apply_relic_combat_stat_modifiers(
 				0.1
 			)
 	if primary_type == BaseTower.DAMAGE_BEAM:
-		var focused_count := get_owned_relic_count(&"focused_lens")
-		var wide_count := get_owned_relic_count(&"wide_lens")
+		var focused_count := get_effect_stack_count(&"focused_lens")
+		var wide_count := get_effect_stack_count(&"wide_lens")
 		stats[damage_key] = maxi(roundi(
 			float(stats[damage_key])
 			* (1.0 + GameStats.FOCUSED_LENS_DAMAGE_PER_STACK * focused_count)
@@ -225,11 +225,11 @@ func apply_relic_combat_stat_modifiers(
 				* (1.0 + GameStats.WIDE_LENS_RANGE_PER_STACK * wide_count),
 				0.1
 			)
-		if get_owned_relic_count(&"death_ray") > 0:
+		if get_effect_stack_count(&"death_ray") > 0:
 			stats["death_ray_overcharge"] = true
 	if primary_type == BaseTower.DAMAGE_BALLISTIC:
-		var heavy_count := get_owned_relic_count(&"heavy_rounds")
-		var lightweight_count := get_owned_relic_count(&"lightweight_ammo")
+		var heavy_count := get_effect_stack_count(&"heavy_rounds")
+		var lightweight_count := get_effect_stack_count(&"lightweight_ammo")
 		stats[damage_key] = maxi(roundi(
 			float(stats[damage_key])
 			* pow(GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER, heavy_count)
@@ -241,7 +241,7 @@ func apply_relic_combat_stat_modifiers(
 			* pow(GameStats.LIGHTWEIGHT_AMMO_INTERVAL_MULTIPLIER, lightweight_count),
 			0.01
 		)
-		if get_owned_relic_count(&"suppressive_fire") > 0:
+		if get_effect_stack_count(&"suppressive_fire") > 0:
 			stats["slow_duration"] = maxf(
 				float(stats.get("slow_duration", 0.0)),
 				GameStats.SUPPRESSIVE_FIRE_DURATION
@@ -275,12 +275,14 @@ func apply_relic_combat_stat_modifiers(
 			* get_explosion_damage_multiplier()
 		)
 	if tower.has_bonus_tag(BaseTower.BONUS_CRITICAL):
+		var glass_cannon_count := get_effect_stack_count(&"glass_cannon")
+		var deadeye_count := get_effect_stack_count(&"deadeye")
 		var base_critical_multiplier := float(stats.get(
 			"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
 		))
 		if (
 			tower.has_damage_tag(BaseTower.DAMAGE_BALLISTIC)
-			and get_owned_relic_count(&"experimental_munitions") > 0
+			and get_effect_stack_count(&"experimental_munitions") > 0
 		):
 			base_critical_multiplier = (
 				GameStats.EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER
@@ -288,32 +290,37 @@ func apply_relic_combat_stat_modifiers(
 		stats["critical_chance"] = clampf(
 			float(stats.get("critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE))
 			+ GameStats.LUCKY_SHOT_CHANCE_PER_STACK
-				* get_owned_relic_count(&"lucky_shot"),
+				* get_effect_stack_count(&"lucky_shot"),
 			0.0,
 			1.0
 		)
 		stats["critical_multiplier"] = maxf(
 			base_critical_multiplier
-			+ (GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS
-				if get_owned_relic_count(&"glass_cannon") > 0 else 0.0)
-			+ (GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS
-				if get_owned_relic_count(&"deadeye") > 0 else 0.0),
+			+ GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS
+				* float(glass_cannon_count)
+			+ GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS
+				* float(deadeye_count),
 			1.0
 		)
-		if get_owned_relic_count(&"glass_cannon") > 0:
+		if glass_cannon_count > 0:
 			stats["noncritical_damage_multiplier"] = (
-				GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER
+				pow(
+					GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER,
+					glass_cannon_count
+				)
 			)
-		if get_owned_relic_count(&"deadeye") > 0:
-			stats["miss_chance"] = GameStats.DEADEYE_MISS_CHANCE
+		if deadeye_count > 0:
+			stats["miss_chance"] = 1.0 - pow(
+				1.0 - GameStats.DEADEYE_MISS_CHANCE, deadeye_count
+			)
 	if tower.has_bonus_tag(BaseTower.BONUS_PIERCE):
 		stats["pierce_count"] = tower.pierce_count
 		stats["pierce_loses_no_power"] = (
-			get_owned_relic_count(&"follow_through") > 0
+			get_effect_stack_count(&"follow_through") > 0
 		)
 	if (
 		tower.has_bonus_tag(BaseTower.BONUS_STUN)
-		and get_owned_relic_count(&"youre_not_special") > 0
+		and get_effect_stack_count(&"youre_not_special") > 0
 	):
 		stats["stun_affects_bosses"] = true
 	if for_spawned_unit:
@@ -334,18 +341,25 @@ func apply_relic_combat_stat_modifiers(
 	return stats
 
 
+func apply_relic_combat_stat_modifiers(
+	base_stats: Dictionary,
+	for_spawned_unit: bool
+) -> Dictionary:
+	return apply_effect_combat_stat_modifiers(base_stats, for_spawned_unit)
+
+
 func get_explosion_damage_multiplier() -> float:
 	return (
-		pow(GameStats.HIGH_YIELD_DAMAGE_MULTIPLIER, get_owned_relic_count(&"high_yield"))
-		* pow(GameStats.CONCENTRATED_CHARGE_DAMAGE_MULTIPLIER, get_owned_relic_count(&"concentrated_charge"))
+		pow(GameStats.HIGH_YIELD_DAMAGE_MULTIPLIER, get_effect_stack_count(&"high_yield"))
+		* pow(GameStats.CONCENTRATED_CHARGE_DAMAGE_MULTIPLIER, get_effect_stack_count(&"concentrated_charge"))
 		* (GameStats.MAXIMUM_PAYLOAD_DAMAGE_MULTIPLIER if get_owned_relic_count(&"maximum_payload") > 0 else 1.0)
 	)
 
 
 func get_explosion_radius_multiplier() -> float:
 	return (
-		pow(GameStats.HIGH_YIELD_RADIUS_MULTIPLIER, get_owned_relic_count(&"high_yield"))
-		* pow(GameStats.CONCENTRATED_CHARGE_RADIUS_MULTIPLIER, get_owned_relic_count(&"concentrated_charge"))
+		pow(GameStats.HIGH_YIELD_RADIUS_MULTIPLIER, get_effect_stack_count(&"high_yield"))
+		* pow(GameStats.CONCENTRATED_CHARGE_RADIUS_MULTIPLIER, get_effect_stack_count(&"concentrated_charge"))
 		* (GameStats.MAXIMUM_PAYLOAD_RADIUS_MULTIPLIER if get_owned_relic_count(&"maximum_payload") > 0 else 1.0)
 	)
 
@@ -521,16 +535,24 @@ func get_main_multiplier(effect: StringName) -> float:
 
 
 func get_owned_relic_count(relic_id: StringName) -> int:
-	if tower.main == null or not tower.main.has_method("get_relic_count"):
-		return 0
-	return int(tower.main.get_relic_count(relic_id))
+	var count := 0
+	if tower.main != null and tower.main.has_method("get_relic_count"):
+		count = int(tower.main.get_relic_count(relic_id))
+	return count
+
+
+func get_effect_stack_count(effect_id: StringName) -> int:
+	var count := get_owned_relic_count(effect_id)
+	if tower.item_controller != null:
+		count += tower.item_controller.get_item_effect_count(effect_id)
+	return count
 
 
 func get_current_attack_interval() -> float:
 	var interval := tower.loaded_attack_interval
 	if tower.attack_component != null:
 		interval = tower.attack_component.modify_attack_interval(interval)
-	var frenzy_stacks := get_owned_relic_count(&"frenzy")
+	var frenzy_stacks := get_effect_stack_count(&"frenzy")
 	if tower.has_damage_tag(BaseTower.DAMAGE_MELEE) and frenzy_stacks > 0:
 		var enemy_count := mini(
 			tower.count_valid_enemies_near(
@@ -546,7 +568,7 @@ func get_current_attack_interval() -> float:
 		interval /= 1.0 + speed_bonus
 	if (
 		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
-		and get_owned_relic_count(&"relentless") > 0
+		and get_effect_stack_count(&"relentless") > 0
 		and tower.relentless_stacks > 0
 	):
 		interval /= 1.0 + GameStats.RELENTLESS_SPEED_PER_STACK * float(tower.relentless_stacks)
@@ -652,7 +674,7 @@ func load_base_tags() -> void:
 	if tower.has_damage_tag(BaseTower.DAMAGE_BALLISTIC):
 		if get_owned_relic_count(&"armor_piercing") > 0:
 			set_pierce_count(tower.pierce_count + 1)
-		if get_owned_relic_count(&"experimental_munitions") > 0:
+		if get_effect_stack_count(&"experimental_munitions") > 0:
 			add_bonus_tag(BaseTower.BONUS_CRITICAL)
 
 

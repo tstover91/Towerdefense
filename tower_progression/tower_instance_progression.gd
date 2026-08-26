@@ -8,7 +8,7 @@ signal level_changed(new_level: int, previous_level: int)
 
 const MAX_LEVEL := GameStats.TOWER_XP_MAX_LEVEL
 const TARGET_XP_AT_MAX_LEVEL := GameStats.TOWER_XP_TARGET_AT_MAX_LEVEL
-const RUNESCAPE_EXPONENT_LEVEL_SPAN := 7.0
+const RUNESCAPE_EXPONENT_LEVEL_SPAN := 3.5
 const RUNESCAPE_EXPONENTIAL_BASE := 300.0
 
 static var _next_instance_sequence := 1
@@ -23,6 +23,7 @@ var control_credit := 0.0
 var evolution_id: StringName = &""
 var evolution_gold_spent := 0
 var equipped_item_ids: Array[StringName] = []
+var equipped_item_counts: Array[int] = []
 
 
 func _init(family_id: StringName = &"") -> void:
@@ -30,8 +31,10 @@ func _init(family_id: StringName = &"") -> void:
 	instance_uid = StringName("tower_%d" % _next_instance_sequence)
 	_next_instance_sequence += 1
 	equipped_item_ids.resize(GameStats.TOWER_ITEM_SLOT_COUNT)
+	equipped_item_counts.resize(GameStats.TOWER_ITEM_SLOT_COUNT)
 	for slot_index in equipped_item_ids.size():
 		equipped_item_ids[slot_index] = &""
+		equipped_item_counts[slot_index] = 0
 
 
 func record_damage(actual_damage: int, xp_award: float) -> void:
@@ -67,31 +70,90 @@ func choose_evolution(new_evolution_id: StringName, gold_spent: int) -> bool:
 	return true
 
 
-func set_equipped_item(slot_index: int, item_id: StringName) -> bool:
+func set_equipped_item(
+	slot_index: int,
+	item_id: StringName,
+	quantity := 1
+) -> bool:
 	if (
 		slot_index < 0
 		or slot_index >= equipped_item_ids.size()
 		or item_id.is_empty()
+		or quantity <= 0
 	):
 		return false
 	equipped_item_ids[slot_index] = item_id
+	equipped_item_counts[slot_index] = quantity
 	progression_changed.emit()
 	return true
 
 
-func clear_equipped_item(slot_index: int) -> StringName:
-	if slot_index < 0 or slot_index >= equipped_item_ids.size():
+func add_equipped_item(
+	slot_index: int,
+	item_id: StringName,
+	quantity := 1
+) -> bool:
+	if (
+		slot_index < 0
+		or slot_index >= equipped_item_ids.size()
+		or equipped_item_ids[slot_index] != item_id
+		or quantity <= 0
+	):
+		return false
+	equipped_item_counts[slot_index] += quantity
+	progression_changed.emit()
+	return true
+
+
+func remove_equipped_item(slot_index: int, quantity := 1) -> StringName:
+	if (
+		slot_index < 0
+		or slot_index >= equipped_item_ids.size()
+		or equipped_item_ids[slot_index].is_empty()
+		or quantity <= 0
+	):
 		return &""
 	var removed_item_id := equipped_item_ids[slot_index]
-	if removed_item_id.is_empty():
-		return &""
-	equipped_item_ids[slot_index] = &""
-	progression_changed.emit()
+	if equipped_item_counts[slot_index] > quantity:
+		equipped_item_counts[slot_index] -= quantity
+		progression_changed.emit()
+		return removed_item_id
+	clear_equipped_item_stack(slot_index)
 	return removed_item_id
+
+
+func clear_equipped_item(slot_index: int) -> StringName:
+	return StringName(clear_equipped_item_stack(slot_index).get("item_id", &""))
+
+
+func clear_equipped_item_stack(slot_index: int) -> Dictionary:
+	if slot_index < 0 or slot_index >= equipped_item_ids.size():
+		return {}
+	var removed_item_id := equipped_item_ids[slot_index]
+	if removed_item_id.is_empty():
+		return {}
+	var removed_quantity := maxi(equipped_item_counts[slot_index], 1)
+	equipped_item_ids[slot_index] = &""
+	equipped_item_counts[slot_index] = 0
+	progression_changed.emit()
+	return {
+		"item_id": removed_item_id,
+		"quantity": removed_quantity,
+	}
 
 
 func get_equipped_item_ids() -> Array[StringName]:
 	return equipped_item_ids.duplicate()
+
+
+func get_equipped_item_counts() -> Array[int]:
+	return equipped_item_counts.duplicate()
+
+
+func get_equipped_item_count(slot_index: int) -> int:
+	if slot_index < 0 or slot_index >= equipped_item_counts.size():
+		return 0
+	return equipped_item_counts[slot_index]
 
 
 func get_level_for_total_xp(total_xp: float) -> int:

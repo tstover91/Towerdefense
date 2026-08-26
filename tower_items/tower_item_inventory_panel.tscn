@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://tower_items/tower_item_inventory_panel.gd" id="1_panel"]
 
 [node name="TowerItemInventoryPanel" type="PanelContainer"]
-custom_minimum_size = Vector2(0, 138)
+custom_minimum_size = Vector2(260, 0)
 script = ExtResource("1_panel")
 
 [node name="Margin" type="MarginContainer" parent="."]
@@ -23,21 +23,24 @@ theme_override_font_sizes/font_size = 15
 text = "GLOBAL ITEM INVENTORY"
 horizontal_alignment = 1
 
-[node name="Selectors" type="HBoxContainer" parent="Margin/Content"]
+[node name="Selectors" type="VBoxContainer" parent="Margin/Content"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="InventoryOption" type="OptionButton" parent="Margin/Content/Selectors"]
+custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 text_overrun_behavior = 3
 
 [node name="TowerOption" type="OptionButton" parent="Margin/Content/Selectors"]
+custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 text_overrun_behavior = 3
 
 [node name="SlotOption" type="OptionButton" parent="Margin/Content/Selectors"]
+custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 text_overrun_behavior = 3

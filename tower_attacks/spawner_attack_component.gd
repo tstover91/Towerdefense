@@ -34,7 +34,7 @@ func load_level_stats(stats: Dictionary) -> void:
 	spawned_unit_id = tower_data.get("spawned_unit_id", &"")
 	spawn_limit = maxi(int(stats.get("spawn_limit", 1)), 1)
 	spawn_batch_size = 1
-	if tower.get_owned_relic_count(&"trade_agreement") > 0:
+	if tower.get_effect_stack_count(&"trade_agreement") > 0:
 		spawn_limit *= GameStats.TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER
 		spawn_batch_size = GameStats.TRADE_AGREEMENT_SPAWN_BATCH_SIZE
 	deployment_radius_pixels = (

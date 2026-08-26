@@ -2,6 +2,12 @@ extends Node
 
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const MOB_SCENE = preload("res://mob.tscn")
+const TOWER_XP_CREDIT_SERVICE = preload(
+	"res://tower_progression/tower_xp_credit_service.gd"
+)
+const TOWER_INSTANCE_PROGRESSION = preload(
+	"res://tower_progression/tower_instance_progression.gd"
+)
 
 
 class FakeMain:
@@ -43,11 +49,11 @@ func run_test() -> void:
 	):
 		return
 	var expected_thresholds := {
-		2: 28.0,
-		5: 130.0,
-		10: 387.0,
-		15: 809.0,
-		20: 1500.0,
+		2: 16.0,
+		5: 86.0,
+		10: 353.0,
+		15: 1071.0,
+		20: 3000.0,
 	}
 	for expected_level in expected_thresholds:
 		if not _check(
@@ -81,7 +87,7 @@ func run_test() -> void:
 	):
 		return
 	if not _check(
-		is_equal_approx(first_tower.instance_progression.xp, 2.0),
+		is_equal_approx(first_tower.instance_progression.xp, 0.6),
 		"Damage XP was not credited at the configured rate."
 	):
 		return
@@ -113,18 +119,36 @@ func run_test() -> void:
 	if not _check(first_tower.instance_progression.kills == 1, "Kill credit was not recorded."):
 		return
 	if not _check(
-		is_equal_approx(first_tower.instance_progression.xp, 15.0),
+		is_equal_approx(first_tower.instance_progression.xp, 3.45),
 		"Combined damage and kill XP was incorrect."
 	):
 		return
 
-	first_tower.instance_progression.grant_xp(13.0)
+	first_tower.instance_progression.grant_xp(12.55)
 	if not _check(first_tower.instance_progression.level == 2, "XP threshold did not raise the XP level."):
 		return
 	if not _check(first_tower.tower_level == 0, "XP changed the existing paid upgrade rank."):
 		return
 
-	print("Tower instance XP smoke test passed: unique state, damage, overkill, kills, derived attribution, and automatic levels.")
+	var round_one_pacing = TOWER_INSTANCE_PROGRESSION.new(&"invader")
+	enemy.max_health = 50
+	for _enemy_index in 20:
+		round_one_pacing.record_damage(
+			25,
+			TOWER_XP_CREDIT_SERVICE.get_damage_xp(25, enemy)
+		)
+	for _kill_index in 10:
+		round_one_pacing.record_kill(
+			TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy)
+		)
+	if not _check(
+		is_equal_approx(round_one_pacing.xp, 34.5)
+		and round_one_pacing.level == 2,
+		"Representative round-one combat progressed beyond the intended early pace."
+	):
+		return
+
+	print("Tower instance XP smoke test passed: unique state, damage, overkill, kills, derived attribution, slower round-one pacing, and automatic levels.")
 	get_tree().quit(0)
 
 

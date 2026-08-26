@@ -928,6 +928,7 @@ func update_tower_item_controls(tower: Node) -> void:
 	var item_lines: PackedStringArray = []
 	var tooltip_lines: PackedStringArray = []
 	var item_ids: Array[StringName] = tower.get_equipped_item_ids()
+	var item_counts: Array[int] = tower.get_equipped_item_counts()
 	for slot_index in GameStats.TOWER_ITEM_SLOT_COUNT:
 		var item_id := item_ids[slot_index]
 		if item_id.is_empty():
@@ -935,17 +936,27 @@ func update_tower_item_controls(tower: Node) -> void:
 			continue
 		var item := GameStats.get_tower_item(item_id)
 		var item_name := String(item.get("display_name", item_id))
+		var quantity_text := (
+			" ×%d" % item_counts[slot_index]
+			if item_counts[slot_index] > 1
+			else ""
+		)
 		var is_active: bool = tower.item_controller.is_item_active_in_slot(
 			slot_index
 		)
 		item_lines.append(
-			"%d. %s%s" % [
+			"%d. %s%s%s" % [
 				slot_index + 1,
 				item_name,
+				quantity_text,
 				"" if is_active else " · INACTIVE",
 			]
 		)
-		var tooltip := "%s: %s" % [item_name, item.get("description", "")]
+		var tooltip := "%s%s: %s" % [
+			item_name,
+			quantity_text,
+			item.get("description", ""),
+		]
 		if not is_active:
 			tooltip += "\nInactive: %s" % tower.item_controller.get_incompatibility_reason(
 				item_id

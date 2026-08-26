@@ -3,26 +3,29 @@
 [ext_resource type="Script" path="res://shop_choice_card.gd" id="1_card"]
 
 [node name="ShopChoiceCard" type="PanelContainer"]
-custom_minimum_size = Vector2(170, 250)
+custom_minimum_size = Vector2(140, 220)
 size_flags_horizontal = 3
 script = ExtResource("1_card")
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 18
-theme_override_constants/margin_top = 18
-theme_override_constants/margin_right = 18
-theme_override_constants/margin_bottom = 18
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
 
 [node name="CardLayout" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
 [node name="NameLabel" type="Label" parent="MarginContainer/CardLayout"]
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 20
 text = "Item Name"
 horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="CategoryLabel" type="Label" parent="MarginContainer/CardLayout"]
 layout_mode = 2
@@ -31,9 +34,9 @@ text = "General"
 horizontal_alignment = 1
 
 [node name="DescriptionLabel" type="Label" parent="MarginContainer/CardLayout"]
-custom_minimum_size = Vector2(134, 0)
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_font_sizes/font_size = 13
 text = "Item description"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -46,12 +49,12 @@ horizontal_alignment = 1
 
 [node name="LockButton" type="Button" parent="MarginContainer/CardLayout"]
 visible = false
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 toggle_mode = true
 text = "Lock"
 
 [node name="ChooseButton" type="Button" parent="MarginContainer/CardLayout"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 text = "Choose"

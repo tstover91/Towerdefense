@@ -25,6 +25,32 @@ func get_equipped_item_ids() -> Array[StringName]:
 	return tower.instance_progression.get_equipped_item_ids()
 
 
+func get_equipped_item_counts() -> Array[int]:
+	if tower.instance_progression == null:
+		return []
+	return tower.instance_progression.get_equipped_item_counts()
+
+
+func get_equipped_item_count(slot_index: int) -> int:
+	if tower.instance_progression == null:
+		return 0
+	return tower.instance_progression.get_equipped_item_count(slot_index)
+
+
+func find_equipped_item_slot(item_id: StringName) -> int:
+	return get_equipped_item_ids().find(item_id)
+
+
+func get_total_equipped_item_count(item_id: StringName) -> int:
+	var total := 0
+	var item_ids := get_equipped_item_ids()
+	var item_counts := get_equipped_item_counts()
+	for slot_index in item_ids.size():
+		if item_ids[slot_index] == item_id:
+			total += item_counts[slot_index]
+	return total
+
+
 func get_first_empty_slot() -> int:
 	var item_ids := get_equipped_item_ids()
 	for slot_index in item_ids.size():
@@ -36,6 +62,15 @@ func get_first_empty_slot() -> int:
 func can_equip_item(item_id: StringName, slot_index := -1) -> bool:
 	if tower.instance_progression == null or not GameStats.has_tower_item(item_id):
 		return false
+	if not is_item_compatible(item_id):
+		return false
+	var item := GameStats.get_tower_item(item_id)
+	var maximum_copies := int(item.get("max_copies_per_tower", get_slot_count()))
+	if get_total_equipped_item_count(item_id) >= maximum_copies:
+		return false
+	var existing_slot := find_equipped_item_slot(item_id)
+	if existing_slot >= 0:
+		return true
 	var resolved_slot := slot_index
 	if resolved_slot < 0:
 		resolved_slot = get_first_empty_slot()
@@ -43,14 +78,34 @@ func can_equip_item(item_id: StringName, slot_index := -1) -> bool:
 		return false
 	if not get_equipped_item_ids()[resolved_slot].is_empty():
 		return false
+	return true
+
+
+func can_equip_or_swap_item(item_id: StringName, slot_index: int) -> bool:
+	if (
+		tower.instance_progression == null
+		or not GameStats.has_tower_item(item_id)
+		or slot_index < 0
+		or slot_index >= get_slot_count()
+		or not is_item_compatible(item_id)
+	):
+		return false
 	var item := GameStats.get_tower_item(item_id)
 	var maximum_copies := int(item.get("max_copies_per_tower", get_slot_count()))
-	if get_equipped_item_ids().count(item_id) >= maximum_copies:
-		return false
-	return is_item_compatible(item_id)
+	return get_total_equipped_item_count(item_id) < maximum_copies
 
 
 func equip_item(item_id: StringName, slot_index := -1) -> bool:
+	var existing_slot := find_equipped_item_slot(item_id)
+	if existing_slot >= 0:
+		if not can_equip_item(item_id, existing_slot):
+			return false
+		if not tower.instance_progression.add_equipped_item(
+			existing_slot, item_id
+		):
+			return false
+		_refresh_tower_after_item_change()
+		return true
 	var resolved_slot := slot_index
 	if resolved_slot < 0:
 		resolved_slot = get_first_empty_slot()
@@ -63,14 +118,29 @@ func equip_item(item_id: StringName, slot_index := -1) -> bool:
 
 
 func unequip_item(slot_index: int) -> StringName:
+	return StringName(unequip_item_stack(slot_index).get("item_id", &""))
+
+
+func unequip_item_copy(slot_index: int) -> StringName:
 	if tower.instance_progression == null:
 		return &""
 	var removed_item_id: StringName = (
-		tower.instance_progression.clear_equipped_item(slot_index)
+		tower.instance_progression.remove_equipped_item(slot_index)
 	)
 	if not removed_item_id.is_empty():
 		_refresh_tower_after_item_change()
 	return removed_item_id
+
+
+func unequip_item_stack(slot_index: int) -> Dictionary:
+	if tower.instance_progression == null:
+		return {}
+	var removed_stack: Dictionary = (
+		tower.instance_progression.clear_equipped_item_stack(slot_index)
+	)
+	if not removed_stack.is_empty():
+		_refresh_tower_after_item_change()
+	return removed_stack
 
 
 func is_item_active_in_slot(slot_index: int) -> bool:
@@ -93,6 +163,7 @@ func get_trigger_total(effect_id: StringName, default_value := 0.0) -> float:
 	var total := 0.0
 	var found := false
 	var item_ids := get_equipped_item_ids()
+	var item_counts := get_equipped_item_counts()
 	for slot_index in get_slot_count():
 		if not is_item_active_in_slot(slot_index):
 			continue
@@ -100,9 +171,27 @@ func get_trigger_total(effect_id: StringName, default_value := 0.0) -> float:
 			item_ids[slot_index]
 		).get("trigger_effects", {})
 		if effects.has(effect_id):
-			total += float(effects[effect_id])
+			total += float(effects[effect_id]) * item_counts[slot_index]
 			found = true
 	return total if found else default_value
+
+
+func get_item_effect_count(effect_id: StringName) -> int:
+	var count := 0
+	var item_ids := get_equipped_item_ids()
+	var item_counts := get_equipped_item_counts()
+	for slot_index in item_ids.size():
+		if not is_item_active_in_slot(slot_index):
+			continue
+		var item_id := item_ids[slot_index]
+		var effects: Dictionary = GameStats.get_tower_item(item_id).get(
+			"item_effects", {}
+		)
+		count += (
+			maxi(int(effects.get(effect_id, 0)), 0)
+			* item_counts[slot_index]
+		)
+	return count
 
 
 func notify_attack_started(_target: Node = null) -> void:
@@ -139,6 +228,7 @@ func notify_damage_dealt(
 			"context": attack_context,
 		})
 	var item_ids := get_equipped_item_ids()
+	var item_counts := get_equipped_item_counts()
 	for slot_index in get_slot_count():
 		if not is_item_active_in_slot(slot_index):
 			continue
@@ -151,18 +241,20 @@ func notify_damage_dealt(
 			> 0.0
 			and not attack_context.is_secondary
 		):
-			_trigger_hit_explosion(
-				slot_index, item_id, enemy, actual_damage, attack_context, effects
-			)
+			for _copy_index in item_counts[slot_index]:
+				_trigger_hit_explosion(
+					slot_index, item_id, enemy, actual_damage, attack_context, effects
+				)
 		var hits_per_arc := maxi(int(effects.get("hits_per_arc", 0)), 0)
 		if hits_per_arc > 0:
 			var state := _get_slot_runtime_state(slot_index)
 			state["hit_count"] = int(state.get("hit_count", 0)) + 1
 			if int(state["hit_count"]) >= hits_per_arc:
 				state["hit_count"] = 0
-				_trigger_live_wire(
-					slot_index, item_id, enemy, actual_damage, attack_context, effects
-				)
+				for _copy_index in item_counts[slot_index]:
+					_trigger_live_wire(
+						slot_index, item_id, enemy, actual_damage, attack_context, effects
+					)
 
 
 func notify_enemy_killed(_enemy: Node, attack_context: AttackContext) -> void:
@@ -174,6 +266,7 @@ func notify_enemy_killed(_enemy: Node, attack_context: AttackContext) -> void:
 		"context": attack_context,
 	})
 	var item_ids := get_equipped_item_ids()
+	var item_counts := get_equipped_item_counts()
 	for slot_index in get_slot_count():
 		if not is_item_active_in_slot(slot_index):
 			continue
@@ -192,7 +285,8 @@ func notify_enemy_killed(_enemy: Node, attack_context: AttackContext) -> void:
 			))
 		# Hitscan kills resolve before the shared scheduler starts its timer.
 		# Deferring produces the same result for hitscan and traveling attacks.
-		call_deferred("_reduce_remaining_attack_cooldown", multiplier)
+		for _copy_index in item_counts[slot_index]:
+			call_deferred("_reduce_remaining_attack_cooldown", multiplier)
 
 
 func notify_spawned_unit_created(spawned_unit: Node) -> void:
@@ -359,7 +453,7 @@ func _spawn_explosion_visual(center: Vector2, radius: float) -> void:
 		current_scene.spawn_explosion_visual(center, radius)
 
 
-func is_item_compatible(item_id: StringName) -> bool:
+func is_item_compatible(item_id: StringName, _ignored_slot_index := -1) -> bool:
 	if not GameStats.has_tower_item(item_id):
 		return false
 	var available_tags := get_compatibility_tags()
@@ -385,7 +479,10 @@ func is_item_compatible(item_id: StringName) -> bool:
 	return true
 
 
-func get_incompatibility_reason(item_id: StringName) -> String:
+func get_incompatibility_reason(
+	item_id: StringName,
+	_ignored_slot_index := -1
+) -> String:
 	if not GameStats.has_tower_item(item_id):
 		return "Unknown item"
 	var available_tags := get_compatibility_tags()
@@ -430,29 +527,35 @@ func get_compatibility_tags() -> Array[StringName]:
 
 func apply_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 	var stats := base_stats.duplicate(true)
-	for item_id in get_active_item_ids():
+	var item_ids := get_equipped_item_ids()
+	var item_counts := get_equipped_item_counts()
+	for slot_index in item_ids.size():
+		if not is_item_active_in_slot(slot_index):
+			continue
+		var item_id := item_ids[slot_index]
 		var item := GameStats.get_tower_item(item_id)
-		_apply_stat_defaults(stats, item.get("stat_defaults", {}))
-		_apply_numeric_modifiers(stats, item.get("stat_multipliers", {}), true)
-		_apply_numeric_modifiers(stats, item.get("stat_additions", {}), false)
-		_apply_numeric_minimums(stats, item.get("stat_minimums", {}))
-		for key in item.get("stat_overrides", {}):
-			stats[key] = item["stat_overrides"][key]
-		if stats.has("unit_stats"):
-			var unit_stats: Dictionary = stats["unit_stats"]
-			_apply_stat_defaults(
-				unit_stats, item.get("unit_stat_defaults", {})
-			)
-			_apply_numeric_modifiers(
-				unit_stats, item.get("unit_stat_multipliers", {}), true
-			)
-			_apply_numeric_modifiers(
-				unit_stats, item.get("unit_stat_additions", {}), false
-			)
-			_apply_numeric_minimums(
-				unit_stats, item.get("unit_stat_minimums", {})
-			)
-			stats["unit_stats"] = unit_stats
+		for _copy_index in item_counts[slot_index]:
+			_apply_stat_defaults(stats, item.get("stat_defaults", {}))
+			_apply_numeric_modifiers(stats, item.get("stat_multipliers", {}), true)
+			_apply_numeric_modifiers(stats, item.get("stat_additions", {}), false)
+			_apply_numeric_minimums(stats, item.get("stat_minimums", {}))
+			for key in item.get("stat_overrides", {}):
+				stats[key] = item["stat_overrides"][key]
+			if stats.has("unit_stats"):
+				var unit_stats: Dictionary = stats["unit_stats"]
+				_apply_stat_defaults(
+					unit_stats, item.get("unit_stat_defaults", {})
+				)
+				_apply_numeric_modifiers(
+					unit_stats, item.get("unit_stat_multipliers", {}), true
+				)
+				_apply_numeric_modifiers(
+					unit_stats, item.get("unit_stat_additions", {}), false
+				)
+				_apply_numeric_minimums(
+					unit_stats, item.get("unit_stat_minimums", {})
+				)
+				stats["unit_stats"] = unit_stats
 	return stats
 
 
@@ -464,8 +567,11 @@ func _apply_stat_defaults(stats: Dictionary, defaults: Dictionary) -> void:
 
 func apply_tag_changes() -> int:
 	var pierce_addition := 0
-	for item_id in get_equipped_item_ids():
-		if item_id.is_empty() or not is_item_compatible(item_id):
+	var item_ids := get_equipped_item_ids()
+	var item_counts := get_equipped_item_counts()
+	for slot_index in item_ids.size():
+		var item_id := item_ids[slot_index]
+		if item_id.is_empty() or not is_item_active_in_slot(slot_index):
 			continue
 		var item := GameStats.get_tower_item(item_id)
 		for tag in item.get("add_type_tags", []):
@@ -474,7 +580,9 @@ func apply_tag_changes() -> int:
 			tower.stats_controller.add_damage_tag(StringName(tag))
 		for tag in item.get("add_bonus_tags", []):
 			tower.stats_controller.add_bonus_tag(StringName(tag))
-		pierce_addition += int(item.get("pierce_count_add", 0))
+		pierce_addition += (
+			int(item.get("pierce_count_add", 0)) * item_counts[slot_index]
+		)
 	return pierce_addition
 
 

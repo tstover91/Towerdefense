@@ -7,9 +7,9 @@ const OFFER_COUNT := 4
 const BASE_REROLL_COST := 50
 const REROLL_COST_STEP := 50
 const RARITY_WEIGHTS_BY_ROUND := {
-	&"early": {&"common": 100.0, &"rare": 30.0},
-	&"middle": {&"common": 75.0, &"rare": 60.0},
-	&"late": {&"common": 55.0, &"rare": 85.0},
+	&"early": {&"common": 100.0, &"uncommon": 50.0, &"rare": 15.0, &"legendary": 1.0},
+	&"middle": {&"common": 75.0, &"uncommon": 65.0, &"rare": 35.0, &"legendary": 5.0},
+	&"late": {&"common": 55.0, &"uncommon": 75.0, &"rare": 65.0, &"legendary": 15.0},
 }
 const PREFERRED_ITEM_WEIGHT_MULTIPLIER := 3.0
 
