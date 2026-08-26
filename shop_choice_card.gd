@@ -2,6 +2,7 @@ class_name ShopChoiceCard
 extends PanelContainer
 
 signal chosen(item_id: StringName, quantity: int)
+signal lock_toggled(is_locked: bool)
 
 const COMMON_COLOR := Color(0.15, 0.85, 0.96)
 const RARE_COLOR := Color(0.94, 0.27, 0.83)
@@ -16,6 +17,7 @@ const RELIC_RARITY_COLORS := {
 @onready var category_label: Label = $MarginContainer/CardLayout/CategoryLabel
 @onready var description_label: Label = $MarginContainer/CardLayout/DescriptionLabel
 @onready var owned_label: Label = $MarginContainer/CardLayout/OwnedLabel
+@onready var lock_button: Button = $MarginContainer/CardLayout/LockButton
 @onready var choose_button: Button = $MarginContainer/CardLayout/ChooseButton
 
 var item_id: StringName = &""
@@ -24,6 +26,9 @@ var default_panel_style: StyleBox
 var default_name_color := Color.WHITE
 var default_category_color := Color.WHITE
 var default_owned_color := Color.WHITE
+var shop_mode := false
+var item_price := 0
+var offer_locked := false
 
 
 func _ready() -> void:
@@ -32,6 +37,7 @@ func _ready() -> void:
 	default_category_color = category_label.get_theme_color("font_color")
 	default_owned_color = owned_label.get_theme_color("font_color")
 	choose_button.pressed.connect(_on_choose_pressed)
+	lock_button.pressed.connect(_on_lock_pressed)
 
 
 func display_item(
@@ -40,6 +46,7 @@ func display_item(
 	show_owned_count := true,
 	quantity := 1
 ) -> void:
+	shop_mode = false
 	item_id = item_stats["id"]
 	reward_quantity = maxi(quantity, 1)
 	name_label.text = item_stats["display_name"]
@@ -55,6 +62,47 @@ func display_item(
 	)
 	choose_button.disabled = false
 	choose_button.text = get_choice_button_text(false)
+	lock_button.hide()
+
+
+func display_shop_item(
+	item_stats: Dictionary,
+	inventory_count: int,
+	is_locked: bool,
+	can_afford: bool
+) -> void:
+	shop_mode = true
+	item_id = item_stats["id"]
+	reward_quantity = 1
+	item_price = int(item_stats.get("price", 0))
+	offer_locked = is_locked
+	name_label.text = item_stats["display_name"]
+	category_label.text = "%s • %s" % [
+		String(item_stats.get("rarity", &"common")).capitalize(),
+		String(item_stats.get("category", &"general")).capitalize(),
+	]
+	description_label.text = item_stats["description"]
+	owned_label.show()
+	owned_label.text = "Inventory: %d" % inventory_count
+	apply_rarity_style(StringName(item_stats.get("rarity", &"common")))
+	lock_button.show()
+	lock_button.button_pressed = offer_locked
+	lock_button.text = "Locked" if offer_locked else "Lock"
+	choose_button.disabled = not can_afford
+	choose_button.text = "Buy · $%d" % item_price
+
+
+func display_sold_slot() -> void:
+	shop_mode = true
+	item_id = &""
+	name_label.text = "SOLD"
+	category_label.text = "Reroll to refill"
+	description_label.text = "This offer has been purchased."
+	apply_rarity_style(&"")
+	owned_label.hide()
+	lock_button.hide()
+	choose_button.disabled = true
+	choose_button.text = "Sold"
 
 
 func apply_rarity_style(rarity: StringName) -> void:
@@ -104,3 +152,12 @@ func _on_choose_pressed() -> void:
 	if item_id.is_empty():
 		return
 	chosen.emit(item_id, reward_quantity)
+
+
+func _on_lock_pressed() -> void:
+	if not shop_mode or item_id.is_empty():
+		return
+	offer_locked = not offer_locked
+	lock_button.button_pressed = offer_locked
+	lock_button.text = "Locked" if offer_locked else "Lock"
+	lock_toggled.emit(offer_locked)

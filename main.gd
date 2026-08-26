@@ -11,6 +11,10 @@ const BuildControllerScript = preload("res://build_controller.gd")
 const RoundControllerScript = preload("res://round_controller.gd")
 const ReinforcementControllerScript = preload("res://reinforcement_controller.gd")
 const RunStateScript = preload("res://run_state.gd")
+const ItemShopManagerScript = preload("res://tower_items/item_shop_manager.gd")
+const TowerItemInventoryServiceScript = preload(
+	"res://tower_items/tower_item_inventory_service.gd"
+)
 const ROLE_FODDER := WaveDirectorScript.ROLE_FODDER
 const ROLE_PRESSURE := WaveDirectorScript.ROLE_PRESSURE
 const ROLE_TANK := WaveDirectorScript.ROLE_TANK
@@ -40,9 +44,9 @@ const GAUNTLET_EVENT_RESERVED_SLOTS := 20
 const DRAFT_HEALTH_RECOVERY := 20
 const DRAFT_HEALTH_COST_RATIO := 0.30
 const DRAFT_HEALTH_PRICE_INCREMENT := 25
-const TOWER_DRAFT_ROUNDS: Array[int] = [3, 9, 14]
-const RELIC_DRAFT_ROUNDS: Array[int] = [1, 5, 11, 20]
-const REINFORCEMENT_DRAFT_ROUNDS: Array[int] = [7, 17]
+const TOWER_DRAFT_ROUNDS: Array[int] = [3, 8, 12]
+const RELIC_DRAFT_ROUNDS: Array[int] = []
+const REINFORCEMENT_DRAFT_ROUNDS: Array[int] = []
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
 const TOWER_SLOT_COUNT := 5
@@ -54,6 +58,7 @@ const TRADE_AGREEMENT_TOWER_IDS: Array[StringName] = [
 ]
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_RELIC: StringName = &"relic"
+const DRAFT_ITEM: StringName = &"item"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const DOCK_BUILD_TOP_OFFSET := -230.0
 const DOCK_COMPACT_INSPECTOR_TOP_OFFSET := -108.0
@@ -134,6 +139,7 @@ signal round_ended(round_number: int)
 @onready var tower_relics_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerRelicsLabel
 @onready var tower_items_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/ItemsSection
 @onready var tower_items_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/ItemsSection/ItemsLabel
+@onready var tower_item_inventory_panel: Control = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TowerItemInventoryPanel
 @onready var tower_upgrade_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection
 @onready var tower_upgrade_header: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection/UpgradeHeaderLabel
 @onready var tower_upgrade_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/UpgradeSection/UpgradeDescription
@@ -160,6 +166,8 @@ var enemy_rng := RandomNumberGenerator.new()
 var wave_director = null
 var shop_rng := RandomNumberGenerator.new()
 var draft_manager = null
+var item_shop_manager = null
+var tower_item_inventory_service = null
 var build_controller = null
 var round_controller = null
 var reinforcement_controller = null
@@ -445,6 +453,7 @@ func _ready() -> void:
 	shop_rng.randomize()
 	wave_director = WaveDirectorScript.new(enemy_rng, get_active_enemy_count)
 	draft_manager = DraftManagerScript.new(shop_rng)
+	item_shop_manager = ItemShopManagerScript.new(shop_rng)
 	ensure_build_controller()
 	round_controller = RoundControllerScript.new(enemy_rng)
 	ensure_reinforcement_controller()
@@ -454,6 +463,8 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_align_sidebar_to_build_grid)
 	var mode: Dictionary = GameStats.get_mode(mode_id)
 	run_state.initialize(mode, sandbox_mode)
+	tower_item_inventory_service = TowerItemInventoryServiceScript.new()
+	tower_item_inventory_service.setup(run_state)
 	max_rounds = mode["max_rounds"]
 	if sandbox_mode:
 		max_rounds = 100
@@ -474,6 +485,12 @@ func _ready() -> void:
 	connect_tower_inspector_signals()
 	between_round_shop.draft_confirmed.connect(_on_draft_confirmed)
 	between_round_shop.draft_health_requested.connect(_on_draft_health_requested)
+	between_round_shop.item_purchase_requested.connect(_on_item_purchase_requested)
+	between_round_shop.item_lock_toggled.connect(_on_item_lock_toggled)
+	between_round_shop.item_reroll_requested.connect(_on_item_reroll_requested)
+	between_round_shop.item_shop_closed.connect(_on_item_shop_closed)
+	between_round_shop.setup(self)
+	tower_item_inventory_panel.setup(self)
 	update_play_pause_button()
 	if sandbox_mode:
 		pause_button.hide()
@@ -812,6 +829,8 @@ func show_tower_details(tower: Node) -> void:
 	tower_relics_label.text = "Relics: %s" % format_relic_names(active_relics)
 	tower_relics_label.tooltip_text = format_relic_effect_tooltip(active_relics)
 	update_tower_item_controls(tower)
+	if not round_active:
+		tower_item_inventory_panel.refresh(tower)
 	update_tower_upgrade_controls(tower, stats)
 	update_tower_path_controls(tower)
 	if tower_path_section.visible:
@@ -860,6 +879,7 @@ func update_tower_inspector_panel_visibility() -> void:
 	if not is_instance_valid(tower_inspector):
 		return
 	tower_information_content.visible = tower_info_expanded
+	tower_item_inventory_panel.visible = tower_info_expanded and not round_active
 	tower_target_section.visible = (
 		tower_target_panel_open and tower_has_targeting_controls
 	)
@@ -2218,7 +2238,9 @@ func update_round_count() -> void:
 		else:
 			round_timer_display.text = "%s: Clear remaining enemies" % round_type_name
 	elif shop_open:
-		round_timer_display.text = "Draft"
+		round_timer_display.text = (
+			"Item Shop" if active_draft_type == DRAFT_ITEM else "Draft"
+		)
 	elif is_selecting_path_relic_tower():
 		var relic := GameStats.get_relic(pending_path_relic_tower_selection)
 		round_timer_display.text = "%s: Select a tower" % relic["display_name"]
@@ -2256,6 +2278,8 @@ func end_round() -> void:
 			victory()
 		RoundControllerScript.POST_ROUND_TOWER_DRAFT:
 			open_tower_draft()
+		RoundControllerScript.POST_ROUND_ITEM_SHOP:
+			open_item_shop()
 		RoundControllerScript.POST_ROUND_RELIC_DRAFT:
 			open_relic_draft()
 		RoundControllerScript.POST_ROUND_REINFORCEMENT_DRAFT:
@@ -2388,6 +2412,135 @@ func open_tower_draft() -> void:
 	)
 
 
+func open_item_shop() -> void:
+	if shop_open or game_ended:
+		return
+	cancel_pending_tower_placement()
+	close_all_tower_menus()
+	shop_open = true
+	ensure_round_controller()
+	round_controller.enter_draft_phase()
+	active_draft_type = DRAFT_ITEM
+	draft_health_purchased = false
+	ensure_run_state()
+	item_shop_manager.open_shop(
+		round_number,
+		run_state.locked_tower_item_offers,
+		get_preferred_shop_item_ids()
+	)
+	active_draft_offers = item_shop_manager.offers.duplicate()
+	update_round_count()
+	update_play_pause_button()
+	var health_recovery := get_draft_health_recovery()
+	var health_cost := get_draft_health_cost(health_recovery)
+	between_round_shop.open_item_shop(
+		round_number,
+		max_rounds,
+		item_shop_manager.offers,
+		item_shop_manager.locked_slots,
+		run_state.tower_item_inventory,
+		money,
+		item_shop_manager.get_reroll_cost(),
+		health_recovery,
+		health_cost,
+		health_recovery > 0 and (sandbox_mode or money >= health_cost)
+	)
+
+
+func refresh_item_shop_view() -> void:
+	if not shop_open or active_draft_type != DRAFT_ITEM:
+		return
+	ensure_run_state()
+	active_draft_offers = item_shop_manager.offers.duplicate()
+	between_round_shop.refresh_item_shop(
+		item_shop_manager.offers,
+		item_shop_manager.locked_slots,
+		run_state.tower_item_inventory,
+		money,
+		item_shop_manager.get_reroll_cost()
+	)
+
+
+func get_preferred_shop_item_ids() -> Array[StringName]:
+	var preferred: Array[StringName] = []
+	var placed_towers := get_placed_towers_for_item_management()
+	for item_id in GameStats.get_tower_item_ids():
+		for tower in placed_towers:
+			if tower.item_controller.is_item_compatible(item_id):
+				preferred.append(item_id)
+				break
+	return preferred
+
+
+func _on_item_purchase_requested(slot_index: int, item_id: StringName) -> void:
+	if (
+		not shop_open
+		or active_draft_type != DRAFT_ITEM
+		or not item_shop_manager.is_valid_offer_slot(slot_index)
+		or item_shop_manager.offers[slot_index] != item_id
+	):
+		return
+	var item := GameStats.get_tower_item(item_id)
+	if not spend_money(int(item.get("price", 0))):
+		refresh_item_shop_view()
+		return
+	ensure_run_state()
+	if not run_state.add_tower_item(item_id):
+		add_money(int(item.get("price", 0)))
+		return
+	item_shop_manager.mark_purchased(slot_index)
+	run_state.set_locked_tower_item_offers(
+		item_shop_manager.get_locked_offer_ids()
+	)
+	refresh_item_inventory_interfaces()
+	refresh_item_shop_view()
+
+
+func _on_item_lock_toggled(slot_index: int) -> void:
+	if not shop_open or active_draft_type != DRAFT_ITEM:
+		return
+	item_shop_manager.toggle_lock(slot_index)
+	ensure_run_state()
+	run_state.set_locked_tower_item_offers(
+		item_shop_manager.get_locked_offer_ids()
+	)
+	refresh_item_shop_view()
+
+
+func _on_item_reroll_requested() -> void:
+	if (
+		not shop_open
+		or active_draft_type != DRAFT_ITEM
+		or not item_shop_manager.has_rerollable_slots()
+	):
+		return
+	var reroll_cost: int = item_shop_manager.get_reroll_cost()
+	if not spend_money(reroll_cost):
+		refresh_item_shop_view()
+		return
+	item_shop_manager.reroll(round_number, get_preferred_shop_item_ids())
+	ensure_run_state()
+	run_state.set_locked_tower_item_offers(
+		item_shop_manager.get_locked_offer_ids()
+	)
+	refresh_item_shop_view()
+
+
+func _on_item_shop_closed() -> void:
+	if not shop_open or active_draft_type != DRAFT_ITEM:
+		return
+	ensure_run_state()
+	run_state.set_locked_tower_item_offers(
+		item_shop_manager.get_locked_offer_ids()
+	)
+	shop_open = false
+	active_draft_type = &""
+	active_draft_offers.clear()
+	draft_health_purchased = false
+	between_round_shop.hide()
+	enter_build_phase()
+
+
 func open_relic_draft() -> void:
 	var offers := roll_relic_offers()
 	var choice_quantities := get_relic_choice_quantities(offers)
@@ -2476,6 +2629,7 @@ func _on_draft_health_requested() -> void:
 	run_state.restore_health(health_recovery)
 	update_lives()
 	between_round_shop.mark_health_purchased(health_recovery)
+	refresh_item_shop_view()
 
 
 func ensure_draft_manager() -> void:
@@ -2637,6 +2791,88 @@ func collect_tower(tower_id: StringName) -> void:
 func get_tower_roster_dictionary() -> Dictionary:
 	ensure_run_state()
 	return run_state.get_tower_roster_dictionary()
+
+
+func get_tower_item_inventory() -> Dictionary:
+	ensure_run_state()
+	return run_state.tower_item_inventory.duplicate()
+
+
+func get_placed_towers_for_item_management() -> Array[Node]:
+	var towers: Array[Node] = []
+	for candidate in get_tree().get_nodes_in_group("towers"):
+		if (
+			is_instance_valid(candidate)
+			and not candidate.is_queued_for_deletion()
+			and bool(candidate.get("is_placed"))
+			and candidate.get("instance_progression") != null
+		):
+			towers.append(candidate)
+	towers.sort_custom(func(a: Node, b: Node) -> bool:
+		return String(a.instance_progression.instance_uid) < String(
+			b.instance_progression.instance_uid
+		)
+	)
+	return towers
+
+
+func can_manage_tower_items() -> bool:
+	return not game_ended and not round_active
+
+
+func equip_inventory_item_to_tower(
+	item_id: StringName,
+	tower: Node,
+	slot_index: int
+) -> bool:
+	if (
+		not can_manage_tower_items()
+		or not is_instance_valid(tower)
+		or not tower.is_placed
+		or not GameStats.has_tower_item(item_id)
+		or slot_index < 0
+		or slot_index >= GameStats.TOWER_ITEM_SLOT_COUNT
+		or not tower.item_controller.is_item_compatible(item_id)
+	):
+		return false
+	ensure_run_state()
+	if tower_item_inventory_service.equip_item(tower, item_id, slot_index):
+		refresh_item_inventory_interfaces(tower)
+		refresh_item_shop_view()
+		return true
+	refresh_item_inventory_interfaces(tower)
+	return false
+
+
+func unequip_tower_item_to_inventory(tower: Node, slot_index: int) -> bool:
+	if (
+		not can_manage_tower_items()
+		or not is_instance_valid(tower)
+		or slot_index < 0
+		or slot_index >= GameStats.TOWER_ITEM_SLOT_COUNT
+	):
+		return false
+	ensure_run_state()
+	if not tower_item_inventory_service.unequip_item(tower, slot_index):
+		return false
+	refresh_item_inventory_interfaces(tower)
+	refresh_item_shop_view()
+	return true
+
+
+func return_tower_items_to_inventory(tower: Node) -> void:
+	if not is_instance_valid(tower):
+		return
+	ensure_run_state()
+	tower_item_inventory_service.return_all_items(tower)
+	refresh_item_inventory_interfaces()
+
+
+func refresh_item_inventory_interfaces(preferred_tower: Node = null) -> void:
+	if is_instance_valid(tower_item_inventory_panel):
+		tower_item_inventory_panel.refresh(preferred_tower)
+	if is_instance_valid(between_round_shop):
+		between_round_shop.refresh_inventory_panel(preferred_tower)
 
 
 func refresh_placed_tower_stats() -> void:

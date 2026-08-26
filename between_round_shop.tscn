@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://between_round_shop.gd" id="1_shop"]
 [ext_resource type="PackedScene" path="res://shop_choice_card.tscn" id="2_card"]
 [ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="3_theme"]
+[ext_resource type="PackedScene" path="res://tower_items/tower_item_inventory_panel.tscn" id="4_inventory"]
 
 [node name="BetweenRoundShop" type="Control"]
 visible = false
@@ -88,6 +89,20 @@ layout_mode = 2
 text = "Owned relics: None"
 horizontal_alignment = 1
 text_overrun_behavior = 3
+
+[node name="TowerItemInventoryPanel" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout" instance=ExtResource("4_inventory")]
+layout_mode = 2
+
+[node name="ShopActions" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RerollButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout/ShopActions"]
+visible = false
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Reroll · $50"
 
 [node name="HealthButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopLayout"]
 custom_minimum_size = Vector2(0, 42)

@@ -15,6 +15,7 @@ const PHASE_DRAFT: StringName = &"draft"
 const PHASE_COMPLETE: StringName = &"complete"
 
 const POST_ROUND_BUILD: StringName = &"build"
+const POST_ROUND_ITEM_SHOP: StringName = &"item_shop"
 const POST_ROUND_TOWER_DRAFT: StringName = &"tower_draft"
 const POST_ROUND_RELIC_DRAFT: StringName = &"relic_draft"
 const POST_ROUND_REINFORCEMENT_DRAFT: StringName = &"reinforcement_draft"
@@ -136,18 +137,16 @@ func should_finish_round(
 
 func get_post_round_action(
 	tower_draft_rounds: Array[int],
-	relic_draft_rounds: Array[int],
-	reinforcement_draft_rounds: Array[int] = []
+	_relic_draft_rounds: Array[int],
+	_reinforcement_draft_rounds: Array[int] = []
 ) -> StringName:
 	if round_number >= max_rounds:
 		return POST_ROUND_VICTORY
 	if tower_draft_rounds.has(round_number):
 		return POST_ROUND_TOWER_DRAFT
-	if relic_draft_rounds.has(round_number):
-		return POST_ROUND_RELIC_DRAFT
-	if reinforcement_draft_rounds.has(round_number):
-		return POST_ROUND_REINFORCEMENT_DRAFT
-	return POST_ROUND_BUILD
+	# Relic and reinforcement draft arguments remain for legacy callers, but the
+	# normal progression loop now uses an item shop on every non-draft round.
+	return POST_ROUND_ITEM_SHOP
 
 
 func calculate_end_round_reward(current_money: int, has_dividends: bool) -> int:

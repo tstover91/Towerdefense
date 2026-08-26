@@ -6,14 +6,14 @@ const CombatSimulator = preload("res://tools/tower_balance_monte_carlo.gd")
 const MainScene = preload("res://main.tscn")
 const DraftManagerScript = preload("res://draft_manager.gd")
 
-const TOWER_DRAFT_ROUNDS := [3, 9, 14]
-const RELIC_DRAFT_ROUNDS := [1, 5, 11, 20]
+const TOWER_DRAFT_ROUNDS := [3, 8, 12]
+const RELIC_DRAFT_ROUNDS: Array[int] = []
 const MAX_TOWERS := 128
 const TARGET_WIN_RATE := 0.60
 const ACCEPTABLE_WIN_LOW := 0.42
 const ACCEPTABLE_WIN_HIGH := 0.78
 const DEFAULT_OUTPUT_DIR := "res://balance_reports/overnight"
-const CHECKPOINT_VERSION := 10
+const CHECKPOINT_VERSION := 11
 const CHECKPOINT_FILE_A := "optimizer_checkpoint_a.dat"
 const CHECKPOINT_FILE_B := "optimizer_checkpoint_b.dat"
 const TOWER_ENGAGEMENT_COVERAGE := 0.45
@@ -3429,7 +3429,9 @@ func get_balance_values() -> Dictionary:
 		"enemy_debut_groups": GameStats.ENEMY_DEBUT_GROUPS,
 		"fixed_enemy_debut_rounds": GameStats.FIXED_ENEMY_DEBUT_ROUNDS,
 		"wave_style_rules": GameStats.WAVE_STYLE_RULES,
-		"relic_draft_rounds": DraftManagerScript.RELIC_DRAFT_ROUNDS,
+		"tower_draft_rounds": TOWER_DRAFT_ROUNDS,
+		"relic_draft_rounds": RELIC_DRAFT_ROUNDS,
+		"item_shop_modeled": false,
 		"relic_rarity_weights": DraftManagerScript.RELIC_RARITY_WEIGHTS_BY_ROUND,
 		"relic_minimum_rare_plus": (
 			DraftManagerScript.RELIC_MINIMUM_RARE_PLUS_BY_ROUND

@@ -44,6 +44,13 @@ layout_mode = 2
 text = "Owned: 0"
 horizontal_alignment = 1
 
+[node name="LockButton" type="Button" parent="MarginContainer/CardLayout"]
+visible = false
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+toggle_mode = true
+text = "Lock"
+
 [node name="ChooseButton" type="Button" parent="MarginContainer/CardLayout"]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2

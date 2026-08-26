@@ -306,6 +306,8 @@ func handle_sell_pressed() -> void:
 		return
 	if tower.main == null:
 		return
+	if tower.main.has_method("return_tower_items_to_inventory"):
+		tower.main.return_tower_items_to_inventory(tower)
 	tower.main.add_money(get_sell_price())
 	tower.is_placed = false
 	tower.tower_sold.emit(tower)

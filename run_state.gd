@@ -13,6 +13,8 @@ var contraband_tower_id: StringName = &""
 var holiday_sale_tower_id: StringName = &""
 var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
+var tower_item_inventory: Dictionary = {}
+var locked_tower_item_offers: Array[StringName] = []
 
 
 func initialize(mode: Dictionary, is_sandbox: bool) -> void:
@@ -25,6 +27,8 @@ func initialize(mode: Dictionary, is_sandbox: bool) -> void:
 	holiday_sale_tower_id = &""
 	owned_shop_items.clear()
 	run_bonuses.clear()
+	tower_item_inventory.clear()
+	locked_tower_item_offers.clear()
 
 
 func add_money(amount: int) -> int:
@@ -89,6 +93,41 @@ func get_relic_count(relic_id: StringName) -> int:
 
 func get_run_bonus(effect: StringName) -> float:
 	return float(run_bonuses.get(effect, 0.0))
+
+
+func add_tower_item(item_id: StringName, quantity: int = 1) -> bool:
+	if not GameStats.has_tower_item(item_id) or quantity <= 0:
+		return false
+	tower_item_inventory[item_id] = (
+		get_tower_item_count(item_id) + quantity
+	)
+	return true
+
+
+func remove_tower_item(item_id: StringName, quantity: int = 1) -> bool:
+	var safe_quantity := maxi(quantity, 0)
+	if safe_quantity <= 0 or get_tower_item_count(item_id) < safe_quantity:
+		return false
+	var remaining := get_tower_item_count(item_id) - safe_quantity
+	if remaining <= 0:
+		tower_item_inventory.erase(item_id)
+	else:
+		tower_item_inventory[item_id] = remaining
+	return true
+
+
+func get_tower_item_count(item_id: StringName) -> int:
+	return maxi(int(tower_item_inventory.get(item_id, 0)), 0)
+
+
+func set_locked_tower_item_offers(item_ids: Array[StringName]) -> void:
+	locked_tower_item_offers.clear()
+	for item_id in item_ids:
+		if (
+			GameStats.has_tower_item(item_id)
+			and not locked_tower_item_offers.has(item_id)
+		):
+			locked_tower_item_offers.append(item_id)
 
 
 func set_tower_roster(tower_ids: Array[StringName]) -> void:

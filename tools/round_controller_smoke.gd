@@ -34,21 +34,21 @@ func _ready() -> void:
 	assert(controller.should_finish_round(false, 0, 0, 0))
 	assert(not controller.should_finish_round(false, 0, 1, 0))
 
-	var tower_rounds: Array[int] = [3, 9, 14]
-	var relic_rounds: Array[int] = [1, 5, 11, 20]
-	var reinforcement_rounds: Array[int] = [7, 17]
+	var tower_rounds: Array[int] = [3, 8, 12]
+	var relic_rounds: Array[int] = []
+	var reinforcement_rounds: Array[int] = []
 	assert(controller.end_round())
 	assert(controller.get_post_round_action(
 		tower_rounds,
 		relic_rounds,
 		reinforcement_rounds
-	) == RoundControllerScript.POST_ROUND_RELIC_DRAFT)
-	controller.round_number = 7
+	) == RoundControllerScript.POST_ROUND_ITEM_SHOP)
+	controller.round_number = 8
 	assert(controller.get_post_round_action(
 		tower_rounds,
 		relic_rounds,
 		reinforcement_rounds
-	) == RoundControllerScript.POST_ROUND_REINFORCEMENT_DRAFT)
+	) == RoundControllerScript.POST_ROUND_TOWER_DRAFT)
 	controller.enter_draft_phase()
 	assert(controller.phase == RoundControllerScript.PHASE_DRAFT)
 	controller.enter_build_phase()

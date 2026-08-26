@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://b4ql5u0pgkrxi" path="res://assets/ui/build_towers.svg" id="7_build_icon"]
 [ext_resource type="Texture2D" uid="uid://b7wgc2rldixne" path="res://assets/ui/reinforcements.svg" id="8_reinforce_icon"]
 [ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="9_invasion_theme"]
+[ext_resource type="PackedScene" path="res://tower_items/tower_item_inventory_panel.tscn" id="10_item_inventory"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1bvp3"]
 texture = ExtResource("3_h2yge")
@@ -1044,6 +1045,10 @@ layout_mode = 2
 disabled = true
 text = "Select a Path"
 clip_text = true
+
+[node name="TowerItemInventoryPanel" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent" instance=ExtResource("10_item_inventory")]
+visible = false
+layout_mode = 2
 
 [node name="TargetSection" type="VBoxContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent" unique_id=386935556]
 visible = false

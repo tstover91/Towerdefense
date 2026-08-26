@@ -1,0 +1,66 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tower_items/tower_item_inventory_panel.gd" id="1_panel"]
+
+[node name="TowerItemInventoryPanel" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 138)
+script = ExtResource("1_panel")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Content" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="Margin/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "GLOBAL ITEM INVENTORY"
+horizontal_alignment = 1
+
+[node name="Selectors" type="HBoxContainer" parent="Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="InventoryOption" type="OptionButton" parent="Margin/Content/Selectors"]
+layout_mode = 2
+size_flags_horizontal = 3
+text_overrun_behavior = 3
+
+[node name="TowerOption" type="OptionButton" parent="Margin/Content/Selectors"]
+layout_mode = 2
+size_flags_horizontal = 3
+text_overrun_behavior = 3
+
+[node name="SlotOption" type="OptionButton" parent="Margin/Content/Selectors"]
+layout_mode = 2
+size_flags_horizontal = 3
+text_overrun_behavior = 3
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EquipButton" type="Button" parent="Margin/Content/Actions"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Equip / Swap"
+
+[node name="UnequipButton" type="Button" parent="Margin/Content/Actions"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Return to Inventory"
+
+[node name="StatusLabel" type="Label" parent="Margin/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Select an item, tower, and slot."
+horizontal_alignment = 1
+autowrap_mode = 2
