@@ -1012,6 +1012,53 @@ const TOWER_ITEMS := {
 		"stat_defaults": {"beam_half_width": 2.5},
 		"stat_multipliers": {"range": 1.15, "beam_half_width": 1.25},
 	},
+	&"kill_chain": {
+		"display_name": "Kill Chain",
+		"description": "Kills cut 25% from the remaining attack cooldown. Critical kills cut 55% instead.",
+		"rarity": &"rare",
+		"category": &"trigger",
+		"price": 700,
+		"trigger_effects": {
+			"kill_cooldown_remaining_multiplier": 0.75,
+			"critical_kill_cooldown_remaining_multiplier": 0.45,
+		},
+	},
+	&"explosive_payload": {
+		"display_name": "Explosive Payload",
+		"description": "Primary projectile hits explode for 35% damage in a 2-tile radius. Item explosions cannot trigger items.",
+		"rarity": &"rare",
+		"category": &"projectile",
+		"price": 775,
+		"required_all_tags": [&"projectile"],
+		"trigger_effects": {
+			"primary_hit_explosion_damage_multiplier": 0.35,
+			"primary_hit_explosion_radius": 2.0,
+		},
+	},
+	&"split_chamber": {
+		"display_name": "Split Chamber",
+		"description": "Slinger fires one additional projectile at a slight angle, but deals 20% less damage.",
+		"rarity": &"rare",
+		"category": &"projectile",
+		"price": 800,
+		"required_all_tags": [&"projectile"],
+		"allowed_tower_ids": [&"slinger"],
+		"stat_multipliers": {"damage": 0.80},
+		"trigger_effects": {"additional_projectiles": 1},
+	},
+	&"live_wire": {
+		"display_name": "Live Wire",
+		"description": "Every fourth damaging hit arcs 40% Electric damage to up to two nearby enemies.",
+		"rarity": &"rare",
+		"category": &"electric",
+		"price": 750,
+		"trigger_effects": {
+			"hits_per_arc": 4,
+			"arc_damage_multiplier": 0.40,
+			"arc_target_count": 2,
+			"arc_range": 4.0,
+		},
+	},
 }
 const TOWER_EVOLUTION_DEFAULT_LEVEL := 10
 const TOWER_EVOLUTIONS := {

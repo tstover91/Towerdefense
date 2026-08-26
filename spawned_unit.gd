@@ -1400,12 +1400,20 @@ func apply_control_effects(
 		resolved_context = create_attack_context(&"spawned_status_effect")
 	if slow_duration > 0.0 and current_target.has_method("apply_slow"):
 		current_target.apply_slow(slow_duration, resolved_context)
+		if is_instance_valid(parent_tower):
+			parent_tower.notify_status_applied(
+				current_target, &"slow", resolved_context
+			)
 	if stun_duration > 0.0 and current_target.has_method("apply_stun"):
 		current_target.apply_stun(
 			stun_duration,
 			stun_affects_bosses,
 			resolved_context
 		)
+		if is_instance_valid(parent_tower):
+			parent_tower.notify_status_applied(
+				current_target, &"stun", resolved_context
+			)
 
 
 func select_target(origin: Vector2, maximum_distance: float) -> Node2D:

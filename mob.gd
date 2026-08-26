@@ -761,7 +761,7 @@ func credit_tower_damage(
 		is_instance_valid(root_tower)
 		and root_tower.has_method("notify_damage_dealt")
 	):
-		root_tower.notify_damage_dealt(actual_damage, attack_context)
+		root_tower.notify_damage_dealt(self, actual_damage, attack_context)
 
 
 func consume_ablative_shield_hit() -> bool:

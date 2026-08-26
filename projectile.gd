@@ -565,8 +565,10 @@ func apply_damage_and_effects(
 		return
 	if slow_duration > 0.0 and mob.has_method("apply_slow"):
 		mob.apply_slow(slow_duration, resolved_context)
+		_notify_status_applied(mob, &"slow", resolved_context)
 	if stun_duration > 0.0 and mob.has_method("apply_stun"):
 		mob.apply_stun(stun_duration, stun_affects_bosses, resolved_context)
+		_notify_status_applied(mob, &"stun", resolved_context)
 	if mob.has_method("apply_damage_from_tower"):
 		mob.apply_damage_from_tower(
 			attack_damage,
@@ -583,6 +585,21 @@ func apply_damage_and_effects(
 			true,
 			resolved_context
 		)
+
+
+func _notify_status_applied(
+	mob: Node,
+	status_id: StringName,
+	resolved_context: AttackContext
+) -> void:
+	if resolved_context == null:
+		return
+	var root_tower := resolved_context.get_root_tower()
+	if (
+		is_instance_valid(root_tower)
+		and root_tower.has_method("notify_status_applied")
+	):
+		root_tower.notify_status_applied(mob, status_id, resolved_context)
 
 
 func derive_attack_context(derived_attack_kind: StringName) -> AttackContext:

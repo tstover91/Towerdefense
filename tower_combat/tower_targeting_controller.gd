@@ -98,6 +98,7 @@ func apply_damage() -> void:
 			tower.attack_component != null
 			and tower.attack_component.has_manual_attack_opportunity()
 		):
+			tower.notify_attack_started()
 			tower.attack_component.execute_manual_attack()
 			attacked_ground = true
 		complete_shared_attack_cycle(attacked_ground)
@@ -116,6 +117,7 @@ func apply_damage() -> void:
 		tower.attack_component.on_target_updated()
 	var did_attack := false
 	if is_valid_target(tower.target):
+		tower.notify_attack_started(tower.target)
 		tower.attack(tower.target)
 		did_attack = true
 		# Projectile Melee attacks confirm Relentless only when the originally

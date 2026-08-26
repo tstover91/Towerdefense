@@ -132,6 +132,8 @@ func create_attack_context(
 	)
 	if include_critical_roll:
 		metadata.merge(get_last_attack_roll_metadata(), true)
+	if tower.item_controller != null:
+		metadata.merge(tower.item_controller.get_attack_metadata(), true)
 	return AttackContext.from_tower(
 		tower,
 		source,
@@ -288,14 +290,39 @@ func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
 			tower.muzzle.global_position
 			+ shot_direction * maximum_projectile_distance
 		)
-	launch_projectile_from_position(
-		current_target,
-		tower.muzzle.global_position,
-		projectile_target_position,
-		maximum_projectile_distance,
-		attack_damage,
-		impact_radius
-	)
+	var additional_projectiles := 0
+	if tower.item_controller != null:
+		additional_projectiles = maxi(roundi(
+			tower.item_controller.get_trigger_total(&"additional_projectiles")
+		), 0)
+	var projectile_total := 1 + additional_projectiles
+	var base_offset := projectile_target_position - tower.muzzle.global_position
+	for projectile_index in projectile_total:
+		var angle_offset := 0.0
+		if projectile_total > 1:
+			angle_offset = (
+				float(projectile_index) / float(projectile_total - 1) - 0.5
+			) * deg_to_rad(10.0)
+		var destination := (
+			tower.muzzle.global_position + base_offset.rotated(angle_offset)
+		)
+		var context := create_attack_context(
+			&"projectile",
+			null,
+			&"tower",
+			null,
+			projectile_index > 0,
+			true
+		)
+		launch_projectile_from_position(
+			current_target,
+			tower.muzzle.global_position,
+			destination,
+			maximum_projectile_distance,
+			attack_damage,
+			impact_radius,
+			context
+		)
 
 
 func launch_projectile_from_position(
@@ -659,12 +686,14 @@ func apply_control_effects(
 		return
 	if tower.slow_duration > 0.0 and current_target.has_method("apply_slow"):
 		current_target.apply_slow(tower.slow_duration, resolved_context)
+		tower.notify_status_applied(current_target, &"slow", resolved_context)
 	if tower.stun_duration > 0.0 and current_target.has_method("apply_stun"):
 		current_target.apply_stun(
 			tower.stun_duration,
 			tower.stun_affects_bosses,
 			resolved_context
 		)
+		tower.notify_status_applied(current_target, &"stun", resolved_context)
 
 
 func get_targets_along_line(

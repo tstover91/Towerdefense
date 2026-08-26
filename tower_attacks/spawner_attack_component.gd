@@ -10,6 +10,7 @@ var spawn_batch_size := 1
 var deployment_radius_pixels := 0.0
 var active_units: Array[Node] = []
 var drone_target_mode := 0
+var cleanup_unit_ids: Dictionary = {}
 
 
 func uses_standard_targeting() -> bool:
@@ -83,6 +84,7 @@ func _spawn_one_unit() -> void:
 	)
 	active_units.append(spawned_unit)
 	spawned_unit.tree_exiting.connect(_on_unit_exiting.bind(spawned_unit))
+	tower.notify_spawned_unit_created(spawned_unit)
 
 
 func _get_spawned_unit_position() -> Vector2:
@@ -122,6 +124,11 @@ func prune_units() -> void:
 
 func _on_unit_exiting(spawned_unit: Node) -> void:
 	active_units.erase(spawned_unit)
+	var unit_id := spawned_unit.get_instance_id()
+	var wave_cleanup := cleanup_unit_ids.has(unit_id)
+	cleanup_unit_ids.erase(unit_id)
+	if is_instance_valid(tower):
+		tower.notify_spawned_unit_removed(spawned_unit, wave_cleanup)
 
 
 func schedule_unit_replacement(delay: float) -> void:
@@ -146,6 +153,7 @@ func _spawn_scheduled_replacement() -> void:
 func clear_units() -> void:
 	for spawned_unit in active_units:
 		if is_instance_valid(spawned_unit):
+			cleanup_unit_ids[spawned_unit.get_instance_id()] = true
 			spawned_unit.queue_free()
 	active_units.clear()
 

@@ -770,6 +770,8 @@ func _on_round_started(_round_number: int) -> void:
 	refresh_death_ray_overcharge_state()
 	if attack_delivery_controller != null:
 		attack_delivery_controller.invalidate_relic_metadata_cache()
+	if item_controller != null:
+		item_controller.reset_runtime_state()
 	if attack_component != null:
 		attack_component.on_round_started()
 	if is_placed and uses_standard_spawner_system():
@@ -822,15 +824,50 @@ func notify_enemy_killed(enemy: Node, attack_context: AttackContext) -> void:
 		)
 	if attack_component != null:
 		attack_component.on_enemy_killed(enemy, attack_context)
+	if item_controller != null:
+		item_controller.notify_enemy_killed(enemy, attack_context)
 
 
-func notify_damage_dealt(actual_damage: int, attack_context: AttackContext) -> void:
+func notify_damage_dealt(
+	enemy: Node,
+	actual_damage: int,
+	attack_context: AttackContext
+) -> void:
 	if instance_progression == null or actual_damage <= 0:
 		return
 	instance_progression.record_damage(
 		actual_damage,
 		TOWER_XP_CREDIT_SERVICE.get_damage_xp(actual_damage, attack_context)
 	)
+	if item_controller != null:
+		item_controller.notify_damage_dealt(enemy, actual_damage, attack_context)
+
+
+func notify_attack_started(current_target: Node = null) -> void:
+	if item_controller != null:
+		item_controller.notify_attack_started(current_target)
+
+
+func notify_spawned_unit_created(spawned_unit: Node) -> void:
+	if item_controller != null:
+		item_controller.notify_spawned_unit_created(spawned_unit)
+
+
+func notify_spawned_unit_removed(
+	spawned_unit: Node,
+	wave_cleanup := false
+) -> void:
+	if item_controller != null:
+		item_controller.notify_spawned_unit_removed(spawned_unit, wave_cleanup)
+
+
+func notify_status_applied(
+	enemy: Node,
+	status_id: StringName,
+	attack_context: AttackContext
+) -> void:
+	if item_controller != null:
+		item_controller.notify_status_applied(enemy, status_id, attack_context)
 
 
 func _on_instance_progression_changed() -> void:

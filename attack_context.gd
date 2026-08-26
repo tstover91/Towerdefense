@@ -84,3 +84,9 @@ func get_immediate_source() -> Object:
 	if immediate_source_ref == null:
 		return null
 	return immediate_source_ref.get_ref()
+
+
+func is_item_proc() -> bool:
+	return immediate_source_kind == &"item_proc" or bool(
+		metadata.get("item_proc", false)
+	)
