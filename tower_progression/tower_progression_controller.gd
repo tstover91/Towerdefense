@@ -88,7 +88,100 @@ func purchase_selected_path() -> void:
 	_show_tower_details_if_selected()
 
 
+func has_evolution_options() -> bool:
+	return (
+		tower.instance_progression != null
+		and not GameStats.get_tower_evolutions(tower.tower_id).is_empty()
+	)
+
+
+func get_evolution_unlock_level(evolution_id: StringName) -> int:
+	return int(
+		GameStats.get_tower_evolution(tower.tower_id, evolution_id).get(
+			"required_level",
+			GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
+		)
+	)
+
+
+func can_purchase_evolution(
+	evolution_id: StringName,
+	check_money := true
+) -> bool:
+	if not has_evolution_options():
+		return false
+	var evolutions := GameStats.get_tower_evolutions(tower.tower_id)
+	if not evolutions.has(evolution_id):
+		return false
+	if not tower.instance_progression.evolution_id.is_empty():
+		return false
+	if tower.instance_progression.level < get_evolution_unlock_level(evolution_id):
+		return false
+	if (
+		tower.main != null
+		and tower.main.has_method("can_purchase_tower_evolution")
+		and not tower.main.can_purchase_tower_evolution()
+	):
+		return false
+	if check_money:
+		var evolution_cost := int(evolutions[evolution_id].get("cost", 0))
+		if tower.main == null or tower.main.money < evolution_cost:
+			return false
+	return true
+
+
+func select_evolution_choice(evolution_id: StringName) -> void:
+	if not can_purchase_evolution(evolution_id):
+		return
+	tower.pending_evolution_choice = evolution_id
+	_show_tower_details_if_selected()
+
+
+func purchase_selected_evolution() -> void:
+	var evolution_id := tower.pending_evolution_choice
+	if evolution_id.is_empty() or not can_purchase_evolution(evolution_id):
+		return
+	var evolution := GameStats.get_tower_evolution(tower.tower_id, evolution_id)
+	var evolution_cost := int(evolution.get("cost", 0))
+	if tower.main == null or not tower.main.spend_money(evolution_cost):
+		return
+	if not tower.instance_progression.choose_evolution(
+		evolution_id,
+		evolution_cost
+	):
+		tower.main.add_money(evolution_cost)
+		return
+	var legacy_path_id := StringName(evolution.get("legacy_path_id", &""))
+	if not legacy_path_id.is_empty():
+		tower.purchased_paths.assign([legacy_path_id])
+	tower.pending_evolution_choice = &""
+	tower.pending_path_choice = &""
+	tower.load_base_tags()
+	tower.load_level_stats()
+	tower.update_menu_buttons()
+	tower.show_main_menu()
+	_show_tower_details_if_selected()
+
+
 func get_path_status_text() -> String:
+	if has_evolution_options():
+		if not tower.instance_progression.evolution_id.is_empty():
+			var owned_evolution := GameStats.get_tower_evolution(
+				tower.tower_id,
+				tower.instance_progression.evolution_id
+			)
+			return "Evolution: %s" % owned_evolution.get(
+				"display_name", "Unknown"
+			)
+		var evolution_level := GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
+		var evolutions := GameStats.get_tower_evolutions(tower.tower_id)
+		if not evolutions.is_empty():
+			evolution_level = get_evolution_unlock_level(
+				StringName(evolutions.keys()[0])
+			)
+		if tower.instance_progression.level < evolution_level:
+			return "Evolution unlocks at Level %d" % evolution_level
+		return "Evolution available"
 	if not has_path_options():
 		return ""
 	if tower.purchased_paths.is_empty():

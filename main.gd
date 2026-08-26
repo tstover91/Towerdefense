@@ -139,6 +139,7 @@ signal round_ended(round_number: int)
 @onready var tower_path_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection
 @onready var tower_path_a_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathButtons/PathAButton
 @onready var tower_path_b_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathButtons/PathBButton
+@onready var tower_path_c_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathButtons/PathCButton
 @onready var tower_path_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathDescription
 @onready var tower_path_confirm_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathConfirmButton
 @onready var tower_target_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TargetSection
@@ -821,8 +822,9 @@ func connect_tower_inspector_signals() -> void:
 	tower_portrait_button.pressed.connect(_on_tower_portrait_pressed)
 	tower_aim_button.pressed.connect(_on_tower_aim_pressed)
 	tower_upgrade_button.pressed.connect(_on_sidebar_upgrade_pressed)
-	tower_path_a_button.pressed.connect(_on_sidebar_path_pressed.bind(&"a"))
-	tower_path_b_button.pressed.connect(_on_sidebar_path_pressed.bind(&"b"))
+	tower_path_a_button.pressed.connect(_on_sidebar_path_slot_pressed.bind(0))
+	tower_path_b_button.pressed.connect(_on_sidebar_path_slot_pressed.bind(1))
+	tower_path_c_button.pressed.connect(_on_sidebar_path_slot_pressed.bind(2))
 	tower_path_confirm_button.pressed.connect(_on_sidebar_path_confirmed)
 	tower_target_first.pressed.connect(_on_sidebar_target_pressed.bind(0))
 	tower_target_last.pressed.connect(_on_sidebar_target_pressed.bind(1))
@@ -897,6 +899,9 @@ func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
 
 
 func update_tower_path_controls(tower: Node) -> void:
+	if tower.has_evolution_options():
+		update_tower_evolution_controls(tower)
+		return
 	if tower.get("instance_progression") != null:
 		tower_path_section.hide()
 		tower_path_label.hide()
@@ -913,7 +918,12 @@ func update_tower_path_controls(tower: Node) -> void:
 	tower_path_section.visible = show_paths
 	if not show_paths:
 		return
-	var path_buttons: Array[Button] = [tower_path_a_button, tower_path_b_button]
+	var path_buttons: Array[Button] = [
+		tower_path_a_button,
+		tower_path_b_button,
+		tower_path_c_button,
+	]
+	tower_path_c_button.hide()
 	var path_ids: Array[StringName] = [&"a", &"b"]
 	for index in path_ids.size():
 		var path_id := path_ids[index]
@@ -944,6 +954,74 @@ func update_tower_path_controls(tower: Node) -> void:
 		tower_path_confirm_button.text = "Confirm Path"
 		tower_path_description.text = String(
 			paths[tower.pending_path_choice].get("description", "")
+		)
+
+
+func update_tower_evolution_controls(tower: Node) -> void:
+	var evolutions := GameStats.get_tower_evolutions(tower.tower_id)
+	var evolution_ids: Array = evolutions.keys()
+	var evolution_buttons: Array[Button] = [
+		tower_path_a_button,
+		tower_path_b_button,
+		tower_path_c_button,
+	]
+	tower_path_section.visible = not evolutions.is_empty()
+	if evolutions.is_empty():
+		return
+	var owned_evolution_id: StringName = tower.instance_progression.evolution_id
+	for index in evolution_buttons.size():
+		var button := evolution_buttons[index]
+		if index >= evolution_ids.size():
+			button.hide()
+			continue
+		button.show()
+		var evolution_id := StringName(evolution_ids[index])
+		var evolution: Dictionary = evolutions[evolution_id]
+		var evolution_name := String(
+			evolution.get("display_name", "Evolution %d" % (index + 1))
+		)
+		var evolution_cost := int(evolution.get("cost", 0))
+		var required_level := int(evolution.get(
+			"required_level",
+			GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
+		))
+		button.tooltip_text = String(evolution.get("description", ""))
+		if owned_evolution_id == evolution_id:
+			button.text = "%s · OWNED" % evolution_name
+			button.disabled = true
+		elif not owned_evolution_id.is_empty():
+			button.text = "%s · LOCKED" % evolution_name
+			button.disabled = true
+		elif tower.instance_progression.level < required_level:
+			button.text = "%s · LV %d" % [evolution_name, required_level]
+			button.disabled = true
+		else:
+			button.text = "%s · $%d" % [evolution_name, evolution_cost]
+			button.disabled = not tower.can_purchase_evolution(evolution_id)
+		button.button_pressed = tower.pending_evolution_choice == evolution_id
+	var has_pending_choice: bool = not StringName(
+		tower.pending_evolution_choice
+	).is_empty()
+	tower_path_confirm_button.disabled = not has_pending_choice
+	if not owned_evolution_id.is_empty():
+		tower_path_confirm_button.text = "Evolution Complete"
+		tower_path_description.text = "This tower's evolution is permanent."
+	elif not has_pending_choice:
+		tower_path_confirm_button.text = "Select an Evolution"
+		var first_evolution: Dictionary = evolutions[evolution_ids[0]]
+		var required_level := int(first_evolution.get(
+			"required_level",
+			GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
+		))
+		tower_path_description.text = (
+			"Reach Level %d to evolve this tower." % required_level
+			if tower.instance_progression.level < required_level
+			else "Choose a permanent evolution for this tower."
+		)
+	else:
+		tower_path_confirm_button.text = "Confirm Evolution"
+		tower_path_description.text = String(
+			evolutions[tower.pending_evolution_choice].get("description", "")
 		)
 
 
@@ -1020,14 +1098,29 @@ func _on_sidebar_upgrade_pressed() -> void:
 		displayed_tower.request_upgrade()
 
 
-func _on_sidebar_path_pressed(path_id: StringName) -> void:
-	if is_instance_valid(displayed_tower):
-		displayed_tower.select_path_choice(path_id)
+func _on_sidebar_path_slot_pressed(slot_index: int) -> void:
+	if not is_instance_valid(displayed_tower):
+		return
+	if displayed_tower.has_evolution_options():
+		var evolution_ids: Array = GameStats.get_tower_evolutions(
+			displayed_tower.tower_id
+		).keys()
+		if slot_index < evolution_ids.size():
+			displayed_tower.select_evolution_choice(
+				StringName(evolution_ids[slot_index])
+			)
+		return
+	var path_ids: Array[StringName] = [&"a", &"b"]
+	if slot_index < path_ids.size():
+		displayed_tower.select_path_choice(path_ids[slot_index])
 
 
 func _on_sidebar_path_confirmed() -> void:
 	if is_instance_valid(displayed_tower):
-		displayed_tower.purchase_selected_path()
+		if displayed_tower.has_evolution_options():
+			displayed_tower.purchase_selected_evolution()
+		else:
+			displayed_tower.purchase_selected_path()
 
 
 func _on_sidebar_target_pressed(mode: int) -> void:
@@ -3755,6 +3848,14 @@ func start_build_tower() -> void:
 
 func can_select_tower() -> bool:
 	return not game_ended and not shop_open and not build_mode
+
+
+func can_purchase_tower_evolution() -> bool:
+	return (
+		not game_ended
+		and not shop_open
+		and not is_selecting_path_relic_tower()
+	)
 
 @warning_ignore("unused_parameter")
 func _on_item_list_item_selected(index: int) -> void:

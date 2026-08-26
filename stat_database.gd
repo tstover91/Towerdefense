@@ -944,6 +944,21 @@ const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 const XP_STAT_MILESTONE_LEVELS: Array[int] = [1, 5, 10, 15]
 const TOWER_XP_MAX_LEVEL := 20
 const TOWER_XP_TARGET_AT_MAX_LEVEL := 1500.0
+const TOWER_EVOLUTION_DEFAULT_LEVEL := 10
+const TOWER_EVOLUTIONS := {
+	&"slinger": {
+		&"explosive_ricochet": {"legacy_path_id": &"a"},
+		&"razor_disc": {"legacy_path_id": &"b"},
+	},
+	&"voidcaller": {
+		&"orb_barrage": {"legacy_path_id": &"a"},
+		&"singularity": {"legacy_path_id": &"b"},
+	},
+	&"orbitalcannon": {
+		&"solar_lance": {"legacy_path_id": &"a"},
+		&"bombardment": {"legacy_path_id": &"b"},
+	},
+}
 const XP_INTERPOLATED_TOP_LEVEL_STATS := [
 	&"damage",
 	&"firerate",
@@ -2724,6 +2739,36 @@ static func get_tower_path(tower_id: StringName, path_id: StringName) -> Diction
 	var paths := get_tower_paths(tower_id)
 	assert(paths.has(path_id), "Unknown path %s for tower %s" % [path_id, tower_id])
 	return paths[path_id].duplicate(true)
+
+
+static func get_tower_evolutions(tower_id: StringName) -> Dictionary:
+	var definitions: Dictionary = TOWER_EVOLUTIONS.get(tower_id, {})
+	var evolutions := {}
+	for evolution_key in definitions:
+		var evolution_id := StringName(evolution_key)
+		var adapter: Dictionary = definitions[evolution_key].duplicate(true)
+		var legacy_path_id := StringName(adapter.get("legacy_path_id", &""))
+		var evolution := get_tower_path(tower_id, legacy_path_id)
+		evolution.merge(adapter, true)
+		evolution["id"] = evolution_id
+		evolution["family_id"] = tower_id
+		evolution["required_level"] = int(
+			evolution.get("required_level", TOWER_EVOLUTION_DEFAULT_LEVEL)
+		)
+		evolutions[evolution_id] = evolution
+	return evolutions
+
+
+static func get_tower_evolution(
+	tower_id: StringName,
+	evolution_id: StringName
+) -> Dictionary:
+	var evolutions := get_tower_evolutions(tower_id)
+	assert(
+		evolutions.has(evolution_id),
+		"Unknown evolution %s for tower %s" % [evolution_id, tower_id]
+	)
+	return evolutions[evolution_id].duplicate(true)
 
 
 static func get_piercing_damage(

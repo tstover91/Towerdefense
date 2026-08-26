@@ -975,7 +975,7 @@ theme_override_constants/separation = 6
 [node name="PathHeader" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection" unique_id=2081470421]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "FINAL PATH"
+text = "EVOLUTION"
 horizontal_alignment = 1
 
 [node name="PathButtons" type="HBoxContainer" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection" unique_id=688285623]
@@ -996,6 +996,15 @@ layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
 text = "Path B"
+clip_text = true
+
+[node name="PathCButton" type="Button" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection/PathButtons"]
+visible = false
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Path C"
 clip_text = true
 
 [node name="PathDescription" type="Label" parent="MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/PathSection" unique_id=1338432793]

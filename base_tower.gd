@@ -125,6 +125,7 @@ var volley_stagger := 0.0
 var purchased_paths: Array[StringName] = []
 var dual_path_relic_source: StringName = &""
 var pending_path_choice: StringName = &""
+var pending_evolution_choice: StringName = &""
 var delivery_type: StringName = GameStats.DELIVERY_HITSCAN
 var impact_mode: StringName = GameStats.IMPACT_PRIMARY
 var projectile_speed := 600.0
@@ -429,6 +430,29 @@ func select_path_choice(path_id: StringName) -> void:
 
 func purchase_selected_path() -> void:
 	progression_controller.purchase_selected_path()
+
+
+func has_evolution_options() -> bool:
+	return progression_controller.has_evolution_options()
+
+
+func get_evolution_unlock_level(evolution_id: StringName) -> int:
+	return progression_controller.get_evolution_unlock_level(evolution_id)
+
+
+func can_purchase_evolution(
+	evolution_id: StringName,
+	check_money := true
+) -> bool:
+	return progression_controller.can_purchase_evolution(evolution_id, check_money)
+
+
+func select_evolution_choice(evolution_id: StringName) -> void:
+	progression_controller.select_evolution_choice(evolution_id)
+
+
+func purchase_selected_evolution() -> void:
+	progression_controller.purchase_selected_evolution()
 
 
 func request_upgrade() -> void:

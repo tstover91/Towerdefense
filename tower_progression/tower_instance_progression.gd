@@ -20,6 +20,8 @@ var xp := 0.0
 var kills := 0
 var actual_damage_dealt := 0.0
 var control_credit := 0.0
+var evolution_id: StringName = &""
+var evolution_gold_spent := 0
 
 
 func _init(family_id: StringName = &"") -> void:
@@ -50,6 +52,15 @@ func grant_xp(amount: float) -> void:
 	progression_changed.emit()
 	if level != previous_level:
 		level_changed.emit(level, previous_level)
+
+
+func choose_evolution(new_evolution_id: StringName, gold_spent: int) -> bool:
+	if new_evolution_id.is_empty() or not evolution_id.is_empty():
+		return false
+	evolution_id = new_evolution_id
+	evolution_gold_spent = maxi(gold_spent, 0)
+	progression_changed.emit()
+	return true
 
 
 func get_level_for_total_xp(total_xp: float) -> int:
