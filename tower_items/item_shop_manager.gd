@@ -42,6 +42,7 @@ func open_shop(
 		if (
 			locked_index >= OFFER_COUNT
 			or not GameStats.has_tower_item(item_id)
+			or not GameStats.is_tower_item_shop_enabled(item_id)
 			or offers.has(item_id)
 		):
 			continue

@@ -1019,6 +1019,7 @@ const TOWER_ITEMS := {
 	&"kill_chain": {
 		"display_name": "Kill Chain",
 		"description": "Kills cut 25% from the remaining attack cooldown. Critical kills cut 55% instead.",
+		"shop_enabled": false,
 		"rarity": &"rare",
 		"category": &"trigger",
 		"price": 850,
@@ -1127,6 +1128,10 @@ const TOWER_EVOLUTIONS := {
 		&"gunslinger": {"legacy_path_id": &"a"},
 		&"gauss_gunner": {"legacy_path_id": &"c"},
 		&"railgunner": {"legacy_path_id": &"b"},
+	},
+	&"longshot": {
+		&"anti_materiel": {"legacy_path_id": &"a"},
+		&"kill_chain": {"legacy_path_id": &"b"},
 	},
 	&"slinger": {
 		&"explosive_ricochet": {"legacy_path_id": &"a"},
@@ -1691,7 +1696,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Anti-Materiel",
-				"description": "Fires massively amplified shots with a 3x critical multiplier, but reloads 25% slower.",
+				"description": "Fires massively amplified shots with a 3x critical multiplier, but reloads 25% slower. At Level 20, critical damage increases to 4x.",
 				"cost": 4500,
 				"unlock_level": 3,
 				"stat_multipliers": {
@@ -1701,16 +1706,28 @@ const TOWERS := {
 				"stat_additions": {
 					"critical_multiplier": 1.0,
 				},
+				"level_20": {
+					"stat_additions": {
+						"critical_multiplier": 1.0,
+					},
+				},
 			},
 			"b": {
 				"display_name": "Kill Chain",
-				"description": "Kills reduce Longshot's remaining reload by 50%. Critical kills reduce the remaining reload by 90% instead.",
+				"description": "Kills reduce Longshot's remaining reload by 50%. Critical kills reduce it by 90%. At Level 20, kills reduce it by 65% and critical kills complete the reload.",
 				"cost": 4500,
 				"unlock_level": 3,
 				"behavior_flags": {"longshot_kill_chain": true},
 				"behavior_values": {
 					"kill_reload_remaining_multiplier": 0.50,
 					"critical_kill_reload_remaining_multiplier": 0.10,
+				},
+				"level_20": {
+					"behavior_flags": {"longshot_kill_chain": true},
+					"behavior_values": {
+						"kill_reload_remaining_multiplier": 0.35,
+						"critical_kill_reload_remaining_multiplier": 0.0,
+					},
 				},
 			},
 		},
@@ -3013,10 +3030,22 @@ static func get_tower_item(item_id: StringName) -> Dictionary:
 static func get_tower_item_ids() -> Array[StringName]:
 	var item_ids: Array[StringName] = []
 	for item_key in TOWER_ITEMS:
-		item_ids.append(StringName(item_key))
+		if is_tower_item_shop_enabled(StringName(item_key)):
+			item_ids.append(StringName(item_key))
 	for item_key in CONVERTED_RELIC_ITEM_CONFIG:
-		item_ids.append(StringName(item_key))
+		if is_tower_item_shop_enabled(StringName(item_key)):
+			item_ids.append(StringName(item_key))
 	return item_ids
+
+
+static func is_tower_item_shop_enabled(item_id: StringName) -> bool:
+	if TOWER_ITEMS.has(item_id):
+		return bool(TOWER_ITEMS[item_id].get("shop_enabled", true))
+	if CONVERTED_RELIC_ITEM_CONFIG.has(item_id):
+		return bool(
+			CONVERTED_RELIC_ITEM_CONFIG[item_id].get("shop_enabled", true)
+		)
+	return false
 
 
 static func get_tower_evolution(
