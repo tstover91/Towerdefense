@@ -132,5 +132,28 @@ func run_test() -> void:
 	assert(component.active_singularities.is_empty())
 	assert(is_equal_approx(component.singularity_remaining, component.singularity_cooldown))
 
-	print("Void Caller smoke test passed: fan volley, Singularity lifecycle, cooldown preservation, and relic scaling.")
+	assert(GameStats.get_tower_evolutions(&"voidcaller").size() == 2)
+	fake_main.relics.clear()
+	_level_to_mastery(tower)
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(is_equal_approx(component.singularity_cooldown, 7.5))
+	assert(is_equal_approx(component.singularity_pull_speed, 110.0))
+	assert(is_equal_approx(component.singularity_damage_multiplier, 4.0))
+
+	tower.purchased_paths.assign([&"a"])
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(not component.singularity_enabled)
+	assert(tower.projectile_count == 7)
+	assert(is_equal_approx(tower.volley_width_pixels, 8.0 * BaseTower.RANGE_PIXELS_PER_UNIT))
+
+	print("Void Caller smoke test passed: both evolutions, lifecycle behavior, and Level 20 capstones.")
 	get_tree().quit(0)
+
+
+func _level_to_mastery(tower: BaseTower) -> void:
+	var target_xp: float = tower.instance_progression.get_total_xp_required_for_level(
+		GameStats.TOWER_XP_MAX_LEVEL
+	)
+	tower.instance_progression.grant_xp(target_xp)

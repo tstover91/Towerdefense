@@ -1776,7 +1776,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Explosive Ricochet",
-				"description": "Increases impact damage by 30%. The initial hit and every bounced impact create an Explosive blast dealing 55% of the impact's damage.",
+				"description": "Increases impact damage by 30%. The initial hit and every bounced impact create an Explosive blast dealing 55% damage in a 2.5-tile radius. At Level 20, blasts deal 75% damage in a 3.25-tile radius.",
 				"cost": 3750,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
@@ -1790,10 +1790,19 @@ const TOWERS := {
 					"contact_explosion_radius": 2.5,
 					"contact_explosion_damage_multiplier": 0.55,
 				},
+				"level_20": {
+					"behavior_flags": {
+						"slinger_contact_explosions": true,
+					},
+					"behavior_values": {
+						"contact_explosion_radius": 3.25,
+						"contact_explosion_damage_multiplier": 0.75,
+					},
+				},
 			},
 			"b": {
 				"display_name": "Razor Disc",
-				"description": "Increases impact damage by 129%. The disc hits the first enemy in its line, then pierces every enemy behind it until maximum range.",
+				"description": "Increases impact damage by 129%. The disc pierces every enemy in its line until maximum range. At Level 20, it no longer loses damage after each enemy.",
 				"cost": 3750,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"pierce"],
@@ -1805,6 +1814,11 @@ const TOWERS := {
 				"stat_overrides": {"bounce_count": 0},
 				"behavior_flags": {
 					"infinite_pierce": true,
+				},
+				"level_20": {
+					"stat_overrides": {
+						"pierce_loses_no_power": true,
+					},
 				},
 			},
 		},
@@ -1860,7 +1874,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Orb Barrage",
-				"description": "Fires a simultaneous five-orb fan at a slower rate.",
+				"description": "Fires a simultaneous five-orb fan at a slower rate. At Level 20, the barrage expands to seven orbs.",
 				"cost": 5000,
 				"unlock_level": 3,
 				"stat_multipliers": {
@@ -1872,10 +1886,17 @@ const TOWERS := {
 					"volley_width": 6.0,
 					"volley_stagger": 0.0,
 				},
+				"level_20": {
+					"stat_overrides": {
+						"projectile_count": 7,
+						"volley_width": 8.0,
+						"volley_stagger": 0.0,
+					},
+				},
 			},
 			"b": {
 				"display_name": "Singularity",
-				"description": "Creates a wide Singularity that slowly pulls enemies together for one second before exploding.",
+				"description": "Creates a wide Singularity that pulls enemies together for one second before exploding. At Level 20, it recharges faster, pulls harder, and deals 4x damage.",
 				"cost": 4500,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"psionic"],
@@ -1887,6 +1908,17 @@ const TOWERS := {
 					"singularity_pull_speed": 80.0,
 					"singularity_explosion_radius": 5.0,
 					"singularity_damage_multiplier": 3.0,
+				},
+				"level_20": {
+					"behavior_flags": {"void_singularity": true},
+					"behavior_values": {
+						"singularity_cooldown": 7.5,
+						"singularity_pull_duration": 1.0,
+						"singularity_pull_radius": 7.0,
+						"singularity_pull_speed": 110.0,
+						"singularity_explosion_radius": 5.0,
+						"singularity_damage_multiplier": 4.0,
+					},
 				},
 			},
 		},
@@ -1951,7 +1983,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Solar Lance",
-				"description": "Replaces the Explosive stunning strike with a 1.5-second, two-tile-wide Beam that intensifies as it repeatedly damages and slows every enemy inside.",
+				"description": "Replaces the Explosive stunning strike with a 1.5-second, two-tile-wide Beam that intensifies as it repeatedly damages and slows every enemy inside. At Level 20, it lasts two seconds and deals more damage per tick.",
 				"cost": 5000,
 				"unlock_level": 3,
 				"stat_multipliers": {"firerate": 1.40},
@@ -1972,10 +2004,23 @@ const TOWERS := {
 					"solar_lance_tick_end_damage_multiplier": 0.50,
 					"solar_lance_dual_tick_damage_multiplier": 0.10,
 				},
+				"level_20": {
+					"behavior_flags": {
+						"orbital_solar_lance": true,
+						"infinite_pierce": true,
+					},
+					"behavior_values": {
+						"solar_lance_duration": 2.0,
+						"solar_lance_tick_interval": 0.2,
+						"solar_lance_tick_damage_multiplier": 0.30,
+						"solar_lance_tick_end_damage_multiplier": 0.65,
+						"solar_lance_dual_tick_damage_multiplier": 0.10,
+					},
+				},
 			},
 			"b": {
 				"display_name": "Bombardment",
-				"description": "Replaces each strike with five smaller staggered strikes around the selected location.",
+				"description": "Replaces each strike with five smaller staggered strikes around the selected location. At Level 20, each bombardment fires seven strikes.",
 				"cost": 5500,
 				"unlock_level": 3,
 				"behavior_flags": {"orbital_bombardment": true},
@@ -1985,6 +2030,16 @@ const TOWERS := {
 					"bombardment_spread_radius": 3.0,
 					"bombardment_damage_multiplier": 0.38,
 					"bombardment_radius_multiplier": 0.70,
+				},
+				"level_20": {
+					"behavior_flags": {"orbital_bombardment": true},
+					"behavior_values": {
+						"bombardment_strike_count": 7,
+						"bombardment_stagger": 0.15,
+						"bombardment_spread_radius": 3.0,
+						"bombardment_damage_multiplier": 0.38,
+						"bombardment_radius_multiplier": 0.70,
+					},
 				},
 			},
 		},

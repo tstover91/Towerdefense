@@ -82,5 +82,34 @@ func run_test() -> void:
 	assert(projectiles.size() == 1)
 	assert(not projectiles[0].contact_explosions_enabled)
 	assert(projectiles[0].infinite_pierce)
-	print("Slinger smoke test passed: Explosive Ricochet configuration and Razor Disc reset.")
+	for projectile in projectiles:
+		projectile.queue_free()
+	await get_tree().process_frame
+
+	assert(GameStats.get_tower_evolutions(&"slinger").size() == 2)
+	_level_to_mastery(tower)
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(tower.infinite_pierce)
+	assert(tower.pierce_loses_no_power)
+
+	tower.purchased_paths.assign([&"a"])
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(component.contact_explosions_enabled)
+	assert(is_equal_approx(
+		component.contact_explosion_radius_pixels,
+		3.25 * BaseTower.RANGE_PIXELS_PER_UNIT
+	))
+	assert(is_equal_approx(
+		component.contact_explosion_damage_multiplier, 0.75
+	))
+	print("Slinger smoke test passed: both evolutions and Level 20 capstones.")
 	get_tree().quit(0)
+
+
+func _level_to_mastery(tower: BaseTower) -> void:
+	var target_xp: float = tower.instance_progression.get_total_xp_required_for_level(
+		GameStats.TOWER_XP_MAX_LEVEL
+	)
+	tower.instance_progression.grant_xp(target_xp)

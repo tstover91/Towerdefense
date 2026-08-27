@@ -1,5 +1,6 @@
 extends Node
 
+const GameStats = preload("res://stat_database.gd")
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const MOB_SCENE = preload("res://mob.tscn")
 
@@ -94,5 +95,30 @@ func run_test() -> void:
 			projectile.splash_radius,
 			tower.splash_radius_pixels * 0.70
 		))
-	print("Orbital Cannon smoke test passed: manual range, Solar Lance lifecycle, and five-strike Bombardment.")
+		projectile.queue_free()
+	await get_tree().process_frame
+
+	assert(GameStats.get_tower_evolutions(&"orbitalcannon").size() == 2)
+	_level_to_mastery(tower)
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(component.bombardment_enabled)
+	assert(component.bombardment_strike_count == 7)
+
+	tower.purchased_paths.assign([&"a"])
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(component.solar_lance_enabled)
+	assert(not component.bombardment_enabled)
+	assert(is_equal_approx(component.solar_lance_duration, 2.0))
+	assert(is_equal_approx(component.solar_lance_tick_damage_multiplier, 0.30))
+	assert(is_equal_approx(component.solar_lance_tick_end_damage_multiplier, 0.65))
+	print("Orbital Cannon smoke test passed: both evolutions, manual targeting, and Level 20 capstones.")
 	get_tree().quit(0)
+
+
+func _level_to_mastery(tower: BaseTower) -> void:
+	var target_xp: float = tower.instance_progression.get_total_xp_required_for_level(
+		GameStats.TOWER_XP_MAX_LEVEL
+	)
+	tower.instance_progression.grant_xp(target_xp)

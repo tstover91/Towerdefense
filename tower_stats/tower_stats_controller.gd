@@ -316,7 +316,8 @@ func apply_effect_combat_stat_modifiers(
 	if tower.has_bonus_tag(BaseTower.BONUS_PIERCE):
 		stats["pierce_count"] = tower.pierce_count
 		stats["pierce_loses_no_power"] = (
-			get_effect_stack_count(&"follow_through") > 0
+			bool(stats.get("pierce_loses_no_power", false))
+			or get_effect_stack_count(&"follow_through") > 0
 		)
 	if (
 		tower.has_bonus_tag(BaseTower.BONUS_STUN)
