@@ -15,6 +15,10 @@ var can_pull := false
 var pull_immunity_duration := 2.5
 var pull_released := false
 var electric_line := false
+var tether_half_width := 0.0
+var tether_secondary_damage_multiplier := 0.0
+var tether_maximum_targets := 0
+var tether_final_pulse_multiplier := 1.0
 var attack_context: AttackContext
 var elapsed := 0.0
 var ticks_applied := 0
@@ -36,7 +40,11 @@ func setup(
 	pull_immunity_duration: float,
 	attack_can_pull: bool,
 	is_electric: bool,
-	parent_context: AttackContext
+	parent_context: AttackContext,
+	attack_tether_half_width := 0.0,
+	attack_tether_secondary_damage_multiplier := 0.0,
+	attack_tether_maximum_targets := 0,
+	attack_tether_final_pulse_multiplier := 1.0
 ) -> void:
 	source_tower = attack_source
 	hooked_target = target
@@ -48,6 +56,14 @@ func setup(
 	pull_speed = maxf(attack_pull_speed, 0.0)
 	self.pull_immunity_duration = maxf(pull_immunity_duration, 0.0)
 	electric_line = is_electric
+	tether_half_width = maxf(attack_tether_half_width, 0.0)
+	tether_secondary_damage_multiplier = maxf(
+		attack_tether_secondary_damage_multiplier, 0.0
+	)
+	tether_maximum_targets = maxi(attack_tether_maximum_targets, 0)
+	tether_final_pulse_multiplier = maxf(
+		attack_tether_final_pulse_multiplier, 0.0
+	)
 	attack_context = parent_context
 	tick_interval = duration / float(maxi(tick_count - 1, 1))
 	z_index = 12
@@ -159,7 +175,56 @@ func _apply_damage_tick() -> void:
 		ignores_armor,
 		tick_context
 	)
+	if electric_line and tether_half_width > 0.0 and tether_maximum_targets > 0:
+		_apply_tether_damage(tick_damage, tick_context)
 	ticks_applied += 1
+
+
+func _apply_tether_damage(
+	primary_tick_damage: int,
+	parent_tick_context: AttackContext
+) -> void:
+	var start := cached_line_start_world
+	var finish := cached_line_end_world
+	var damage_multiplier := tether_secondary_damage_multiplier
+	if ticks_applied == tick_count - 1:
+		damage_multiplier *= tether_final_pulse_multiplier
+	var secondary_damage := maxi(
+		roundi(float(primary_tick_damage) * damage_multiplier), 1
+	)
+	var candidates: Array[Node2D] = []
+	for candidate in source_tower.get_tree().get_nodes_in_group("mobs"):
+		if candidate == hooked_target or not source_tower.is_valid_target(candidate):
+			continue
+		if _distance_to_segment(candidate.global_position, start, finish) <= tether_half_width:
+			candidates.append(candidate)
+	candidates.sort_custom(func(left: Node2D, right: Node2D) -> bool:
+		return start.distance_squared_to(left.global_position) < start.distance_squared_to(right.global_position)
+	)
+	for target_index in mini(candidates.size(), tether_maximum_targets):
+		var tether_context := parent_tick_context.derive(
+			self,
+			&"persistent_effect",
+			&"fisherman_tether_tick",
+			true,
+			{"area_damage": true}
+		)
+		source_tower.apply_tower_damage(
+			candidates[target_index],
+			secondary_damage,
+			&"electric",
+			false,
+			tether_context
+		)
+
+
+func _distance_to_segment(point: Vector2, start: Vector2, finish: Vector2) -> float:
+	var segment := finish - start
+	var length_squared := segment.length_squared()
+	if length_squared <= 0.0001:
+		return point.distance_to(start)
+	var ratio := clampf((point - start).dot(segment) / length_squared, 0.0, 1.0)
+	return point.distance_to(start + segment * ratio)
 
 
 func _combat_is_active() -> bool:

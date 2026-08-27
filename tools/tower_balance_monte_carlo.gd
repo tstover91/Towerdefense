@@ -405,6 +405,8 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 				attack_damage *= float(stats.get(
 					"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
 				))
+		if tower_id == &"saucer" and flags.get("saucer_vulnerability_field", false):
+			attack_damage *= 1.0 + float(values.get("saucer_field_vulnerability", 0.15))
 		if flags.get("orbital_solar_lance", false):
 			attack_damage *= (
 				float(values.get("solar_lance_duration", 1.5))
@@ -689,6 +691,31 @@ func get_hit_chance(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 func get_attack_total_damage(primary_damage: float, stats: Dictionary, traits: Dictionary, scenario: Dictionary) -> float:
 	var enemy_count := int(scenario["enemies"])
 	var total := primary_damage
+	if traits["flags"].get("fisherman_multi_hook", false):
+		var hook_targets := mini(
+			int(traits["values"].get("hook_target_count", 2)), enemy_count
+		)
+		total += (
+			primary_damage
+			* float(maxi(hook_targets - 1, 0))
+			* float(traits["values"].get("secondary_hook_damage_multiplier", 0.70))
+		)
+	if traits["flags"].get("fisherman_electric_tether", false):
+		var tether_targets := mini(
+			int(traits["values"].get("tether_maximum_targets", 4)),
+			maxi(enemy_count - 1, 0)
+		)
+		var line_coverage := clampf(
+			0.20 + float(traits["values"].get("tether_half_width", 0.75)) * 0.20,
+			0.20,
+			0.70
+		)
+		total += (
+			primary_damage
+			* float(tether_targets)
+			* line_coverage
+			* float(traits["values"].get("tether_secondary_damage_multiplier", 0.50))
+		)
 	var bounce_count := mini(int(stats.get("bounce_count", 0)), enemy_count - 1)
 	total += primary_damage * float(bounce_count)
 	var already_hit := 1 + bounce_count
@@ -758,6 +785,12 @@ func get_control_value(stats: Dictionary, traits: Dictionary, scenario: Dictiona
 			/ (interval * float(slam_interval))
 			* float(slam_targets)
 			* 0.40
+		)
+	if flags.get("saucer_vulnerability_field", false):
+		value += (
+			float(values.get("saucer_field_vulnerability", 0.15))
+			* float(enemies)
+			* get_saucer_pursuit_uptime(stats, scenario)
 		)
 	if flags.get("energy_shockwave", false) and not bool(scenario["boss"]):
 		value += (
@@ -968,7 +1001,7 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 	if tower_id == &"saucer" and flags.get("saucer_twin_rockets", false):
 		var count := floori(duration / maxf(float(values.get("saucer_rocket_interval", 3.0)), 0.1))
 		total += (
-			float(count * 2)
+			float(count * maxi(int(values.get("saucer_rocket_count", 2)), 1))
 			* apply_armor(
 				damage * float(values.get("saucer_rocket_damage_multiplier", 2.0)),
 				&"explosive",
@@ -985,7 +1018,7 @@ func simulate_periodic_specials(tower_id: StringName, damage: float, stats: Dict
 				* get_saucer_expected_abductions(stats, scenario),
 			duration
 		)
-		total += uptime / maxf(float(monster.get("attack_interval", 1.0)), 0.01) * apply_armor(float(monster.get("damage", 0)), &"melee", armor, false)
+		total += uptime / maxf(float(monster.get("attack_interval", 1.0)), 0.01) * apply_armor(float(monster.get("damage", 0)) * float(values.get("saucer_monster_damage_multiplier", 1.0)), &"melee", armor, false)
 	return total
 
 
@@ -1019,7 +1052,7 @@ func get_saucer_expected_abductions(
 	return (
 		float(mini(possible_uses, eligible_targets))
 		* get_saucer_pursuit_uptime(stats, scenario)
-		* 0.80
+		* 0.95
 	)
 
 
@@ -1095,8 +1128,8 @@ func get_model_note(tower_id: StringName) -> String:
 		&"voidcaller": return "orb geometry; simultaneous Barrage and Singularity coverage modeled"
 		&"orbitalcannon": return "accurate manual placement assumed; area; stun; Lance ramp and Slow modeled"
 		&"energycore": return "distinct primary targets; Slow; Shockwave and Branching Current modeled"
-		&"saucer": return "pursuit uptime; abduction execution; split prevention; rockets and specimen uptime modeled"
-		&"fisherman": return "forward cone placement assumed; four-tick hook, shared pull immunity, and Minefield modeled"
+		&"saucer": return "pursuit, Gunship salvos, hunting abductions/specimens, and Mothership vulnerability modeled"
+		&"fisherman": return "forward cone, multi-hooks, tether intersections, pull immunity, and chain mines modeled"
 		&"hivemother", &"dronedepot", &"mechbay": return "spawn ramp and combat uptime approximated"
 		_: return "generic event model"
 

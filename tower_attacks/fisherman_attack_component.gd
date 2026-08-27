@@ -3,13 +3,20 @@ extends TowerAttackComponent
 
 const FISHERMAN_HOOK_EFFECT = preload("res://fisherman_hook_effect.gd")
 const FISHERMAN_MINE_SCENE = preload("res://fisherman_mine.tscn")
-const TRACKING_CONE_DEGREES := 60.0
+const DEFAULT_TRACKING_CONE_DEGREES := 60.0
 
 var hook_tick_count := 4
 var hook_duration := 1.2
 var hook_pull_speed := 80.0
 var hook_pull_immunity := 2.5
-var electric_line_enabled := false
+var tracking_cone_degrees := DEFAULT_TRACKING_CONE_DEGREES
+var hook_target_count := 1
+var secondary_hook_damage_multiplier := 1.0
+var electric_tether_enabled := false
+var tether_half_width_pixels := 0.0
+var tether_secondary_damage_multiplier := 0.0
+var tether_maximum_targets := 0
+var tether_final_pulse_multiplier := 1.0
 var mines_enabled := false
 var mine_interval := 6.0
 var mine_remaining := 0.0
@@ -18,6 +25,8 @@ var mine_placement_radius_pixels := 0.0
 var mine_trigger_radius_pixels := 0.0
 var mine_explosion_radius_pixels := 0.0
 var mine_damage_multiplier := 1.0
+var mine_chain_reaction_radius_pixels := 0.0
+var mine_chain_damage_multiplier := 1.0
 var active_mines: Array[Node] = []
 var previous_mine_remaining := 0.0
 
@@ -35,7 +44,7 @@ func uses_finite_directional_range() -> bool:
 
 
 func get_tracking_cone_degrees() -> float:
-	return TRACKING_CONE_DEGREES
+	return tracking_cone_degrees
 
 
 func is_target_in_tracking_cone(candidate: Variant) -> bool:
@@ -49,7 +58,7 @@ func is_target_in_tracking_cone(candidate: Variant) -> bool:
 	var offset: Vector2 = candidate.global_position - tower.muzzle.global_position
 	if offset.is_zero_approx():
 		return true
-	var half_angle_radians := deg_to_rad(TRACKING_CONE_DEGREES * 0.5)
+	var half_angle_radians := deg_to_rad(tracking_cone_degrees * 0.5)
 	return offset.normalized().dot(tower.aim_direction) >= cos(half_angle_radians)
 
 
@@ -87,7 +96,14 @@ func load_level_stats(stats: Dictionary) -> void:
 
 func reset_path_behaviors() -> void:
 	previous_mine_remaining = mine_remaining
-	electric_line_enabled = false
+	tracking_cone_degrees = DEFAULT_TRACKING_CONE_DEGREES
+	hook_target_count = 1
+	secondary_hook_damage_multiplier = 1.0
+	electric_tether_enabled = false
+	tether_half_width_pixels = 0.0
+	tether_secondary_damage_multiplier = 0.0
+	tether_maximum_targets = 0
+	tether_final_pulse_multiplier = 1.0
 	mines_enabled = false
 	mine_interval = 6.0
 	mine_maximum_count = 3
@@ -95,11 +111,33 @@ func reset_path_behaviors() -> void:
 	mine_trigger_radius_pixels = 0.0
 	mine_explosion_radius_pixels = 0.0
 	mine_damage_multiplier = 1.0
+	mine_chain_reaction_radius_pixels = 0.0
+	mine_chain_damage_multiplier = 1.0
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
-	if flags.get("fisherman_electric_line", false):
-		electric_line_enabled = true
+	if flags.get("fisherman_multi_hook", false):
+		hook_target_count = maxi(int(values.get("hook_target_count", 2)), 1)
+		secondary_hook_damage_multiplier = maxf(
+			float(values.get("secondary_hook_damage_multiplier", 0.70)), 0.0
+		)
+		tracking_cone_degrees = clampf(
+			float(values.get("tracking_cone_degrees", 75.0)), 1.0, 180.0
+		)
+	if flags.get("fisherman_electric_tether", false):
+		electric_tether_enabled = true
+		tether_half_width_pixels = maxf(
+			float(values.get("tether_half_width", 0.75)), 0.0
+		) * BaseTower.BUILD_CELL_SIZE
+		tether_secondary_damage_multiplier = maxf(
+			float(values.get("tether_secondary_damage_multiplier", 0.50)), 0.0
+		)
+		tether_maximum_targets = maxi(
+			int(values.get("tether_maximum_targets", 4)), 0
+		)
+		tether_final_pulse_multiplier = maxf(
+			float(values.get("tether_final_pulse_multiplier", 1.0)), 0.0
+		)
 	if not flags.get("fisherman_mines", false):
 		return
 	mines_enabled = true
@@ -119,6 +157,12 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 	)
 	mine_damage_multiplier = maxf(
 		float(values.get("mine_damage_multiplier", 1.25)), 0.0
+	)
+	mine_chain_reaction_radius_pixels = maxf(
+		float(values.get("mine_chain_reaction_radius", 0.0)), 0.0
+	) * BaseTower.RANGE_PIXELS_PER_UNIT
+	mine_chain_damage_multiplier = maxf(
+		float(values.get("mine_chain_damage_multiplier", 1.0)), 0.0
 	)
 
 
@@ -174,16 +218,34 @@ func execute_attack(current_target: Node2D, attack_damage: int) -> bool:
 	var cast_context := tower.create_attack_context(
 		&"fisherman_cast", tower, &"tower", null, false, true
 	)
+	var hook_targets := _get_hook_targets(current_target)
+	for target_index in hook_targets.size():
+		var hook_target := hook_targets[target_index]
+		var hook_damage := (
+			attack_damage
+			if target_index == 0
+			else maxi(roundi(float(attack_damage) * secondary_hook_damage_multiplier), 1)
+		)
+		_cast_hook(hook_target, hook_damage, cast_context, target_index > 0)
+	return true
+
+
+func _cast_hook(
+	hook_target: Node2D,
+	hook_damage: int,
+	cast_context: AttackContext,
+	secondary: bool
+) -> void:
 	var hook_context := tower.create_attack_context(
-		&"fisherman_hook", tower, &"tower", cast_context
+		&"fisherman_hook", tower, &"tower", cast_context, secondary
 	)
-	tower.apply_control_effects(current_target, hook_context)
+	tower.apply_control_effects(hook_target, hook_context)
 	var hook_effect := FISHERMAN_HOOK_EFFECT.new()
 	tower.get_tree().current_scene.add_child(hook_effect)
 	hook_effect.setup(
 		tower,
-		current_target,
-		attack_damage,
+		hook_target,
+		hook_damage,
 		tower.damage_type,
 		false,
 		hook_tick_count,
@@ -191,10 +253,39 @@ func execute_attack(current_target: Node2D, attack_damage: int) -> bool:
 		hook_pull_speed,
 		hook_pull_immunity,
 		true,
-		electric_line_enabled,
-		hook_context
+		electric_tether_enabled,
+		hook_context,
+		tether_half_width_pixels,
+		tether_secondary_damage_multiplier,
+		tether_maximum_targets,
+		tether_final_pulse_multiplier
 	)
-	return true
+
+
+func _get_hook_targets(primary_target: Node2D) -> Array[Node2D]:
+	var result: Array[Node2D] = [primary_target]
+	if hook_target_count <= 1:
+		return result
+	var candidates: Array[Node2D] = []
+	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+		if candidate != primary_target and is_target_in_tracking_cone(candidate):
+			candidates.append(candidate)
+	candidates.sort_custom(func(left: Node2D, right: Node2D) -> bool:
+		match tower.target_mode:
+			BaseTower.TargetMode.LAST:
+				return left.path_follow.progress < right.path_follow.progress
+			BaseTower.TargetMode.LOWEST_HEALTH:
+				return left.health < right.health
+			BaseTower.TargetMode.HIGHEST_HEALTH:
+				return left.health > right.health
+			_:
+				return left.path_follow.progress > right.path_follow.progress
+	)
+	for candidate in candidates:
+		result.append(candidate)
+		if result.size() >= hook_target_count:
+			break
+	return result
 
 
 func place_mine() -> void:
@@ -228,7 +319,9 @@ func place_mine() -> void:
 		maxi(roundi(float(tower.damage) * mine_damage_multiplier), 1),
 		mine_trigger_radius_pixels,
 		mine_explosion_radius_pixels,
-		tower.create_attack_context(&"fisherman_mine_explosion", mine, &"mine")
+		tower.create_attack_context(&"fisherman_mine_explosion", mine, &"mine"),
+		mine_chain_reaction_radius_pixels,
+		mine_chain_damage_multiplier
 	)
 	mine.detonated.connect(_on_mine_detonated)
 	active_mines.append(mine)

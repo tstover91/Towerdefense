@@ -73,6 +73,9 @@ var beholder_mark_stacks := 0
 var beholder_mark_damage_per_stack := 0.0
 var beholder_mark_maximum_stacks := 0
 var beholder_mark_context: AttackContext
+var external_vulnerability_remaining := 0.0
+var external_vulnerability_bonus := 0.0
+var external_vulnerability_context: AttackContext
 var maximum_ablative_shield_points := 0
 var ablative_shield_points := 0
 var shield_aura_radius := 0.0
@@ -144,8 +147,19 @@ func _draw() -> void:
 				64,
 				Color(0.35, 0.9, 1.0, 0.28),
 				1.25,
-				true
-			)
+			true
+		)
+	if external_vulnerability_remaining > 0.0 and external_vulnerability_bonus > 0.0:
+		draw_arc(
+			Vector2.ZERO,
+			22.0,
+			0.0,
+			TAU,
+			32,
+			Color(0.35, 0.9, 1.0, 0.72),
+			2.0 + external_vulnerability_bonus * 6.0,
+			true
+		)
 
 
 func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
@@ -160,6 +174,7 @@ func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
 func _process(delta: float) -> void:
 	_process_brainiac_link(delta)
 	_process_beholder_damage_mark(delta)
+	_process_external_vulnerability(delta)
 	if path_follow == null or finished:
 		return
 
@@ -526,6 +541,42 @@ func get_beholder_mark_damage_multiplier() -> float:
 	)
 
 
+func apply_external_vulnerability(
+	duration: float,
+	bonus_damage: float,
+	support_context: AttackContext
+) -> void:
+	if finished or duration <= 0.0 or bonus_damage <= 0.0 or support_context == null:
+		return
+	var same_source := (
+		external_vulnerability_context != null
+		and external_vulnerability_context.root_tower_instance_id
+			== support_context.root_tower_instance_id
+	)
+	if (
+		not same_source
+		and external_vulnerability_remaining > 0.0
+		and bonus_damage <= external_vulnerability_bonus + 0.0001
+	):
+		return
+	external_vulnerability_bonus = bonus_damage
+	external_vulnerability_remaining = maxf(external_vulnerability_remaining, duration)
+	external_vulnerability_context = support_context
+	queue_redraw()
+
+
+func _process_external_vulnerability(delta: float) -> void:
+	if external_vulnerability_remaining <= 0.0:
+		return
+	external_vulnerability_remaining = maxf(
+		external_vulnerability_remaining - delta, 0.0
+	)
+	if external_vulnerability_remaining <= 0.0:
+		external_vulnerability_bonus = 0.0
+		external_vulnerability_context = null
+		queue_redraw()
+
+
 func apply_stun(
 	duration: float,
 	affects_bosses := false,
@@ -669,6 +720,10 @@ func die(_context: AttackContext = null) -> void:
 func abduct(_context: AttackContext = null) -> void:
 	if finished:
 		return
+	if _context != null:
+		var root_tower := _context.get_root_tower()
+		if is_instance_valid(root_tower) and root_tower.has_method("notify_enemy_abducted"):
+			root_tower.notify_enemy_abducted(self, health, _context)
 	finished = true
 	# Abduction grants the normal reward, but is removal rather than a death:
 	# it does not trigger death observers or create split children.
@@ -742,6 +797,13 @@ func apply_damage(
 			roundi(float(amount) * beholder_mark_multiplier),
 			1
 		)
+	var external_vulnerability_multiplier := 1.0
+	if external_vulnerability_remaining > 0.0 and external_vulnerability_bonus > 0.0:
+		external_vulnerability_multiplier = 1.0 + external_vulnerability_bonus
+		amount = maxi(
+			roundi(float(amount) * external_vulnerability_multiplier),
+			1
+		)
 	if (
 		attack_context != null
 		and bool(attack_context.metadata.get("was_critical", false))
@@ -797,6 +859,18 @@ func apply_damage(
 			self,
 			beholder_mark_context,
 			assisted_damage,
+			attack_context
+		)
+	if external_vulnerability_multiplier > 1.0 and received_damage > 0:
+		var external_assisted_damage := roundi(
+			float(received_damage)
+			* (external_vulnerability_multiplier - 1.0)
+			/ external_vulnerability_multiplier
+		)
+		TOWER_XP_CREDIT_SERVICE.award_vulnerability_xp(
+			self,
+			external_vulnerability_context,
+			external_assisted_damage,
 			attack_context
 		)
 	if damage_type == &"electric" and not is_electric_proc and received_damage > 0:

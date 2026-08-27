@@ -38,7 +38,9 @@ func _physics_process(delta: float) -> void:
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
 	abduction_cooldown = maxf(abduction_cooldown - delta, 0.0)
 	rocket_cooldown = maxf(rocket_cooldown - delta, 0.0)
-	target = saucer_behavior.get_target()
+	target = saucer_behavior.get_navigation_target(
+		global_position, abduction_cooldown <= 0.0
+	)
 
 	# Abduction evaluates only enemies already inside its short radius. It never
 	# redirects the Saucer away from the Electric gun's First target.
@@ -70,7 +72,16 @@ func _physics_process(delta: float) -> void:
 		queue_redraw()
 		return
 
-	var desired_radius := float(saucer_behavior.attack_radius_pixels) * 0.8
+	var hunting_abduction: bool = (
+		bool(saucer_behavior.hunt_abductions_enabled)
+		and abduction_cooldown <= 0.0
+		and saucer_behavior.can_abduct_target(target)
+	)
+	var desired_radius := (
+		float(saucer_behavior.abduction_radius_pixels) * 0.70
+		if hunting_abduction
+		else float(saucer_behavior.attack_radius_pixels) * 0.8
+	)
 	var distance_to_target := global_position.distance_to(target.global_position)
 	if distance_to_target > desired_radius:
 		move_toward_position(target.global_position, delta)
@@ -106,6 +117,25 @@ func is_valid_target(candidate: Variant) -> bool:
 
 
 func _draw() -> void:
+	if (
+		is_instance_valid(saucer_behavior)
+		and bool(saucer_behavior.vulnerability_field_enabled)
+	):
+		draw_circle(
+			Vector2.ZERO,
+			float(saucer_behavior.vulnerability_field_radius_pixels),
+			Color(0.2, 0.75, 1.0, 0.07)
+		)
+		draw_arc(
+			Vector2.ZERO,
+			float(saucer_behavior.vulnerability_field_radius_pixels),
+			0.0,
+			TAU,
+			64,
+			Color(0.35, 0.88, 1.0, 0.38),
+			1.5,
+			true
+		)
 	if abduction_flash_remaining > 0.0:
 		var flash_alpha := abduction_flash_remaining / 0.28
 		draw_circle(Vector2.ZERO, 24.0, Color(0.35, 1.0, 0.62, 0.18 * flash_alpha))

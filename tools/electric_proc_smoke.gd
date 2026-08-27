@@ -153,17 +153,17 @@ func assert_electric_stat_nerfs() -> void:
 	assert_level_damage(&"gauss_repeater", [16, 16, 32, 56])
 	assert_level_damage(&"energycore", [16, 22, 30, 75])
 	assert_level_damage(&"saucer", [154, 218, 336, 378])
-	var live_wire: Dictionary = GameStats.get_tower_path(&"fisherman", &"a")
+	var storm_fisher: Dictionary = GameStats.get_tower_path(&"fisherman", &"c")
 	assert(is_equal_approx(
-		float(live_wire["stat_multipliers"]["damage"]),
-		1.40
+		float(storm_fisher["stat_multipliers"]["damage"]),
+		1.15
 	))
 	var rockets: Dictionary = GameStats.get_tower_path(&"saucer", &"a")
 	assert(is_equal_approx(
 		float(rockets["behavior_values"]["saucer_rocket_damage_multiplier"]),
-		2.0
+		1.5
 	))
-	var preserved_rocket_damage := [308, 436, 672, 756]
+	var preserved_rocket_damage := [231, 327, 504, 567]
 	var saucer_levels: Array = GameStats.get_tower(&"saucer")["levels"]
 	for level_index in saucer_levels.size():
 		assert(

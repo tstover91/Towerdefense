@@ -17,6 +17,8 @@ var arm_remaining := 0.15
 var detonating := false
 var attack_context: AttackContext
 var target_scan_remaining := 0.0
+var chain_reaction_radius := 0.0
+var chain_damage_multiplier := 1.0
 
 
 func setup(
@@ -24,13 +26,18 @@ func setup(
 	mine_damage: int,
 	mine_trigger_radius: float,
 	mine_explosion_radius: float,
-	ownership_context: AttackContext = null
+	ownership_context: AttackContext = null,
+	mine_chain_reaction_radius := 0.0,
+	mine_chain_damage_multiplier := 1.0
 ) -> void:
 	main = game_main
 	damage = maxi(mine_damage, 1)
 	trigger_radius = maxf(mine_trigger_radius, 1.0)
 	explosion_radius = maxf(mine_explosion_radius, trigger_radius)
 	attack_context = ownership_context
+	chain_reaction_radius = maxf(mine_chain_reaction_radius, 0.0)
+	chain_damage_multiplier = maxf(mine_chain_damage_multiplier, 0.0)
+	add_to_group("fisherman_mines")
 	queue_redraw()
 
 
@@ -67,7 +74,7 @@ func _process(delta: float) -> void:
 			return
 
 
-func detonate() -> void:
+func detonate(from_chain_reaction := false) -> void:
 	if detonating:
 		return
 	detonating = true
@@ -86,8 +93,13 @@ func detonate() -> void:
 		)
 		if distance_from_center > explosion_radius:
 			continue
+		var resolved_damage := (
+			maxi(roundi(float(damage) * chain_damage_multiplier), 1)
+			if from_chain_reaction
+			else damage
+		)
 		var dealt_damage := GameStats.get_explosion_damage(
-			damage,
+			resolved_damage,
 			distance_from_center,
 			explosion_radius
 		)
@@ -107,8 +119,32 @@ func detonate() -> void:
 				true,
 				explosion_context
 			)
+	_trigger_chain_reaction()
 	detonated.emit(self)
 	queue_free()
+
+
+func _trigger_chain_reaction() -> void:
+	if chain_reaction_radius <= 0.0:
+		return
+	for candidate in get_tree().get_nodes_in_group("fisherman_mines"):
+		if (
+			candidate == self
+			or not is_instance_valid(candidate)
+			or candidate.is_queued_for_deletion()
+			or bool(candidate.get("detonating"))
+		):
+			continue
+		var candidate_context: AttackContext = candidate.get("attack_context")
+		if (
+			attack_context == null
+			or candidate_context == null
+			or candidate_context.root_tower_instance_id
+				!= attack_context.root_tower_instance_id
+		):
+			continue
+		if global_position.distance_to(candidate.global_position) <= chain_reaction_radius:
+			candidate.call_deferred("detonate", true)
 
 
 func spawn_explosion_zone() -> void:

@@ -9,7 +9,18 @@ var twin_rockets_enabled := false
 var rocket_damage_multiplier := 2.0
 var rocket_interval := 3.0
 var rocket_splash_radius_pixels := 0.0
+var rocket_count := 2
 var monster_drop_enabled := false
+var hunt_abductions_enabled := false
+var maximum_monsters := 1
+var monster_damage_multiplier := 1.0
+var elite_abduction_threshold := 0.0
+var vulnerability_field_enabled := false
+var vulnerability_field_radius_pixels := 0.0
+var vulnerability_field_bonus := 0.0
+var vulnerability_field_refresh_interval := 0.2
+var vulnerability_field_refresh_remaining := 0.0
+var field_revealed_mobs: Array[Node] = []
 var flyer_move_speed := 165.0
 var attack_radius_pixels := 0.0
 var abduction_cooldown := 16.0
@@ -18,6 +29,7 @@ var abduction_health_threshold := 0.35
 var monster_stats: Dictionary = {}
 var active_flyer: Node2D
 var active_monster: Node
+var active_monsters: Array[Node] = []
 
 
 func uses_standard_targeting() -> bool:
@@ -54,7 +66,16 @@ func reset_path_behaviors() -> void:
 	rocket_damage_multiplier = 2.0
 	rocket_interval = 3.0
 	rocket_splash_radius_pixels = 0.0
+	rocket_count = 2
 	monster_drop_enabled = false
+	hunt_abductions_enabled = false
+	maximum_monsters = 1
+	monster_damage_multiplier = 1.0
+	elite_abduction_threshold = 0.0
+	vulnerability_field_enabled = false
+	vulnerability_field_radius_pixels = 0.0
+	vulnerability_field_bonus = 0.0
+	vulnerability_field_refresh_interval = 0.2
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
@@ -70,11 +91,34 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 			maxf(float(values.get("saucer_rocket_splash_radius", 3.0)), 0.0)
 			* BaseTower.RANGE_PIXELS_PER_UNIT
 		)
+		rocket_count = maxi(int(values.get("saucer_rocket_count", 2)), 1)
 	if flags.get("saucer_monster_drop", false):
 		monster_drop_enabled = true
+		maximum_monsters = maxi(int(values.get("saucer_maximum_monsters", 1)), 1)
+		monster_damage_multiplier = maxf(
+			float(values.get("saucer_monster_damage_multiplier", 1.0)), 0.0
+		)
+		elite_abduction_threshold = clampf(
+			float(values.get("saucer_elite_abduction_threshold", 0.0)), 0.0, 1.0
+		)
+	if flags.get("saucer_hunt_abductions", false):
+		hunt_abductions_enabled = true
+	if flags.get("saucer_vulnerability_field", false):
+		vulnerability_field_enabled = true
+		vulnerability_field_radius_pixels = maxf(
+			float(values.get("saucer_field_radius", 3.5)), 0.0
+		) * BaseTower.BUILD_CELL_SIZE
+		vulnerability_field_bonus = maxf(
+			float(values.get("saucer_field_vulnerability", 0.15)), 0.0
+		)
+		vulnerability_field_refresh_interval = maxf(
+			float(values.get("saucer_field_refresh_interval", 0.20)), 0.05
+		)
 
 
 func finalize_path_behaviors() -> void:
+	if not vulnerability_field_enabled:
+		clear_field_reveals()
 	if not twin_rockets_enabled or not tower.has_damage_tag(BaseTower.DAMAGE_EXPLOSIVE):
 		return
 	if tower.get_primary_damage_type() != BaseTower.DAMAGE_EXPLOSIVE:
@@ -88,13 +132,30 @@ func on_placement_confirmed() -> void:
 
 
 func on_round_ended() -> void:
-	clear_monster()
+	clear_monsters()
+	clear_field_reveals()
 
 
 func _exit_tree() -> void:
 	if is_instance_valid(active_flyer):
 		active_flyer.queue_free()
-	clear_monster()
+	clear_monsters()
+	clear_field_reveals()
+
+
+func process_attack(delta: float) -> void:
+	if not vulnerability_field_enabled or not is_instance_valid(active_flyer):
+		return
+	if not is_combat_active():
+		clear_field_reveals()
+		return
+	vulnerability_field_refresh_remaining = maxf(
+		vulnerability_field_refresh_remaining - delta, 0.0
+	)
+	if vulnerability_field_refresh_remaining > 0.0:
+		return
+	vulnerability_field_refresh_remaining = vulnerability_field_refresh_interval
+	refresh_vulnerability_field()
 
 
 func ensure_flyer() -> void:
@@ -127,14 +188,54 @@ func get_target() -> Node2D:
 func can_abduct_target(candidate: Variant) -> bool:
 	if not tower.is_valid_target(candidate):
 		return false
-	if candidate.traits.has(&"boss") or candidate.traits.has(&"elite"):
+	if candidate.traits.has(&"boss"):
 		return false
 	if candidate.max_health <= 0:
 		return false
+	var health_ratio := float(candidate.health) / float(candidate.max_health)
+	if candidate.traits.has(&"elite"):
+		return elite_abduction_threshold > 0.0 and health_ratio <= elite_abduction_threshold
 	return (
-		float(candidate.health) / float(candidate.max_health)
-		<= abduction_health_threshold
+		health_ratio <= abduction_health_threshold
 	)
+
+
+func get_navigation_target(
+	saucer_position: Vector2,
+	abduction_is_ready: bool
+) -> Node2D:
+	if hunt_abductions_enabled and abduction_is_ready:
+		var hunted_target := get_abduction_hunt_target(saucer_position)
+		if hunted_target != null:
+			return hunted_target
+	return get_target()
+
+
+func get_abduction_hunt_target(_saucer_position: Vector2) -> Node2D:
+	if not is_combat_active():
+		return null
+	var selected_target: Node2D
+	var selected_max_health := -1
+	var selected_progress := -INF
+	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+		if not can_abduct_target(candidate):
+			continue
+		if tower.global_position.distance_to(candidate.global_position) > tower.range_radius_pixels:
+			continue
+		var candidate_max_health := int(candidate.max_health)
+		var candidate_progress := (
+			float(candidate.path_follow.progress)
+			if is_instance_valid(candidate.path_follow)
+			else -INF
+		)
+		if candidate_max_health > selected_max_health or (
+			candidate_max_health == selected_max_health
+			and candidate_progress > selected_progress
+		):
+			selected_target = candidate
+			selected_max_health = candidate_max_health
+			selected_progress = candidate_progress
+	return selected_target
 
 
 func get_abduction_target(saucer_position: Vector2) -> Node2D:
@@ -246,8 +347,9 @@ func _fire_homing_rockets(
 		if not aim_offset.is_zero_approx()
 		else Vector2.UP
 	)
-	for rocket_index in 2:
-		var lateral_offset := -7.0 if rocket_index == 0 else 7.0
+	for rocket_index in rocket_count:
+		var centered_index := float(rocket_index) - float(rocket_count - 1) * 0.5
+		var lateral_offset := centered_index * 7.0
 		var rocket_origin := launch_position + perpendicular * lateral_offset
 		var destination := current_target.global_position
 		var projectile := tower.projectile_scene.instantiate() as TowerProjectile
@@ -304,11 +406,15 @@ func try_abduction(current_target: Node2D, saucer_position: Vector2) -> bool:
 func _spawn_monster(spawn_position: Vector2) -> void:
 	if not monster_drop_enabled or not tower.is_combat_active():
 		return
-	if is_instance_valid(active_monster) and not active_monster.is_queued_for_deletion():
+	prune_monsters()
+	if active_monsters.size() >= maximum_monsters:
 		return
 	var resolved_stats := monster_stats.duplicate(true)
 	resolved_stats["damage"] = maxi(
-		roundi(float(resolved_stats.get("damage", 1)) + tower.get_main_bonus(&"tower_damage_flat")), 1
+		roundi(
+			float(resolved_stats.get("damage", 1)) * monster_damage_multiplier
+			+ tower.get_main_bonus(&"tower_damage_flat")
+		), 1
 	)
 	resolved_stats["attack_interval"] = maxf(
 		float(resolved_stats.get("attack_interval", 1.0))
@@ -328,15 +434,69 @@ func _spawn_monster(spawn_position: Vector2) -> void:
 	monster.global_position = spawn_position
 	monster.setup(&"abducted_monster", resolved_stats, tower, null)
 	active_monster = monster
+	active_monsters.append(monster)
 	monster.tree_exiting.connect(_on_monster_exiting.bind(monster))
 
 
 func _on_monster_exiting(monster: Node) -> void:
+	active_monsters.erase(monster)
 	if active_monster == monster:
-		active_monster = null
+		active_monster = active_monsters[0] if not active_monsters.is_empty() else null
 
 
 func clear_monster() -> void:
-	if is_instance_valid(active_monster):
-		active_monster.queue_free()
+	clear_monsters()
+
+
+func clear_monsters() -> void:
+	for monster in active_monsters:
+		if is_instance_valid(monster):
+			monster.queue_free()
+	active_monsters.clear()
 	active_monster = null
+
+
+func prune_monsters() -> void:
+	active_monsters = active_monsters.filter(
+		func(monster: Node) -> bool:
+			return is_instance_valid(monster) and not monster.is_queued_for_deletion()
+	)
+	active_monster = active_monsters[0] if not active_monsters.is_empty() else null
+
+
+func refresh_vulnerability_field() -> void:
+	if not vulnerability_field_enabled or not is_instance_valid(active_flyer):
+		clear_field_reveals()
+		return
+	var field_context := tower.create_attack_context(&"mothership_vulnerability_field")
+	var current_mobs: Array[Node] = []
+	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+		if not tower.is_valid_target(candidate):
+			continue
+		if active_flyer.global_position.distance_to(candidate.global_position) > vulnerability_field_radius_pixels:
+			continue
+		current_mobs.append(candidate)
+		if candidate.has_method("apply_external_vulnerability"):
+			candidate.apply_external_vulnerability(
+				vulnerability_field_refresh_interval * 2.5,
+				vulnerability_field_bonus,
+				field_context
+			)
+		if candidate.has_method("add_global_reveal_source"):
+			candidate.add_global_reveal_source(active_flyer, field_context)
+	for previous_mob in field_revealed_mobs:
+		if (
+			is_instance_valid(previous_mob)
+			and not current_mobs.has(previous_mob)
+			and previous_mob.has_method("remove_global_reveal_source")
+		):
+			previous_mob.remove_global_reveal_source(active_flyer)
+	field_revealed_mobs = current_mobs
+
+
+func clear_field_reveals() -> void:
+	if is_instance_valid(active_flyer):
+		for mob in field_revealed_mobs:
+			if is_instance_valid(mob) and mob.has_method("remove_global_reveal_source"):
+				mob.remove_global_reveal_source(active_flyer)
+	field_revealed_mobs.clear()

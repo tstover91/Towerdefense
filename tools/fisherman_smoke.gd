@@ -43,7 +43,10 @@ func run_test() -> void:
 	assert(float(tower_data["levels"][3]["range"]) == 16.5)
 	assert(int(tower_data["paths"]["a"]["cost"]) == 3000)
 	assert(int(tower_data["paths"]["b"]["cost"]) == 3500)
-	assert(tower_data["paths"]["b"]["display_name"] == "Minefield")
+	assert(tower_data["paths"]["a"]["display_name"] == "Angler")
+	assert(tower_data["paths"]["b"]["display_name"] == "Trapper Fisherman")
+	assert(tower_data["paths"]["c"]["display_name"] == "Storm Fisher")
+	assert(GameStats.get_tower_evolutions(&"fisherman").size() == 3)
 	assert(tower_data["type_tags"].has(&"biological"))
 	assert(tower_data["damage_tags"].has(&"melee"))
 	assert(not tower_data["damage_tags"].has(&"ballistic"))
@@ -154,12 +157,33 @@ func run_test() -> void:
 	tower.purchased_paths.assign([&"a"])
 	tower.load_base_tags()
 	tower.load_level_stats()
-	assert(tower.damage == 840)
-	assert(tower.damage_type == &"electric")
+	assert(tower.damage == 600)
+	assert(tower.damage_type == &"melee")
 	assert(tower.has_type_tag(&"biological"))
 	assert(tower.has_damage_tag(&"melee"))
+	assert(not tower.has_damage_tag(&"electric"))
+	assert(fisherman_component.hook_target_count == 2)
+	assert(is_equal_approx(fisherman_component.secondary_hook_damage_multiplier, 0.70))
+	assert(is_equal_approx(fisherman_component.tracking_cone_degrees, 75.0))
+
+	tower.purchased_paths.assign([&"c"])
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(tower.damage == 690)
+	assert(tower.damage_type == &"electric")
+	assert(tower.has_damage_tag(&"melee"))
 	assert(tower.has_damage_tag(&"electric"))
-	assert(fisherman_component.electric_line_enabled)
+	assert(fisherman_component.electric_tether_enabled)
+	assert(fisherman_component.tether_maximum_targets == 4)
+	var tether_follow := PathFollow2D.new()
+	path.add_child(tether_follow)
+	var tether_target := MOB_SCENE.instantiate()
+	tether_target.enemy_id = &"brute"
+	tether_follow.add_child(tether_target)
+	tether_target.set_path_follow(tether_follow, 450.0)
+	var tether_health_before: int = tether_target.health
+	fisherman_component.execute_attack(mob, 400)
+	assert(tether_health_before - tether_target.health == 50, "Storm tether must damage enemies intersecting its line on each tick.")
 
 	tower.purchased_paths.assign([&"b"])
 	tower.load_base_tags()
@@ -183,6 +207,33 @@ func run_test() -> void:
 		mine.explosion_radius,
 		2.5 * BaseTower.RANGE_PIXELS_PER_UNIT
 	))
+
+	var level_20_xp: float = tower.instance_progression.get_total_xp_required_for_level(20)
+	tower.instance_progression.grant_xp(level_20_xp)
+	tower.purchased_paths.assign([&"a"])
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(fisherman_component.hook_target_count == 3)
+	assert(is_equal_approx(fisherman_component.tracking_cone_degrees, 82.5))
+	tower.purchased_paths.assign([&"b"])
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(fisherman_component.mine_maximum_count == 5)
+	assert(fisherman_component.mine_chain_reaction_radius_pixels > 0.0)
+	fisherman_component.clear_mines()
+	fisherman_component.place_mine()
+	fisherman_component.place_mine()
+	assert(fisherman_component.active_mines.size() == 2)
+	var chain_source := fisherman_component.active_mines[0] as FishermanMine
+	chain_source.detonate()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert(fisherman_component.active_mines.is_empty(), "Level-20 Trapper mines must chain-detonate nearby mines.")
+	tower.purchased_paths.assign([&"c"])
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(fisherman_component.tether_maximum_targets == 8)
+	assert(is_equal_approx(fisherman_component.tether_final_pulse_multiplier, 1.75))
 
 	# A lethal first tick used to remove the target and hook before the line's
 	# first draw. Successful casts now retain cached endpoints for a brief flash.
@@ -209,5 +260,5 @@ func run_test() -> void:
 	await get_tree().process_frame
 	assert(not is_instance_valid(lethal_hook), "The lethal line flash must clean itself up.")
 	fisherman_component.clear_mines()
-	print("Fisherman smoke test passed: forward cone, four ticks, pull immunity, lethal line flashes, Live Wire, and Minefield.")
+	print("Fisherman smoke test passed: base hook, Angler, Trapper, Storm tether, and capstones.")
 	get_tree().quit()

@@ -881,6 +881,26 @@ func notify_damage_dealt(
 		item_controller.notify_damage_dealt(enemy, actual_damage, attack_context)
 
 
+func notify_enemy_abducted(
+	enemy: Node,
+	removed_health: int,
+	attack_context: AttackContext
+) -> void:
+	if instance_progression == null or not is_instance_valid(enemy):
+		return
+	var credited_damage := maxi(removed_health, 0)
+	if credited_damage > 0:
+		instance_progression.record_damage(
+			credited_damage,
+			TOWER_XP_CREDIT_SERVICE.get_damage_xp(
+				credited_damage, enemy, attack_context
+			)
+		)
+	instance_progression.record_kill(
+		TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy, attack_context)
+	)
+
+
 func notify_attack_started(current_target: Node = null) -> void:
 	if item_controller != null:
 		item_controller.notify_attack_started(current_target)
