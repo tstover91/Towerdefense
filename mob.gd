@@ -437,6 +437,25 @@ func apply_fisherman_pull_toward(
 	return 0.0
 
 
+func apply_backward_displacement(
+	distance: float,
+	attack_context: AttackContext = null
+) -> float:
+	if finished or path_follow == null or distance <= 0.0:
+		return 0.0
+	var current_progress := path_follow.progress
+	var new_progress := maxf(current_progress - distance, 0.0)
+	path_follow.progress = new_progress
+	var actual_displacement := current_progress - new_progress
+	TOWER_XP_CREDIT_SERVICE.award_control_xp(
+		self,
+		attack_context,
+		&"displacement",
+		actual_displacement / BaseTower.BUILD_CELL_SIZE
+	)
+	return actual_displacement
+
+
 func apply_brainiac_link(
 	duration: float,
 	radius: float,

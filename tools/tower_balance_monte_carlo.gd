@@ -47,9 +47,13 @@ func validate_tower_progression() -> void:
 		assert(levels.size() == 4, "%s must have exactly four regular levels" % tower_id)
 		var sell_values: Array = GameStats.TOWER_UPGRADED_SELL_VALUES.get(tower_id, [])
 		assert(sell_values.size() == levels.size(), "%s sell values must match its levels" % tower_id)
-		for path_id in tower.get("paths", {}):
-			var path: Dictionary = tower["paths"][path_id]
-			assert(int(path.get("unlock_level", -1)) == 3, "%s path %s must unlock at the fourth regular level" % [tower_id, path_id])
+		if not GameStats.get_tower_evolutions(tower_id).is_empty():
+			for evolution in GameStats.get_tower_evolutions(tower_id).values():
+				assert(int(evolution.get("required_level", 0)) >= 10, "%s evolution must require XP Level 10 or later" % tower_id)
+		else:
+			for path_id in tower.get("paths", {}):
+				var path: Dictionary = tower["paths"][path_id]
+				assert(int(path.get("unlock_level", -1)) == 3, "%s path %s must unlock at the fourth regular level" % [tower_id, path_id])
 
 
 func read_arguments() -> void:
@@ -86,6 +90,8 @@ func run_simulation() -> Array[Dictionary]:
 			rows.append_array(simulate_variant(tower_id, maximum_level, [&"a"], "path_a"))
 		if paths.has("b"):
 			rows.append_array(simulate_variant(tower_id, maximum_level, [&"b"], "path_b"))
+		if paths.has("c"):
+			rows.append_array(simulate_variant(tower_id, maximum_level, [&"c"], "path_c"))
 	return rows
 
 
@@ -385,9 +391,16 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 	if flags.get("orbital_bombardment", false):
 		attacks *= maxi(int(values.get("bombardment_strike_count", 5)), 1)
 	for attack_index in attacks:
-		var attack_damage := get_reaver_combo_damage(damage, stats, flags) if tower_id == &"reaver" else damage
-		if tower_id != &"reaver" and traits["bonus_tags"].has(&"critical"):
-			var guaranteed_finisher: bool = bool(flags.get("reaver_assassinate", false)) and attack_index % maxi(int(stats.get("combo_hit_count", 3)), 1) == maxi(int(stats.get("combo_hit_count", 3)), 1) - 1
+		var attack_damage := damage
+		var reaver_target_multiplier := 1.0
+		if tower_id == &"reaver":
+			var reaver_result := get_reaver_attack_profile(
+				attack_damage, attack_index, stats, traits, scenario
+			)
+			attack_damage = float(reaver_result["damage"])
+			reaver_target_multiplier = float(reaver_result["targets"])
+		elif traits["bonus_tags"].has(&"critical"):
+			var guaranteed_finisher := false
 			if guaranteed_finisher or rng.randf() < GameStats.DEFAULT_CRITICAL_CHANCE:
 				attack_damage *= float(stats.get(
 					"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
@@ -424,7 +437,10 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		if tower_id == &"voidcaller":
 			total += get_voidcaller_volley_damage(hit_damage, stats, scenario)
 		else:
-			total += get_attack_total_damage(hit_damage, stats, traits, scenario)
+			total += (
+				get_attack_total_damage(hit_damage, stats, traits, scenario)
+				* reaver_target_multiplier
+			)
 		if flags.get("slinger_contact_explosions", false):
 			total += get_slinger_contact_explosion_damage(
 				attack_damage,
@@ -601,20 +617,41 @@ func simulate_orbital_path_trial(
 	return total / duration
 
 
-func get_reaver_combo_damage(damage: float, stats: Dictionary, flags: Dictionary) -> float:
-	if not bool(flags.get("reaver_assassinate", false)):
-		return damage
-	var hit_count := maxi(int(stats.get("combo_hit_count", 3)), 1)
-	if hit_count == 1:
-		return damage * GameStats.DEFAULT_CRITICAL_MULTIPLIER
-	var light_fraction := 0.25
-	var total := 0.0
-	for hit_index in hit_count:
-		var hit_damage := damage * light_fraction if hit_index < hit_count - 1 else damage * (1.0 - light_fraction * float(hit_count - 1))
-		if hit_index == hit_count - 1 or rng.randf() < GameStats.DEFAULT_CRITICAL_CHANCE:
-			hit_damage *= GameStats.DEFAULT_CRITICAL_MULTIPLIER
-		total += hit_damage
-	return total
+func get_reaver_attack_profile(
+	damage: float,
+	attack_index: int,
+	stats: Dictionary,
+	traits: Dictionary,
+	scenario: Dictionary
+) -> Dictionary:
+	var flags: Dictionary = traits["flags"]
+	var values: Dictionary = traits["values"]
+	var enemy_count := maxi(int(scenario["enemies"]), 1)
+	if flags.get("reaver_assassinate", false):
+		var interval := maxi(int(values.get("assassinate_attack_interval", 3)), 1)
+		var guaranteed := (attack_index + 1) % interval == 0
+		if guaranteed or rng.randf() < GameStats.DEFAULT_CRITICAL_CHANCE:
+			damage *= GameStats.DEFAULT_CRITICAL_MULTIPLIER
+		return {"damage": damage, "targets": 1.0}
+	if flags.get("reaver_champion", false):
+		var spin_interval := maxi(int(values.get("champion_spin_interval", 3)), 1)
+		if (attack_index + 1) % spin_interval == 0:
+			return {
+				"damage": damage * float(values.get("champion_spin_damage_multiplier", 1.5)),
+				"targets": float(mini(int(values.get("champion_spin_max_targets", 8)), enemy_count)),
+			}
+	if flags.get("reaver_enforcer", false):
+		var slam_interval := maxi(int(values.get("enforcer_slam_interval", 3)), 1)
+		if (attack_index + 1) % slam_interval == 0:
+			var slam_targets := mini(int(values.get("enforcer_slam_max_targets", 8)), enemy_count)
+			return {
+				"damage": damage,
+				"targets": 1.0 + float(maxi(slam_targets - 1, 0)) * float(values.get("enforcer_secondary_damage_multiplier", 0.75)),
+			}
+	return {
+		"damage": damage,
+		"targets": float(mini(int(stats.get("melee_max_targets", 1)), enemy_count)),
+	}
 
 
 func get_hit_chance(tower_id: StringName, stats: Dictionary, traits: Dictionary, scenario: Dictionary, distance_ratio: float, attack_index: int, attack_count: int) -> float:
@@ -713,17 +750,15 @@ func get_control_value(stats: Dictionary, traits: Dictionary, scenario: Dictiona
 		)
 	var flags: Dictionary = traits["flags"]
 	var values: Dictionary = traits["values"]
-	if flags.get("reaver_time_bubble", false):
-		var bubble_uptime := minf(
-			float(values.get("time_bubble_active_duration", 3.0))
-			/ maxf(
-				float(values.get("time_bubble_active_duration", 3.0))
-				+ float(values.get("time_bubble_cooldown", 7.0)),
-				0.01
-			),
-			1.0
+	if flags.get("reaver_enforcer", false) and not bool(scenario["boss"]):
+		var slam_interval := maxi(int(values.get("enforcer_slam_interval", 3)), 1)
+		var slam_targets := mini(int(values.get("enforcer_slam_max_targets", 8)), enemies)
+		value += (
+			float(values.get("enforcer_stun_duration", 0.5))
+			/ (interval * float(slam_interval))
+			* float(slam_targets)
+			* 0.40
 		)
-		value += bubble_uptime * float(enemies) * (1.0 - GameStats.SLOW_SPEED_MULTIPLIER)
 	if flags.get("energy_shockwave", false) and not bool(scenario["boss"]):
 		value += (
 			float(values.get("shockwave_stun_duration", 1.0))
@@ -1054,7 +1089,7 @@ func get_model_note(tower_id: StringName) -> String:
 		&"gauss_repeater": return "spread tightening; overclock; tracking and Heavy Shot approximated"
 		&"brainiac": return "turn alignment; target-reset ramp and Psionic Link modeled"
 		&"beholder": return "Converging beams, interception/Pierce, and Withering Gaze self-amplification modeled"
-		&"reaver": return "combo contact; stun fatigue; Time Bubble and Assassinate modeled"
+		&"reaver": return "sweep target caps; Assassin cadence, Champion spins, and Enforcer slams modeled"
 		&"longshot": return "Anti-Materiel critical stats and Kill Chain execution reloads approximated"
 		&"slinger": return "bounce availability; Pierce falloff and contact splash modeled"
 		&"voidcaller": return "orb geometry; simultaneous Barrage and Singularity coverage modeled"
@@ -1085,7 +1120,7 @@ func print_summary(rows: Array[Dictionary]) -> void:
 	for scenario in scenarios:
 		var candidates: Array[Dictionary] = []
 		for row in rows:
-			if row["scenario"] == scenario["id"] and row["variant"] in ["path_a", "path_b"]:
+			if row["scenario"] == scenario["id"] and row["variant"] in ["path_a", "path_b", "path_c"]:
 				candidates.append(row)
 		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["dps_per_100"]) > float(b["dps_per_100"]))
 		print("\n", String(scenario["id"]).to_upper(), " top max-path efficiency")

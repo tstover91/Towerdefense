@@ -38,138 +38,110 @@ func run_test() -> void:
 	var follow := PathFollow2D.new()
 	path.add_child(follow)
 	var mob := MOB_SCENE.instantiate()
-	mob.enemy_id = &"brute"
+	mob.enemy_id = &"normal"
 	follow.add_child(mob)
 	mob.set_path_follow(follow, 500.0)
+	mob.max_health = 1_000_000
+	mob.health = mob.max_health
 
 	var tower := TOWER_SCENE.instantiate() as BaseTower
 	tower.tower_id = &"reaver"
 	tower.tower_level = 3
-	tower.purchased_paths.assign([&"b"])
 	tower.main = fake_main
-	tower.position = Vector2(500.0, 0.0)
+	tower.position = Vector2(500.0, 100.0)
 	add_child(tower)
 	tower.confirm_placement()
-	var reaver_levels: Array = GameStats.get_tower(&"reaver")["levels"]
-	var expected_ranges := [9.0, 9.5, 10.0, 11.0]
-	for level_index in reaver_levels.size():
-		assert(is_equal_approx(
-			float(reaver_levels[level_index]["range"]),
-			expected_ranges[level_index]
-		))
-	assert(is_equal_approx(
-		tower.range_radius_pixels,
-		11.0 * BaseTower.RANGE_PIXELS_PER_UNIT
-	))
-	# Exercise the combo directly. Automatic acquisition is covered by the
-	# targeting smoke and made this test dependent on physics callback ordering.
 	tower.attack_on_cooldown = true
 	tower.damage_timer.stop()
 	tower.critical_chance = 0.0
 	var component := tower.attack_component as ReaverAttackComponent
 	if not _check(component != null, "Reaver attack component was not created."):
 		return
-	if not _check(component.combo_hit_count == 3, "Expected a three-hit combo."):
+
+	var evolutions := GameStats.get_tower_evolutions(&"reaver")
+	if not _check(evolutions.size() == 3, "Reaver should expose three evolutions."):
 		return
-	if not _check(
-		is_equal_approx(component.combo_stagger, 0.10 * 0.50 / 1.15),
-		"Combo stagger did not receive the expected attack-speed scaling."
-	):
+	if not _check(evolutions.has(&"assassin") and evolutions.has(&"champion") and evolutions.has(&"enforcer"), "Reaver evolution roster is incomplete."):
 		return
-	if not _check(component.assassinate_enabled, "Assassinate was not enabled."):
+	var levels: Array = GameStats.get_tower(&"reaver")["levels"]
+	if not _check(float(levels[0]["melee_arc_degrees"]) == 120.0 and int(levels[3]["melee_max_targets"]) == 4, "Base Reaver sweep progression is wrong."):
 		return
-	if not _check(not component.time_bubble_enabled, "Wrong Reaver path enabled."):
+	if not _check(is_equal_approx(float(levels[3]["range"]), 7.5), "Base Reaver did not receive its shorter melee range."):
 		return
-	if not _check(component._get_combo_hit_damage(400, 0) == 100, "Wrong first-hit damage."):
-		return
-	if not _check(component._get_combo_hit_damage(400, 1) == 100, "Wrong second-hit damage."):
-		return
-	if not _check(component._get_combo_hit_damage(400, 2) == 200, "Wrong finisher base damage."):
-		return
+
+	# Base attacks resolve immediately as one sweep rather than delayed combo hits.
 	var starting_health: int = mob.health
-	component.execute_raw_attack(mob, 400)
-	var combo_completed := await _wait_for_health_loss(mob, starting_health, 600)
-	if not _check(
-		combo_completed and starting_health - mob.health == 600,
-		"Assassinate must deal two 100-damage hits and one guaranteed 400-damage critical finisher."
-	):
+	component.execute_raw_attack(mob, tower.damage)
+	if not _check(mob.health < starting_health, "Base Reaver sweep did not deal immediate damage."):
 		return
-	if not _check(tower.last_attack_roll_was_critical, "Finisher was not marked critical."):
+	if not _check(component.melee_arc_degrees == 120.0 and component.melee_max_targets == 4, "Base sweep geometry was not loaded."):
 		return
 
-	# Time Bubble owns its activation, repeated slow refresh, visuals, and state
-	# preservation when stats are reloaded.
-	tower.purchased_paths.assign([&"a"])
-	tower.load_base_tags()
-	tower.load_level_stats()
-	if not _check(component.time_bubble_enabled, "Time Bubble was not enabled."):
+	# Assassin is single-target and makes every third completed attack a guaranteed crit.
+	_load_path(tower, &"b")
+	tower.critical_chance = 0.0
+	if not _check(component.assassinate_enabled and component.melee_max_targets == 1, "Assassin behavior was not loaded."):
 		return
-	if not _check(not component.assassinate_enabled, "Assassinate remained enabled."):
+	mob.health = mob.max_health
+	var first_start: int = mob.health
+	component.execute_raw_attack(mob, tower.damage)
+	var normal_loss: int = first_start - int(mob.health)
+	component.execute_raw_attack(mob, tower.damage)
+	var third_start: int = mob.health
+	component.execute_raw_attack(mob, tower.damage)
+	var assassinate_loss: int = third_start - int(mob.health)
+	if not _check(assassinate_loss > normal_loss, "Assassin's third attack was not an empowered guaranteed critical."):
 		return
-	component.time_bubble_cooldown_remaining = 0.0
-	component.process_attack(0.01)
-	if not _check(component.time_bubble_active_remaining > 0.0, "Time Bubble did not activate."):
-		return
-	if not _check(mob.slow_remaining > 0.0, "Time Bubble did not slow its target."):
-		return
-	component.time_bubble_active_remaining = 2.0
-	tower.load_level_stats()
-	if not _check(
-		is_equal_approx(component.time_bubble_active_remaining, 2.0),
-		"Stat reload did not preserve active Time Bubble duration."
-	):
+	if not _check(component.assassinate_attack_counter == 0, "Assassin cadence did not reset after its third attack."):
 		return
 
-	# The Psionic relic modifiers moved with the bubble rather than remaining as
-	# hidden Reaver branches in BaseTower.
-	fake_main.relics[&"lingering_thoughts"] = 1
-	fake_main.relics[&"quick_thinking"] = 1
-	tower.load_level_stats()
-	if not _check(
-		is_equal_approx(
-			component.time_bubble_active_duration,
-			3.0
-				* GameStats.LINGERING_THOUGHTS_DURATION_MULTIPLIER
-				* GameStats.QUICK_THINKING_DURATION_MULTIPLIER
-		),
-		"Psionic relics produced the wrong Time Bubble duration."
-	):
+	# Champion keeps normal sweeps and changes every third attack into a 360-degree spin.
+	_load_path(tower, &"c")
+	if not _check(component.champion_enabled and component.champion_spin_interval == 3, "Champion behavior was not loaded."):
 		return
-	if not _check(
-		is_equal_approx(
-			component.time_bubble_cooldown,
-			7.0 * GameStats.QUICK_THINKING_COOLDOWN_MULTIPLIER
-		),
-		"Psionic relics produced the wrong Time Bubble cooldown."
-	):
-		return
-	component.on_round_ended()
-	if not _check(
-		is_zero_approx(component.time_bubble_active_remaining),
-		"Time Bubble remained active after the round ended."
-	):
-		return
-	if not _check(
-		is_zero_approx(component.time_bubble_cooldown_remaining),
-		"Time Bubble cooldown remained after the round ended."
-	):
+	component.execute_raw_attack(mob, tower.damage)
+	component.execute_raw_attack(mob, tower.damage)
+	component.execute_raw_attack(mob, tower.damage)
+	if not _check(component.champion_attack_counter == 0 and component.sweep_visual_arc_degrees == 360.0, "Champion's third attack was not a spin."):
 		return
 
-	print("Reaver smoke test passed: combo timing, Assassinate, Time Bubble, path state, visuals, and Psionic relics.")
+	# Enforcer's third attack applies both control effects and walks path progress backward.
+	_load_path(tower, &"a")
+	if not _check(component.enforcer_enabled and component.melee_arc_degrees == 180.0, "Enforcer behavior was not loaded."):
+		return
+	mob.health = mob.max_health
+	mob.stun_remaining = 0.0
+	follow.progress = 500.0
+	component.execute_raw_attack(mob, tower.damage)
+	component.execute_raw_attack(mob, tower.damage)
+	var progress_before_slam := follow.progress
+	component.execute_raw_attack(mob, tower.damage)
+	if not _check(follow.progress < progress_before_slam, "Enforcer slam did not displace its target backward."):
+		return
+	if not _check(mob.stun_remaining > 0.0, "Enforcer slam did not stun its target."):
+		return
+
+	# Level-20 path definitions replace the cadence values with each capstone.
+	var level_20_xp: float = tower.instance_progression.get_total_xp_required_for_level(20)
+	tower.instance_progression.grant_xp(level_20_xp)
+	_load_path(tower, &"b")
+	if not _check(is_equal_approx(component.assassinate_critical_multiplier_bonus, 1.0), "Assassin Deathblow capstone was not loaded."):
+		return
+	_load_path(tower, &"c")
+	if not _check(component.champion_spin_interval == 2 and component.champion_spin_max_targets == 12, "Champion capstone was not loaded."):
+		return
+	_load_path(tower, &"a")
+	if not _check(component.melee_max_targets == 8 and is_equal_approx(component.enforcer_stun_duration, 1.0), "Enforcer capstone was not loaded."):
+		return
+
+	print("Reaver smoke test passed: immediate sweep, Assassin, Champion, Enforcer, control, and capstones.")
 	get_tree().quit(0)
 
 
-func _wait_for_health_loss(
-	mob: Node,
-	starting_health: int,
-	expected_loss: int
-) -> bool:
-	var deadline := Time.get_ticks_msec() + 1000
-	while Time.get_ticks_msec() < deadline:
-		if starting_health - int(mob.health) >= expected_loss:
-			return true
-		await get_tree().process_frame
-	return false
+func _load_path(tower: BaseTower, path_id: StringName) -> void:
+	tower.purchased_paths.assign([path_id])
+	tower.load_base_tags()
+	tower.load_level_stats()
 
 
 func _check(condition: bool, message: String) -> bool:
