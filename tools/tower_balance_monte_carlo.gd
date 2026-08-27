@@ -320,6 +320,8 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		)
 	):
 		return simulate_orbital_path_trial(stats, traits, scenario)
+	if tower_id == &"brainiac" and traits["flags"].get("psion_temporal_eye", false):
+		return simulate_temporal_eye_trial(stats, traits, scenario)
 	var damage := float(stats.get("damage", 0))
 	var interval := maxf(float(stats.get("firerate", 1.0)), 0.01)
 	if bool(stats.get("gauss_overclock_enabled", false)):
@@ -509,6 +511,46 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		)
 		total = maxf(total - regeneration * duration * pressured_targets, 0.0)
 	return total / duration
+
+
+func simulate_temporal_eye_trial(
+	stats: Dictionary,
+	traits: Dictionary,
+	scenario: Dictionary
+) -> float:
+	var values: Dictionary = traits["values"]
+	var interval := maxf(float(stats.get("firerate", 5.0)), 0.01)
+	var bubble_count := floori((duration + rng.randf() * interval) / interval)
+	var bubble_duration := maxf(float(values.get("temporal_bubble_duration", 3.0)), 0.1)
+	var tick_interval := maxf(float(values.get("temporal_beam_tick_interval", 0.2)), 0.05)
+	var tick_count := maxi(ceili(bubble_duration / tick_interval), 1)
+	var damage := float(stats.get("damage", 0))
+	var enemy_health := float(scenario["health"])
+	var enemy_count := maxi(int(scenario["enemies"]), 1)
+	var center_multiplier := float(values.get("temporal_center_damage_multiplier", 1.0))
+	var primary_per_tick := minf(
+		apply_armor(damage * center_multiplier, &"beam", float(scenario["armor"]), false),
+		enemy_health
+	)
+	var radius := maxf(float(values.get("temporal_bubble_radius", 3.0)), 0.1)
+	var half_width := maxf(float(values.get("temporal_beam_half_width", 0.3)), 0.01)
+	var rotation := maxf(deg_to_rad(absf(float(values.get("temporal_rotation_degrees", 90.0)))), 0.01)
+	# A bystander is normally crossed by one of the four rotating spokes. Estimate
+	# how many simulation ticks that crossing occupies from its angular width.
+	var expected_spoke_hits := clampf(
+		2.0 * half_width * float(tick_count) / (radius * rotation),
+		0.0,
+		float(tick_count)
+	)
+	var bystander_per_bubble := (
+		minf(apply_armor(damage * 0.25, &"beam", float(scenario["armor"]), false), enemy_health)
+		* expected_spoke_hits
+	)
+	var total_per_bubble := (
+		primary_per_tick * float(tick_count)
+		+ bystander_per_bubble * float(enemy_count - 1)
+	)
+	return float(bubble_count) * total_per_bubble / duration
 
 
 func simulate_orbital_path_trial(
@@ -813,6 +855,19 @@ func get_control_value(stats: Dictionary, traits: Dictionary, scenario: Dictiona
 			1.0
 		)
 		value += pull_uptime * float(enemies) * 0.15
+	if flags.get("psion_temporal_eye", false):
+		var bubble_uptime := minf(
+			float(values.get("temporal_bubble_duration", 3.0)) / interval,
+			1.0
+		)
+		value += bubble_uptime * float(enemies) * (1.0 - GameStats.SLOW_SPEED_MULTIPLIER)
+		if not bool(scenario["boss"]):
+			value += (
+				float(values.get("temporal_final_stun_duration", 0.0))
+				/ interval
+				* float(enemies)
+				* 0.40
+			)
 	return value
 
 
@@ -1120,7 +1175,7 @@ func percentile(values: Array[float], ratio: float) -> float:
 func get_model_note(tower_id: StringName) -> String:
 	match tower_id:
 		&"gauss_repeater": return "spread tightening; overclock; tracking and Heavy Shot approximated"
-		&"brainiac": return "turn alignment; target-reset ramp and Psionic Link modeled"
+		&"brainiac": return "target-reset Brainiac ramp/Link and Temporal Eye rotating bubble modeled"
 		&"beholder": return "Converging beams, interception/Pierce, and Withering Gaze self-amplification modeled"
 		&"reaver": return "sweep target caps; Assassin cadence, Champion spins, and Enforcer slams modeled"
 		&"longshot": return "Anti-Materiel critical stats and Kill Chain execution reloads approximated"
