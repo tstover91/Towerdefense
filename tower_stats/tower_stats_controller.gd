@@ -401,6 +401,7 @@ func get_sidebar_stats() -> Dictionary:
 		result["tower_instance_uid"] = tower.instance_progression.instance_uid
 		result["kills"] = tower.instance_progression.kills
 		result["actual_damage_dealt"] = tower.instance_progression.actual_damage_dealt
+		result["control_credit"] = tower.instance_progression.control_credit
 		result["equipped_items"] = tower.get_equipped_item_ids()
 		result["active_items"] = tower.item_controller.get_active_item_ids()
 	if next_level < levels.size():

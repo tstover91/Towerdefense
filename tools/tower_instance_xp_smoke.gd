@@ -8,6 +8,7 @@ const TOWER_XP_CREDIT_SERVICE = preload(
 const TOWER_INSTANCE_PROGRESSION = preload(
 	"res://tower_progression/tower_instance_progression.gd"
 )
+const MAIN_SCRIPT = preload("res://main.gd")
 
 
 class FakeMain:
@@ -30,6 +31,13 @@ class FakeMain:
 		pass
 
 
+class FakeDescendantRequester:
+	extends Node
+	var enemy_id: StringName
+	var split_count := 0
+	var summon_limit := 0
+
+
 func _ready() -> void:
 	call_deferred("run_test")
 
@@ -49,11 +57,11 @@ func run_test() -> void:
 	):
 		return
 	var expected_thresholds := {
-		2: 16.0,
-		5: 86.0,
-		10: 353.0,
-		15: 1071.0,
-		20: 3000.0,
+		2: 14.0,
+		5: 88.0,
+		10: 437.0,
+		15: 1667.0,
+		20: 6000.0,
 	}
 	for expected_level in expected_thresholds:
 		if not _check(
@@ -87,7 +95,7 @@ func run_test() -> void:
 	):
 		return
 	if not _check(
-		is_equal_approx(first_tower.instance_progression.xp, 0.6),
+		is_equal_approx(first_tower.instance_progression.xp, 0.26),
 		"Damage XP was not credited at the configured rate."
 	):
 		return
@@ -119,12 +127,15 @@ func run_test() -> void:
 	if not _check(first_tower.instance_progression.kills == 1, "Kill credit was not recorded."):
 		return
 	if not _check(
-		is_equal_approx(first_tower.instance_progression.xp, 3.45),
+		is_equal_approx(first_tower.instance_progression.xp, 1.495),
 		"Combined damage and kill XP was incorrect."
 	):
 		return
 
-	first_tower.instance_progression.grant_xp(12.55)
+	first_tower.instance_progression.grant_xp(
+		first_tower.instance_progression.get_total_xp_required_for_level(2)
+		- first_tower.instance_progression.xp
+	)
 	if not _check(first_tower.instance_progression.level == 2, "XP threshold did not raise the XP level."):
 		return
 	if not _check(first_tower.tower_level == 0, "XP changed the existing paid upgrade rank."):
@@ -142,13 +153,62 @@ func run_test() -> void:
 			TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy)
 		)
 	if not _check(
-		is_equal_approx(round_one_pacing.xp, 34.5)
+		is_equal_approx(round_one_pacing.xp, 14.95)
 		and round_one_pacing.level == 2,
 		"Representative round-one combat progressed beyond the intended early pace."
 	):
 		return
 
-	print("Tower instance XP smoke test passed: unique state, damage, overkill, kills, derived attribution, slower round-one pacing, and automatic levels.")
+	enemy.enemy_id = &"splitter"
+	enemy.traits.assign([&"basic"])
+	enemy.xp_budget_multiplier = 1.0
+	if not _check(
+		is_equal_approx(
+			TOWER_XP_CREDIT_SERVICE.get_enemy_damage_xp_budget(enemy), 3.9
+		),
+		"An enemy with descendants did not reserve part of its XP for them."
+	):
+		return
+	enemy.xp_budget_multiplier = 0.5
+	if not _check(
+		is_equal_approx(
+			TOWER_XP_CREDIT_SERVICE.get_enemy_damage_xp_budget(enemy), 1.95
+		),
+		"Instance-specific descendant XP scaling was not applied."
+	):
+		return
+	var gameplay = MAIN_SCRIPT.new()
+	var splitter := FakeDescendantRequester.new()
+	splitter.enemy_id = &"splitter"
+	splitter.split_count = 2
+	if not _check(
+		is_equal_approx(
+			gameplay.get_descendant_xp_multiplier(
+				&"swarmling", splitter, &"split"
+			),
+			0.5
+		),
+		"Splitter children did not receive the reserved family XP share."
+	):
+		return
+	var summoner := FakeDescendantRequester.new()
+	summoner.enemy_id = &"summoner"
+	summoner.summon_limit = 3
+	if not _check(
+		is_equal_approx(
+			gameplay.get_descendant_xp_multiplier(
+				&"swarmling", summoner, &"summon"
+			),
+			2.5 / 3.0
+		),
+		"Summoned enemies did not receive the reserved family XP share."
+	):
+		return
+	gameplay.free()
+	splitter.free()
+	summoner.free()
+
+	print("Tower instance XP smoke test passed: unique state, normalized threat XP, descendants, overkill, kills, derived attribution, pacing, and automatic levels.")
 	get_tree().quit(0)
 
 

@@ -8,7 +8,7 @@ signal level_changed(new_level: int, previous_level: int)
 
 const MAX_LEVEL := GameStats.TOWER_XP_MAX_LEVEL
 const TARGET_XP_AT_MAX_LEVEL := GameStats.TOWER_XP_TARGET_AT_MAX_LEVEL
-const RUNESCAPE_EXPONENT_LEVEL_SPAN := 3.5
+const RUNESCAPE_EXPONENT_LEVEL_SPAN := 2.75
 const RUNESCAPE_EXPONENTIAL_BASE := 300.0
 
 static var _next_instance_sequence := 1
@@ -47,6 +47,14 @@ func record_damage(actual_damage: int, xp_award: float) -> void:
 func record_kill(xp_award: float) -> void:
 	kills += 1
 	grant_xp(xp_award)
+
+
+func record_control_credit(xp_award: float) -> void:
+	var safe_award := maxf(xp_award, 0.0)
+	if safe_award <= 0.0:
+		return
+	control_credit += safe_award
+	grant_xp(safe_award)
 
 
 func grant_xp(amount: float) -> void:

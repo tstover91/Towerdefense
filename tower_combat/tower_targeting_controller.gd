@@ -246,7 +246,7 @@ func apply_reveal_relics_to_mob(mob: Node) -> void:
 		return
 	if tower.get_effect_stack_count(&"perfect_intelligence") > 0:
 		if mob.has_method("remove_hidden_trait"):
-			mob.remove_hidden_trait()
+			mob.remove_hidden_trait(tower.create_attack_context(&"reveal"))
 		else:
 			mob.get("traits").erase(&"hidden")
 		return
@@ -254,7 +254,9 @@ func apply_reveal_relics_to_mob(mob: Node) -> void:
 		tower.get_owned_relic_count(&"spotter") > 0
 		and mob.has_method("add_global_reveal_source")
 	):
-		mob.add_global_reveal_source(tower)
+		mob.add_global_reveal_source(
+			tower, tower.create_attack_context(&"reveal")
+		)
 
 
 func remove_reveal_source_from_all_mobs() -> void:

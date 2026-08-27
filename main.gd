@@ -15,6 +15,9 @@ const ItemShopManagerScript = preload("res://tower_items/item_shop_manager.gd")
 const TowerItemInventoryServiceScript = preload(
 	"res://tower_items/tower_item_inventory_service.gd"
 )
+const TOWER_XP_CREDIT_SERVICE = preload(
+	"res://tower_progression/tower_xp_credit_service.gd"
+)
 const ROLE_FODDER := WaveDirectorScript.ROLE_FODDER
 const ROLE_PRESSURE := WaveDirectorScript.ROLE_PRESSURE
 const ROLE_TANK := WaveDirectorScript.ROLE_TANK
@@ -3038,7 +3041,8 @@ func _create_mob(
 	enemy_id: StringName,
 	start_progress: float,
 	spawn_variant: StringName = VARIANT_NORMAL,
-	path_id: StringName = &""
+	path_id: StringName = &"",
+	xp_budget_multiplier := 1.0
 ) -> void:
 	if game_ended:
 		return
@@ -3058,6 +3062,7 @@ func _create_mob(
 	mob.wave_number = round_number
 	mob.health_multiplier = get_enemy_health_multiplier(round_number, enemy_id)
 	mob.spawn_variant = spawn_variant
+	mob.xp_budget_multiplier = maxf(xp_budget_multiplier, 0.0)
 	mob.mob_killed.connect(_on_mob_killed)
 	mob.reached_end.connect(_on_mob_reached_end)
 	mob.spawn_requested.connect(_on_mob_spawn_requested)
@@ -3209,6 +3214,9 @@ func _on_mob_spawn_requested(
 	request_kind: StringName
 ) -> void:
 	var path_id := get_path_id_for_requester(requester)
+	var descendant_xp_multiplier := get_descendant_xp_multiplier(
+		enemy_id, requester, request_kind
+	)
 	if mobs_alive >= absolute_enemy_cap:
 		if request_kind == &"split":
 			pending_enemy_spawns.append({
@@ -3216,11 +3224,18 @@ func _on_mob_spawn_requested(
 				"path_progress": path_progress,
 				"spawn_variant": spawn_variant,
 				"path_id": path_id,
+				"xp_budget_multiplier": descendant_xp_multiplier,
 			})
 		elif is_instance_valid(requester) and requester.has_method("resolve_spawn_request"):
 			requester.resolve_spawn_request(request_kind, false)
 		return
-	_create_mob(enemy_id, path_progress, spawn_variant, path_id)
+	_create_mob(
+		enemy_id,
+		path_progress,
+		spawn_variant,
+		path_id,
+		descendant_xp_multiplier
+	)
 	if is_instance_valid(requester) and requester.has_method("resolve_spawn_request"):
 		requester.resolve_spawn_request(request_kind, true)
 
@@ -3236,8 +3251,46 @@ func flush_pending_enemy_spawns() -> void:
 			request["enemy_id"],
 			request["path_progress"],
 			request["spawn_variant"],
-			StringName(request.get("path_id", &""))
+			StringName(request.get("path_id", &"")),
+			float(request.get("xp_budget_multiplier", 1.0))
 		)
+
+
+func get_descendant_xp_multiplier(
+	enemy_id: StringName,
+	requester: Node,
+	request_kind: StringName
+) -> float:
+	if (
+		request_kind not in [&"split", &"summon"]
+		or not is_instance_valid(requester)
+		or not GameStats.ENEMIES.has(enemy_id)
+	):
+		return 1.0
+	var descendant_count := (
+		int(requester.get("split_count"))
+		if request_kind == &"split"
+		else int(requester.get("summon_limit"))
+	)
+	if descendant_count <= 0:
+		return 0.0
+	var requester_id_value: Variant = requester.get("enemy_id")
+	if requester_id_value == null:
+		return 0.0
+	var requester_id := StringName(requester_id_value)
+	if not GameStats.ENEMIES.has(requester_id):
+		return 0.0
+	var parent_cost := maxf(
+		float(GameStats.get_enemy(requester_id).get("director_cost", 1)), 1.0
+	)
+	var child_cost := maxf(
+		float(GameStats.get_enemy(enemy_id).get("director_cost", 1)), 1.0
+	)
+	return (
+		(1.0 - TOWER_XP_CREDIT_SERVICE.PRIMARY_DESCENDANT_XP_RATIO)
+		* parent_cost
+		/ (float(descendant_count) * child_cost)
+	)
 
 
 func _process_enemy_speed_auras(delta: float) -> void:

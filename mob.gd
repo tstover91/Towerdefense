@@ -5,6 +5,9 @@ const RelicEffects = preload("res://relic_combat.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const ELECTRIC_PROC_EFFECT = preload("res://electric_proc_effect.gd")
 const ELECTRIC_ARC_EFFECT = preload("res://electric_arc_effect.gd")
+const TOWER_XP_CREDIT_SERVICE = preload(
+	"res://tower_progression/tower_xp_credit_service.gd"
+)
 const STUN_FATIGUE_MULTIPLIERS := [1.0, 0.65, 0.40, 0.25, 0.10]
 const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
 const FISHERMAN_MINIMUM_PROGRESS_RATIO := 0.25
@@ -25,6 +28,7 @@ signal spawn_requested(
 var wave_number := 1
 var health_multiplier := 1.0
 var spawn_variant: StringName = &"normal"
+var xp_budget_multiplier := 1.0
 var traits: Array[StringName] = []
 var global_reveal_sources: Dictionary = {}
 var health: int
@@ -68,6 +72,7 @@ var beholder_mark_remaining := 0.0
 var beholder_mark_stacks := 0
 var beholder_mark_damage_per_stack := 0.0
 var beholder_mark_maximum_stacks := 0
+var beholder_mark_context: AttackContext
 var maximum_ablative_shield_points := 0
 var ablative_shield_points := 0
 var shield_aura_radius := 0.0
@@ -76,6 +81,7 @@ var fisherman_pull_active := false
 var fisherman_minimum_progress := -1.0
 var electric_hit_count := 0
 var electric_proc_damage := 0.0
+var support_xp_awarded_by_source: Dictionary = {}
 
 
 func _draw() -> void:
@@ -337,9 +343,16 @@ func _process_control_effects(delta: float) -> void:
 func apply_slow(duration: float, attack_context: AttackContext = null) -> void:
 	if finished or duration <= 0.0:
 		return
+	var previous_duration := slow_remaining
 	if duration >= slow_remaining:
 		slow_context = attack_context
 	slow_remaining = maxf(slow_remaining, duration)
+	TOWER_XP_CREDIT_SERVICE.award_control_xp(
+		self,
+		attack_context,
+		&"slow",
+		maxf(slow_remaining - previous_duration, 0.0)
+	)
 
 
 func clear_slow_from_context(attack_context: AttackContext) -> void:
@@ -385,13 +398,14 @@ func end_fisherman_pull(immunity_duration: float) -> void:
 
 func apply_fisherman_pull_toward(
 	tower_world_position: Vector2,
-	pull_distance: float
-) -> void:
+	pull_distance: float,
+	attack_context: AttackContext = null
+) -> float:
 	if finished or path_follow == null or pull_distance <= 0.0:
-		return
+		return 0.0
 	var path := path_follow.get_parent() as Path2D
 	if path == null or path.curve == null:
-		return
+		return 0.0
 	var current_progress := path_follow.progress
 	var current_position := path.to_global(
 		path.curve.sample_baked(current_progress)
@@ -412,6 +426,15 @@ func apply_fisherman_pull_toward(
 	# the enemy, the line still damages but cannot accelerate it toward the exit.
 	if backward_distance + 0.001 < current_distance:
 		path_follow.progress = backward_progress
+		var actual_pull := maxf(current_progress - backward_progress, 0.0)
+		TOWER_XP_CREDIT_SERVICE.award_control_xp(
+			self,
+			attack_context,
+			&"displacement",
+			actual_pull / BaseTower.BUILD_CELL_SIZE
+		)
+		return actual_pull
+	return 0.0
 
 
 func apply_brainiac_link(
@@ -443,7 +466,8 @@ func _process_brainiac_link(delta: float) -> void:
 func apply_beholder_damage_mark(
 	duration: float,
 	damage_per_stack: float,
-	maximum_stacks: int
+	maximum_stacks: int,
+	attack_context: AttackContext = null
 ) -> void:
 	if finished or duration <= 0.0 or damage_per_stack <= 0.0:
 		return
@@ -460,6 +484,8 @@ func apply_beholder_damage_mark(
 		beholder_mark_stacks + 1,
 		beholder_mark_maximum_stacks
 	)
+	if attack_context != null:
+		beholder_mark_context = attack_context
 	queue_redraw()
 
 
@@ -471,6 +497,7 @@ func _process_beholder_damage_mark(delta: float) -> void:
 		beholder_mark_stacks = 0
 		beholder_mark_damage_per_stack = 0.0
 		beholder_mark_maximum_stacks = 0
+		beholder_mark_context = null
 		queue_redraw()
 
 
@@ -531,6 +558,7 @@ func apply_stun(
 	)
 	if effective_duration <= stun_remaining:
 		return
+	var added_duration := effective_duration - stun_remaining
 	stun_remaining = effective_duration
 	stun_context = attack_context
 	stun_fatigue_tier = mini(
@@ -538,6 +566,9 @@ func apply_stun(
 		STUN_FATIGUE_MULTIPLIERS.size() - 1
 	)
 	stun_fatigue_recovery_elapsed = 0.0
+	TOWER_XP_CREDIT_SERVICE.award_control_xp(
+		self, attack_context, &"stun", added_duration
+	)
 
 
 func get_speed_buff_for(other_mob: Node2D) -> float:
@@ -680,14 +711,16 @@ func apply_damage(
 		and attack_context != null
 		and int(attack_context.metadata.get("charred_clothes", 0)) > 0
 	):
-		remove_hidden_trait()
+		remove_hidden_trait(attack_context)
 	if not is_electric_proc:
 		amount = apply_attack_effect_damage_modifiers(
 			amount, damage_type, attack_context
 		)
+	var beholder_mark_multiplier := 1.0
 	if beholder_mark_remaining > 0.0 and beholder_mark_stacks > 0:
+		beholder_mark_multiplier = get_beholder_mark_damage_multiplier()
 		amount = maxi(
-			roundi(float(amount) * get_beholder_mark_damage_multiplier()),
+			roundi(float(amount) * beholder_mark_multiplier),
 			1
 		)
 	if (
@@ -735,6 +768,18 @@ func apply_damage(
 	health_bar.value = health
 	update_health_bar_visibility()
 	credit_tower_damage(received_damage, attack_context)
+	if beholder_mark_multiplier > 1.0 and received_damage > 0:
+		var assisted_damage := roundi(
+			float(received_damage)
+			* (beholder_mark_multiplier - 1.0)
+			/ beholder_mark_multiplier
+		)
+		TOWER_XP_CREDIT_SERVICE.award_vulnerability_xp(
+			self,
+			beholder_mark_context,
+			assisted_damage,
+			attack_context
+		)
 	if damage_type == &"electric" and not is_electric_proc and received_damage > 0:
 		register_electric_hit(received_damage, attack_context)
 	if health <= 0:
@@ -1347,10 +1392,16 @@ func get_projectile_hit_radius() -> float:
 	return 12.0 * variant_radius_multiplier
 
 
-func add_global_reveal_source(source: Node) -> void:
+func add_global_reveal_source(
+	source: Node,
+	attack_context: AttackContext = null
+) -> void:
 	if not traits.has(&"hidden") or not is_instance_valid(source):
 		return
+	var was_already_revealed := global_reveal_sources.has(source.get_instance_id())
 	global_reveal_sources[source.get_instance_id()] = weakref(source)
+	if not was_already_revealed:
+		TOWER_XP_CREDIT_SERVICE.award_reveal_xp(self, attack_context)
 
 
 func remove_global_reveal_source(source: Node) -> void:
@@ -1378,6 +1429,25 @@ func is_revealed_for_all() -> bool:
 	return not global_reveal_sources.is_empty()
 
 
-func remove_hidden_trait() -> void:
+func remove_hidden_trait(attack_context: AttackContext = null) -> void:
+	if traits.has(&"hidden"):
+		TOWER_XP_CREDIT_SERVICE.award_reveal_xp(self, attack_context)
 	traits.erase(&"hidden")
 	global_reveal_sources.clear()
+
+
+func claim_support_xp(
+	tower_instance_id: int,
+	effect_id: StringName,
+	requested_xp: float,
+	maximum_xp: float
+) -> float:
+	if tower_instance_id <= 0 or requested_xp <= 0.0 or maximum_xp <= 0.0:
+		return 0.0
+	var key := "%d:%s" % [tower_instance_id, effect_id]
+	var previously_awarded := float(support_xp_awarded_by_source.get(key, 0.0))
+	var awarded := minf(requested_xp, maxf(maximum_xp - previously_awarded, 0.0))
+	if awarded <= 0.0:
+		return 0.0
+	support_xp_awarded_by_source[key] = previously_awarded + awarded
+	return awarded

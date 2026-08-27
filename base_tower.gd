@@ -899,6 +899,11 @@ func notify_status_applied(
 		item_controller.notify_status_applied(enemy, status_id, attack_context)
 
 
+func award_support_xp(amount: float) -> void:
+	if instance_progression != null:
+		instance_progression.record_control_credit(amount)
+
+
 func _on_instance_progression_changed() -> void:
 	if not selected or progression_ui_refresh_pending:
 		return

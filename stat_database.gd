@@ -943,7 +943,7 @@ const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 }
 const XP_STAT_MILESTONE_LEVELS: Array[int] = [1, 5, 10, 15]
 const TOWER_XP_MAX_LEVEL := 20
-const TOWER_XP_TARGET_AT_MAX_LEVEL := 3000.0
+const TOWER_XP_TARGET_AT_MAX_LEVEL := 6000.0
 const TOWER_ITEM_SLOT_COUNT := 4
 const TOWER_ITEMS := {
 	&"ricochet_module": {

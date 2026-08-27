@@ -95,7 +95,8 @@ func _process(delta: float) -> void:
 			reel_distance += hooked_target.get_effective_speed() * delta
 		hooked_target.apply_fisherman_pull_toward(
 			source_tower.global_position,
-			reel_distance
+			reel_distance,
+			attack_context
 		)
 	while ticks_applied < tick_count and elapsed + 0.0001 >= tick_interval * ticks_applied:
 		_apply_damage_tick()

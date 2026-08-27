@@ -116,7 +116,8 @@ func _apply_damage_tick() -> void:
 							hit_target.apply_beholder_damage_mark(
 								mark_duration,
 								mark_damage_per_stack,
-								mark_maximum_stacks
+								mark_maximum_stacks,
+								attack_context
 							)
 				var hit_total := GameStats.get_piercing_damage(
 					total_damage_per_beam,
