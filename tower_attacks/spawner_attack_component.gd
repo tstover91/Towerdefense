@@ -31,7 +31,15 @@ func uses_drone_targeting() -> bool:
 
 func load_level_stats(stats: Dictionary) -> void:
 	var tower_data := GameStats.get_tower(tower.tower_id)
-	spawned_unit_id = tower_data.get("spawned_unit_id", &"")
+	var previous_spawned_unit_id := spawned_unit_id
+	spawned_unit_id = stats.get(
+		"spawned_unit_id", tower_data.get("spawned_unit_id", &"")
+	)
+	if (
+		not previous_spawned_unit_id.is_empty()
+		and previous_spawned_unit_id != spawned_unit_id
+	):
+		clear_units()
 	spawn_limit = maxi(int(stats.get("spawn_limit", 1)), 1)
 	spawn_batch_size = 1
 	if tower.get_effect_stack_count(&"trade_agreement") > 0:

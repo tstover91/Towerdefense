@@ -103,42 +103,19 @@ func run_checks() -> void:
 	depot.tower_level = 3
 	root.add_child(depot)
 	depot.is_placed = true
-	for level in 4:
-		var base_unit_stats: Dictionary = depot.get_effective_stats_for_level(level)["unit_stats"]
-		var firing_duration := (
-			float(base_unit_stats["damage_budget"])
-			/ (float(base_unit_stats["damage"]) / float(base_unit_stats["attack_interval"]))
-		)
-		var expected_duration := 4.55 if level < 3 else 8.333333
-		assert(is_equal_approx(firing_duration, expected_duration))
-
-	depot.purchased_paths.append(&"b")
-	depot.load_base_tags()
-	var payload_level_stats: Dictionary = depot.get_effective_stats_for_level(3)
-	var payload_stats: Dictionary = payload_level_stats["unit_stats"]
-	assert(int(payload_stats["damage_budget"]) == 5000)
-	assert(is_equal_approx(float(payload_stats["budget_replacement_delay"]), 0.5))
-	assert(is_equal_approx(float(payload_level_stats["spawn_interval"]), 0.5))
-	var payload_duration := (
-		float(payload_stats["damage_budget"])
-		/ (float(payload_stats["damage"]) / float(payload_stats["attack_interval"]))
-	)
-	assert(is_equal_approx(payload_duration, 8.333333))
-
 	depot.purchased_paths.assign([&"a"])
 	depot.load_base_tags()
-	var laser_stats: Dictionary = depot.get_effective_stats_for_level(3)["unit_stats"]
-	assert(int(laser_stats["damage_budget"]) == 6250)
-	assert(int(laser_stats["damage"]) == 188)
-	var laser_duration := (
-		float(laser_stats["damage_budget"])
-		/ (float(laser_stats["damage"]) / float(laser_stats["attack_interval"]))
-	)
-	assert(is_equal_approx(laser_duration, 8.31117))
+	depot.load_level_stats()
+	var drone_level_stats: Dictionary = depot.get_effective_stats_for_level(3)
+	var drone_stats: Dictionary = drone_level_stats["unit_stats"]
+	assert(drone_level_stats["spawned_unit_id"] == &"drone")
+	assert(bool(drone_stats["die_on_damage_budget"]))
+	assert(not bool(drone_stats.get("explode_on_damage_budget", false)))
+	assert(is_equal_approx(float(drone_level_stats["spawn_interval"]), 2.5))
 
 	var drone := SPAWNED_UNIT_SCENE.instantiate()
 	root.add_child(drone)
-	drone.setup(&"drone", payload_stats, depot, null)
+	drone.setup(&"drone", drone_stats, depot, null)
 	assert(drone.movement_type == GameStats.MOVEMENT_DRONE)
 	assert(not drone.has_bonus_tag(&"reveal"))
 	assert(is_equal_approx(

@@ -1140,7 +1140,13 @@ func simulate_spawner_trial(tower_id: StringName, stats: Dictionary, traits: Dic
 		if time >= next_spawn and active_units < spawn_limit:
 			active_units += 1
 			next_spawn += spawn_interval
-		var uptime := 0.75 if tower_id == &"mechbay" else 0.90
+		var movement_type := StringName(unit.get(
+			"movement_type",
+			GameStats.get_spawned_unit(StringName(
+				stats.get("spawned_unit_id", GameStats.get_tower(tower_id).get("spawned_unit_id", &""))
+			)).get("movement_type", GameStats.MOVEMENT_STATIONARY)
+		))
+		var uptime := 0.75 if movement_type == GameStats.MOVEMENT_GUARD else 0.90
 		var attacks := float(active_units) * uptime
 		var projectiles := maxi(int(unit.get("projectile_count", 1)), 1)
 		var unit_traits := traits.duplicate(true)
@@ -1149,14 +1155,13 @@ func simulate_spawner_trial(tower_id: StringName, stats: Dictionary, traits: Dic
 		total += attacks * damage * float(projectiles) * 0.25 / attack_interval
 		time += 0.25
 	var damage_type: StringName = traits["primary_type"]
-	if tower_id == &"mechbay": damage_type = &"melee"
 	total = apply_armor(total, damage_type, float(scenario["armor"]), int(unit.get("pierce_count", 0)) > 0)
-	if tower_id == &"dronedepot":
+	if tower_id == &"dronedepot" and float(unit.get("damage_budget", 0)) > 0.0:
 		var budget := float(unit.get("damage_budget", 0))
 		var explodes_on_budget := bool(unit.get("explode_on_damage_budget", false))
 		var recharge := (
-			float(unit.get("budget_replacement_delay", 0.5))
-			if explodes_on_budget
+			spawn_interval * 0.5
+			if bool(unit.get("die_on_damage_budget", false))
 			else float(unit.get("recharge_duration", 0))
 		)
 		var active_time := budget / maxf(damage / attack_interval, 0.01)
@@ -1185,7 +1190,8 @@ func get_model_note(tower_id: StringName) -> String:
 		&"energycore": return "distinct primary targets; Slow; Shockwave and Branching Current modeled"
 		&"saucer": return "pursuit, Gunship salvos, hunting abductions/specimens, and Mothership vulnerability modeled"
 		&"fisherman": return "forward cone, multi-hooks, tether intersections, pull immunity, and chain mines modeled"
-		&"hivemother", &"dronedepot", &"mechbay": return "spawn ramp and combat uptime approximated"
+		&"dronedepot": return "Factory deployment, disposable Drone budgets, and guard Mech uptime approximated"
+		&"hivemother", &"mechbay": return "legacy spawn ramp and combat uptime approximated"
 		_: return "generic event model"
 
 

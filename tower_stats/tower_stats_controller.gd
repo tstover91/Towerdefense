@@ -13,7 +13,9 @@ func setup(owner_tower: BaseTower) -> void:
 func load_level_stats() -> void:
 	var stats := get_current_effective_stats()
 	var tower_data := GameStats.get_tower(tower.tower_id)
-	var tower_texture := tower_data.get("texture") as Texture2D
+	var tower_texture := stats.get(
+		"tower_texture", tower_data.get("texture")
+	) as Texture2D
 	if tower_texture != null:
 		tower.visual_sprite.texture = tower_texture
 	tower.footprint_size_pixels = (
@@ -334,7 +336,13 @@ func apply_effect_combat_stat_modifiers(
 			BaseTower.BONUS_STUN,
 			BaseTower.BONUS_REVEAL,
 		]:
-			if inherited_tag == BaseTower.BONUS_REVEAL and tower.uses_drone_targeting():
+			if (
+				inherited_tag == BaseTower.BONUS_REVEAL
+				and (
+					tower.uses_drone_targeting()
+					or bool(stats.get("reveal_via_parent_command_range", false))
+				)
+			):
 				continue
 			if tower.has_bonus_tag(inherited_tag) and not inherited_bonus_tags.has(inherited_tag):
 				inherited_bonus_tags.append(inherited_tag)
@@ -685,6 +693,8 @@ func load_base_tags() -> void:
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
 		_apply_tag_changes(path)
+		if _is_level_20_capstone_active():
+			_apply_tag_changes(path.get("level_20", {}))
 		loaded_pierce_count += int(path.get("pierce_count_add", 0))
 		if path.has("delivery_type"):
 			tower.delivery_type = path["delivery_type"]

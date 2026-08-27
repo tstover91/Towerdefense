@@ -74,11 +74,20 @@ var death_ray_overcharge_enabled := false
 var death_ray_cycle_elapsed := 0.0
 var death_ray_overcharge_active := false
 var explode_on_damage_budget := false
+var die_on_damage_budget := false
 var budget_explosion_radius_pixels := 0.0
 var budget_explosion_damage_multiplier := 1.0
 var budget_replacement_delay := 0.5
 var mech_area_slam := false
 var mech_slam_radius_pixels := 0.0
+var use_parent_tower_range := false
+var knockback_distance_pixels := 0.0
+var periodic_ground_slam := false
+var ground_slam_interval := 6.0
+var ground_slam_remaining := 0.0
+var ground_slam_radius_pixels := 0.0
+var ground_slam_damage_multiplier := 1.0
+var ground_slam_knockback_distance_pixels := 0.0
 var mech_hunter := false
 var hunter_pursuit_radius_pixels := 0.0
 var hunter_critical_chance := 0.30
@@ -128,6 +137,7 @@ func load_definition() -> void:
 
 
 func apply_stats(unit_stats: Dictionary) -> void:
+	movement_type = unit_stats.get("movement_type", movement_type)
 	if unit_stats.has("damage_tags"):
 		damage_tags.assign(unit_stats["damage_tags"])
 	for tag in unit_stats.get("additional_damage_tags", []):
@@ -220,6 +230,7 @@ func apply_stats(unit_stats: Dictionary) -> void:
 	explode_on_damage_budget = bool(
 		unit_stats.get("explode_on_damage_budget", false)
 	)
+	die_on_damage_budget = bool(unit_stats.get("die_on_damage_budget", false))
 	budget_explosion_radius_pixels = (
 		maxf(float(unit_stats.get("budget_explosion_radius", 0.0)), 0.0)
 		* RANGE_PIXELS_PER_UNIT
@@ -237,6 +248,38 @@ func apply_stats(unit_stats: Dictionary) -> void:
 		maxf(float(unit_stats.get("mech_slam_radius", 0.0)), 0.0)
 		* RANGE_PIXELS_PER_UNIT
 	)
+	use_parent_tower_range = bool(
+		unit_stats.get("use_parent_tower_range", false)
+	)
+	knockback_distance_pixels = (
+		maxf(float(unit_stats.get("knockback_distance", 0.0)), 0.0)
+		* BaseTower.BUILD_CELL_SIZE
+	)
+	periodic_ground_slam = bool(
+		unit_stats.get("periodic_ground_slam", false)
+	)
+	ground_slam_interval = maxf(
+		float(unit_stats.get("ground_slam_interval", 6.0)), 0.1
+	)
+	ground_slam_radius_pixels = (
+		maxf(float(unit_stats.get("ground_slam_radius", 0.0)), 0.0)
+		* RANGE_PIXELS_PER_UNIT
+	)
+	ground_slam_damage_multiplier = maxf(
+		float(unit_stats.get("ground_slam_damage_multiplier", 1.0)), 0.0
+	)
+	ground_slam_knockback_distance_pixels = (
+		maxf(
+			float(unit_stats.get("ground_slam_knockback_distance", 0.0)),
+			0.0
+		)
+		* BaseTower.BUILD_CELL_SIZE
+	)
+	if periodic_ground_slam:
+		if ground_slam_remaining <= 0.0 or ground_slam_remaining > ground_slam_interval:
+			ground_slam_remaining = ground_slam_interval
+	else:
+		ground_slam_remaining = 0.0
 	mech_hunter = bool(unit_stats.get("mech_hunter", false))
 	hunter_pursuit_radius_pixels = (
 		maxf(float(unit_stats.get("hunter_pursuit_radius", 0.0)), 0.0)
@@ -278,6 +321,7 @@ func _physics_process(delta: float) -> void:
 	if death_ray_overcharge_enabled:
 		process_death_ray_overcharge(delta)
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
+	process_periodic_ground_slam(delta)
 	if (
 		relentless_target_instance_id > 0
 		and (
@@ -486,10 +530,11 @@ func is_better_drone_target(candidate: Node2D, current: Node2D) -> bool:
 
 
 func process_guard(delta: float) -> void:
+	var guard_radius := get_guard_acquisition_radius()
 	var guard_target_eligible := (
 		is_valid_target(target)
 		and home_position.distance_squared_to(target.global_position)
-			<= acquisition_radius_pixels * acquisition_radius_pixels
+			<= guard_radius * guard_radius
 	)
 	if target_refresh_remaining <= 0.0:
 		target = select_guard_target()
@@ -508,7 +553,8 @@ func process_guard(delta: float) -> void:
 
 func select_guard_target() -> Node2D:
 	var candidates: Array[Node2D] = []
-	var acquisition_radius_squared := acquisition_radius_pixels * acquisition_radius_pixels
+	var guard_radius := get_guard_acquisition_radius()
+	var acquisition_radius_squared := guard_radius * guard_radius
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if (
 			is_valid_target(candidate)
@@ -538,6 +584,16 @@ func select_guard_target() -> Node2D:
 			if not claimed_targets.has(candidate.get_instance_id()):
 				return candidate
 	return candidates[0]
+
+
+func get_guard_acquisition_radius() -> float:
+	if (
+		use_parent_tower_range
+		and is_instance_valid(parent_tower)
+		and float(parent_tower.get("range_radius_pixels")) > 0.0
+	):
+		return float(parent_tower.get("range_radius_pixels"))
+	return acquisition_radius_pixels
 
 
 func process_path_assault(delta: float) -> void:
@@ -691,6 +747,12 @@ func perform_attack(current_target: Node2D) -> void:
 		launch_projectile_volley(current_target, attack_damage, damage_type)
 	else:
 		perform_hitscan_attack(current_target, attack_damage, damage_type)
+		if not last_attack_roll_missed:
+			apply_attack_knockback(
+				current_target,
+				knockback_distance_pixels,
+				create_attack_context(&"spawned_knockback", null, true)
+			)
 
 	if (
 		attack_landed
@@ -699,18 +761,27 @@ func perform_attack(current_target: Node2D) -> void:
 	):
 		damage_spent += attack_damage
 		if damage_spent >= damage_budget:
-			if explode_on_damage_budget:
-				trigger_budget_explosion()
-				if (
-					is_instance_valid(parent_tower)
-					and parent_tower.has_method("schedule_spawned_unit_replacement")
-				):
-					parent_tower.schedule_spawned_unit_replacement(
-						budget_replacement_delay
-					)
+			if die_on_damage_budget or explode_on_damage_budget:
+				if explode_on_damage_budget:
+					trigger_budget_explosion()
 				queue_free()
 				return
 			returning_to_base = true
+
+
+func process_periodic_ground_slam(delta: float) -> void:
+	if not periodic_ground_slam or ground_slam_radius_pixels <= 0.0:
+		return
+	ground_slam_remaining = maxf(ground_slam_remaining - delta, 0.0)
+	if ground_slam_remaining > 0.0:
+		return
+	if perform_ground_slam(
+		ground_slam_radius_pixels,
+		ground_slam_damage_multiplier,
+		ground_slam_knockback_distance_pixels,
+		&"periodic_ground_slam"
+	):
+		ground_slam_remaining = ground_slam_interval
 
 
 func get_effective_attack_radius() -> float:
@@ -858,36 +929,80 @@ func apply_owned_damage(
 
 
 func perform_mech_area_slam() -> void:
-	if mech_slam_radius_pixels <= 0.0:
-		return
+	perform_ground_slam(
+		mech_slam_radius_pixels,
+		1.0,
+		0.0,
+		&"mech_slam",
+		true
+	)
+
+
+func perform_ground_slam(
+	slam_radius: float,
+	damage_multiplier: float,
+	knockback_distance: float,
+	attack_kind: StringName,
+	apply_status_effects := false
+) -> bool:
+	if slam_radius <= 0.0:
+		return false
+	var targets: Array[Node2D] = []
+	for mob in get_tree().get_nodes_in_group("mobs"):
+		if (
+			is_valid_area_target(mob)
+			and global_position.distance_to(mob.global_position) <= slam_radius
+		):
+			targets.append(mob)
+	if targets.is_empty():
+		return false
 	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
 		if get_tree().current_scene.has_method("spawn_explosion_visual"):
 			get_tree().current_scene.spawn_explosion_visual(
-				global_position, mech_slam_radius_pixels
+				global_position, slam_radius
 			)
 		else:
 			var slam_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
 			get_tree().current_scene.add_child(slam_zone)
 			slam_zone.global_position = global_position
-			slam_zone.setup(mech_slam_radius_pixels)
-	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not is_valid_area_target(mob):
-			continue
+			slam_zone.setup(slam_radius)
+	for mob in targets:
 		var distance_to_slam: float = global_position.distance_to(mob.global_position)
-		if distance_to_slam > mech_slam_radius_pixels:
-			continue
 		var rolled_damage := roll_attack_damage(mob)
 		var slam_context := create_attack_context(
-			&"mech_slam", null, false, true
+			attack_kind, null, false, true
 		)
 		slam_context.metadata["area_damage"] = true
 		var slam_damage := GameStats.get_explosion_damage(
-			rolled_damage,
+			maxi(roundi(float(rolled_damage) * damage_multiplier), 1),
 			distance_to_slam,
-			mech_slam_radius_pixels
+			slam_radius
 		)
-		apply_control_effects(mob)
+		if apply_status_effects:
+			apply_control_effects(mob, slam_context)
 		apply_owned_damage(mob, slam_damage, &"melee", false, slam_context)
+		apply_attack_knockback(mob, knockback_distance, slam_context)
+	return true
+
+
+func apply_attack_knockback(
+	mob: Node2D,
+	distance: float,
+	attack_context: AttackContext
+) -> void:
+	if distance <= 0.0 or not is_instance_valid(mob):
+		return
+	if not mob.has_method("apply_backward_displacement"):
+		return
+	var displacement_multiplier := 1.0
+	if mob.traits.has(&"boss"):
+		displacement_multiplier = 0.25
+	elif mob.traits.has(&"elite"):
+		displacement_multiplier = 0.60
+	mob.apply_backward_displacement(
+		distance * displacement_multiplier,
+		attack_context
+	)
 
 
 func trigger_budget_explosion() -> void:
@@ -1545,6 +1660,10 @@ func _draw() -> void:
 		&"spore_turret":
 			draw_circle(Vector2.ZERO, 9.0, Color(0.3, 0.9, 0.3))
 			draw_circle(Vector2.ZERO, 4.0, Color(0.1, 0.35, 0.12))
+		&"sentry_turret":
+			draw_rect(Rect2(Vector2(-8.0, -7.0), Vector2(16.0, 14.0)), Color(0.30, 0.48, 0.58))
+			draw_circle(Vector2.ZERO, 4.0, Color(0.12, 0.22, 0.28))
+			draw_line(Vector2.ZERO, Vector2(11.0, 0.0), Color(0.72, 0.90, 1.0), 3.0, true)
 		&"drone":
 			draw_colored_polygon(
 				PackedVector2Array([
