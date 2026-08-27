@@ -941,7 +941,11 @@ const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 	&"hivemother": &"dronedepot",
 	&"mechbay": &"dronedepot",
 }
-const XP_STAT_MILESTONE_LEVELS: Array[int] = [1, 5, 10, 15]
+## Legacy rank dictionaries still carry mechanic and ability changes. Those
+## unlock on their original cadence, while selected numerical stats take the
+## full XP track to reach the same rank values.
+const XP_ABILITY_MILESTONE_LEVELS: Array[int] = [1, 5, 10, 15]
+const XP_STAT_ANCHOR_LEVELS: Array[int] = [1, 7, 13, 19]
 const TOWER_XP_MAX_LEVEL := 20
 const TOWER_XP_TARGET_AT_MAX_LEVEL := 6000.0
 const TOWER_ITEM_SLOT_COUNT := 4
@@ -2755,11 +2759,13 @@ static func get_canonical_tower_family_id(tower_id: StringName) -> StringName:
 
 static func get_stat_rank_for_xp_level(xp_level: int) -> int:
 	var stat_rank := 0
-	for milestone_level in XP_STAT_MILESTONE_LEVELS:
+	for milestone_level in XP_ABILITY_MILESTONE_LEVELS:
 		if xp_level < milestone_level:
 			break
 		stat_rank += 1
-	return clampi(stat_rank - 1, 0, XP_STAT_MILESTONE_LEVELS.size() - 1)
+	return clampi(
+		stat_rank - 1, 0, XP_ABILITY_MILESTONE_LEVELS.size() - 1
+	)
 
 
 static func get_tower_xp_level_stats(
@@ -2767,46 +2773,76 @@ static func get_tower_xp_level_stats(
 	xp_level: int
 ) -> Dictionary:
 	var safe_xp_level := clampi(xp_level, 1, TOWER_XP_MAX_LEVEL)
-	var maximum_milestone := XP_STAT_MILESTONE_LEVELS[-1]
-	if safe_xp_level >= maximum_milestone:
-		var final_stats := get_tower_level(
-			tower_id, XP_STAT_MILESTONE_LEVELS.size() - 1
+	var ability_rank := get_stat_rank_for_xp_level(safe_xp_level)
+	var stats := get_tower_level(tower_id, ability_rank)
+	var numeric_stats := _get_tower_xp_numeric_stats(tower_id, safe_xp_level)
+	_copy_stat_keys(numeric_stats, stats, XP_INTERPOLATED_TOP_LEVEL_STATS)
+	if (
+		stats.get("unit_stats") is Dictionary
+		and numeric_stats.get("unit_stats") is Dictionary
+	):
+		var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
+		_copy_stat_keys(
+			numeric_stats["unit_stats"],
+			unit_stats,
+			XP_INTERPOLATED_UNIT_STATS
 		)
-		var mastery_progress := (
-			float(safe_xp_level - maximum_milestone)
-			/ float(TOWER_XP_MAX_LEVEL - maximum_milestone)
-		)
-		_apply_xp_mastery(final_stats, clampf(mastery_progress, 0.0, 1.0))
-		return final_stats
+		stats["unit_stats"] = unit_stats
+	if safe_xp_level >= TOWER_XP_MAX_LEVEL:
+		_apply_xp_mastery(stats, 1.0)
+	return stats
 
-	for upper_rank in range(1, XP_STAT_MILESTONE_LEVELS.size()):
-		var upper_level := XP_STAT_MILESTONE_LEVELS[upper_rank]
-		if safe_xp_level > upper_level:
+
+static func _get_tower_xp_numeric_stats(
+	tower_id: StringName,
+	xp_level: int
+) -> Dictionary:
+	if xp_level >= XP_STAT_ANCHOR_LEVELS[-1]:
+		return get_tower_level(tower_id, XP_STAT_ANCHOR_LEVELS.size() - 1)
+	for upper_rank in range(1, XP_STAT_ANCHOR_LEVELS.size()):
+		var upper_level := XP_STAT_ANCHOR_LEVELS[upper_rank]
+		if xp_level > upper_level:
 			continue
 		var lower_rank := upper_rank - 1
-		var lower_level := XP_STAT_MILESTONE_LEVELS[lower_rank]
+		var lower_level := XP_STAT_ANCHOR_LEVELS[lower_rank]
 		var progress := (
-			float(safe_xp_level - lower_level)
+			float(xp_level - lower_level)
 			/ float(upper_level - lower_level)
 		)
 		if progress >= 1.0:
 			return get_tower_level(tower_id, upper_rank)
-		var stats := get_tower_level(tower_id, lower_rank)
+		var numeric_stats := get_tower_level(tower_id, lower_rank)
 		var upper_stats := get_tower_level(tower_id, upper_rank)
 		_interpolate_stat_keys(
-			stats, upper_stats, XP_INTERPOLATED_TOP_LEVEL_STATS, progress
+			numeric_stats,
+			upper_stats,
+			XP_INTERPOLATED_TOP_LEVEL_STATS,
+			progress
 		)
-		if stats.get("unit_stats") is Dictionary and upper_stats.get("unit_stats") is Dictionary:
-			var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
+		if (
+			numeric_stats.get("unit_stats") is Dictionary
+			and upper_stats.get("unit_stats") is Dictionary
+		):
+			var unit_stats: Dictionary = numeric_stats["unit_stats"].duplicate(true)
 			_interpolate_stat_keys(
 				unit_stats,
 				upper_stats["unit_stats"],
 				XP_INTERPOLATED_UNIT_STATS,
 				progress
 			)
-			stats["unit_stats"] = unit_stats
-		return stats
+			numeric_stats["unit_stats"] = unit_stats
+		return numeric_stats
 	return get_tower_level(tower_id, 0)
+
+
+static func _copy_stat_keys(
+	source: Dictionary,
+	target: Dictionary,
+	keys: Array
+) -> void:
+	for key in keys:
+		if source.has(key):
+			target[key] = source[key]
 
 
 static func _interpolate_stat_keys(

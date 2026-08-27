@@ -67,9 +67,26 @@ func run_test() -> void:
 	var longshot_level_1 := GameStats.get_tower_xp_level_stats(&"longshot", 1)
 	var longshot_level_3 := GameStats.get_tower_xp_level_stats(&"longshot", 3)
 	var longshot_level_5 := GameStats.get_tower_xp_level_stats(&"longshot", 5)
+	var longshot_level_7 := GameStats.get_tower_xp_level_stats(&"longshot", 7)
+	var longshot_level_13 := GameStats.get_tower_xp_level_stats(&"longshot", 13)
 	var longshot_level_15 := GameStats.get_tower_xp_level_stats(&"longshot", 15)
+	var longshot_level_19 := GameStats.get_tower_xp_level_stats(&"longshot", 19)
 	assert(longshot_level_3["damage"] > longshot_level_1["damage"])
 	assert(longshot_level_3["damage"] < longshot_level_5["damage"])
+	assert(
+		longshot_level_7["damage"]
+		== GameStats.get_tower_level(&"longshot", 1)["damage"]
+	)
+	assert(
+		longshot_level_13["damage"]
+		== GameStats.get_tower_level(&"longshot", 2)["damage"]
+	)
+	assert(
+		longshot_level_19["damage"]
+		== GameStats.get_tower_level(&"longshot", 3)["damage"]
+	)
+	assert(longshot_level_15["damage"] > longshot_level_13["damage"])
+	assert(longshot_level_15["damage"] < longshot_level_19["damage"])
 
 	var slinger_level_14 := GameStats.get_tower_xp_level_stats(&"slinger", 14)
 	var slinger_level_15 := GameStats.get_tower_xp_level_stats(&"slinger", 15)
@@ -80,10 +97,25 @@ func run_test() -> void:
 	var outpost_level_5 := GameStats.get_tower_xp_level_stats(&"dronedepot", 5)
 	assert(int(outpost_level_4["spawn_limit"]) == 1)
 	assert(int(outpost_level_5["spawn_limit"]) == 2)
+	var orbital_level_9 := GameStats.get_tower_xp_level_stats(&"orbitalcannon", 9)
+	var orbital_level_10 := GameStats.get_tower_xp_level_stats(&"orbitalcannon", 10)
+	assert(is_equal_approx(float(orbital_level_9["stun_duration"]), 0.0))
+	assert(is_equal_approx(float(orbital_level_10["stun_duration"]), 1.25))
+	assert(
+		orbital_level_10["damage"]
+		< GameStats.get_tower_level(&"orbitalcannon", 2)["damage"]
+	)
 
 	var longshot_level_20 := GameStats.get_tower_xp_level_stats(&"longshot", 20)
-	assert(longshot_level_20["damage"] > longshot_level_15["damage"])
-	assert(longshot_level_20["firerate"] < longshot_level_15["firerate"])
+	assert(int(longshot_level_20["damage"]) == roundi(
+		float(longshot_level_19["damage"])
+		* GameStats.XP_MASTERY_DAMAGE_MULTIPLIER
+	))
+	assert(is_equal_approx(
+		float(longshot_level_20["firerate"]),
+		float(longshot_level_19["firerate"])
+			* GameStats.XP_MASTERY_INTERVAL_MULTIPLIER
+	))
 
 	var fake_main := FakeMain.new()
 	add_child(fake_main)
