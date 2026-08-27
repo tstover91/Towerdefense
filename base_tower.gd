@@ -577,18 +577,27 @@ func _ready() -> void:
 
 func configure_attack_component() -> void:
 	if attack_component != null:
+		remove_child(attack_component)
 		attack_component.queue_free()
 		attack_component = null
+	var evolution_id := &""
+	if instance_progression != null:
+		evolution_id = instance_progression.evolution_id
 	attack_component = ATTACK_COMPONENT_REGISTRY.create_component(
 		tower_id,
 		GameStats.get_tower(tower_id),
-		BONUS_SPAWNER
+		BONUS_SPAWNER,
+		evolution_id
 	)
 	if attack_component == null:
+		if menu_controller != null:
+			menu_controller.refresh_attack_controls()
 		return
 	attack_component.name = "AttackComponent"
 	add_child(attack_component)
 	attack_component.setup(self)
+	if menu_controller != null:
+		menu_controller.refresh_attack_controls()
 
 
 func uses_directional_aim() -> bool:

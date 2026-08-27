@@ -156,6 +156,7 @@ func purchase_selected_evolution() -> void:
 		tower.purchased_paths.assign([legacy_path_id])
 	tower.pending_evolution_choice = &""
 	tower.pending_path_choice = &""
+	tower.configure_attack_component()
 	tower.load_base_tags()
 	tower.load_level_stats()
 	tower.update_menu_buttons()

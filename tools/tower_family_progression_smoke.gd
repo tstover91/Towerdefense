@@ -48,7 +48,8 @@ func run_test() -> void:
 	assert(GameStats.get_tower(&"dronedepot")["display_name"] == "Alien Outpost")
 
 	var invader_data := GameStats.get_tower(&"invader")
-	assert(invader_data["delivery_type"] == GameStats.DELIVERY_PROJECTILE)
+	assert(invader_data["delivery_type"] == GameStats.DELIVERY_HITSCAN)
+	assert(GameStats.get_tower_evolutions(&"invader").size() == 3)
 	for level_data in invader_data["levels"]:
 		assert(not level_data.get("add_bonus_tags", []).has(&"reveal"))
 

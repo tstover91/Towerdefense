@@ -489,29 +489,46 @@ func apply_path_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 	var stats := base_stats.duplicate(true)
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
-		apply_numeric_modifiers(stats, path.get("stat_multipliers", {}), true)
-		apply_numeric_modifiers(stats, path.get("stat_additions", {}), false)
-		for conditional in path.get("conditional_stat_multipliers", []):
-			var absent_path := StringName(conditional.get("unless_path", &""))
-			if not absent_path.is_empty() and tower.purchased_paths.has(absent_path):
-				continue
-			apply_numeric_modifiers(stats, conditional.get("values", {}), true)
-		for key in path.get("stat_overrides", {}):
-			stats[key] = path["stat_overrides"][key]
-		for conditional in path.get("conditional_stat_overrides", []):
-			var absent_path := StringName(conditional.get("unless_path", &""))
-			if not absent_path.is_empty() and tower.purchased_paths.has(absent_path):
-				continue
-			for key in conditional.get("values", {}):
-				stats[key] = conditional["values"][key]
-		if stats.has("unit_stats"):
-			var unit_stats: Dictionary = stats["unit_stats"]
-			apply_numeric_modifiers(unit_stats, path.get("unit_stat_multipliers", {}), true)
-			apply_numeric_modifiers(unit_stats, path.get("unit_stat_additions", {}), false)
-			for key in path.get("unit_stat_overrides", {}):
-				unit_stats[key] = path["unit_stat_overrides"][key]
-			stats["unit_stats"] = unit_stats
+		_apply_path_stat_definition(stats, path)
+		if _is_level_20_capstone_active():
+			_apply_path_stat_definition(stats, path.get("level_20", {}))
 	return stats
+
+
+func _apply_path_stat_definition(stats: Dictionary, definition: Dictionary) -> void:
+	apply_numeric_modifiers(stats, definition.get("stat_multipliers", {}), true)
+	apply_numeric_modifiers(stats, definition.get("stat_additions", {}), false)
+	for conditional in definition.get("conditional_stat_multipliers", []):
+		var absent_path := StringName(conditional.get("unless_path", &""))
+		if not absent_path.is_empty() and tower.purchased_paths.has(absent_path):
+			continue
+		apply_numeric_modifiers(stats, conditional.get("values", {}), true)
+	for key in definition.get("stat_overrides", {}):
+		stats[key] = definition["stat_overrides"][key]
+	for conditional in definition.get("conditional_stat_overrides", []):
+		var absent_path := StringName(conditional.get("unless_path", &""))
+		if not absent_path.is_empty() and tower.purchased_paths.has(absent_path):
+			continue
+		for key in conditional.get("values", {}):
+			stats[key] = conditional["values"][key]
+	if stats.has("unit_stats"):
+		var unit_stats: Dictionary = stats["unit_stats"]
+		apply_numeric_modifiers(
+			unit_stats, definition.get("unit_stat_multipliers", {}), true
+		)
+		apply_numeric_modifiers(
+			unit_stats, definition.get("unit_stat_additions", {}), false
+		)
+		for key in definition.get("unit_stat_overrides", {}):
+			unit_stats[key] = definition["unit_stat_overrides"][key]
+		stats["unit_stats"] = unit_stats
+
+
+func _is_level_20_capstone_active() -> bool:
+	return (
+		tower.instance_progression != null
+		and tower.instance_progression.level >= GameStats.TOWER_XP_MAX_LEVEL
+	)
 
 
 func apply_numeric_modifiers(stats: Dictionary, modifiers: Dictionary, is_multiplier: bool) -> void:
@@ -617,21 +634,28 @@ func set_pierce_count(value: int) -> void:
 
 func load_path_behaviors() -> void:
 	tower.inherent_infinite_pierce = false
+	tower.continuous_beam_enabled = false
 	if tower.attack_component != null:
 		tower.attack_component.reset_path_behaviors()
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
-		var flags: Dictionary = path.get("behavior_flags", {})
-		var values: Dictionary = path.get("behavior_values", {})
-		if tower.attack_component != null:
-			tower.attack_component.apply_path_behavior(flags, values)
-		if flags.get("infinite_pierce", false):
-			tower.inherent_infinite_pierce = true
-		if flags.get("continuous_beam", false):
-			tower.continuous_beam_enabled = true
+		_apply_path_behavior_definition(path)
+		if _is_level_20_capstone_active():
+			_apply_path_behavior_definition(path.get("level_20", {}))
 	tower.refresh_death_ray_overcharge_state()
 	if tower.attack_component != null:
 		tower.attack_component.finalize_path_behaviors()
+
+
+func _apply_path_behavior_definition(definition: Dictionary) -> void:
+	var flags: Dictionary = definition.get("behavior_flags", {})
+	var values: Dictionary = definition.get("behavior_values", {})
+	if tower.attack_component != null:
+		tower.attack_component.apply_path_behavior(flags, values)
+	if flags.get("infinite_pierce", false):
+		tower.inherent_infinite_pierce = true
+	if flags.get("continuous_beam", false):
+		tower.continuous_beam_enabled = true
 
 
 func load_base_tags() -> void:

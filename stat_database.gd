@@ -1123,6 +1123,11 @@ const CONVERTED_RELIC_ITEM_CONFIG := {
 }
 const TOWER_EVOLUTION_DEFAULT_LEVEL := 10
 const TOWER_EVOLUTIONS := {
+	&"invader": {
+		&"gunslinger": {"legacy_path_id": &"a"},
+		&"gauss_gunner": {"legacy_path_id": &"c"},
+		&"railgunner": {"legacy_path_id": &"b"},
+	},
 	&"slinger": {
 		&"explosive_ricochet": {"legacy_path_id": &"a"},
 		&"razor_disc": {"legacy_path_id": &"b"},
@@ -1161,14 +1166,14 @@ const XP_MASTERY_PROJECTILE_SPEED_MULTIPLIER := 1.10
 const TOWERS := {
 	"invader": {
 	"display_name": "Invader",
-	"description": "A general-purpose gunner whose rapid Gauss weapon becomes more accurate while it maintains fire.",
+	"description": "A dependable general-purpose gunner with balanced damage, range, and attack speed.",
 	"placement_cost": 200,
 	"footprint_cells": Vector2i(2, 2),
 	"type_tags": [&"biological"],
 	"damage_tags": [&"ballistic"],
 	"primary_damage_type": &"ballistic",
-	"delivery_type": DELIVERY_PROJECTILE,
-	"impact_mode": IMPACT_FIRST_CONTACT,
+	"delivery_type": DELIVERY_HITSCAN,
+	"impact_mode": IMPACT_PRIMARY,
 	"pierce_count": 0,
 
 	# Invader no longer has Critical at base.
@@ -1176,29 +1181,60 @@ const TOWERS := {
 
 	"paths": {
 		"a": {
-			"display_name": "Dual Pistols",
-			"description": "Adds a second pistol, greatly increasing attack speed and granting Critical.",
+			"display_name": "Gunslinger",
+			"description": "Dual pistols deliver extremely fast hitscan fire and excel at Critical and on-hit builds.",
 			"cost": 2700,
-			"unlock_level": 3,
 			"add_bonus_tags": [&"critical"],
-
 			"stat_multipliers": {
 				"firerate": 0.42,
+			},
+			"level_20": {
+				"stat_overrides": {"critical_chance": 0.20},
 			},
 		},
 
 		"b": {
-			"display_name": "Piercing Blaster",
-			"description": "Fires slower, heavier shots that bypass armor and pierce through an additional enemy.",
-			"cost": 2650,
-			"unlock_level": 3,
-
+			"display_name": "Railgunner",
+			"description": "Fires very slow, devastating rail shots that bypass armor and pierce an additional enemy. At Level 20, shots pierce without limit.",
+			"cost": 3500,
+			"delivery_type": DELIVERY_PROJECTILE,
+			"impact_mode": IMPACT_FIRST_CONTACT,
 			"add_bonus_tags": [&"pierce"],
 			"pierce_count_add": 1,
-
 			"stat_multipliers": {
-				"damage": 1.7,
-				"firerate": 1.2,
+				"damage": 3.5,
+				"firerate": 2.5,
+				"range": 1.25,
+			},
+			"level_20": {
+				"behavior_flags": {"infinite_pierce": true},
+			},
+		},
+
+		"c": {
+			"display_name": "Gauss Gunner",
+			"description": "A rapid projectile weapon that tightens its aim during sustained fire. At Level 20, sustained fire also overclocks its attack speed.",
+			"cost": 3500,
+			"delivery_type": DELIVERY_PROJECTILE,
+			"impact_mode": IMPACT_FIRST_CONTACT,
+			"stat_multipliers": {
+				"damage": 0.40,
+				"firerate": 0.14,
+			},
+			"stat_overrides": {
+				"maximum_spread_degrees": 18.0,
+				"minimum_spread_degrees": 4.0,
+				"spread_tighten_duration": 3.25,
+				"spread_recovery_delay": 1.0,
+				"spread_recovery_per_second": 10.0,
+			},
+			"level_20": {
+				"stat_overrides": {
+					"gauss_overclock_enabled": true,
+					"gauss_overclock_max_speed_bonus": 0.25,
+					"gauss_overclock_ramp_duration": 3.0,
+					"gauss_overclock_decay_duration": 1.0,
+				},
 			},
 		},
 	},
@@ -1206,51 +1242,31 @@ const TOWERS := {
 	"levels": [
 		{
 			"upgrade_cost": 0,
-			"damage": 5,
+			"damage": 30,
 			"projectile_speed": 900.0,
-			"firerate": 0.080,
-			"maximum_spread_degrees": 18.0,
-			"minimum_spread_degrees": 4.5,
-			"spread_tighten_duration": 5.0,
-			"spread_recovery_delay": 1.0,
-			"spread_recovery_per_second": 10.0,
+			"firerate": 0.50,
+			"range": 9.35,
 		},
 		{
 			"upgrade_cost": 0,
-			"damage": 5,
+			"damage": 36,
 			"projectile_speed": 950.0,
-			"firerate": 0.060,
-			"maximum_spread_degrees": 18.0,
-			"minimum_spread_degrees": 4.5,
-			"spread_tighten_duration": 4.25,
-			"spread_recovery_delay": 1.0,
-			"spread_recovery_per_second": 10.0,
+			"firerate": 0.462,
+			"range": 9.775,
 		},
 		{
 			"upgrade_cost": 0,
-			"damage": 10,
+			"damage": 65,
 			"projectile_speed": 1050.0,
-			"firerate": 0.05,
-			"maximum_spread_degrees": 16.0,
-			"minimum_spread_degrees": 4.0,
-			"spread_tighten_duration": 3.25,
-			"spread_recovery_delay": 1.0,
-			"spread_recovery_per_second": 10.0,
+			"firerate": 0.462,
+			"range": 10.625,
 		},
 		{
 			"upgrade_cost": 0,
-			"damage": 18,
+			"damage": 140,
 			"projectile_speed": 1200.0,
-			"firerate": 0.05,
-			"maximum_spread_degrees": 14.0,
-			"minimum_spread_degrees": 3.0,
-			"spread_tighten_duration": 2.0,
-			"spread_recovery_delay": 1.0,
-			"spread_recovery_per_second": 10.0,
-			"gauss_overclock_enabled": true,
-			"gauss_overclock_max_speed_bonus": 0.25,
-			"gauss_overclock_ramp_duration": 3.0,
-			"gauss_overclock_decay_duration": 1.0,
+			"firerate": 0.396,
+			"range": 11.9,
 		},
 	],
 },

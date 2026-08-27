@@ -160,6 +160,15 @@ func update_menu_buttons() -> void:
 		target_mode_button.text = "Target\n%s" % _get_target_mode_name()
 
 
+func refresh_attack_controls() -> void:
+	if tower.uses_directional_aim() and direction_ui == null:
+		_create_direction_ui()
+	elif not tower.uses_directional_aim() and direction_ui != null:
+		direction_ui.queue_free()
+		direction_ui = null
+	update_menu_buttons()
+
+
 func _update_sell_button() -> void:
 	var sell_price := tower.get_sell_price()
 	if tower.pending_action == BaseTower.MenuAction.SELL:
