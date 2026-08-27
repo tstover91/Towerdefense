@@ -1,5 +1,6 @@
 extends Node
 
+const GameStats = preload("res://stat_database.gd")
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const MOB_SCENE = preload("res://mob.tscn")
 
@@ -97,5 +98,41 @@ func run_test() -> void:
 		component.shockwave_cooldown
 	))
 
-	print("Energy Core smoke test passed: multi-primary strikes, branches, shockwave, path reset, and visuals.")
+	var levels: Array = GameStats.get_tower(&"energycore")["levels"]
+	var expected_slow_durations := [0.25, 0.35, 0.50, 0.65]
+	for level_index in levels.size():
+		assert(is_equal_approx(
+			float(levels[level_index]["slow_duration"]),
+			expected_slow_durations[level_index]
+		))
+	assert(GameStats.get_tower_evolutions(&"energycore").size() == 2)
+
+	_level_to_mastery(tower)
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(component.shockwave_enabled)
+	assert(is_equal_approx(component.shockwave_cooldown, 3.5))
+	assert(is_equal_approx(component.shockwave_damage_multiplier, 0.50))
+	assert(is_equal_approx(component.shockwave_stun_duration, 1.5))
+
+	tower.purchased_paths.assign([&"b"])
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(not component.shockwave_enabled)
+	assert(component.branching_current_enabled)
+	assert(component.branch_additional_targets == 4)
+	assert(is_equal_approx(
+		component.branch_range_pixels,
+		6.0 * BaseTower.RANGE_PIXELS_PER_UNIT
+	))
+	assert(is_equal_approx(component.branch_damage_multiplier, 0.45))
+
+	print("Energy Core smoke test passed: innate Slow, two evolutions, and Level 20 capstones.")
 	get_tree().quit(0)
+
+
+func _level_to_mastery(tower: BaseTower) -> void:
+	var target_xp: float = tower.instance_progression.get_total_xp_required_for_level(
+		GameStats.TOWER_XP_MAX_LEVEL
+	)
+	tower.instance_progression.grant_xp(target_xp)

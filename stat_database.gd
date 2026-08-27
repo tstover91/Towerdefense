@@ -1133,6 +1133,10 @@ const TOWER_EVOLUTIONS := {
 		&"anti_materiel": {"legacy_path_id": &"a"},
 		&"kill_chain": {"legacy_path_id": &"b"},
 	},
+	&"energycore": {
+		&"containment_core": {"legacy_path_id": &"a"},
+		&"tesla_core": {"legacy_path_id": &"b"},
+	},
 	&"slinger": {
 		&"explosive_ricochet": {"legacy_path_id": &"a"},
 		&"razor_disc": {"legacy_path_id": &"b"},
@@ -2095,8 +2099,8 @@ const TOWERS := {
 		"bonus_tags": [],
 		"paths": {
 			"a": {
-				"display_name": "Shockwave",
-				"description": "Every five seconds, releases a weak electric pulse that damages and stuns every enemy in range.",
+				"display_name": "Containment Core",
+				"description": "Every five seconds, releases an electric pulse that deals 35% damage and stuns every enemy in range for one second. At Level 20, it triggers every 3.5 seconds, deals 50% damage, and stuns for 1.5 seconds.",
 				"cost": 2500,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"stun"],
@@ -2106,10 +2110,18 @@ const TOWERS := {
 					"shockwave_damage_multiplier": 0.35,
 					"shockwave_stun_duration": 1.0,
 				},
+				"level_20": {
+					"behavior_flags": {"energy_shockwave": true},
+					"behavior_values": {
+						"shockwave_cooldown": 3.5,
+						"shockwave_damage_multiplier": 0.50,
+						"shockwave_stun_duration": 1.5,
+					},
+				},
 			},
 			"b": {
-				"display_name": "Branching Current",
-				"description": "Each primary bolt splits on contact, striking two other nearby enemies for 30% damage and applying Slow.",
+				"display_name": "Tesla Core",
+				"description": "Each primary bolt branches to two nearby enemies for 30% damage and applies Slow. At Level 20, bolts branch to four enemies at longer range for 45% damage.",
 				"cost": 3000,
 				"unlock_level": 3,
 				"behavior_flags": {"energy_branching_current": true},
@@ -2117,6 +2129,14 @@ const TOWERS := {
 					"branch_additional_targets": 2,
 					"branch_range": 4.0,
 					"branch_damage_multiplier": 0.30,
+				},
+				"level_20": {
+					"behavior_flags": {"energy_branching_current": true},
+					"behavior_values": {
+						"branch_additional_targets": 4,
+						"branch_range": 6.0,
+						"branch_damage_multiplier": 0.45,
+					},
 				},
 			},
 		},
@@ -2128,7 +2148,7 @@ const TOWERS := {
 				"firerate": 0.40,
 				"range": 7.5,
 				"projectile_count": 1,
-				"slow_duration": 0.0,
+				"slow_duration": 0.25,
 			},
 			{
 				"upgrade_cost": 95,
@@ -2136,7 +2156,7 @@ const TOWERS := {
 				"firerate": 0.40,
 				"range": 7.5,
 				"projectile_count": 2,
-				"slow_duration": 0.0,
+				"slow_duration": 0.35,
 			},
 			{
 				"upgrade_cost": 330,
@@ -2152,7 +2172,7 @@ const TOWERS := {
 				"firerate": 0.40,
 				"range": 8.25,
 				"projectile_count": 3,
-				"slow_duration": 0.50,
+				"slow_duration": 0.65,
 			},
 		],
 	},
