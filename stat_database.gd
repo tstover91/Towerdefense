@@ -254,8 +254,8 @@ const EARLY_ELITE_ENEMY_HEALTH_MULTIPLIER := 1.75
 const EARLY_ELITE_ENEMY_SPEED_MULTIPLIER := 1.10
 const PAYDAY_ENEMY_HEALTH_MULTIPLIER := 0.50
 
-# Provisional relic balance values. These are centralized so later tuning does
-# not require changing combat code.
+# Shared item-effect tuning values. Keeping these centralized lets item balance
+# change without editing combat code.
 const DIVIDENDS_INTEREST_RATE := 0.05
 const DIVIDENDS_INTEREST_CAP := 500
 
@@ -265,8 +265,8 @@ const WIDE_LENS_RANGE_PER_STACK := 0.30
 const WIDE_LENS_DAMAGE_MULTIPLIER := 0.90
 const DEATH_RAY_CYCLE_DURATION := 6.0
 const DEATH_RAY_OVERCHARGE_DURATION := 2.0
-const DEATH_RAY_DAMAGE_MULTIPLIER := 2.0
-const DEATH_RAY_WIDTH_MULTIPLIER := 2.0
+const DEATH_RAY_DAMAGE_MULTIPLIER := 1.75
+const DEATH_RAY_WIDTH_MULTIPLIER := 1.75
 
 const HEAVY_ROUNDS_DAMAGE_MULTIPLIER := 1.35
 const HEAVY_ROUNDS_INTERVAL_MULTIPLIER := 1.15
@@ -304,8 +304,8 @@ const HOLLOW_POINT_DAMAGE_PER_STACK := 0.25
 const LONG_BARREL_MAX_DAMAGE_PER_STACK := 0.40
 const POINT_BLANK_MAX_DAMAGE_PER_STACK := 0.40
 
-const GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER := 1.50
-const GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER := 0.80
+const GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER := 1.35
+const GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER := 0.85
 
 const THERMITE_BOMBS_ARMOR_REMOVAL := 3
 const THERMITE_BOMBS_SHIELD_REMOVAL := 2
@@ -440,7 +440,9 @@ const REINFORCEMENT_OPTIONS := {
 	},
 }
 
-const RELICS := {
+# Temporary source metadata for items converted from the retired global relic
+# system. Runtime ownership and effects use tower items exclusively.
+const LEGACY_ITEM_TEMPLATES := {
 	"dividends": {"display_name": "Dividends", "description": "Gain 5% interest at the end of each round, up to $500.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"holiday_sale": {"display_name": "Holiday Sale", "description": "Each round, one tower's build price is reduced by 35%; all others increase by 15%.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"contraband_blueprint": {"display_name": "Contraband Blueprint", "description": "Adds one random tower outside your five-tower roster beneath the normal tower slots. It costs $0 to build and is removed after placement.", "rarity": &"legendary", "category": &"global", "stackable": false},
@@ -453,7 +455,7 @@ const RELICS := {
 	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases by 30% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true, "exclusive_with": [&"focused_lens"]},
 	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal 60% more damage to slowed or stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"microwave": {"display_name": "Microwave", "description": "An enemy killed by Beam damage explodes for 30% of its maximum health, capped at five times the killing damage. The source tower pauses briefly after each explosion.", "rarity": &"rare", "category": &"beam", "stackable": false},
-	"death_ray": {"display_name": "Death Ray", "description": "Every 6 seconds, Beam towers overcharge for 2 seconds. Their beams deal double damage, become twice as wide, and gain infinite Pierce.", "rarity": &"legendary", "category": &"beam", "stackable": false},
+	"death_ray": {"display_name": "Death Ray", "description": "Every 6 seconds, Beam towers overcharge for 2 seconds. Their beams deal 75% more damage, become 75% wider, and gain infinite Pierce.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"hollow_point": {"display_name": "Hollow Point", "description": "Ballistic attacks deal 25% more damage per stack to enemies above 75% health.", "rarity": &"common", "category": &"ballistic", "stackable": true},
 	"heavy_rounds": {"display_name": "Heavy Rounds", "description": "Ballistic damage increases by 35% per stack, but attacks take 15% longer per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"lightweight_ammo"]},
 	"lightweight_ammo": {"display_name": "Lightweight Ammo", "description": "Ballistic attacks are 25% faster per stack, but deal 10% less damage per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"heavy_rounds"]},
@@ -466,7 +468,7 @@ const RELICS := {
 	"frenzy": {"display_name": "Frenzy", "description": "Melee attacks become 6% faster per enemy in range per stack, counting up to 10 enemies.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"duelist"]},
 	"duelist": {"display_name": "Duelist", "description": "Melee damage gains 45% per stack with one enemy in range or 25% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"frenzy"]},
 	"relentless": {"display_name": "Relentless", "description": "Gain 15% Melee attack speed after each attack against the same primary target, up to five stacks. Changing targets resets it.", "rarity": &"rare", "category": &"melee", "stackable": false},
-	"giant_killer": {"display_name": "Giant Killer", "description": "Melee attacks deal 75% more damage to elites and bosses, but 25% less to normal enemies.", "rarity": &"rare", "category": &"melee", "stackable": false},
+	"giant_killer": {"display_name": "Giant Killer", "description": "Melee attacks deal 35% more damage to elites and bosses, but 15% less to normal enemies.", "rarity": &"common", "category": &"melee", "stackable": true},
 	"strength_in_numbers": {"display_name": "Strength in Numbers", "description": "Gain 20% Melee damage per nearby Melee tower, counting up to four.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"lone_wolf": {"display_name": "Lone Wolf", "description": "A Melee tower gains 50% damage, 35% attack speed, and 25% range while it is the only copy of that specific tower built. Mech Bay counts per bay, not per active mech.", "rarity": &"legendary", "category": &"melee", "stackable": false},
 	"high_yield": {"display_name": "High Yield", "description": "Explosion radius increases by 35% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true, "exclusive_with": [&"concentrated_charge"]},
@@ -492,8 +494,8 @@ const RELICS := {
 	"follow_through": {"display_name": "Follow Through", "description": "Piercing attacks lose no power after each hit.", "rarity": &"rare", "category": &"pierce", "stackable": false},
 	"big_game_control": {"display_name": "Big Game Control", "description": "Stuns last 40% longer per stack against elites and 20% less per stack against normal enemies.", "rarity": &"common", "category": &"stun", "stackable": true},
 	"emergency_brake": {"display_name": "Emergency Brake", "description": "Stuns last 50% longer per stack against enemies with at least 130 movement speed.", "rarity": &"common", "category": &"stun", "stackable": true},
-	"youre_not_special": {"display_name": "You're Not Special", "description": "Bosses can be stunned for 50% of the normal duration.", "rarity": &"legendary", "category": &"stun", "stackable": false},
-	"trade_agreement": {"display_name": "Trade Agreement", "description": "A Spawner deploys two units at a time and gains double its normal unit limit, but its spawned units deal 30% less damage. Saucer is unaffected.", "rarity": &"legendary", "category": &"spawner", "stackable": false},
+	"youre_not_special": {"display_name": "You're Not Special", "description": "Bosses can be stunned for 50% of the normal duration.", "rarity": &"rare", "category": &"stun", "stackable": false},
+	"trade_agreement": {"display_name": "Trade Agreement", "description": "A Spawner deploys two units at a time and gains double its normal unit limit, but its spawned units deal 30% less damage. Saucer is unaffected.", "rarity": &"rare", "category": &"spawner", "stackable": false},
 }
 
 const HOLIDAY_SALE_DISCOUNT_MULTIPLIER := 0.65
@@ -1294,14 +1296,14 @@ const TOWER_ITEMS := {
 	},
 }
 
-## Tower-local adapters for approved legacy relic mechanics. These definitions
-## reuse the proven effect implementations while relic rewards remain disabled.
-const CONVERTED_RELIC_ITEM_CONFIG := {
+## Tower-local items carried forward from the earlier global-effect prototype.
+## Their mechanics are now sourced exclusively from equipped tower items.
+const ADAPTED_TOWER_ITEMS := {
 	&"focused_lens": {"rarity": &"common", "price": 425, "required_all_tags": [&"beam"], "max_copies_per_tower": 4},
 	&"wide_lens": {"rarity": &"common", "price": 425, "required_all_tags": [&"beam"], "shop_enabled": false},
-	&"interference_beam": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "description": "Beams deal 40% more damage to slowed or stunned enemies."},
+	&"interference_beam": {"rarity": &"common", "price": 450, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "description": "Beams deal 40% more damage to slowed or stunned enemies."},
 	&"microwave": {"rarity": &"rare", "price": 950, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "description": "Beam kills explode for 200% of the killing hit in a 2.5-tile radius. Triggers at most once every 1.5 seconds per tower."},
-	&"death_ray": {"rarity": &"legendary", "price": 1600, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "description": "Every 6 seconds, this tower overcharges for 2 seconds: double Beam damage and width with infinite Pierce."},
+	&"death_ray": {"rarity": &"rare", "price": 950, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "description": "Every 6 seconds, this tower overcharges for 2 seconds: +75% Beam damage and width with infinite Pierce."},
 	&"hollow_point": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 4},
 	&"heavy_rounds": {"rarity": &"common", "price": 400, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 4},
 	&"lightweight_ammo": {"rarity": &"common", "price": 400, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 4},
@@ -1312,7 +1314,7 @@ const CONVERTED_RELIC_ITEM_CONFIG := {
 	&"frenzy": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"], "max_copies_per_tower": 4},
 	&"duelist": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"], "max_copies_per_tower": 4},
 	&"relentless": {"rarity": &"rare", "price": 900, "required_all_tags": [&"melee"], "max_copies_per_tower": 1, "description": "Deal 20% less damage. Consecutive attacks against the same primary target gain 15% attack speed, up to five stacks; changing targets resets all stacks."},
-	&"giant_killer": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "Per copy: +50% Melee damage to elites and bosses, but 20% less damage to normal enemies."},
+	&"giant_killer": {"rarity": &"common", "price": 425, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "Per copy: +35% Melee damage to elites and bosses, but 15% less damage to normal enemies."},
 	&"strength_in_numbers": {"rarity": &"common", "price": 425, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "+20% Melee damage per nearby Melee tower per copy, counting up to four neighbors.", "shop_enabled": false},
 	&"lone_wolf": {"rarity": &"uncommon", "price": 700, "required_all_tags": [&"melee"], "shop_enabled": false},
 	&"high_yield": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"], "max_copies_per_tower": 4, "description": "Per copy: explosions are 50% larger, but deal 12% less damage."},
@@ -1335,8 +1337,8 @@ const CONVERTED_RELIC_ITEM_CONFIG := {
 	&"follow_through": {"rarity": &"uncommon", "price": 675, "required_all_tags": [&"pierce"], "max_copies_per_tower": 1},
 	&"big_game_control": {"rarity": &"common", "price": 375, "required_all_tags": [&"stun"], "max_copies_per_tower": 4},
 	&"emergency_brake": {"rarity": &"common", "price": 375, "required_all_tags": [&"stun"], "max_copies_per_tower": 4, "description": "Stuns last 50% longer per copy against enemies with the Fast trait."},
-	&"youre_not_special": {"rarity": &"legendary", "price": 1500, "required_all_tags": [&"stun"], "max_copies_per_tower": 1, "description": "This tower can stun bosses for 35% duration, once per boss every 5 seconds. Blocked stuns Slow that boss for 2 seconds instead."},
-	&"trade_agreement": {"rarity": &"legendary", "price": 1500, "required_all_tags": [&"spawner"], "max_copies_per_tower": 1, "description": "Deploy up to two units at once and increase the unit limit by 50%. Units deal 35% less damage and have 20% less lifetime or damage budget."},
+	&"youre_not_special": {"rarity": &"rare", "price": 900, "required_all_tags": [&"stun"], "max_copies_per_tower": 1, "description": "This tower can stun bosses for 35% duration, once per boss every 5 seconds. Blocked stuns Slow that boss for 2 seconds instead."},
+	&"trade_agreement": {"rarity": &"rare", "price": 950, "required_all_tags": [&"spawner"], "max_copies_per_tower": 1, "description": "Deploy up to two units at once and increase the unit limit by 50%. Units deal 35% less damage and have 20% less lifetime or damage budget."},
 }
 const TOWER_EVOLUTION_DEFAULT_LEVEL := 10
 const TOWER_EVOLUTIONS := {
@@ -3620,7 +3622,7 @@ static func get_tower_evolutions(tower_id: StringName) -> Dictionary:
 
 
 static func has_tower_item(item_id: StringName) -> bool:
-	return TOWER_ITEMS.has(item_id) or CONVERTED_RELIC_ITEM_CONFIG.has(item_id)
+	return TOWER_ITEMS.has(item_id) or ADAPTED_TOWER_ITEMS.has(item_id)
 
 
 static func get_tower_item(item_id: StringName) -> Dictionary:
@@ -3629,18 +3631,19 @@ static func get_tower_item(item_id: StringName) -> Dictionary:
 	if TOWER_ITEMS.has(item_id):
 		item = TOWER_ITEMS[item_id].duplicate(true)
 	else:
-		item = RELICS[item_id].duplicate(true)
-		item.merge(CONVERTED_RELIC_ITEM_CONFIG[item_id], true)
+		item = LEGACY_ITEM_TEMPLATES[item_id].duplicate(true)
+		item.merge(ADAPTED_TOWER_ITEMS[item_id], true)
 		item.erase("exclusive_with")
 		item.erase("exclusive_names")
 		item["item_effects"] = {item_id: 1}
 		if not item.has("max_copies_per_tower"):
 			item["max_copies_per_tower"] = (
 				TOWER_ITEM_SLOT_COUNT
-				if bool(RELICS[item_id].get("stackable", false))
+				if bool(LEGACY_ITEM_TEMPLATES[item_id].get("stackable", false))
 				else 1
 			)
 		item.erase("enabled")
+		item.erase("stackable")
 	item["id"] = item_id
 	return item
 
@@ -3650,7 +3653,7 @@ static func get_tower_item_ids() -> Array[StringName]:
 	for item_key in TOWER_ITEMS:
 		if is_tower_item_shop_enabled(StringName(item_key)):
 			item_ids.append(StringName(item_key))
-	for item_key in CONVERTED_RELIC_ITEM_CONFIG:
+	for item_key in ADAPTED_TOWER_ITEMS:
 		if is_tower_item_shop_enabled(StringName(item_key)):
 			item_ids.append(StringName(item_key))
 	return item_ids
@@ -3659,9 +3662,9 @@ static func get_tower_item_ids() -> Array[StringName]:
 static func is_tower_item_shop_enabled(item_id: StringName) -> bool:
 	if TOWER_ITEMS.has(item_id):
 		return bool(TOWER_ITEMS[item_id].get("shop_enabled", true))
-	if CONVERTED_RELIC_ITEM_CONFIG.has(item_id):
+	if ADAPTED_TOWER_ITEMS.has(item_id):
 		return bool(
-			CONVERTED_RELIC_ITEM_CONFIG[item_id].get("shop_enabled", true)
+			ADAPTED_TOWER_ITEMS[item_id].get("shop_enabled", true)
 		)
 	return false
 
@@ -3759,18 +3762,21 @@ static func get_mode(mode_id: StringName) -> Dictionary:
 	return MODES[mode_id].duplicate(true)
 
 
-static func get_relic(relic_id: StringName) -> Dictionary:
-	assert(RELICS.has(relic_id), "Unknown relic ID: %s" % relic_id)
-	var relic: Dictionary = RELICS[relic_id].duplicate(true)
-	relic["id"] = relic_id
+static func get_legacy_item_template(item_id: StringName) -> Dictionary:
+	assert(
+		LEGACY_ITEM_TEMPLATES.has(item_id),
+		"Unknown legacy item template ID: %s" % item_id
+	)
+	var item: Dictionary = LEGACY_ITEM_TEMPLATES[item_id].duplicate(true)
+	item["id"] = item_id
 	var exclusive_names := PackedStringArray()
-	for exclusive_id in relic.get("exclusive_with", []):
+	for exclusive_id in item.get("exclusive_with", []):
 		var exclusive_key := StringName(exclusive_id)
-		assert(RELICS.has(exclusive_key), "Unknown exclusive relic ID: %s" % exclusive_key)
-		exclusive_names.append(RELICS[exclusive_key]["display_name"])
+		assert(LEGACY_ITEM_TEMPLATES.has(exclusive_key))
+		exclusive_names.append(LEGACY_ITEM_TEMPLATES[exclusive_key]["display_name"])
 	if not exclusive_names.is_empty():
-		relic["description"] += " Exclusive with %s." % " and ".join(exclusive_names)
-	return relic
+		item["description"] += " Exclusive with %s." % " and ".join(exclusive_names)
+	return item
 
 static func get_round_cash_reward(round_number: int) -> int:
 	return int(ROUND_CASH_REWARDS.get(round_number, 0))

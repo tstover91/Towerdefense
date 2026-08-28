@@ -190,7 +190,7 @@ func perform_pending_attack() -> void:
 func on_body_entered(body: Node2D) -> void:
 	if body.is_in_group("mobs") and not tower.mobs_in_range.has(body):
 		tower.mobs_in_range.append(body)
-		apply_reveal_relics_to_mob(body)
+		apply_reveal_to_mob(body)
 		if not is_valid_target(tower.target):
 			select_target()
 		request_attack_if_ready()
@@ -227,7 +227,7 @@ func is_valid_area_target(candidate: Variant) -> bool:
 	)
 
 
-func refresh_reveal_relic_coverage() -> void:
+func refresh_reveal_coverage() -> void:
 	remove_reveal_source_from_all_mobs()
 	if not tower.is_placed or not tower.has_bonus_tag(BaseTower.BONUS_REVEAL):
 		return
@@ -238,10 +238,10 @@ func refresh_reveal_relic_coverage() -> void:
 			and tower.global_position.distance_to(mob.global_position)
 				<= tower.range_radius_pixels
 		):
-			apply_reveal_relics_to_mob(mob)
+			apply_reveal_to_mob(mob)
 
 
-func apply_reveal_relics_to_mob(mob: Node) -> void:
+func apply_reveal_to_mob(mob: Node) -> void:
 	if (
 		not is_instance_valid(mob)
 		or not tower.has_bonus_tag(BaseTower.BONUS_REVEAL)
@@ -254,13 +254,6 @@ func apply_reveal_relics_to_mob(mob: Node) -> void:
 		else:
 			mob.get("traits").erase(&"hidden")
 		return
-	if (
-		tower.get_owned_relic_count(&"spotter") > 0
-		and mob.has_method("add_global_reveal_source")
-	):
-		mob.add_global_reveal_source(
-			tower, tower.create_attack_context(&"reveal")
-		)
 
 
 func remove_reveal_source_from_all_mobs() -> void:

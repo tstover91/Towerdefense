@@ -2,7 +2,7 @@ class_name VoidSingularity
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
-const RelicEffects = preload("res://relic_combat.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const VOID_CALLER_TOWER_ID: StringName = &"voidcaller"
 const TARGET_REFRESH_INTERVAL := 0.10
@@ -136,14 +136,14 @@ func explode() -> void:
 		return
 	resolving = true
 	spawn_explosion_zone()
-	var resolved_context := RelicEffects.prepare_explosion_context(
+	var resolved_context := AreaDamage.prepare_explosion_context(
 		attack_context,
 		get_tree(),
 		global_position,
 		explosion_radius
 	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not RelicEffects.is_valid_explosion_target(mob, resolved_context):
+		if not AreaDamage.is_valid_explosion_target(mob, resolved_context):
 			continue
 		var distance_from_center: float = global_position.distance_to(mob.global_position)
 		if distance_from_center > explosion_radius:

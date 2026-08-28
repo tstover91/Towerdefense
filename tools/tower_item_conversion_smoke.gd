@@ -74,10 +74,10 @@ func run_test() -> void:
 			"%s must be single-copy or stack to the slot cap." % item_id
 		)
 		rarity_counts[rarity] = int(rarity_counts[rarity]) + 1
-	assert(rarity_counts[&"common"] == 18)
-	assert(rarity_counts[&"uncommon"] == 20)
-	assert(rarity_counts[&"rare"] == 15)
-	assert(rarity_counts[&"legendary"] == 3)
+	assert(rarity_counts[&"common"] == 20)
+	assert(rarity_counts[&"uncommon"] == 18)
+	assert(rarity_counts[&"rare"] == 18)
+	assert(rarity_counts[&"legendary"] == 0)
 	for held_id in [
 		&"network_upgrade",
 		&"pack_hunter",
@@ -101,17 +101,24 @@ func run_test() -> void:
 		&"strength_in_numbers",
 	]:
 		assert(not item_ids.has(held_id), "%s leaked into the item pool." % held_id)
-	for converted_item_id in GameStats.CONVERTED_RELIC_ITEM_CONFIG:
-		var converted_item := GameStats.get_tower_item(converted_item_id)
-		assert(not converted_item.has("legacy_relic_effects"))
-		assert(int(converted_item.get("item_effects", {}).get(
-			converted_item_id, 0
+	for adapted_item_id in GameStats.ADAPTED_TOWER_ITEMS:
+		var adapted_item := GameStats.get_tower_item(adapted_item_id)
+		for obsolete_key in ["enabled", "exclusive_with", "stackable"]:
+			assert(not adapted_item.has(obsolete_key))
+		assert(not String(adapted_item.get("description", "")).to_lower().contains(
+			"relic"
+		))
+		assert(int(adapted_item.get("item_effects", {}).get(
+			adapted_item_id, 0
 		)) == 1)
 
 	assert(GameStats.has_tower_item(&"long_barrel"))
 	assert(GameStats.get_tower_item(&"penetrator_rounds")["rarity"] == &"uncommon")
-	assert(GameStats.get_tower_item(&"interference_beam")["rarity"] == &"uncommon")
-	assert(GameStats.get_tower_item(&"death_ray")["rarity"] == &"legendary")
+	assert(GameStats.get_tower_item(&"interference_beam")["rarity"] == &"common")
+	assert(GameStats.get_tower_item(&"giant_killer")["rarity"] == &"common")
+	assert(GameStats.get_tower_item(&"death_ray")["rarity"] == &"rare")
+	assert(GameStats.get_tower_item(&"youre_not_special")["rarity"] == &"rare")
+	assert(GameStats.get_tower_item(&"trade_agreement")["rarity"] == &"rare")
 	assert(GameStats.get_tower_item(&"ricochet_module")["rarity"] == &"uncommon")
 	assert(GameStats.get_tower_item(&"split_chamber")["rarity"] == &"uncommon")
 	assert(GameStats.get_tower_item(&"explosive_payload")["rarity"] == &"uncommon")
@@ -119,7 +126,6 @@ func run_test() -> void:
 	assert(GameStats.get_tower_item(&"afterimage_round")["rarity"] == &"uncommon")
 	assert(GameStats.get_tower_item(&"pressure_point")["rarity"] == &"uncommon")
 	assert(GameStats.get_tower_item(&"follow_through")["rarity"] == &"uncommon")
-	assert(GameStats.get_tower_item(&"giant_killer")["rarity"] == &"uncommon")
 	assert(not GameStats.get_tower_item(&"heavy_rounds").has("exclusive_with"))
 	assert(not GameStats.get_tower_item(&"lightweight_ammo").has("exclusive_with"))
 	for approved_item_id in [
@@ -165,7 +171,6 @@ func run_test() -> void:
 	assert(invader.get_equipped_item_count(0) == 2)
 	assert(invader.get_equipped_item_ids().count(&"lightweight_ammo") == 1)
 	assert(invader.get_effect_stack_count(&"heavy_rounds") == 2)
-	assert(invader.get_owned_relic_count(&"heavy_rounds") == 0)
 	assert(untouched_invader.get_effect_stack_count(&"heavy_rounds") == 0)
 	assert(invader.has_bonus_tag(BaseTower.BONUS_CRITICAL))
 	assert(is_equal_approx(invader.critical_multiplier, 1.5))

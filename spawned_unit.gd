@@ -2,7 +2,7 @@ class_name SpawnedUnit
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
-const RelicEffects = preload("res://relic_combat.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const PROJECTILE_SCENE = preload("res://projectile.tscn")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
@@ -1053,14 +1053,14 @@ func trigger_budget_explosion() -> void:
 		roundi(float(damage) * budget_explosion_damage_multiplier),
 		1
 	)
-	var explosion_context := RelicEffects.prepare_explosion_context(
+	var explosion_context := AreaDamage.prepare_explosion_context(
 		create_attack_context(&"drone_payload_explosion"),
 		get_tree(),
 		global_position,
 		budget_explosion_radius_pixels
 	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
+		if not AreaDamage.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_to_blast: float = global_position.distance_to(mob.global_position)
 		if distance_to_blast > budget_explosion_radius_pixels:

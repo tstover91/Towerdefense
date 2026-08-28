@@ -1,7 +1,7 @@
 extends CharacterBody2D
 
 const GameStats = preload("res://stat_database.gd")
-const RelicEffects = preload("res://relic_combat.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const ELECTRIC_PROC_EFFECT = preload("res://electric_proc_effect.gd")
 const ELECTRIC_ARC_EFFECT = preload("res://electric_arc_effect.gd")
@@ -1257,7 +1257,7 @@ func trigger_electric_lightning_proc(
 		proc_context = AttackContext.legacy(&"", &"electric_lightning_proc")
 		proc_context.metadata["electric_proc"] = true
 	# The stored value is already based on final received damage. Bypass armor,
-	# relic modifiers, and Brainiac sharing so the proc deals that exact amount
+	# item modifiers and Brainiac sharing so the proc deals that exact amount
 	# to this target only and cannot recursively build another proc.
 	var primary_damage := (
 		maxi(roundi(
@@ -1410,7 +1410,7 @@ func trigger_microwave_explosion(
 		&"microwave_explosion",
 		true
 	)
-	explosion_context = RelicEffects.prepare_explosion_context(
+	explosion_context = AreaDamage.prepare_explosion_context(
 		explosion_context,
 		get_tree(),
 		global_position,
@@ -1425,7 +1425,7 @@ func trigger_microwave_explosion(
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if (
 			candidate == self
-			or not RelicEffects.is_valid_explosion_target(
+			or not AreaDamage.is_valid_explosion_target(
 				candidate,
 				explosion_context
 			)

@@ -85,21 +85,7 @@ func run_test() -> void:
 		return
 	if not _check(
 		not tower.can_purchase_path(&"b", false),
-		"Second path was available without the dual-path relic."
-	):
-		return
-
-	tower.grant_dual_path_relic(&"split_decision")
-	if not _check(
-		tower.can_purchase_path(&"b", false),
-		"Dual-path relic did not unlock the remaining path."
-	):
-		return
-	tower.select_path_choice(&"b")
-	tower.purchase_selected_path()
-	if not _check(
-		tower.purchased_paths.has(&"b"),
-		"Second path was not purchased after dual-path unlock."
+		"Second path was available after choosing an evolution path."
 	):
 		return
 

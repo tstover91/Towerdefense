@@ -27,15 +27,7 @@ func get_path_unlock_level(path_id: StringName) -> int:
 
 
 func can_purchase_multiple_paths() -> bool:
-	return not tower.dual_path_relic_source.is_empty()
-
-
-func grant_dual_path_relic(relic_id: StringName) -> void:
-	if not tower.dual_path_relic_source.is_empty():
-		return
-	tower.dual_path_relic_source = relic_id
-	tower.update_menu_buttons()
-	_show_tower_details_if_selected()
+	return false
 
 
 func can_purchase_path(path_id: StringName, check_money := true) -> bool:

@@ -1,4 +1,4 @@
-class_name RelicCombat
+class_name AreaDamageHelper
 extends RefCounted
 
 
@@ -22,8 +22,8 @@ static func prepare_explosion_context(
 	context.metadata["explosion_target_count"] = target_count
 	context.metadata["explosion_center"] = center
 	context.metadata["explosion_radius"] = radius
-	# Hidden prevents target acquisition and direct contact, but an enemy can still
-	# be caught in an explosion that was created independently of it.
+	# Hidden prevents direct targeting, but independent area damage can still
+	# catch a Hidden enemy.
 	context.metadata["area_damage"] = true
 	return context
 
@@ -32,11 +32,9 @@ static func is_valid_explosion_target(
 	candidate: Variant,
 	_context: AttackContext
 ) -> bool:
-	if (
-		candidate == null
-		or not is_instance_valid(candidate)
-		or candidate.is_queued_for_deletion()
-		or bool(candidate.get("finished"))
-	):
-		return false
-	return true
+	return (
+		candidate != null
+		and is_instance_valid(candidate)
+		and not candidate.is_queued_for_deletion()
+		and not bool(candidate.get("finished"))
+	)

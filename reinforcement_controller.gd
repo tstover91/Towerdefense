@@ -31,15 +31,13 @@ func can_begin_targeting(
 	game_ended: bool,
 	round_active: bool,
 	shop_open: bool,
-	build_mode: bool,
-	selecting_path_relic_tower: bool
+	build_mode: bool
 ) -> bool:
 	return (
 		not game_ended
 		and round_active
 		and not shop_open
 		and not build_mode
-		and not selecting_path_relic_tower
 		and cooldown_remaining <= 0.0
 		and not targeting
 	)

@@ -9,7 +9,6 @@ signal item_reroll_requested
 signal item_shop_closed
 
 const DRAFT_TOWER: StringName = &"tower"
-const DRAFT_RELIC: StringName = &"relic"
 const DRAFT_ITEM: StringName = &"item"
 
 @onready var title_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/TitleLabel
@@ -30,7 +29,7 @@ const DRAFT_ITEM: StringName = &"item"
 
 var selected_item_id: StringName = &""
 var selected_quantity := 1
-var active_draft_type: StringName = DRAFT_RELIC
+var active_draft_type: StringName = DRAFT_TOWER
 
 
 func _ready() -> void:
@@ -74,8 +73,8 @@ func open_draft(
 	reroll_button.hide()
 	inventory_panel.hide()
 	update_player_status(current_health, maximum_health, current_money)
-	health_button.visible = draft_type != DRAFT_TOWER
-	var choice_name := "tower" if draft_type == DRAFT_TOWER else "relic"
+	health_button.hide()
+	var choice_name := "tower"
 	title_label.text = "%s Draft - Round %d Complete" % [
 		choice_name.capitalize(),
 		completed_round,
@@ -95,7 +94,7 @@ func open_draft(
 		cards[index].display_item(
 			get_choice_data(item_id),
 			int(owned_items.get(item_id, 0)),
-			draft_type == DRAFT_RELIC,
+			false,
 			int(choice_quantities.get(item_id, 1))
 		)
 		cards[index].set_selected(false)
@@ -201,15 +200,7 @@ func build_owned_items_text(owned_items: Dictionary) -> String:
 				int(owned_items[item_key]),
 			])
 		return "Inventory: " + ", ".join(item_parts)
-	if owned_items.is_empty():
-		return "Owned relics: None"
-
-	var parts: PackedStringArray = []
-	for item_key in owned_items:
-		var item_id := StringName(item_key)
-		var stats := StatDatabase.get_relic(item_id)
-		parts.append("%s x%d" % [stats["display_name"], owned_items[item_key]])
-	return "Owned relics: " + ", ".join(parts)
+	return ""
 
 
 func update_owned_items_display(owned_items: Dictionary) -> void:
@@ -277,9 +268,7 @@ func _on_card_chosen(
 func get_choice_data(item_id: StringName) -> Dictionary:
 	if active_draft_type == DRAFT_TOWER:
 		return StatDatabase.get_tower_draft_entry(item_id)
-	if active_draft_type == DRAFT_ITEM:
-		return StatDatabase.get_tower_item(item_id)
-	return StatDatabase.get_relic(item_id)
+	return StatDatabase.get_tower_item(item_id)
 
 
 func _on_continue_pressed() -> void:

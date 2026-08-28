@@ -48,19 +48,11 @@ const DRAFT_HEALTH_RECOVERY := 20
 const DRAFT_HEALTH_COST_RATIO := 0.30
 const DRAFT_HEALTH_PRICE_INCREMENT := 25
 const TOWER_DRAFT_ROUNDS: Array[int] = [3, 8, 12]
-const RELIC_DRAFT_ROUNDS: Array[int] = []
 const REINFORCEMENT_DRAFT_ROUNDS: Array[int] = []
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
 const TOWER_SLOT_COUNT := 5
-const CONTRABAND_SLOT_INDEX := TOWER_SLOT_COUNT
-const TRADE_AGREEMENT_TOWER_IDS: Array[StringName] = [
-	&"hivemother",
-	&"dronedepot",
-	&"mechbay",
-]
 const DRAFT_TOWER: StringName = &"tower"
-const DRAFT_RELIC: StringName = &"relic"
 const DRAFT_ITEM: StringName = &"item"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const DOCK_BUILD_TOP_OFFSET := -230.0
@@ -89,7 +81,6 @@ const HUD_STRIP_LEFT := 12.0
 const HUD_STRIP_RIGHT_MARGIN := 12.0
 const HUD_STRIP_ICON_WIDTH := 30.0
 const HUD_STRIP_ICON_SEPARATION := 3.0
-const RELIC_HUD_SLOT_COUNT := 5
 const DRAG_KIND_TOWER: StringName = &"tower"
 const DRAG_KIND_REINFORCEMENT: StringName = &"reinforcement"
 
@@ -124,12 +115,6 @@ signal round_ended(round_number: int)
 @onready var enemy_info_panel: PanelContainer = $MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel
 @onready var enemy_info_name: Label = $MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout/NameLabel
 @onready var enemy_info_description: Label = $MainUI/HUDRoot/EnemyStrip/EnemyStripContent/EnemyInfoPanel/EnemyInfoMargin/EnemyInfoLayout/DescriptionLabel
-@onready var relic_strip: PanelContainer = $MainUI/HUDRoot/RelicStrip
-@onready var relic_icon_list: HBoxContainer = $MainUI/HUDRoot/RelicStrip/RelicIconList
-@onready var relic_info_panel: PanelContainer = $MainUI/HUDRoot/RelicInfoPanel
-@onready var relic_info_name: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/Header/NameLabel
-@onready var relic_info_affected: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/Header/AffectedLabel
-@onready var relic_info_description: Label = $MainUI/HUDRoot/RelicInfoPanel/RelicInfoMargin/RelicInfoLayout/DescriptionLabel
 @onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerNameLabel
 @onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerLevelLabel
 @onready var tower_xp_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerXpLabel
@@ -139,7 +124,6 @@ signal round_ended(round_number: int)
 @onready var tower_information_content: HBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent
 @onready var tower_path_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerPathLabel
 @onready var tower_tags_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerTagsLabel
-@onready var tower_relics_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/TowerRelicsLabel
 @onready var tower_items_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/ItemsSection
 @onready var tower_items_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/InformationContent/ItemsSection/ItemsLabel
 @onready var tower_item_inventory_panel: Control = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll/InspectorContent/TowerItemInventoryPanel
@@ -217,13 +201,6 @@ var pending_tower_cost: int:
 	set(value):
 		ensure_build_controller()
 		build_controller.pending_tower_cost = value
-var pending_tower_is_contraband: bool:
-	get:
-		ensure_build_controller()
-		return build_controller.pending_tower_is_contraband
-	set(value):
-		ensure_build_controller()
-		build_controller.pending_tower_is_contraband = value
 var round_number: int:
 	get:
 		ensure_round_controller()
@@ -357,27 +334,6 @@ var tower_roster: Array[StringName]:
 	set(value):
 		ensure_run_state()
 		run_state.set_tower_roster(value)
-var contraband_tower_id: StringName:
-	get:
-		ensure_run_state()
-		return run_state.contraband_tower_id
-	set(value):
-		ensure_run_state()
-		run_state.contraband_tower_id = value
-var holiday_sale_tower_id: StringName:
-	get:
-		ensure_run_state()
-		return run_state.holiday_sale_tower_id
-	set(value):
-		ensure_run_state()
-		run_state.holiday_sale_tower_id = value
-var owned_shop_items: Dictionary:
-	get:
-		ensure_run_state()
-		return run_state.owned_shop_items
-	set(value):
-		ensure_run_state()
-		run_state.owned_shop_items = value
 var run_bonuses: Dictionary:
 	get:
 		ensure_run_state()
@@ -416,14 +372,11 @@ var active_draft_type: StringName = &""
 var active_draft_offers: Array[StringName] = []
 var active_draft_choice_quantities: Dictionary = {}
 var draft_health_purchased := false
-var pending_path_relic_tower_selection: StringName = &""
-var recent_relic_offers: Array[StringName] = []
 var pending_enemy_spawns: Array[Dictionary] = []
 var displayed_tower: Node = null
 var sidebar_confirmation_tower_id := 0
 var sidebar_confirmation_action := -1
 var context_dock_tween: Tween
-var relic_hud_buttons: Dictionary = {}
 var enemy_hud_buttons: Dictionary = {}
 var enemy_strip_expanded := false
 var tower_fan_buttons: Array[Button] = []
@@ -438,7 +391,6 @@ var placement_drag_pointer_index := -1
 var placement_drag_start_screen_position := Vector2.ZERO
 var placement_drag_world_position := Vector2.ZERO
 var active_placement_drag_kind: StringName = &""
-var selected_relic_hud_id: StringName = &""
 var selected_enemy_hud_id: StringName = &""
 var enemy_hud_round := -1
 var playable_map_width := 0.0
@@ -484,7 +436,6 @@ func _ready() -> void:
 	update_money()
 	update_lives()
 	update_round_count()
-	refresh_relic_hud()
 	refresh_enemy_hud(true)
 	enemy_toggle_button.pressed.connect(_on_enemy_strip_toggled)
 	spawntimer.timeout.connect(_spawn_mob)
@@ -576,7 +527,6 @@ func _configure_minimal_hud() -> void:
 	enemy_info_panel.offset_bottom = -12.0
 	if enemy_content.has_node("IntelTitle"):
 		enemy_content.get_node("IntelTitle").hide()
-	relic_strip.hide()
 
 	sidebar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	sidebar.offset_left = 12.0
@@ -722,18 +672,6 @@ func populate_tower_list() -> void:
 		tower_list.set_item_icon_modulate(slot_index, Color.TRANSPARENT)
 		tower_list.set_item_disabled(slot_index, true)
 		tower_list.set_item_selectable(slot_index, false)
-	if not sandbox_mode and not contraband_tower_id.is_empty():
-		tower_list.add_item(
-			"$0",
-			GameStats.get_tower(contraband_tower_id).get(
-				"texture",
-				DEFAULT_TOWER_ICON
-			)
-		)
-		tower_list.set_item_tooltip(
-			CONTRABAND_SLOT_INDEX,
-			"Contraband: %s" % GameStats.get_tower(contraband_tower_id)["display_name"]
-		)
 	populate_tower_fan()
 
 
@@ -749,21 +687,14 @@ func populate_tower_fan() -> void:
 	)
 	for slot_index in roster_slot_count:
 		slot_indices.append(slot_index)
-	if not sandbox_mode and not contraband_tower_id.is_empty():
-		slot_indices.append(CONTRABAND_SLOT_INDEX)
-
 	for slot_index in slot_indices:
 		var tower_id := get_sidebar_tower_id(slot_index)
 		if tower_id.is_empty():
 			continue
-		var is_contraband := (
-			not sandbox_mode and slot_index == CONTRABAND_SLOT_INDEX
-		)
 		var tower_data := GameStats.get_tower(tower_id)
 		var button := create_tower_fan_button(
 			slot_index,
-			tower_data,
-			is_contraband
+			tower_data
 		)
 		tower_fan.add_child(button)
 		tower_fan_buttons.append(button)
@@ -773,11 +704,10 @@ func populate_tower_fan() -> void:
 
 func create_tower_fan_button(
 	slot_index: int,
-	tower_data: Dictionary,
-	is_contraband: bool
+	tower_data: Dictionary
 ) -> Button:
 	var tower_id := get_sidebar_tower_id(slot_index)
-	var cost := get_tower_build_cost(tower_id, is_contraband)
+	var cost := get_tower_build_cost(tower_id)
 	var button := Button.new()
 	button.name = "Tower_%s" % String(tower_id)
 	button.custom_minimum_size = Vector2.ONE * TOWER_FAN_BUTTON_SIZE
@@ -967,9 +897,6 @@ func show_tower_details(tower: Node) -> void:
 		format_tower_tags(stats.get("attack_tags", [])),
 		format_tower_tags(stats.get("bonus_tags", [])),
 	]
-	var active_relics: Array = stats.get("active_relic_effects", [])
-	tower_relics_label.text = "Relics: %s" % format_relic_names(active_relics)
-	tower_relics_label.tooltip_text = format_relic_effect_tooltip(active_relics)
 	update_tower_item_controls(tower)
 	if not round_active:
 		tower_item_inventory_panel.refresh(tower)
@@ -1496,25 +1423,6 @@ func format_tower_tags(tags: Array) -> String:
 	return ", ".join(display_tags)
 
 
-func format_relic_names(relic_ids: Array) -> String:
-	if relic_ids.is_empty():
-		return "None"
-	var names: Array[String] = []
-	for relic_id in relic_ids:
-		names.append(String(GameStats.get_relic(StringName(relic_id))["display_name"]))
-	return ", ".join(names)
-
-
-func format_relic_effect_tooltip(relic_ids: Array) -> String:
-	if relic_ids.is_empty():
-		return "No owned relic currently modifies this tower."
-	var lines: Array[String] = []
-	for relic_id in relic_ids:
-		var relic := GameStats.get_relic(StringName(relic_id))
-		lines.append("%s: %s" % [relic["display_name"], relic["description"]])
-	return "\n\n".join(lines)
-
-
 func refresh_enemy_hud(force := false) -> void:
 	if not is_instance_valid(enemy_icon_list) or wave_director == null:
 		return
@@ -1651,7 +1559,6 @@ func _on_enemy_hud_pressed(enemy_id: StringName) -> void:
 		clear_enemy_hud_selection()
 	else:
 		clear_tower_details()
-		clear_relic_hud_selection()
 		show_enemy_hud_selection(enemy_id)
 
 
@@ -1693,262 +1600,11 @@ func clear_enemy_hud_selection() -> void:
 
 
 func update_compact_hud_strip_layout() -> void:
-	if not is_instance_valid(enemy_strip) or not is_instance_valid(relic_strip):
+	if not is_instance_valid(enemy_strip):
 		return
-	var maximum_width := maxf(
-		get_viewport_rect().size.x - HUD_STRIP_LEFT - HUD_STRIP_RIGHT_MARGIN,
-		44.0
-	)
 	enemy_toggle_button.button_pressed = enemy_strip_expanded
-	var relic_width := clampf(
-		10.0 + float(maxi(RELIC_HUD_SLOT_COUNT, relic_hud_buttons.size())) * (
-			HUD_STRIP_ICON_WIDTH + HUD_STRIP_ICON_SEPARATION
-		),
-		44.0,
-		maximum_width
-	)
-	relic_strip.offset_right = HUD_STRIP_LEFT + relic_width
-	var info_left := HUD_STRIP_LEFT
-	var info_right := minf(
-		get_viewport_rect().size.x - 12.0,
-		HUD_STRIP_LEFT + 480.0
-	)
-	if info_right - info_left < 300.0:
-		info_left = 12.0
-	relic_info_panel.offset_left = info_left
-	relic_info_panel.offset_right = info_right
 	enemy_strip.visible = enemy_strip_expanded and not enemy_hud_buttons.is_empty()
 	enemy_toggle_button.visible = not enemy_hud_buttons.is_empty()
-	relic_strip.hide()
-
-
-func refresh_relic_hud() -> void:
-	if not is_instance_valid(relic_icon_list):
-		return
-	for child in relic_icon_list.get_children():
-		relic_icon_list.remove_child(child)
-		child.queue_free()
-	relic_hud_buttons.clear()
-	var owned_relic_ids: Array[StringName] = []
-	for relic_key in GameStats.RELICS:
-		var relic_id := StringName(relic_key)
-		if get_relic_count(relic_id) > 0:
-			owned_relic_ids.append(relic_id)
-	var filled_slot_count := 0
-	for relic_id in owned_relic_ids:
-		if filled_slot_count >= RELIC_HUD_SLOT_COUNT:
-			break
-		var relic := GameStats.get_relic(relic_id)
-		var count := get_relic_count(relic_id)
-		for stack_index in count:
-			if filled_slot_count >= RELIC_HUD_SLOT_COUNT:
-				break
-			var button := Button.new()
-			button.name = "Relic_%s_%d" % [String(relic_id), stack_index]
-			button.custom_minimum_size = Vector2(30.0, 28.0)
-			button.toggle_mode = stack_index == 0
-			button.focus_mode = Control.FOCUS_NONE
-			button.clip_text = true
-			button.text = get_relic_icon_label(relic_id)
-			button.tooltip_text = String(relic["display_name"])
-			if count > 1:
-				button.tooltip_text += " · Copy %d/%d" % [stack_index + 1, count]
-			button.set_meta("relic_id", relic_id)
-			apply_relic_icon_style(button, StringName(relic["rarity"]))
-			button.pressed.connect(_on_relic_hud_pressed.bind(relic_id))
-			relic_icon_list.add_child(button)
-			if stack_index == 0:
-				relic_hud_buttons[relic_id] = button
-			filled_slot_count += 1
-	for _slot_index in range(filled_slot_count, RELIC_HUD_SLOT_COUNT):
-		relic_icon_list.add_child(create_empty_relic_hud_slot())
-	if not selected_relic_hud_id.is_empty():
-		if get_relic_count(selected_relic_hud_id) > 0:
-			show_relic_hud_selection(selected_relic_hud_id)
-		else:
-			clear_relic_hud_selection()
-	update_compact_hud_strip_layout()
-
-
-func create_empty_relic_hud_slot() -> PanelContainer:
-	var slot := PanelContainer.new()
-	slot.custom_minimum_size = Vector2(30.0, 28.0)
-	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.0706, 0.0784, 0.102, 0.38)
-	style.border_color = Color(0.2784, 0.2706, 0.251, 0.38)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	slot.add_theme_stylebox_override("panel", style)
-	var marker := Label.new()
-	marker.text = "·"
-	marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	marker.add_theme_color_override(
-		"font_color", Color(0.6588, 0.6549, 0.6196, 0.5)
-	)
-	slot.add_child(marker)
-	return slot
-
-
-func get_relic_icon_label(relic_id: StringName) -> String:
-	match relic_id:
-		&"charred_clothes":
-			return "CH"
-		&"perfect_intelligence":
-			return "INT"
-	var words := String(relic_id).split("_", false)
-	if words.size() == 1:
-		return String(words[0]).left(2).to_upper()
-	var abbreviation := ""
-	for word in words:
-		if not word.is_empty():
-			abbreviation += word.left(1).to_upper()
-		if abbreviation.length() >= 3:
-			break
-	return abbreviation
-
-
-func get_relic_rarity_color(rarity: StringName) -> Color:
-	match rarity:
-		&"common":
-			return UI_CYAN
-		&"rare":
-			return UI_MAGENTA
-		&"legendary":
-			return UI_GOLD
-		_:
-			return UI_CREAM
-
-
-func make_relic_icon_style(
-	background: Color,
-	border: Color,
-	pressed := false
-) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	var muted_background := background.darkened(0.72)
-	muted_background.a = 0.9 if pressed else 0.76
-	style.bg_color = muted_background
-	var muted_border := border.darkened(0.35)
-	muted_border.a = 0.72 if pressed else 0.5
-	style.border_color = muted_border
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
-	if not pressed:
-		style.shadow_color = Color(0.0, 0.0, 0.0, 0.3)
-		style.shadow_size = 2
-		style.shadow_offset = Vector2(0.0, 2.0)
-	return style
-
-
-func apply_relic_icon_style(button: Button, rarity: StringName) -> void:
-	var accent := get_relic_rarity_color(rarity)
-	var foreground := Color(0.8471, 0.8078, 0.702, 1.0)
-	button.add_theme_color_override("font_color", foreground)
-	button.add_theme_color_override("font_hover_color", foreground)
-	button.add_theme_color_override("font_pressed_color", foreground)
-	button.add_theme_font_size_override("font_size", 11)
-	button.add_theme_stylebox_override(
-		"normal", make_relic_icon_style(accent, accent)
-	)
-	button.add_theme_stylebox_override(
-		"hover", make_relic_icon_style(accent.lightened(0.08), accent)
-	)
-	button.add_theme_stylebox_override(
-		"pressed", make_relic_icon_style(accent, accent, true)
-	)
-	button.add_theme_stylebox_override(
-		"hover_pressed", make_relic_icon_style(accent, accent, true)
-	)
-
-
-func get_short_relic_description(relic: Dictionary) -> String:
-	var description := String(relic.get("description", ""))
-	var exclusive_index := description.find(" Exclusive with ")
-	if exclusive_index >= 0:
-		description = description.left(exclusive_index)
-	const MAX_DESCRIPTION_LENGTH := 175
-	if description.length() <= MAX_DESCRIPTION_LENGTH:
-		return description
-	var cutoff := description.rfind(" ", MAX_DESCRIPTION_LENGTH)
-	if cutoff < 0:
-		cutoff = MAX_DESCRIPTION_LENGTH
-	return description.left(cutoff).trim_suffix(".") + "…"
-
-
-func _on_relic_hud_pressed(relic_id: StringName) -> void:
-	if selected_relic_hud_id == relic_id:
-		clear_relic_hud_selection()
-	else:
-		clear_enemy_hud_selection()
-		show_relic_hud_selection(relic_id)
-
-
-func show_relic_hud_selection(relic_id: StringName) -> void:
-	if get_relic_count(relic_id) <= 0:
-		clear_relic_hud_selection()
-		return
-	selected_relic_hud_id = relic_id
-	for button_id in relic_hud_buttons:
-		var button := relic_hud_buttons[button_id] as Button
-		button.button_pressed = StringName(button_id) == relic_id
-	var relic := GameStats.get_relic(relic_id)
-	var count := get_relic_count(relic_id)
-	relic_info_name.text = String(relic["display_name"])
-	if count > 1:
-		relic_info_name.text += " ×%d" % count
-	relic_info_description.text = get_short_relic_description(relic)
-	var affected_count := apply_relic_hud_highlights()
-	if StringName(relic["category"]) == &"global":
-		relic_info_affected.text = "Run-wide effect"
-	elif affected_count == 0:
-		relic_info_affected.text = "No towers affected"
-	else:
-		relic_info_affected.text = "Affects %d tower%s" % [
-			affected_count,
-			"" if affected_count == 1 else "s",
-		]
-	relic_info_panel.show()
-
-
-func apply_relic_hud_highlights() -> int:
-	var affected_count := 0
-	for tower in get_tree().get_nodes_in_group("towers"):
-		if (
-			not is_instance_valid(tower)
-			or tower.is_queued_for_deletion()
-			or not bool(tower.get("is_placed"))
-			or not tower.has_method("set_relic_highlight")
-		):
-			continue
-		var affected: bool = (
-			not selected_relic_hud_id.is_empty()
-			and tower.has_method("receives_relic_effect")
-			and tower.receives_relic_effect(selected_relic_hud_id)
-		)
-		tower.set_relic_highlight(
-			not selected_relic_hud_id.is_empty(),
-			affected
-		)
-		if affected:
-			affected_count += 1
-	return affected_count
-
-
-func clear_relic_hud_selection() -> void:
-	selected_relic_hud_id = &""
-	for button_value in relic_hud_buttons.values():
-		(button_value as Button).button_pressed = false
-	relic_info_panel.hide()
-	apply_relic_hud_highlights()
-
-
-func refresh_relic_hud_highlights() -> void:
-	if selected_relic_hud_id.is_empty():
-		return
-	show_relic_hud_selection(selected_relic_hud_id)
 
 
 func clear_tower_details(tower: Node = null) -> void:
@@ -2115,8 +1771,7 @@ func can_begin_reinforcement_targeting() -> bool:
 		game_ended,
 		round_active,
 		shop_open,
-		build_mode,
-		is_selecting_path_relic_tower()
+		build_mode
 	)
 
 
@@ -2219,10 +1874,7 @@ func update_tower_affordability() -> void:
 		var tower_id := get_sidebar_tower_id(slot_index)
 		if tower_id.is_empty():
 			continue
-		var placement_cost := get_tower_build_cost(
-			tower_id,
-			slot_index == CONTRABAND_SLOT_INDEX
-		)
+		var placement_cost := get_tower_build_cost(tower_id)
 		var price_color := (
 			AFFORDABLE_TOWER_COLOR
 			if money >= placement_cost
@@ -2234,10 +1886,7 @@ func update_tower_affordability() -> void:
 		var tower_id := get_sidebar_tower_id(slot_index)
 		if tower_id.is_empty():
 			continue
-		var placement_cost := get_tower_build_cost(
-			tower_id,
-			not sandbox_mode and slot_index == CONTRABAND_SLOT_INDEX
-		)
+		var placement_cost := get_tower_build_cost(tower_id)
 		button.disabled = not sandbox_mode and money < placement_cost
 		button.modulate = (
 			Color.WHITE
@@ -2352,9 +2001,7 @@ func get_round_type(wave: int) -> StringName:
 
 func start_round() -> void:
 	ensure_round_controller()
-	var blocked_by_gameplay := (
-		shop_open or build_mode or is_selecting_path_relic_tower()
-	)
+	var blocked_by_gameplay := shop_open or build_mode
 	if not round_controller.can_start_round(blocked_by_gameplay):
 		return
 	close_all_tower_menus()
@@ -2452,16 +2099,12 @@ func update_round_count() -> void:
 		round_timer_display.text = (
 			"Item Shop" if active_draft_type == DRAFT_ITEM else "Draft"
 		)
-	elif is_selecting_path_relic_tower():
-		var relic := GameStats.get_relic(pending_path_relic_tower_selection)
-		round_timer_display.text = "%s: Select a tower" % relic["display_name"]
 	else:
 		round_timer_display.text = "Build Phase"
 	round_timer_display.visible = (
 		current_round_type != ROUND_STANDARD
 		or not round_active
 		or shop_open
-		or is_selecting_path_relic_tower()
 	)
 
 
@@ -2483,12 +2126,10 @@ func end_round() -> void:
 	spawntimer.stop()
 	round_ended.emit(round_number)
 	add_money(calculate_end_round_reward())
-	roll_holiday_sale_tower()
 	update_round_count()
 
 	match round_controller.get_post_round_action(
 		TOWER_DRAFT_ROUNDS,
-		RELIC_DRAFT_ROUNDS,
 		REINFORCEMENT_DRAFT_ROUNDS
 	):
 		RoundControllerScript.POST_ROUND_VICTORY:
@@ -2497,8 +2138,6 @@ func end_round() -> void:
 			open_tower_draft()
 		RoundControllerScript.POST_ROUND_ITEM_SHOP:
 			open_item_shop()
-		RoundControllerScript.POST_ROUND_RELIC_DRAFT:
-			open_relic_draft()
 		RoundControllerScript.POST_ROUND_REINFORCEMENT_DRAFT:
 			open_reinforcement_draft_placeholder()
 		_:
@@ -2520,10 +2159,7 @@ func enter_build_phase() -> void:
 
 func calculate_end_round_reward() -> int:
 	ensure_round_controller()
-	return round_controller.calculate_end_round_reward(
-		money,
-		get_relic_count(&"dividends") > 0
-	)
+	return round_controller.calculate_end_round_reward()
 
 
 func clear_active_projectiles() -> void:
@@ -2760,17 +2396,6 @@ func _on_item_shop_closed() -> void:
 	enter_build_phase()
 
 
-func open_relic_draft() -> void:
-	var offers := roll_relic_offers()
-	var choice_quantities := get_relic_choice_quantities(offers)
-	open_between_round_draft(
-		DRAFT_RELIC,
-		offers,
-		owned_shop_items,
-		choice_quantities
-	)
-
-
 func open_between_round_draft(
 	draft_type: StringName,
 	offers: Array[StringName],
@@ -2861,80 +2486,6 @@ func ensure_draft_manager() -> void:
 		draft_manager = DraftManagerScript.new(shop_rng)
 
 
-func sync_draft_manager_history() -> void:
-	ensure_draft_manager()
-	draft_manager.recent_relic_offers = recent_relic_offers.duplicate()
-
-
-func get_relic_choice_quantities(offers: Array[StringName]) -> Dictionary:
-	ensure_draft_manager()
-	return draft_manager.get_relic_choice_quantities(round_number, offers)
-
-
-func roll_relic_offers() -> Array[StringName]:
-	sync_draft_manager_history()
-	var path_relic_eligibility := {
-		&"singularity_core": has_eligible_built_tower_for_path_relic(
-			&"singularity_core"
-		),
-		&"perfect_mutation": has_eligible_built_tower_for_path_relic(
-			&"perfect_mutation"
-		),
-	}
-	var offers: Array[StringName] = draft_manager.roll_relic_offers(
-		round_number,
-		owned_shop_items,
-		get_tower_roster_tags(),
-		path_relic_eligibility,
-		has_dedicated_spawner_available()
-	)
-	recent_relic_offers = draft_manager.recent_relic_offers.duplicate()
-	return offers
-
-
-func is_relic_applicable_to_current_loadout(
-	item_id: StringName,
-	current_tags: Array[StringName] = []
-) -> bool:
-	ensure_draft_manager()
-	var tags := current_tags
-	if tags.is_empty():
-		tags = get_tower_roster_tags()
-	return draft_manager.is_relic_applicable(
-		item_id,
-		tags,
-		has_dedicated_spawner_available()
-	)
-
-
-func has_dedicated_spawner_available() -> bool:
-	for tower_id in TRADE_AGREEMENT_TOWER_IDS:
-		if tower_roster.has(tower_id) or tower_id == contraband_tower_id:
-			return true
-	for tower in get_tree().get_nodes_in_group("towers"):
-		if (
-			is_instance_valid(tower)
-			and tower.is_placed
-			and TRADE_AGREEMENT_TOWER_IDS.has(StringName(tower.tower_id))
-		):
-			return true
-	return false
-
-
-func get_tower_roster_tags() -> Array[StringName]:
-	ensure_run_state()
-	var roster_tags: Array[StringName] = run_state.get_roster_base_tags()
-	for tower in get_tree().get_nodes_in_group("towers"):
-		if not is_instance_valid(tower) or not tower.is_placed:
-			continue
-		for tag_group in [tower.type_tags, tower.damage_tags, tower.bonus_tags]:
-			for tag in tag_group:
-				var typed_tag := StringName(tag)
-				if not roster_tags.has(typed_tag):
-					roster_tags.append(typed_tag)
-	return roster_tags
-
-
 func roll_tower_offers() -> Array[StringName]:
 	ensure_draft_manager()
 	return draft_manager.roll_tower_offers(tower_roster)
@@ -2943,60 +2494,26 @@ func roll_tower_offers() -> Array[StringName]:
 func _on_draft_confirmed(item_id: StringName, quantity: int) -> void:
 	if not shop_open:
 		return
-	if active_draft_type == DRAFT_TOWER:
-		collect_tower(item_id)
-	else:
-		collect_relic(item_id, quantity)
+	if active_draft_type != DRAFT_TOWER:
+		return
+	collect_tower(item_id)
 	shop_open = false
 	active_draft_type = &""
 	active_draft_offers.clear()
 	active_draft_choice_quantities.clear()
 	draft_health_purchased = false
 	between_round_shop.hide()
-	if item_id in [&"singularity_core", &"perfect_mutation"]:
-		begin_path_relic_tower_selection(item_id)
-		return
 	enter_build_phase()
-
-
-func collect_relic(item_id: StringName, quantity := 1) -> void:
-	ensure_run_state()
-	if not run_state.collect_relic(item_id, quantity):
-		return
-	if item_id == &"contraband_blueprint":
-		activate_contraband_blueprint()
-	elif item_id == &"holiday_sale":
-		roll_holiday_sale_tower()
-	refresh_placed_tower_stats()
-	populate_tower_list()
-	update_tower_affordability()
-	refresh_relic_hud()
-
-
-func activate_contraband_blueprint() -> void:
-	ensure_run_state()
-	run_state.activate_contraband_blueprint(shop_rng)
-
-
-func roll_holiday_sale_tower() -> void:
-	ensure_run_state()
-	run_state.roll_holiday_sale_tower(shop_rng)
-	populate_tower_list()
-	update_tower_affordability()
 
 
 func get_sidebar_tower_id(slot_index: int) -> StringName:
 	ensure_run_state()
-	return run_state.get_sidebar_tower_id(slot_index, CONTRABAND_SLOT_INDEX)
+	return run_state.get_sidebar_tower_id(slot_index)
 
 
-func get_tower_build_cost(tower_id: StringName, is_contraband := false) -> int:
+func get_tower_build_cost(tower_id: StringName) -> int:
 	ensure_run_state()
-	return run_state.get_tower_build_cost(
-		tower_id,
-		is_contraband,
-		TRADE_AGREEMENT_TOWER_IDS
-	)
+	return run_state.get_tower_build_cost(tower_id)
 
 func roll_random_starting_towers(count: int = 2) -> void:
 	ensure_draft_manager()
@@ -3020,6 +2537,21 @@ func get_tower_roster_dictionary() -> Dictionary:
 func get_tower_item_inventory() -> Dictionary:
 	ensure_run_state()
 	return run_state.tower_item_inventory.duplicate()
+
+
+func get_all_owned_tower_item_counts() -> Dictionary:
+	var totals := get_tower_item_inventory()
+	for tower in get_placed_towers_for_item_management():
+		var item_ids: Array[StringName] = tower.get_equipped_item_ids()
+		var item_counts: Array[int] = tower.get_equipped_item_counts()
+		for slot_index in item_ids.size():
+			var item_id := item_ids[slot_index]
+			if item_id.is_empty():
+				continue
+			totals[item_id] = (
+				int(totals.get(item_id, 0)) + item_counts[slot_index]
+			)
+	return totals
 
 
 func get_placed_towers_for_item_management() -> Array[Node]:
@@ -3058,17 +2590,19 @@ func _on_inventory_button_pressed() -> void:
 func _on_inventory_item_selected(item_id: StringName) -> void:
 	selected_inventory_item_id = item_id
 	for tower in get_placed_towers_for_item_management():
-		if tower.has_method("set_relic_highlight"):
-			tower.set_relic_highlight(
-			not item_id.is_empty(),
-			not item_id.is_empty()
-				and tower.item_controller.is_item_compatible(item_id)
+		if tower.has_method("set_item_compatibility_highlight"):
+			tower.set_item_compatibility_highlight(
+				not item_id.is_empty(),
+				not item_id.is_empty()
+					and tower.item_controller.is_item_compatible(item_id)
 		)
 
 
 func clear_inventory_equip_selection() -> void:
 	selected_inventory_item_id = &""
-	refresh_relic_hud_highlights()
+	for tower in get_placed_towers_for_item_management():
+		if tower.has_method("set_item_compatibility_highlight"):
+			tower.set_item_compatibility_highlight(false)
 
 
 func try_equip_selected_inventory_item_to_tower(tower: Node) -> bool:
@@ -3167,83 +2701,11 @@ func refresh_placed_tower_stats() -> void:
 			tower.load_level_stats()
 			tower.update_menu_buttons()
 	refresh_tower_details()
-	refresh_relic_hud_highlights()
 
 
 func get_run_bonus(effect: StringName) -> float:
 	ensure_run_state()
 	return run_state.get_run_bonus(effect)
-
-
-func get_relic_count(relic_id: StringName) -> int:
-	ensure_run_state()
-	return run_state.get_relic_count(relic_id)
-
-
-func is_selecting_path_relic_tower() -> bool:
-	return not pending_path_relic_tower_selection.is_empty()
-
-
-func get_path_relic_required_type(relic_id: StringName) -> StringName:
-	return &"technology" if relic_id == &"singularity_core" else &"biological"
-
-
-func is_tower_eligible_for_path_relic(tower: Node, relic_id: StringName) -> bool:
-	return (
-		is_instance_valid(tower)
-		and not tower.is_queued_for_deletion()
-		and bool(tower.get("is_placed"))
-		and tower.has_method("has_type_tag")
-		and tower.has_type_tag(get_path_relic_required_type(relic_id))
-		and tower.has_method("has_path_options")
-		and tower.has_path_options()
-		and StringName(tower.get("dual_path_relic_source")).is_empty()
-	)
-
-
-func has_eligible_built_tower_for_path_relic(relic_id: StringName) -> bool:
-	for tower in get_tree().get_nodes_in_group("towers"):
-		if is_tower_eligible_for_path_relic(tower, relic_id):
-			return true
-	return false
-
-
-func begin_path_relic_tower_selection(relic_id: StringName) -> void:
-	pending_path_relic_tower_selection = relic_id
-	close_all_tower_menus()
-	for tower in get_tree().get_nodes_in_group("towers"):
-		if is_instance_valid(tower) and bool(tower.get("is_placed")):
-			tower.set_range_preview(
-				true,
-				is_tower_eligible_for_path_relic(tower, relic_id)
-			)
-	update_round_count()
-	update_play_pause_button()
-
-
-func try_assign_path_relic_to_tower(tower: Node) -> void:
-	if not is_selecting_path_relic_tower():
-		return
-	var relic_id := pending_path_relic_tower_selection
-	if not is_tower_eligible_for_path_relic(tower, relic_id):
-		return
-	tower.grant_dual_path_relic(relic_id)
-	pending_path_relic_tower_selection = &""
-	for candidate in get_tree().get_nodes_in_group("towers"):
-		if is_instance_valid(candidate) and bool(candidate.get("is_placed")):
-			candidate.set_range_preview(false)
-	round_controller.enter_build_phase()
-	update_round_count()
-	update_play_pause_button()
-	refresh_relic_hud_highlights()
-	show_tower_details(tower)
-
-
-func can_tower_purchase_both_paths(tower: Node) -> bool:
-	return (
-		is_instance_valid(tower)
-		and not StringName(tower.get("dual_path_relic_source")).is_empty()
-	)
 
 
 func cancel_pending_tower_placement() -> void:
@@ -4230,8 +3692,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			deploy_reinforcements(get_global_mouse_position())
 			return
 
-	if is_selecting_path_relic_tower():
-		return
 	if event.is_action_pressed("ui_cancel") and not game_ended:
 		get_viewport().set_input_as_handled()
 		open_pause_menu()
@@ -4241,10 +3701,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if (
-		(
-			not selected_relic_hud_id.is_empty()
-			or not selected_enemy_hud_id.is_empty()
-		)
+		not selected_enemy_hud_id.is_empty()
 		and (
 			(
 				event is InputEventMouseButton
@@ -4254,7 +3711,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			or (event is InputEventScreenTouch and event.pressed)
 		)
 	):
-		clear_relic_hud_selection()
 		clear_enemy_hud_selection()
 
 	if (
@@ -4415,11 +3871,8 @@ func _on_tower_confirmed(tower: Node2D) -> void:
 	reserve_tower_build_cells(tower)
 	ensure_build_controller()
 	var placement_cost: int = build_controller.pending_tower_cost
-	var was_contraband: bool = build_controller.pending_tower_is_contraband
 	build_controller.clear_pending_placement()
 	run_state.spend_money(placement_cost)
-	if was_contraband and run_state.consume_contraband(tower.tower_id):
-		populate_tower_list()
 	update_money()
 	update_play_pause_button()
 	show_tower_details(tower)
@@ -4459,11 +3912,7 @@ func can_select_tower() -> bool:
 
 
 func can_purchase_tower_evolution() -> bool:
-	return (
-		not game_ended
-		and not shop_open
-		and not is_selecting_path_relic_tower()
-	)
+	return not game_ended and not shop_open
 
 @warning_ignore("unused_parameter")
 func _on_item_list_item_selected(index: int) -> void:
@@ -4471,7 +3920,7 @@ func _on_item_list_item_selected(index: int) -> void:
 
 
 func select_tower_build_slot(index: int) -> void:
-	if game_ended or shop_open or is_selecting_path_relic_tower():
+	if game_ended or shop_open:
 		tower_list.deselect_all()
 		return
 	
@@ -4480,23 +3929,19 @@ func select_tower_build_slot(index: int) -> void:
 		tower_list.deselect_all()
 		return
 
-	var selected_is_contraband := (
-		not sandbox_mode and index == CONTRABAND_SLOT_INDEX
-	)
 	if build_mode:
 		if selected_tower_id == pending_tower_type:
 			cancel_pending_tower_placement()
 			return
 		cancel_pending_tower_placement()
 
-	var cost := get_tower_build_cost(selected_tower_id, selected_is_contraband)
+	var cost := get_tower_build_cost(selected_tower_id)
 	
 	if money >= cost:
 		ensure_build_controller()
 		build_controller.begin_pending_tower(
 			selected_tower_id,
-			cost,
-			selected_is_contraband
+			cost
 		)
 		start_build_tower()
 		set_build_drawer_open(false)
@@ -4526,7 +3971,7 @@ func update_speed_button() -> void:
 
 
 func _on_pause_button_pressed() -> void:
-	if game_ended or shop_open or is_selecting_path_relic_tower():
+	if game_ended or shop_open:
 		return
 	if round_active:
 		open_pause_menu()
@@ -4542,17 +3987,8 @@ func open_pause_menu() -> void:
 		1,
 		max_rounds
 	)
-	var placed_towers: Array[Node] = []
-	for tower in get_tree().get_nodes_in_group("towers"):
-		if (
-			is_instance_valid(tower)
-			and not tower.is_queued_for_deletion()
-			and bool(tower.get("is_placed"))
-		):
-			placed_towers.append(tower)
 	pause_menu.open_menu(
-		owned_shop_items,
-		placed_towers,
+		get_all_owned_tower_item_counts(),
 		wave_director.get_available_enemies(enemy_round),
 		enemy_round
 	)
@@ -4572,6 +4008,4 @@ func update_play_pause_button() -> void:
 			round_number + 1,
 			max_rounds
 		)
-		pause_button.disabled = (
-			shop_open or build_mode or is_selecting_path_relic_tower()
-		)
+		pause_button.disabled = shop_open or build_mode

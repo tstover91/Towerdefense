@@ -112,13 +112,13 @@ theme_override_constants/separation = 10
 [node name="ItemsHeader" type="Label" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/ItemsArea"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
-text = "Relics"
+text = "Tower Items"
 horizontal_alignment = 1
 
 [node name="EmptyItemsLabel" type="Label" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/ItemsArea"]
 layout_mode = 2
 size_flags_vertical = 3
-text = "No relics collected yet."
+text = "No tower items acquired yet."
 horizontal_alignment = 1
 vertical_alignment = 1
 

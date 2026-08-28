@@ -86,7 +86,9 @@ var placement_rankings: Dictionary = {}
 var placement_coverages: Dictionary = {}
 var starter_calibration := false
 var live_build_benchmark := false
-var disable_relics := false
+# The optimizer's old global-relic model is retained only for historical report
+# compatibility. Current runs always use per-tower items instead.
+var disable_relics := true
 var director_count_templates: Dictionary = {}
 
 
@@ -3039,7 +3041,7 @@ func get_relic_choice_score(
 	quantity: int,
 	round_number: int
 ) -> float:
-	var relic := GameStats.get_relic(relic_id)
+	var relic := GameStats.get_legacy_item_template(relic_id)
 	var category: StringName = relic["category"]
 	var applicability := 0.0
 	for instance in state["build"]:
@@ -3440,10 +3442,8 @@ func get_balance_values() -> Dictionary:
 		"tower_draft_rounds": TOWER_DRAFT_ROUNDS,
 		"relic_draft_rounds": RELIC_DRAFT_ROUNDS,
 		"item_shop_modeled": false,
-		"relic_rarity_weights": DraftManagerScript.RELIC_RARITY_WEIGHTS_BY_ROUND,
-		"relic_minimum_rare_plus": (
-			DraftManagerScript.RELIC_MINIMUM_RARE_PLUS_BY_ROUND
-		),
+		"relic_rarity_weights": {},
+		"relic_minimum_rare_plus": {},
 		"standard_enemy_speed_multiplier": GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER,
 		"horde_enemy_health_multiplier": GameStats.HORDE_ENEMY_HEALTH_MULTIPLIER,
 		"elite_enemy_health_multiplier": GameStats.ELITE_ENEMY_HEALTH_MULTIPLIER,
@@ -3459,7 +3459,7 @@ func get_gameplay_data_fingerprint() -> int:
 	return hash([
 		GameStats.TOWERS,
 		GameStats.ENEMIES,
-		GameStats.RELICS,
+		GameStats.LEGACY_ITEM_TEMPLATES,
 		GameStats.MODES,
 		GameStats.ROUND_PROFILES,
 		GameStats.ENEMY_DEBUT_GROUPS,
@@ -3918,11 +3918,11 @@ func write_dominance_report() -> void:
 
 func write_relic_report() -> void:
 	var file := open_report("relic_value.csv", "relic,present_runs,present_win_rate,absent_win_rate,win_rate_delta,selection_rate,clear_choice_flag")
-	for relic_key in GameStats.RELICS:
+	for relic_key in GameStats.LEGACY_ITEM_TEMPLATES:
 		var relic_id := StringName(relic_key)
 		if EXCLUDED_RELICS.has(relic_id):
 			continue
-		if not bool(GameStats.get_relic(relic_id).get("enabled", true)):
+		if not bool(GameStats.get_legacy_item_template(relic_id).get("enabled", true)):
 			continue
 		var present_runs := 0
 		var present_wins := 0

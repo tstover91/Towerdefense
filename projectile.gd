@@ -2,7 +2,7 @@ class_name TowerProjectile
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
-const RelicEffects = preload("res://relic_combat.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const PROJECTILE_RADIUS := 3.0
 const SEGMENT_QUERY_MAX_RESULTS := 256
@@ -479,14 +479,14 @@ func resolve_contact_explosion(center: Vector2, explosion_damage: int) -> void:
 		float(explosion_damage) * contact_explosion_damage_multiplier
 	), 1)
 	spawn_explosion_zone(center, contact_explosion_radius)
-	var explosion_context := RelicEffects.prepare_explosion_context(
+	var explosion_context := AreaDamage.prepare_explosion_context(
 		derive_attack_context(&"contact_explosion"),
 		get_tree(),
 		center,
 		contact_explosion_radius
 	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
+		if not AreaDamage.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var target_id: int = mob.get_instance_id()
 		if contact_splash_hit_target_ids.has(target_id):
@@ -516,14 +516,14 @@ func resolve_explosion_with_stats(
 	explosion_damage_type: StringName
 ) -> void:
 	spawn_explosion_zone(center, explosion_radius)
-	var explosion_context := RelicEffects.prepare_explosion_context(
+	var explosion_context := AreaDamage.prepare_explosion_context(
 		derive_attack_context(&"explosion"),
 		get_tree(),
 		center,
 		explosion_radius
 	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
+		if not AreaDamage.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_from_center: float = mob.global_position.distance_to(center)
 		if distance_from_center > explosion_radius:

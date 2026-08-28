@@ -129,7 +129,6 @@ var projectile_count := 1
 var volley_width_pixels := 0.0
 var volley_stagger := 0.0
 var purchased_paths: Array[StringName] = []
-var dual_path_relic_source: StringName = &""
 var pending_path_choice: StringName = &""
 var pending_evolution_choice: StringName = &""
 var delivery_type: StringName = GameStats.DELIVERY_HITSCAN
@@ -148,8 +147,8 @@ var range_radius_pixels := 0.0
 var upgrade_range_radius_pixels := -1.0
 var range_preview_visible := false
 var range_preview_valid := true
-var relic_highlight_active := false
-var relic_highlight_affected := false
+var item_highlight_active := false
+var item_highlight_compatible := false
 var aim_direction := Vector2.RIGHT
 var main: Node
 var spawn_rng := RandomNumberGenerator.new()
@@ -179,7 +178,7 @@ func _draw() -> void:
 			3.0,
 			true
 		)
-	if relic_highlight_active and relic_highlight_affected and is_placed:
+	if item_highlight_active and item_highlight_compatible and is_placed:
 		var highlight_radius := maxf(
 			footprint_size_pixels.length() * 0.56,
 			28.0
@@ -357,13 +356,16 @@ func set_range_preview(value: bool, placement_is_valid := true) -> void:
 	queue_redraw()
 
 
-func set_relic_highlight(is_active: bool, is_affected: bool = false) -> void:
-	relic_highlight_active = is_active
-	relic_highlight_affected = is_active and is_affected
+func set_item_compatibility_highlight(
+	is_active: bool,
+	is_compatible: bool = false
+) -> void:
+	item_highlight_active = is_active
+	item_highlight_compatible = is_active and is_compatible
 	if is_placed:
 		visual_sprite.modulate = (
 			Color.WHITE
-			if not is_active or is_affected
+			if not is_active or is_compatible
 			else Color(0.38, 0.38, 0.46, 0.58)
 		)
 	queue_redraw()
@@ -407,10 +409,6 @@ func get_path_unlock_level(path_id: StringName) -> int:
 
 func can_purchase_multiple_paths() -> bool:
 	return progression_controller.can_purchase_multiple_paths()
-
-
-func grant_dual_path_relic(relic_id: StringName) -> void:
-	progression_controller.grant_dual_path_relic(relic_id)
 
 
 func can_purchase_path(path_id: StringName, check_money := true) -> bool:
@@ -698,7 +696,7 @@ func confirm_placement() -> void:
 	$clickarea/CollisionShape2D.disabled = false
 	if attack_component != null:
 		attack_component.on_placement_confirmed()
-	refresh_reveal_relic_coverage()
+	refresh_reveal_coverage()
 	if uses_shared_attack_scheduler():
 		attack_on_cooldown = false
 		immediate_attack_pending = false
@@ -733,13 +731,6 @@ func apply_effect_combat_stat_modifiers(
 	return stats_controller.apply_effect_combat_stat_modifiers(
 		base_stats, for_spawned_unit
 	)
-
-
-func apply_relic_combat_stat_modifiers(
-	base_stats: Dictionary,
-	for_spawned_unit: bool
-) -> Dictionary:
-	return apply_effect_combat_stat_modifiers(base_stats, for_spawned_unit)
 
 
 func get_explosion_damage_multiplier() -> float:
@@ -778,20 +769,8 @@ func get_main_multiplier(effect: StringName) -> float:
 	return stats_controller.get_main_multiplier(effect)
 
 
-func get_owned_relic_count(relic_id: StringName) -> int:
-	return stats_controller.get_owned_relic_count(relic_id)
-
-
 func get_effect_stack_count(effect_id: StringName) -> int:
 	return stats_controller.get_effect_stack_count(effect_id)
-
-
-func get_active_relic_effect_ids() -> Array[StringName]:
-	return stats_controller.get_active_relic_effect_ids()
-
-
-func receives_relic_effect(relic_id: StringName) -> bool:
-	return stats_controller.receives_relic_effect(relic_id)
 
 
 func _spawn_unit() -> void:
@@ -1053,17 +1032,6 @@ func get_attack_effect_metadata(
 	source_damage_tags: Array = []
 ) -> Dictionary:
 	return attack_delivery_controller.get_attack_effect_metadata(
-		source_position, source_range, source_type_tags, source_damage_tags
-	)
-
-
-func get_attack_relic_metadata(
-	source_position: Vector2,
-	source_range: float,
-	source_type_tags: Array,
-	source_damage_tags: Array = []
-) -> Dictionary:
-	return get_attack_effect_metadata(
 		source_position, source_range, source_type_tags, source_damage_tags
 	)
 
@@ -1347,14 +1315,14 @@ func is_valid_area_target(candidate: Variant) -> bool:
 	)
 
 
-func refresh_reveal_relic_coverage() -> void:
+func refresh_reveal_coverage() -> void:
 	if targeting_controller != null:
-		targeting_controller.refresh_reveal_relic_coverage()
+		targeting_controller.refresh_reveal_coverage()
 
 
-func apply_reveal_relics_to_mob(mob: Node) -> void:
+func apply_reveal_to_mob(mob: Node) -> void:
 	if targeting_controller != null:
-		targeting_controller.apply_reveal_relics_to_mob(mob)
+		targeting_controller.apply_reveal_to_mob(mob)
 
 
 func remove_reveal_source_from_all_mobs() -> void:
@@ -1412,12 +1380,6 @@ func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 		and main != null
 		and main.can_select_tower()
 	):
-		if (
-			main.has_method("is_selecting_path_relic_tower")
-			and main.is_selecting_path_relic_tower()
-		):
-			main.try_assign_path_relic_to_tower(self)
-			return
 		if (
 			main.has_method("try_equip_selected_inventory_item_to_tower")
 			and main.try_equip_selected_inventory_item_to_tower(self)

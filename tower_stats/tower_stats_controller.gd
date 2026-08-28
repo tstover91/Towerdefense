@@ -100,7 +100,7 @@ func load_level_stats() -> void:
 	)
 	range_shape.radius = tower.range_radius_pixels
 	tower.get_node("Tower/CollisionShape2D").shape = range_shape
-	tower.refresh_reveal_relic_coverage()
+	tower.refresh_reveal_coverage()
 	tower.queue_redraw()
 
 
@@ -194,19 +194,6 @@ func apply_effect_combat_stat_modifiers(
 					float(stats[budget_key])
 					* GameStats.TRADE_AGREEMENT_UNIT_BUDGET_MULTIPLIER
 				)
-	if tower.has_type_tag(BaseTower.TYPE_TECHNOLOGY):
-		var network_stacks := get_owned_relic_count(&"network_upgrade")
-		if network_stacks > 0:
-			var network_speed_bonus := (
-				GameStats.NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK
-				* float(get_nearby_type_tower_count(
-					BaseTower.TYPE_TECHNOLOGY, BaseTower.BUILD_CELL_SIZE
-				))
-				* float(network_stacks)
-			)
-			stats[interval_key] = maxf(
-				float(stats[interval_key]) / (1.0 + network_speed_bonus), 0.01
-			)
 	if (
 		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
 		and get_effect_stack_count(&"relentless") > 0
@@ -267,12 +254,6 @@ func apply_effect_combat_stat_modifiers(
 			stats["slow_duration"] = maxf(
 				float(stats.get("slow_duration", 0.0)),
 				GameStats.SUPPRESSIVE_FIRE_DURATION
-			)
-		if get_owned_relic_count(&"rubber_bullets") > 0:
-			stats["bounce_count"] = maxi(int(stats.get("bounce_count", 0)), 1)
-			stats["bounce_range"] = maxf(
-				float(stats.get("bounce_range", 0.0)),
-				GameStats.RUBBER_BULLETS_BOUNCE_RANGE
 			)
 	if primary_type == BaseTower.DAMAGE_EXPLOSIVE:
 		stats[damage_key] = maxi(roundi(
@@ -370,18 +351,10 @@ func apply_effect_combat_stat_modifiers(
 	return stats
 
 
-func apply_relic_combat_stat_modifiers(
-	base_stats: Dictionary,
-	for_spawned_unit: bool
-) -> Dictionary:
-	return apply_effect_combat_stat_modifiers(base_stats, for_spawned_unit)
-
-
 func get_explosion_damage_multiplier() -> float:
 	return (
 		pow(GameStats.HIGH_YIELD_DAMAGE_MULTIPLIER, get_effect_stack_count(&"high_yield"))
 		* pow(GameStats.CONCENTRATED_CHARGE_DAMAGE_MULTIPLIER, get_effect_stack_count(&"concentrated_charge"))
-		* (GameStats.MAXIMUM_PAYLOAD_DAMAGE_MULTIPLIER if get_owned_relic_count(&"maximum_payload") > 0 else 1.0)
 	)
 
 
@@ -390,16 +363,11 @@ func get_explosion_radius_multiplier() -> float:
 		pow(GameStats.HIGH_YIELD_RADIUS_MULTIPLIER, get_effect_stack_count(&"high_yield"))
 		* pow(GameStats.CONCENTRATED_CHARGE_RADIUS_MULTIPLIER, get_effect_stack_count(&"concentrated_charge"))
 		* pow(GameStats.BLAST_GEL_RADIUS_MULTIPLIER, get_effect_stack_count(&"blast_gel"))
-		* (GameStats.MAXIMUM_PAYLOAD_RADIUS_MULTIPLIER if get_owned_relic_count(&"maximum_payload") > 0 else 1.0)
 	)
 
 
 func get_explosion_interval_multiplier() -> float:
-	return (
-		GameStats.MAXIMUM_PAYLOAD_INTERVAL_MULTIPLIER
-		if get_owned_relic_count(&"maximum_payload") > 0
-		else 1.0
-	)
+	return 1.0
 
 
 func get_sidebar_stats() -> Dictionary:
@@ -414,7 +382,6 @@ func get_sidebar_stats() -> Dictionary:
 		"type_tags": tower.type_tags.duplicate(),
 		"attack_tags": tower.damage_tags.duplicate(),
 		"bonus_tags": tower.bonus_tags.duplicate(),
-		"active_relic_effects": get_active_relic_effect_ids(),
 		"has_next_level": next_level < levels.size(),
 		"show_upgrade_info": (
 			tower.is_placed
@@ -437,82 +404,6 @@ func get_sidebar_stats() -> Dictionary:
 	if next_level < levels.size():
 		result["next_level"] = next_level
 	return result
-
-
-func get_active_relic_effect_ids() -> Array[StringName]:
-	var active: Array[StringName] = []
-	if tower.main == null or not tower.is_placed:
-		return active
-	var owned_value: Variant = tower.main.get("owned_shop_items")
-	if not owned_value is Dictionary:
-		return active
-	var owned_items: Dictionary = owned_value
-	for relic_key in owned_items:
-		var relic_id := StringName(relic_key)
-		if (
-			int(owned_items[relic_key]) > 0
-			and receives_relic_effect(relic_id)
-		):
-			active.append(relic_id)
-	active.sort()
-	return active
-
-
-func receives_relic_effect(relic_id: StringName) -> bool:
-	if not tower.is_placed:
-		return false
-	if relic_id in [&"singularity_core", &"perfect_mutation"]:
-		return tower.dual_path_relic_source == relic_id
-	if relic_id == &"trade_agreement":
-		return tower.uses_standard_spawner_system()
-
-	var category: StringName = GameStats.get_relic(relic_id)["category"]
-	match category:
-		&"technology":
-			if not tower.has_type_tag(BaseTower.TYPE_TECHNOLOGY):
-				return false
-			if relic_id == &"network_upgrade":
-				return get_nearby_type_tower_count(
-					BaseTower.TYPE_TECHNOLOGY,
-					BaseTower.BUILD_CELL_SIZE
-				) > 0
-			return true
-		&"biological":
-			return tower.has_type_tag(BaseTower.TYPE_BIOLOGICAL)
-		&"beam":
-			return tower.has_damage_tag(BaseTower.DAMAGE_BEAM)
-		&"ballistic":
-			return tower.has_damage_tag(BaseTower.DAMAGE_BALLISTIC)
-		&"melee":
-			if not tower.has_damage_tag(BaseTower.DAMAGE_MELEE):
-				return false
-			if relic_id == &"lone_wolf":
-				return not has_other_placed_tower_with_same_id()
-			if relic_id == &"strength_in_numbers":
-				return get_nearby_tower_count(
-					BaseTower.DAMAGE_MELEE,
-					1.5 * BaseTower.BUILD_CELL_SIZE
-				) > 0
-			return true
-		&"explosive":
-			return tower.has_damage_tag(BaseTower.DAMAGE_EXPLOSIVE)
-		&"electric":
-			return tower.has_damage_tag(BaseTower.DAMAGE_ELECTRIC)
-		&"critical":
-			return tower.has_bonus_tag(BaseTower.BONUS_CRITICAL)
-		&"psionic":
-			return tower.has_bonus_tag(BaseTower.BONUS_PSIONIC)
-		&"reveal":
-			return tower.has_bonus_tag(BaseTower.BONUS_REVEAL)
-		&"pierce":
-			return tower.has_bonus_tag(BaseTower.BONUS_PIERCE)
-		&"stun":
-			return tower.has_bonus_tag(BaseTower.BONUS_STUN)
-		&"spawner":
-			return tower.has_bonus_tag(BaseTower.BONUS_SPAWNER)
-		_:
-			# Global economy and roster relics do not modify a built tower.
-			return false
 
 
 func apply_path_stat_modifiers(base_stats: Dictionary) -> Dictionary:
@@ -582,18 +473,10 @@ func get_main_multiplier(effect: StringName) -> float:
 	return 1.0 + get_main_bonus(effect)
 
 
-func get_owned_relic_count(relic_id: StringName) -> int:
-	var count := 0
-	if tower.main != null and tower.main.has_method("get_relic_count"):
-		count = int(tower.main.get_relic_count(relic_id))
-	return count
-
-
 func get_effect_stack_count(effect_id: StringName) -> int:
-	var count := get_owned_relic_count(effect_id)
-	if tower.item_controller != null:
-		count += tower.item_controller.get_item_effect_count(effect_id)
-	return count
+	if tower.item_controller == null:
+		return 0
+	return tower.item_controller.get_item_effect_count(effect_id)
 
 
 func get_current_attack_interval() -> float:
@@ -724,13 +607,7 @@ func load_base_tags() -> void:
 	if tower.item_controller != null:
 		loaded_pierce_count += tower.item_controller.apply_tag_changes()
 	set_pierce_count(loaded_pierce_count)
-	if tower.has_bonus_tag(BaseTower.BONUS_PIERCE):
-		set_pierce_count(
-			tower.pierce_count + get_owned_relic_count(&"deep_penetration")
-		)
 	if tower.has_damage_tag(BaseTower.DAMAGE_BALLISTIC):
-		if get_owned_relic_count(&"armor_piercing") > 0:
-			set_pierce_count(tower.pierce_count + 1)
 		if get_effect_stack_count(&"experimental_munitions") > 0:
 			add_bonus_tag(BaseTower.BONUS_CRITICAL)
 

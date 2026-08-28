@@ -212,22 +212,6 @@ func invalidate_effect_metadata_cache() -> void:
 	cached_effect_metadata.clear()
 
 
-# Compatibility aliases for the dormant relic system and its existing tests.
-func get_attack_relic_metadata(
-	source_position: Vector2,
-	source_range: float,
-	source_type_tags: Array,
-	source_damage_tags: Array = []
-) -> Dictionary:
-	return get_attack_effect_metadata(
-		source_position, source_range, source_type_tags, source_damage_tags
-	)
-
-
-func invalidate_relic_metadata_cache() -> void:
-	invalidate_effect_metadata_cache()
-
-
 func count_valid_enemies_near(origin: Vector2, radius: float) -> int:
 	var count := 0
 	var radius_squared := radius * radius

@@ -9,9 +9,6 @@ var lives := 0
 var max_lives := 0
 var sandbox_mode := false
 var tower_roster: Array[StringName] = []
-var contraband_tower_id: StringName = &""
-var holiday_sale_tower_id: StringName = &""
-var owned_shop_items: Dictionary = {}
 var run_bonuses: Dictionary = {}
 var tower_item_inventory: Dictionary = {}
 var locked_tower_item_offers: Array[StringName] = []
@@ -23,9 +20,6 @@ func initialize(mode: Dictionary, is_sandbox: bool) -> void:
 	lives = int(mode.get("starting_lives", 0))
 	max_lives = lives
 	tower_roster.clear()
-	contraband_tower_id = &""
-	holiday_sale_tower_id = &""
-	owned_shop_items.clear()
 	run_bonuses.clear()
 	tower_item_inventory.clear()
 	locked_tower_item_offers.clear()
@@ -66,29 +60,6 @@ func restore_full_health() -> int:
 
 func get_draft_health_recovery(maximum_recovery: int) -> int:
 	return mini(maximum_recovery, maxi(max_lives - lives, 0))
-
-
-func collect_relic(item_id: StringName, quantity: int = 1) -> bool:
-	var item_stats: Dictionary = GameStats.get_relic(item_id)
-	for exclusive_id in item_stats.get("exclusive_with", []):
-		if int(owned_shop_items.get(StringName(exclusive_id), 0)) > 0:
-			return false
-	if (
-		not item_stats.get("stackable", false)
-		and int(owned_shop_items.get(item_id, 0)) > 0
-	):
-		return false
-	owned_shop_items[item_id] = (
-		int(owned_shop_items.get(item_id, 0))
-		+ maxi(quantity, 1)
-	)
-	return true
-
-
-func get_relic_count(relic_id: StringName) -> int:
-	if not bool(GameStats.get_relic(relic_id).get("enabled", true)):
-		return 0
-	return maxi(int(owned_shop_items.get(relic_id, 0)), 0)
 
 
 func get_run_bonus(effect: StringName) -> float:
@@ -166,8 +137,6 @@ func get_roster_base_tags() -> Array[StringName]:
 	var roster_tags: Array[StringName] = []
 	for tower_id in tower_roster:
 		append_tower_base_tags(roster_tags, tower_id)
-	if not contraband_tower_id.is_empty():
-		append_tower_base_tags(roster_tags, contraband_tower_id)
 	return roster_tags
 
 
@@ -180,54 +149,11 @@ func append_tower_base_tags(tags: Array[StringName], tower_id: StringName) -> vo
 				tags.append(typed_tag)
 
 
-func activate_contraband_blueprint(rng: RandomNumberGenerator) -> StringName:
-	if not contraband_tower_id.is_empty():
-		return contraband_tower_id
-	var available: Array[StringName] = []
-	for tower_id in GameStats.get_playable_tower_family_ids():
-		if not tower_roster.has(tower_id):
-			available.append(tower_id)
-	if available.is_empty():
-		return &""
-	contraband_tower_id = available[rng.randi_range(0, available.size() - 1)]
-	return contraband_tower_id
-
-
-func consume_contraband(tower_id: StringName) -> bool:
-	if tower_id != contraband_tower_id or contraband_tower_id.is_empty():
-		return false
-	contraband_tower_id = &""
-	return true
-
-
-func roll_holiday_sale_tower(rng: RandomNumberGenerator) -> StringName:
-	holiday_sale_tower_id = &""
-	if get_relic_count(&"holiday_sale") <= 0 or tower_roster.is_empty():
-		return &""
-	holiday_sale_tower_id = tower_roster[rng.randi_range(0, tower_roster.size() - 1)]
-	return holiday_sale_tower_id
-
-
-func get_sidebar_tower_id(slot_index: int, contraband_slot_index: int) -> StringName:
+func get_sidebar_tower_id(slot_index: int) -> StringName:
 	if slot_index >= 0 and slot_index < tower_roster.size():
 		return tower_roster[slot_index]
-	if slot_index == contraband_slot_index:
-		return contraband_tower_id
 	return &""
 
 
-func get_tower_build_cost(
-	tower_id: StringName,
-	is_contraband: bool,
-	_trade_agreement_tower_ids: Array[StringName]
-) -> int:
-	if is_contraband and tower_id == contraband_tower_id:
-		return 0
-	var cost := float(GameStats.get_tower(tower_id)["placement_cost"])
-	if get_relic_count(&"holiday_sale") > 0:
-		cost *= (
-			GameStats.HOLIDAY_SALE_DISCOUNT_MULTIPLIER
-			if tower_id == holiday_sale_tower_id
-			else GameStats.HOLIDAY_SALE_OTHER_COST_MULTIPLIER
-		)
-	return maxi(roundi(cost), 0)
+func get_tower_build_cost(tower_id: StringName) -> int:
+	return maxi(int(GameStats.get_tower(tower_id)["placement_cost"]), 0)

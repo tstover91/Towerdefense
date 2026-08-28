@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Immutable-by-convention ownership information carried by an attack.
 ## Damage values remain snapshotted by the attack objects themselves; metadata
-## is available for future relic-specific snapshots.
+## is available for item and status-effect snapshots.
 
 var root_tower_instance_id := 0
 var root_tower_type: StringName = &""

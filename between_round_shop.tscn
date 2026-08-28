@@ -81,7 +81,7 @@ vertical_alignment = 1
 
 [node name="SubtitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
 layout_mode = 2
-text = "Choose one relic"
+text = "Choose one tower family"
 horizontal_alignment = 1
 
 [node name="ShopCards" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
@@ -112,7 +112,7 @@ size_flags_stretch_ratio = 1.0
 
 [node name="OwnedItemsLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
 layout_mode = 2
-text = "Owned relics: None"
+text = "Current roster: None"
 horizontal_alignment = 1
 text_overrun_behavior = 3
 
@@ -141,4 +141,4 @@ text = "Recover 20 Health - $150"
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 disabled = true
-text = "Choose a Relic"
+text = "Choose a Tower Family"

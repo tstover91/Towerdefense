@@ -8,7 +8,7 @@ const COMMON_COLOR := Color(0.15, 0.85, 0.96)
 const UNCOMMON_COLOR := Color(0.35, 0.92, 0.42)
 const RARE_COLOR := Color(0.94, 0.27, 0.83)
 const LEGENDARY_COLOR := Color(1.0, 0.72, 0.16)
-const RELIC_RARITY_COLORS := {
+const RARITY_COLORS := {
 	&"common": COMMON_COLOR,
 	&"uncommon": UNCOMMON_COLOR,
 	&"rare": RARE_COLOR,
@@ -122,7 +122,7 @@ func _set_card_content_visible(is_visible: bool) -> void:
 
 
 func apply_rarity_style(rarity: StringName) -> void:
-	if not RELIC_RARITY_COLORS.has(rarity):
+	if not RARITY_COLORS.has(rarity):
 		add_theme_stylebox_override("panel", default_panel_style)
 		name_label.add_theme_color_override("font_color", default_name_color)
 		category_label.add_theme_color_override(
@@ -130,7 +130,7 @@ func apply_rarity_style(rarity: StringName) -> void:
 		)
 		owned_label.add_theme_color_override("font_color", default_owned_color)
 		return
-	var rarity_color: Color = RELIC_RARITY_COLORS[rarity]
+	var rarity_color: Color = RARITY_COLORS[rarity]
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = rarity_color.darkened(0.84)
 	panel_style.border_color = rarity_color

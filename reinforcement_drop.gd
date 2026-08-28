@@ -56,24 +56,11 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-func get_owned_relic_count(_relic_id: StringName) -> int:
-	return 0
-
-
 func get_effect_stack_count(_effect_id: StringName) -> int:
 	return 0
 
 
 func get_attack_effect_metadata(
-	_source_position: Vector2,
-	_source_range: float,
-	_source_type_tags: Array[StringName],
-	_source_damage_tags: Array = []
-) -> Dictionary:
-	return {}
-
-
-func get_attack_relic_metadata(
 	_source_position: Vector2,
 	_source_range: float,
 	_source_type_tags: Array[StringName],

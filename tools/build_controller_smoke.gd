@@ -15,10 +15,9 @@ class FakeTower:
 func _ready() -> void:
 	var controller = BuildControllerScript.new()
 
-	controller.begin_pending_tower(&"invader", 225, true)
+	controller.begin_pending_tower(&"invader", 225)
 	assert(controller.pending_tower_type == &"invader")
 	assert(controller.pending_tower_cost == 225)
-	assert(controller.pending_tower_is_contraband)
 
 	var tower := FakeTower.new()
 	add_child(tower)
@@ -82,7 +81,6 @@ func _ready() -> void:
 	assert(not controller.place_mode and not controller.build_mode)
 	assert(controller.pending_tower_type.is_empty())
 	assert(controller.pending_tower_cost == 0)
-	assert(not controller.pending_tower_is_contraband)
 
 	print("Build controller smoke test passed: state, snapping, bounds, occupancy, and targeting.")
 	get_tree().quit(0)

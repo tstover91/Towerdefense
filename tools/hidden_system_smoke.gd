@@ -4,7 +4,7 @@ const MOB_SCENE = preload("res://mob.tscn")
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const SPAWNED_UNIT_SCENE = preload("res://spawned_unit.tscn")
 const GameStats = preload("res://stat_database.gd")
-const RelicEffects = preload("res://relic_combat.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 
 
 class RelicOwner extends Node:
@@ -68,13 +68,13 @@ func run_checks() -> void:
 	assert(mob.health < starting_health)
 
 	mob.health = starting_health
-	var area_context := RelicEffects.prepare_explosion_context(
+	var area_context := AreaDamage.prepare_explosion_context(
 		AttackContext.legacy(&"slinger", &"explosion"),
 		self,
 		mob.global_position,
 		32.0
 	)
-	assert(RelicEffects.is_valid_explosion_target(mob, area_context))
+	assert(AreaDamage.is_valid_explosion_target(mob, area_context))
 	assert(mob.apply_damage_from_tower(
 		10, &"explosive", false, &"slinger", area_context
 	) > 0)

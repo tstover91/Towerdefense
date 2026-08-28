@@ -2,7 +2,7 @@ class_name FishermanMine
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
-const RelicEffects = preload("res://relic_combat.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const FISHERMAN_TOWER_ID: StringName = &"fisherman"
 const TARGET_SCAN_INTERVAL := 0.05
@@ -79,14 +79,14 @@ func detonate(from_chain_reaction := false) -> void:
 		return
 	detonating = true
 	spawn_explosion_zone()
-	var explosion_context := RelicEffects.prepare_explosion_context(
+	var explosion_context := AreaDamage.prepare_explosion_context(
 		attack_context,
 		get_tree(),
 		global_position,
 		explosion_radius
 	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
-		if not RelicEffects.is_valid_explosion_target(mob, explosion_context):
+		if not AreaDamage.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_from_center: float = global_position.distance_to(
 			mob.global_position

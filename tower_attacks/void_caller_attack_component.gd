@@ -58,7 +58,7 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 
 
 func finalize_path_behaviors() -> void:
-	_apply_relic_modifiers()
+	_apply_item_effect_modifiers()
 	if singularity_enabled:
 		singularity_remaining = (
 			minf(previous_singularity_remaining, singularity_cooldown)
@@ -70,7 +70,7 @@ func finalize_path_behaviors() -> void:
 	previous_singularity_remaining = 0.0
 
 
-func _apply_relic_modifiers() -> void:
+func _apply_item_effect_modifiers() -> void:
 	if not singularity_enabled:
 		return
 	if tower.has_bonus_tag(BaseTower.BONUS_PSIONIC):

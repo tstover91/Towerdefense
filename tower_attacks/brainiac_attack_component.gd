@@ -113,7 +113,7 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 
 
 func finalize_path_behaviors() -> void:
-	_apply_relic_modifiers()
+	_apply_item_effect_modifiers()
 	if psionic_link_enabled:
 		link_cooldown_remaining = minf(previous_link_cooldown, link_cooldown)
 	else:
@@ -126,7 +126,7 @@ func finalize_path_behaviors() -> void:
 		clear_temporal_bubble()
 
 
-func _apply_relic_modifiers() -> void:
+func _apply_item_effect_modifiers() -> void:
 	if not psionic_link_enabled:
 		return
 	var lingering_count := tower.get_effect_stack_count(&"lingering_thoughts")

@@ -12,19 +12,16 @@ var tower_to_place: Node2D
 var manual_targeting_tower: Node2D
 var pending_tower_type: StringName = &""
 var pending_tower_cost := 0
-var pending_tower_is_contraband := false
 
 var occupied_build_cells: Dictionary = {}
 
 
 func begin_pending_tower(
 	tower_id: StringName,
-	cost: int,
-	is_contraband: bool
+	cost: int
 ) -> void:
 	pending_tower_type = tower_id
 	pending_tower_cost = cost
-	pending_tower_is_contraband = is_contraband
 
 
 func begin_placement(tower: Node2D) -> void:
@@ -44,7 +41,6 @@ func clear_pending_placement() -> Node2D:
 	tower_to_place = null
 	pending_tower_type = &""
 	pending_tower_cost = 0
-	pending_tower_is_contraband = false
 	return pending_tower
 
 
