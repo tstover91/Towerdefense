@@ -255,6 +255,12 @@ func notify_damage_dealt(
 			"trigger_effects", {}
 		)
 		if (
+			damage_type != &"electric"
+			and int(effects.get("contributes_electric_hits", 0)) > 0
+			and enemy.has_method("register_electric_hit")
+		):
+			enemy.register_electric_hit(actual_damage, attack_context)
+		if (
 			damage_type == &"electric"
 			and float(effects.get("temporary_armor_reduction", 0.0)) > 0.0
 			and enemy.has_method("apply_temporary_armor_reduction")
@@ -305,16 +311,6 @@ func notify_damage_dealt(
 				_trigger_hit_explosion(
 					slot_index, item_id, enemy, actual_damage, attack_context, effects
 				)
-		var hits_per_arc := maxi(int(effects.get("hits_per_arc", 0)), 0)
-		if hits_per_arc > 0:
-			var state := _get_slot_runtime_state(slot_index)
-			state["hit_count"] = int(state.get("hit_count", 0)) + 1
-			if int(state["hit_count"]) >= hits_per_arc:
-				state["hit_count"] = 0
-				for _copy_index in item_counts[slot_index]:
-					_trigger_live_wire(
-						slot_index, item_id, enemy, actual_damage, attack_context, effects
-					)
 
 
 func notify_enemy_killed(_enemy: Node, attack_context: AttackContext) -> void:
@@ -527,47 +523,6 @@ func _trigger_hit_explosion(
 			&"explosive",
 			false,
 			proc_context
-		)
-
-
-func _trigger_live_wire(
-	slot_index: int,
-	item_id: StringName,
-	original_enemy: Node,
-	actual_damage: int,
-	attack_context: AttackContext,
-	effects: Dictionary
-) -> void:
-	if not is_instance_valid(original_enemy) or not original_enemy is Node2D:
-		return
-	var maximum_range := maxf(
-		float(effects.get("arc_range", 0.0)) * BaseTower.RANGE_PIXELS_PER_UNIT,
-		0.0
-	)
-	var candidates: Array[Node2D] = []
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
-		if (
-			candidate == original_enemy
-			or not tower.is_valid_target(candidate)
-			or original_enemy.global_position.distance_to(candidate.global_position)
-			> maximum_range
-		):
-			continue
-		candidates.append(candidate)
-	candidates.sort_custom(func(a: Node2D, b: Node2D) -> bool:
-		return original_enemy.global_position.distance_squared_to(a.global_position) < original_enemy.global_position.distance_squared_to(b.global_position)
-	)
-	var arc_damage := maxi(roundi(
-		float(actual_damage) * float(effects.get("arc_damage_multiplier", 0.0))
-	), 1)
-	var proc_context := _make_proc_context(
-		attack_context, slot_index, item_id, &"item_live_wire"
-	)
-	for target_index in mini(
-		candidates.size(), maxi(int(effects.get("arc_target_count", 0)), 0)
-	):
-		tower.apply_tower_damage(
-			candidates[target_index], arc_damage, &"electric", false, proc_context
 		)
 
 

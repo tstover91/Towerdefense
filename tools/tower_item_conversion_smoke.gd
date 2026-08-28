@@ -27,12 +27,57 @@ class FakeMain:
 		pass
 
 
+class FakeElectricTarget:
+	extends Node
+	var registered_hits := 0
+	var registered_damage := 0
+
+	func register_electric_hit(
+		received_damage: int,
+		_attack_context: AttackContext
+	) -> void:
+		registered_hits += 1
+		registered_damage += received_damage
+
+
 func _ready() -> void:
 	call_deferred("run_test")
 
 
 func run_test() -> void:
 	var item_ids := GameStats.get_tower_item_ids()
+	var price_bands := {
+		&"common": Vector2i(350, 500),
+		&"uncommon": Vector2i(550, 750),
+		&"rare": Vector2i(800, 1000),
+		&"legendary": Vector2i(1400, 1700),
+	}
+	var rarity_counts := {
+		&"common": 0,
+		&"uncommon": 0,
+		&"rare": 0,
+		&"legendary": 0,
+	}
+	for item_id in item_ids:
+		var catalog_item := GameStats.get_tower_item(item_id)
+		var rarity := StringName(catalog_item.get("rarity", &""))
+		assert(price_bands.has(rarity), "%s has an invalid rarity." % item_id)
+		var price := int(catalog_item.get("price", 0))
+		var price_band: Vector2i = price_bands[rarity]
+		assert(
+			price >= price_band.x and price <= price_band.y,
+			"%s price %d is outside the %s band." % [item_id, price, rarity]
+		)
+		var max_copies := int(catalog_item.get("max_copies_per_tower", 0))
+		assert(
+			max_copies == 1 or max_copies == GameStats.TOWER_ITEM_SLOT_COUNT,
+			"%s must be single-copy or stack to the slot cap." % item_id
+		)
+		rarity_counts[rarity] = int(rarity_counts[rarity]) + 1
+	assert(rarity_counts[&"common"] == 18)
+	assert(rarity_counts[&"uncommon"] == 20)
+	assert(rarity_counts[&"rare"] == 15)
+	assert(rarity_counts[&"legendary"] == 3)
 	for held_id in [
 		&"network_upgrade",
 		&"pack_hunter",
@@ -65,11 +110,16 @@ func run_test() -> void:
 
 	assert(GameStats.has_tower_item(&"long_barrel"))
 	assert(GameStats.get_tower_item(&"penetrator_rounds")["rarity"] == &"uncommon")
-	assert(GameStats.get_tower_item(&"interference_beam")["rarity"] == &"rare")
+	assert(GameStats.get_tower_item(&"interference_beam")["rarity"] == &"uncommon")
 	assert(GameStats.get_tower_item(&"death_ray")["rarity"] == &"legendary")
 	assert(GameStats.get_tower_item(&"ricochet_module")["rarity"] == &"uncommon")
 	assert(GameStats.get_tower_item(&"split_chamber")["rarity"] == &"uncommon")
-	assert(GameStats.get_tower_item(&"explosive_payload")["rarity"] == &"rare")
+	assert(GameStats.get_tower_item(&"explosive_payload")["rarity"] == &"uncommon")
+	assert(GameStats.get_tower_item(&"live_wire")["rarity"] == &"uncommon")
+	assert(GameStats.get_tower_item(&"afterimage_round")["rarity"] == &"uncommon")
+	assert(GameStats.get_tower_item(&"pressure_point")["rarity"] == &"uncommon")
+	assert(GameStats.get_tower_item(&"follow_through")["rarity"] == &"uncommon")
+	assert(GameStats.get_tower_item(&"giant_killer")["rarity"] == &"uncommon")
 	assert(not GameStats.get_tower_item(&"heavy_rounds").has("exclusive_with"))
 	assert(not GameStats.get_tower_item(&"lightweight_ammo").has("exclusive_with"))
 	for approved_item_id in [
@@ -153,6 +203,38 @@ func run_test() -> void:
 	assert(scanner_tower.has_bonus_tag(BaseTower.BONUS_REVEAL))
 	assert(scanner_tower.equip_item(&"perfect_intelligence"))
 
+	var payload_tower := await _create_tower(fake_main, &"slinger")
+	assert(payload_tower.equip_item(&"explosive_payload"))
+	assert(payload_tower.has_bonus_tag(&"explosive"))
+	assert(payload_tower.can_equip_item(&"blast_gel"))
+
+	var live_wire_tower := await _create_tower(fake_main, &"invader")
+	assert(live_wire_tower.equip_item(&"live_wire"))
+	assert(live_wire_tower.has_bonus_tag(&"electric"))
+	assert(live_wire_tower.can_equip_item(&"conductive"))
+	assert(live_wire_tower.equip_item(&"overcharged_capacitor"))
+	var live_wire_effects := live_wire_tower.get_attack_effect_metadata(
+		live_wire_tower.global_position,
+		live_wire_tower.range_radius_pixels,
+		live_wire_tower.type_tags,
+		live_wire_tower.damage_tags
+	)
+	assert(int(live_wire_effects.get("overcharged_capacitor", 0)) == 1)
+	var electric_target := FakeElectricTarget.new()
+	add_child(electric_target)
+	var live_wire_context := AttackContext.from_tower(live_wire_tower)
+	live_wire_tower.item_controller.notify_damage_dealt(
+		electric_target, 100, live_wire_context, &"ballistic"
+	)
+	assert(electric_target.registered_hits == 1)
+	assert(electric_target.registered_damage == 100)
+	# Native Electric damage is registered by the enemy itself; Live Wire must
+	# not add a duplicate contribution.
+	live_wire_tower.item_controller.notify_damage_dealt(
+		electric_target, 100, live_wire_context, &"electric"
+	)
+	assert(electric_target.registered_hits == 1)
+
 	var depot := await _create_tower(fake_main, &"dronedepot")
 	var base_unit_damage := int(
 		depot.get_current_effective_stats()["unit_stats"]["damage"]
@@ -223,7 +305,7 @@ func run_test() -> void:
 	assert(is_equal_approx(float(blueprint_stats["damage_budget"]), 375.0))
 	assert(bool(blueprint_stats["replicated_unit"]))
 
-	print("Tower item conversion smoke test passed: approved pool, compatibility, stacking, XP items, Patient Hunter, spawn variants, scoped effects, tags, and Spawner behavior.")
+	print("Tower item conversion smoke test passed: catalog rarity, pricing, stacking, compatibility, XP items, Patient Hunter, spawn variants, scoped effects, tags, and Spawner behavior.")
 	get_tree().quit(0)
 
 
