@@ -98,8 +98,38 @@ func run_test() -> void:
 		projectile.queue_free()
 	await get_tree().process_frame
 
-	assert(GameStats.get_tower_evolutions(&"orbitalcannon").size() == 2)
+	assert(GameStats.get_tower_evolutions(&"orbitalcannon").size() == 3)
+	tower.purchased_paths.assign([&"c"])
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(component.atomic_strike_enabled)
+	assert(not component.solar_lance_enabled)
+	assert(not component.bombardment_enabled)
+	assert(tower.has_damage_tag(&"radiation"))
+	assert(is_equal_approx(tower.loaded_attack_interval, 11.2))
+	mob.max_health = 100_000
+	mob.health = 100_000
+	component.target_position = mob.global_position
+	component.has_target_position = true
+	component.execute_manual_attack()
+	assert(mob.health < 100_000, "Atomic Strike must deal a large initial explosion.")
+	assert(mob.get_radiation_stacks() == 10, "Atomic Strike survivors must receive heavy Radiation.")
+	assert(component.active_fallout_zones.size() == 1)
+	var fallout = component.active_fallout_zones[0]
+	fallout.apply_fallout()
+	assert(mob.get_radiation_stacks() == 11, "Fallout must repeatedly add Radiation inside the blast area.")
+	component.clear_fallout_zones()
+	assert(component.active_fallout_zones.is_empty())
+
 	_level_to_mastery(tower)
+	tower.load_base_tags()
+	tower.load_level_stats()
+	assert(component.atomic_strike_enabled)
+	assert(component.atomic_radiation_stacks == 12)
+	assert(is_equal_approx(component.fallout_duration, 10.0))
+	assert(is_equal_approx(component.fallout_application_interval, 0.75))
+
+	tower.purchased_paths.assign([&"b"])
 	tower.load_base_tags()
 	tower.load_level_stats()
 	assert(component.bombardment_enabled)
@@ -113,7 +143,7 @@ func run_test() -> void:
 	assert(is_equal_approx(component.solar_lance_duration, 2.0))
 	assert(is_equal_approx(component.solar_lance_tick_damage_multiplier, 0.30))
 	assert(is_equal_approx(component.solar_lance_tick_end_damage_multiplier, 0.65))
-	print("Orbital Cannon smoke test passed: both evolutions, manual targeting, and Level 20 capstones.")
+	print("Orbital Cannon smoke test passed: three evolutions, Atomic Strike/Fallout, manual targeting, and Level 20 capstones.")
 	get_tree().quit(0)
 
 

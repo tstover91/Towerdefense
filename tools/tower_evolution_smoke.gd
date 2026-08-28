@@ -64,8 +64,8 @@ func run_test() -> void:
 	):
 		return
 	if not _check(
-		GameStats.get_tower_evolutions(&"orbitalcannon").size() == 2,
-		"Orbital Cannon did not expose both pilot evolutions."
+		GameStats.get_tower_evolutions(&"orbitalcannon").size() == 3,
+		"Orbital Cannon did not expose all three evolutions."
 	):
 		return
 

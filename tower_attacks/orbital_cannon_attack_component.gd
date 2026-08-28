@@ -3,6 +3,7 @@ extends TowerAttackComponent
 
 const GameStats = preload("res://stat_database.gd")
 const SOLAR_LANCE_SCENE = preload("res://solar_lance.tscn")
+const FALLOUT_ZONE_SCENE = preload("res://fallout_zone.tscn")
 
 var minimum_range_pixels := 0.0
 var has_target_position := false
@@ -22,7 +23,17 @@ var bombardment_stagger := 0.15
 var bombardment_spread_radius_pixels := 0.0
 var bombardment_damage_multiplier := 0.38
 var bombardment_radius_multiplier := 0.70
+var atomic_strike_enabled := false
+var atomic_damage_multiplier := 4.0
+var atomic_blast_radius_multiplier := 1.35
+var atomic_radiation_stacks := 10
+var atomic_radiation_damage_multiplier := 0.04
+var fallout_radius_multiplier := 1.15
+var fallout_duration := 8.0
+var fallout_application_interval := 1.0
+var fallout_stacks_per_application := 1
 var active_solar_lances: Array[Node] = []
+var active_fallout_zones: Array[Node] = []
 
 
 func uses_manual_ground_targeting() -> bool:
@@ -50,6 +61,15 @@ func reset_path_behaviors() -> void:
 	bombardment_spread_radius_pixels = 0.0
 	bombardment_damage_multiplier = 0.38
 	bombardment_radius_multiplier = 0.70
+	atomic_strike_enabled = false
+	atomic_damage_multiplier = 4.0
+	atomic_blast_radius_multiplier = 1.35
+	atomic_radiation_stacks = 10
+	atomic_radiation_damage_multiplier = 0.04
+	fallout_radius_multiplier = 1.15
+	fallout_duration = 8.0
+	fallout_application_interval = 1.0
+	fallout_stacks_per_application = 1
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
@@ -87,6 +107,30 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 		)
 		bombardment_radius_multiplier = maxf(
 			float(values.get("bombardment_radius_multiplier", 0.70)), 0.0
+		)
+	if flags.get("orbital_atomic_strike", false):
+		atomic_strike_enabled = true
+		atomic_damage_multiplier = maxf(
+			float(values.get("atomic_damage_multiplier", 4.0)), 0.0
+		)
+		atomic_blast_radius_multiplier = maxf(
+			float(values.get("atomic_blast_radius_multiplier", 1.35)), 0.1
+		)
+		atomic_radiation_stacks = maxi(
+			int(values.get("atomic_radiation_stacks", 10)), 1
+		)
+		atomic_radiation_damage_multiplier = maxf(
+			float(values.get("atomic_radiation_damage_multiplier", 0.04)), 0.0
+		)
+		fallout_radius_multiplier = maxf(
+			float(values.get("fallout_radius_multiplier", 1.15)), 0.1
+		)
+		fallout_duration = maxf(float(values.get("fallout_duration", 8.0)), 0.1)
+		fallout_application_interval = maxf(
+			float(values.get("fallout_application_interval", 1.0)), 0.05
+		)
+		fallout_stacks_per_application = maxi(
+			int(values.get("fallout_stacks_per_application", 1)), 1
 		)
 
 
@@ -205,6 +249,8 @@ func has_manual_attack_opportunity() -> bool:
 	if not tower.is_combat_active() or not has_target_position:
 		return false
 	var activation_radius := tower.splash_radius_pixels
+	if atomic_strike_enabled:
+		activation_radius *= atomic_blast_radius_multiplier
 	if solar_lance_enabled:
 		activation_radius = BaseTower.BUILD_CELL_SIZE
 	if bombardment_enabled:
@@ -257,6 +303,9 @@ func _resolve_strike(
 ) -> void:
 	if not tower.is_placed or not tower.is_combat_active():
 		return
+	if atomic_strike_enabled:
+		_resolve_atomic_strike(strike_position, strike_damage, strike_radius)
+		return
 	if solar_lance_enabled:
 		_spawn_solar_lance(strike_position, strike_damage)
 		return
@@ -268,6 +317,79 @@ func _resolve_strike(
 		strike_damage,
 		strike_radius
 	)
+
+
+func _resolve_atomic_strike(
+	strike_position: Vector2,
+	strike_damage: int,
+	strike_radius: float
+) -> void:
+	var blast_radius := strike_radius * atomic_blast_radius_multiplier
+	var blast_damage := maxi(
+		roundi(float(strike_damage) * atomic_damage_multiplier), 1
+	)
+	var radiation_damage := maxi(
+		roundi(float(strike_damage) * atomic_radiation_damage_multiplier), 1
+	)
+	var blast_context := tower.create_attack_context(
+		&"atomic_strike", tower, &"tower", null, false, true
+	)
+	blast_context.metadata["area_damage"] = true
+	blast_context.metadata["atomic_strike"] = true
+	for mob in tower.get_tree().get_nodes_in_group("mobs"):
+		if not tower.is_valid_area_target(mob):
+			continue
+		var distance: float = mob.global_position.distance_to(strike_position)
+		if distance > blast_radius:
+			continue
+		var damage := GameStats.get_explosion_damage(
+			blast_damage, distance, blast_radius
+		)
+		tower.apply_tower_damage(mob, damage, &"explosive", false, blast_context)
+		if (
+			is_instance_valid(mob)
+			and not bool(mob.get("finished"))
+			and mob.has_method("apply_radiation")
+		):
+			mob.apply_radiation(
+				atomic_radiation_stacks,
+				radiation_damage,
+				blast_context.derive(
+					tower, &"tower", &"atomic_radiation", true,
+					{"atomic_strike": true}
+				),
+				1.0
+			)
+	_spawn_fallout_zone(
+		strike_position,
+		blast_radius * fallout_radius_multiplier,
+		radiation_damage,
+		blast_context
+	)
+
+
+func _spawn_fallout_zone(
+	strike_position: Vector2,
+	radius: float,
+	radiation_damage: int,
+	parent_context: AttackContext
+) -> void:
+	if FALLOUT_ZONE_SCENE == null or tower.get_tree().current_scene == null:
+		return
+	var fallout := FALLOUT_ZONE_SCENE.instantiate() as Node2D
+	tower.get_tree().current_scene.add_child(fallout)
+	fallout.global_position = strike_position
+	fallout.setup(
+		tower,
+		radius,
+		fallout_duration,
+		fallout_application_interval,
+		fallout_stacks_per_application,
+		radiation_damage,
+		parent_context
+	)
+	fallout.finished.connect(_on_fallout_finished)
+	active_fallout_zones.append(fallout)
 
 
 func _spawn_solar_lance(strike_position: Vector2, strike_damage: int) -> void:
@@ -304,12 +426,18 @@ func _on_solar_lance_finished(lance: Node2D) -> void:
 	active_solar_lances.erase(lance)
 
 
+func _on_fallout_finished(fallout: Node2D) -> void:
+	active_fallout_zones.erase(fallout)
+
+
 func on_round_ended() -> void:
 	clear_solar_lances()
+	clear_fallout_zones()
 
 
 func _exit_tree() -> void:
 	clear_solar_lances()
+	clear_fallout_zones()
 
 
 func clear_solar_lances() -> void:
@@ -317,3 +445,10 @@ func clear_solar_lances() -> void:
 		if is_instance_valid(lance):
 			lance.queue_free()
 	active_solar_lances.clear()
+
+
+func clear_fallout_zones() -> void:
+	for fallout in active_fallout_zones:
+		if is_instance_valid(fallout):
+			fallout.queue_free()
+	active_fallout_zones.clear()
