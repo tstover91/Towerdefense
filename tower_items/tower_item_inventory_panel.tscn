@@ -3,67 +3,73 @@
 [ext_resource type="Script" path="res://tower_items/tower_item_inventory_panel.gd" id="1_panel"]
 
 [node name="TowerItemInventoryPanel" type="PanelContainer"]
-custom_minimum_size = Vector2(260, 0)
+custom_minimum_size = Vector2(300, 300)
 script = ExtResource("1_panel")
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 2
 theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 8
+theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_bottom = 10
 
 [node name="Content" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 7
 
 [node name="Header" type="Label" parent="Margin/Content"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "GLOBAL ITEM INVENTORY"
+text = "ITEM INVENTORY"
 horizontal_alignment = 1
 
-[node name="Selectors" type="VBoxContainer" parent="Margin/Content"]
+[node name="InstructionLabel" type="Label" parent="Margin/Content"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_colors/font_color = Color(0.72, 0.74, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+text = "Select an item, then click a tower or one of its slots."
+horizontal_alignment = 1
+autowrap_mode = 2
 
-[node name="InventoryOption" type="OptionButton" parent="Margin/Content/Selectors"]
-custom_minimum_size = Vector2(0, 34)
+[node name="GridScroll" type="ScrollContainer" parent="Margin/Content"]
+custom_minimum_size = Vector2(0, 154)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ItemGrid" type="GridContainer" parent="Margin/Content/GridScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-text_overrun_behavior = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 4
 
-[node name="TowerOption" type="OptionButton" parent="Margin/Content/Selectors"]
-custom_minimum_size = Vector2(0, 34)
+[node name="EmptyLabel" type="Label" parent="Margin/Content"]
+visible = false
 layout_mode = 2
-size_flags_horizontal = 3
-text_overrun_behavior = 3
+text = "Inventory Empty"
+horizontal_alignment = 1
 
-[node name="SlotOption" type="OptionButton" parent="Margin/Content/Selectors"]
-custom_minimum_size = Vector2(0, 34)
+[node name="SelectedName" type="Label" parent="Margin/Content"]
 layout_mode = 2
-size_flags_horizontal = 3
-text_overrun_behavior = 3
+theme_override_font_sizes/font_size = 14
+text = "No item selected"
+horizontal_alignment = 1
 
-[node name="Actions" type="HBoxContainer" parent="Margin/Content"]
+[node name="SelectedDescription" type="Label" parent="Margin/Content"]
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="EquipButton" type="Button" parent="Margin/Content/Actions"]
-custom_minimum_size = Vector2(0, 38)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Equip / Swap"
-
-[node name="UnequipButton" type="Button" parent="Margin/Content/Actions"]
-custom_minimum_size = Vector2(0, 38)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Return to Inventory"
+theme_override_colors/font_color = Color(0.78, 0.80, 0.73, 1)
+theme_override_font_sizes/font_size = 11
+text = "Choose an item from the grid."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="StatusLabel" type="Label" parent="Margin/Content"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Select an item, tower, and slot."
+theme_override_colors/font_color = Color(0.62, 0.82, 0.44, 1)
+theme_override_font_sizes/font_size = 11
+text = ""
 horizontal_alignment = 1
 autowrap_mode = 2

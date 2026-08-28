@@ -549,19 +549,24 @@ func _configure_minimal_hud() -> void:
 	round_timer_display.add_theme_font_size_override("font_size", 12)
 
 	var edge_buttons := $MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons
-	enemy_toggle_button.reparent(edge_buttons)
 	edge_buttons.move_child(pause_button, 0)
 	edge_buttons.move_child(speed_button, 1)
+	enemy_toggle_button.reparent(hud_root)
+	enemy_toggle_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	enemy_toggle_button.offset_left = -80.0
+	enemy_toggle_button.offset_top = 52.0
+	enemy_toggle_button.offset_right = -8.0
+	enemy_toggle_button.offset_bottom = 90.0
 	enemy_toggle_button.text = "Enemies"
-	enemy_toggle_button.custom_minimum_size = Vector2(64.0, 40.0)
+	enemy_toggle_button.custom_minimum_size = Vector2(72.0, 38.0)
 	var edge_controls := $MainUI/HUDRoot/EdgeControls as PanelContainer
-	edge_controls.offset_left = -164.0
+	edge_controls.offset_left = -104.0
 
 	enemy_strip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	enemy_strip.offset_left = -446.0
-	enemy_strip.offset_top = 56.0
+	enemy_strip.offset_top = 96.0
 	enemy_strip.offset_right = -12.0
-	enemy_strip.offset_bottom = 126.0
+	enemy_strip.offset_bottom = 166.0
 	var enemy_content := enemy_strip.get_node("EnemyStripContent")
 	enemy_info_panel.reparent(hud_root)
 	enemy_info_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -571,6 +576,7 @@ func _configure_minimal_hud() -> void:
 	enemy_info_panel.offset_bottom = -12.0
 	if enemy_content.has_node("IntelTitle"):
 		enemy_content.get_node("IntelTitle").hide()
+	relic_strip.hide()
 
 	sidebar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	sidebar.offset_left = 12.0
@@ -1129,6 +1135,30 @@ func update_tower_item_controls(tower: Node) -> void:
 
 func _on_tower_item_slot_pressed(slot_index: int) -> void:
 	if not is_instance_valid(displayed_tower):
+		return
+	var item_id: StringName = (
+		tower_item_inventory_panel.get_selected_inventory_item_id()
+	)
+	if tower_item_inventory_panel.visible and not item_id.is_empty():
+		if displayed_tower.item_controller.can_equip_or_swap_item(
+			item_id, slot_index
+		):
+			equip_inventory_item_to_tower(item_id, displayed_tower, slot_index)
+			tower_item_inventory_panel.set_status(
+				"Equipped to %s slot %d." % [
+					tower_name_label.text, slot_index + 1
+				]
+			)
+			_on_inventory_item_selected(
+				tower_item_inventory_panel.get_selected_inventory_item_id()
+			)
+		else:
+			var reason: String = displayed_tower.item_controller.get_incompatibility_reason(
+				item_id, slot_index
+			)
+			tower_item_inventory_panel.set_status(
+				reason if not reason.is_empty() else "That item cannot use this slot."
+			)
 		return
 	tower_item_inventory_panel.open_for_tower_slot(displayed_tower, slot_index)
 	inventory_button.button_pressed = true
@@ -1689,7 +1719,7 @@ func update_compact_hud_strip_layout() -> void:
 	relic_info_panel.offset_right = info_right
 	enemy_strip.visible = enemy_strip_expanded and not enemy_hud_buttons.is_empty()
 	enemy_toggle_button.visible = not enemy_hud_buttons.is_empty()
-	relic_strip.show()
+	relic_strip.hide()
 
 
 func refresh_relic_hud() -> void:
