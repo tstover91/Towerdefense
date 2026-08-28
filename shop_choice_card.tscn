@@ -18,10 +18,16 @@ theme_override_constants/margin_bottom = 10
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="NameLabel" type="Label" parent="MarginContainer/CardLayout"]
-custom_minimum_size = Vector2(0, 46)
+[node name="Portrait" type="TextureRect" parent="MarginContainer/CardLayout"]
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+expand_mode = 1
+stretch_mode = 5
+
+[node name="NameLabel" type="Label" parent="MarginContainer/CardLayout"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
 text = "Item Name"
 horizontal_alignment = 1
 vertical_alignment = 1

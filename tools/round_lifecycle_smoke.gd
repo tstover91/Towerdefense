@@ -40,13 +40,15 @@ func run_test() -> void:
 	var main_column := gameplay.between_round_shop.get_node(
 		"InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"
 	) as Control
-	for control in [shop_panel, continue_button, inventory_panel]:
+	for control in [shop_panel, continue_button]:
 		var control_rect: Rect2 = control.get_global_rect()
 		assert(control_rect.position.x >= 0.0)
 		assert(control_rect.position.y >= 0.0)
 		assert(control_rect.end.x <= viewport_size.x)
 		assert(control_rect.end.y <= viewport_size.y)
-	assert(inventory_panel.get_global_rect().position.x >= main_column.get_global_rect().end.x)
+	assert(not inventory_panel.visible)
+	assert(gameplay.between_round_shop.health_label.visible)
+	assert(gameplay.between_round_shop.money_label.visible)
 	for card in gameplay.between_round_shop.cards:
 		var name_label := card.name_label as Label
 		assert(name_label.autowrap_mode != TextServer.AUTOWRAP_OFF)
@@ -61,8 +63,15 @@ func run_test() -> void:
 	assert(gameplay.item_shop_manager.offers[0].is_empty())
 	assert(gameplay.run_state.get_tower_item_count(purchased_item_id) == 1)
 	assert(gameplay.money == money_before_purchase - purchase_price)
+	for child in gameplay.between_round_shop.cards[0].get_node(
+		"MarginContainer/CardLayout"
+	).get_children():
+		assert(not child.visible, "A purchased offer slot was not visually empty.")
 	gameplay._on_item_lock_toggled(1)
 	assert(not gameplay.run_state.locked_tower_item_offers.is_empty())
+	gameplay._on_item_lock_toggled(2)
+	assert(gameplay.item_shop_manager.locked_slots.count(true) == 1)
+	assert(gameplay.item_shop_manager.locked_slots[2])
 	gameplay._on_item_shop_closed()
 	assert(not gameplay.shop_open)
 	assert(gameplay.round_controller.phase == RoundControllerScript.PHASE_BUILD)

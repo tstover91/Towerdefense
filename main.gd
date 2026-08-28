@@ -2630,7 +2630,9 @@ func open_item_shop() -> void:
 		item_shop_manager.get_reroll_cost(),
 		health_recovery,
 		health_cost,
-		health_recovery > 0 and (sandbox_mode or money >= health_cost)
+		health_recovery > 0 and (sandbox_mode or money >= health_cost),
+		lives,
+		max_lives
 	)
 
 
@@ -2769,7 +2771,10 @@ func open_between_round_draft(
 		choice_quantities,
 		health_recovery,
 		health_cost,
-		health_recovery > 0 and (sandbox_mode or money >= health_cost)
+		health_recovery > 0 and (sandbox_mode or money >= health_cost),
+		lives,
+		max_lives,
+		money
 	)
 
 
@@ -2815,7 +2820,9 @@ func _on_draft_health_requested() -> void:
 	draft_health_purchased = true
 	run_state.restore_health(health_recovery)
 	update_lives()
-	between_round_shop.mark_health_purchased(health_recovery)
+	between_round_shop.mark_health_purchased(
+		health_recovery, lives, max_lives
+	)
 	refresh_item_shop_view()
 
 

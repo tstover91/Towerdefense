@@ -128,6 +128,7 @@ func set_locked_tower_item_offers(item_ids: Array[StringName]) -> void:
 			and not locked_tower_item_offers.has(item_id)
 		):
 			locked_tower_item_offers.append(item_id)
+			break
 
 
 func set_tower_roster(tower_ids: Array[StringName]) -> void:

@@ -14,6 +14,8 @@ const DRAFT_ITEM: StringName = &"item"
 
 @onready var title_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/TitleLabel
 @onready var subtitle_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/SubtitleLabel
+@onready var health_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/StatusRow/HealthLabel
+@onready var money_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/StatusRow/MoneyLabel
 @onready var owned_items_label: Label = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/OwnedItemsLabel
 @onready var health_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HealthButton
 @onready var reroll_button: Button = $InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopActions/RerollButton
@@ -57,7 +59,10 @@ func open_draft(
 	choice_quantities: Dictionary = {},
 	health_recovery := 0,
 	health_cost := 0,
-	can_buy_health := false
+	can_buy_health := false,
+	current_health := 0,
+	maximum_health := 0,
+	current_money := 0
 ) -> void:
 	assert(
 		offers.size() <= cards.size(),
@@ -68,6 +73,7 @@ func open_draft(
 	active_draft_type = draft_type
 	reroll_button.hide()
 	inventory_panel.hide()
+	update_player_status(current_health, maximum_health, current_money)
 	health_button.visible = draft_type != DRAFT_TOWER
 	var choice_name := "tower" if draft_type == DRAFT_TOWER else "relic"
 	title_label.text = "%s Draft - Round %d Complete" % [
@@ -111,7 +117,9 @@ func open_item_shop(
 	reroll_cost: int,
 	health_recovery: int,
 	health_cost: int,
-	can_buy_health: bool
+	can_buy_health: bool,
+	current_health := 0,
+	maximum_health := 0
 ) -> void:
 	active_draft_type = DRAFT_ITEM
 	selected_item_id = &""
@@ -121,7 +129,8 @@ func open_item_shop(
 		maximum_rounds
 	)
 	reroll_button.show()
-	inventory_panel.show()
+	inventory_panel.hide()
+	update_player_status(current_health, maximum_health, current_money)
 	health_button.show()
 	continue_button.text = "Close Shop"
 	continue_button.disabled = false
@@ -147,7 +156,7 @@ func refresh_item_shop(
 		var card := cards[card_index]
 		card.show()
 		if card_index >= offers.size() or offers[card_index].is_empty():
-			card.display_sold_slot()
+			card.display_empty_slot()
 			continue
 		var item_id := offers[card_index]
 		var item := StatDatabase.get_tower_item(item_id)
@@ -158,6 +167,7 @@ func refresh_item_shop(
 			current_money >= int(item.get("price", 0))
 		)
 	update_owned_items_display(inventory)
+	money_label.text = "$%d" % current_money
 	reroll_button.text = "Reroll · $%d" % reroll_cost
 	var has_unlocked_slot := false
 	for slot_index in cards.size():
@@ -208,6 +218,15 @@ func update_owned_items_display(owned_items: Dictionary) -> void:
 	owned_items_label.tooltip_text = owned_text
 
 
+func update_player_status(
+	current_health: int,
+	maximum_health: int,
+	current_money: int
+) -> void:
+	health_label.text = "Health %d/%d" % [current_health, maximum_health]
+	money_label.text = "$%d" % current_money
+
+
 func update_health_button(
 	health_recovery: int,
 	health_cost: int,
@@ -224,9 +243,15 @@ func update_health_button(
 	health_button.disabled = not can_buy_health
 
 
-func mark_health_purchased(health_recovered: int) -> void:
+func mark_health_purchased(
+	health_recovered: int,
+	current_health := -1,
+	maximum_health := -1
+) -> void:
 	health_button.text = "Recovered %d Health" % health_recovered
 	health_button.disabled = true
+	if current_health >= 0 and maximum_health >= 0:
+		health_label.text = "Health %d/%d" % [current_health, maximum_health]
 
 
 func _on_card_chosen(

@@ -49,6 +49,7 @@ func open_shop(
 		offers[locked_index] = item_id
 		locked_slots[locked_index] = true
 		locked_index += 1
+		break
 	_roll_unlocked_slots(round_number, preferred_item_ids)
 
 
@@ -87,7 +88,10 @@ func mark_purchased(slot_index: int) -> bool:
 func toggle_lock(slot_index: int) -> bool:
 	if not is_valid_offer_slot(slot_index):
 		return false
-	locked_slots[slot_index] = not locked_slots[slot_index]
+	var should_lock := not locked_slots[slot_index]
+	for index in locked_slots.size():
+		locked_slots[index] = false
+	locked_slots[slot_index] = should_lock
 	return locked_slots[slot_index]
 
 

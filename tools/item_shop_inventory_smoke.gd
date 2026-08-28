@@ -62,6 +62,18 @@ func run_test() -> void:
 		return
 	if not _check(shop.get_reroll_cost() == 50, "Initial reroll cost was incorrect."):
 		return
+	shop.toggle_lock(2)
+	if not _check(
+		shop.locked_slots[2] and shop.locked_slots.count(true) == 1,
+		"Moving the shop lock did not clear the previous locked slot."
+	):
+		return
+	shop.toggle_lock(0)
+	if not _check(
+		shop.locked_slots[0] and shop.locked_slots.count(true) == 1,
+		"The shop allowed more than one locked offer."
+	):
+		return
 	var purchased_id: StringName = shop.offers[1]
 	if not _check(shop.mark_purchased(1) and shop.offers[1].is_empty(), "Purchased offer was not marked sold."):
 		return

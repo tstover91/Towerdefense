@@ -16,6 +16,7 @@ const RELIC_RARITY_COLORS := {
 }
 
 @onready var name_label: Label = $MarginContainer/CardLayout/NameLabel
+@onready var portrait: TextureRect = $MarginContainer/CardLayout/Portrait
 @onready var category_label: Label = $MarginContainer/CardLayout/CategoryLabel
 @onready var description_label: Label = $MarginContainer/CardLayout/DescriptionLabel
 @onready var owned_label: Label = $MarginContainer/CardLayout/OwnedLabel
@@ -49,9 +50,12 @@ func display_item(
 	quantity := 1
 ) -> void:
 	shop_mode = false
+	_set_card_content_visible(true)
 	item_id = item_stats["id"]
 	reward_quantity = maxi(quantity, 1)
 	name_label.text = item_stats["display_name"]
+	portrait.texture = item_stats.get("texture") as Texture2D
+	portrait.visible = portrait.texture != null
 	category_label.text = "%s • %s" % [
 		String(item_stats["rarity"]).capitalize(),
 		String(item_stats["category"]).capitalize(),
@@ -74,11 +78,13 @@ func display_shop_item(
 	can_afford: bool
 ) -> void:
 	shop_mode = true
+	_set_card_content_visible(true)
 	item_id = item_stats["id"]
 	reward_quantity = 1
 	item_price = int(item_stats.get("price", 0))
 	offer_locked = is_locked
 	name_label.text = item_stats["display_name"]
+	portrait.hide()
 	category_label.text = "%s • %s" % [
 		String(item_stats.get("rarity", &"common")).capitalize(),
 		String(item_stats.get("category", &"general")).capitalize(),
@@ -94,17 +100,25 @@ func display_shop_item(
 	choose_button.text = "Buy · $%d" % item_price
 
 
-func display_sold_slot() -> void:
+func display_empty_slot() -> void:
 	shop_mode = true
 	item_id = &""
-	name_label.text = "SOLD"
-	category_label.text = "Reroll to refill"
-	description_label.text = "This offer has been purchased."
-	apply_rarity_style(&"")
-	owned_label.hide()
-	lock_button.hide()
-	choose_button.disabled = true
-	choose_button.text = "Sold"
+	_set_card_content_visible(false)
+	var empty_style := StyleBoxFlat.new()
+	empty_style.bg_color = Color(0.02, 0.025, 0.04, 0.18)
+	empty_style.border_color = Color(0.55, 0.55, 0.62, 0.12)
+	empty_style.set_border_width_all(1)
+	empty_style.set_corner_radius_all(10)
+	add_theme_stylebox_override("panel", empty_style)
+
+
+func display_sold_slot() -> void:
+	display_empty_slot()
+
+
+func _set_card_content_visible(is_visible: bool) -> void:
+	for child in $MarginContainer/CardLayout.get_children():
+		child.visible = is_visible
 
 
 func apply_rarity_style(rarity: StringName) -> void:
