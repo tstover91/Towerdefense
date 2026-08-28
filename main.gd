@@ -80,8 +80,8 @@ const UI_RED := Color("e84c3d")
 const UI_PURPLE := Color("b46cff")
 const UI_MAGENTA := Color("e94bd6")
 const UI_GOLD := Color("ffd447")
-const TOWER_FAN_BUTTON_SIZE := 76.0
-const TOWER_FAN_BUTTON_GAP := 12.0
+const TOWER_FAN_BUTTON_SIZE := 64.0
+const TOWER_FAN_BUTTON_GAP := 8.0
 const TOWER_FAN_MAX_COLUMNS := 5
 const PLACEMENT_DRAG_THRESHOLD := 12.0
 const PLACEMENT_DRAG_PREVIEW_OFFSET := Vector2(0.0, -75.0)
@@ -445,12 +445,17 @@ var playable_map_width := 0.0
 var active_map: TowerDefenseMap
 var next_spawn_path_index := 0
 var game_speed := 1.0
+var inventory_button: Button
+var tower_detail_popup: PanelContainer
+var selected_inventory_item_id: StringName = &""
+var tower_item_slot_buttons: Array[Button] = []
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
 	game_speed = 1.0
 	sandbox_mode = SessionState.sandbox_mode
 	load_selected_map()
+	_configure_minimal_hud()
 	update_speed_button()
 	enemy_rng.randomize()
 	shop_rng.randomize()
@@ -494,12 +499,148 @@ func _ready() -> void:
 	between_round_shop.item_shop_closed.connect(_on_item_shop_closed)
 	between_round_shop.setup(self)
 	tower_item_inventory_panel.setup(self)
+	tower_item_inventory_panel.selected_item_changed.connect(
+		_on_inventory_item_selected
+	)
+	set_build_drawer_open(true)
 	update_play_pause_button()
 	if sandbox_mode:
 		pause_button.hide()
 		sandbox_panel.configure(self)
 	else:
 		sandbox_panel.hide()
+
+
+func _configure_minimal_hud() -> void:
+	var hud_root := $MainUI/HUDRoot as Control
+	var status_panel := $MainUI/HUDRoot/TopLeftPanel as PanelContainer
+	status_panel.offset_right = 262.0
+	for divider_name in ["HealthDivider", "RoundDivider", "MoneyDivider"]:
+		var divider := status_panel.get_node_or_null(
+			"StatusMargin/StatusGrid/%s" % divider_name
+		)
+		if divider != null:
+			divider.hide()
+
+	var round_panel := PanelContainer.new()
+	round_panel.name = "TopCenterRoundPanel"
+	round_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	round_panel.offset_left = -120.0
+	round_panel.offset_top = 6.0
+	round_panel.offset_right = 120.0
+	round_panel.offset_bottom = 64.0
+	round_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var round_style := StyleBoxFlat.new()
+	round_style.bg_color = Color(0.025, 0.03, 0.05, 0.82)
+	round_style.border_color = Color(0.55, 0.62, 0.45, 0.35)
+	round_style.set_border_width_all(1)
+	round_style.set_corner_radius_all(10)
+	round_panel.add_theme_stylebox_override("panel", round_style)
+	hud_root.add_child(round_panel)
+	var round_layout := VBoxContainer.new()
+	round_layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	round_layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	round_panel.add_child(round_layout)
+	round_count_display.reparent(round_layout)
+	round_count_display.custom_minimum_size = Vector2(220.0, 28.0)
+	round_count_display.add_theme_font_size_override("font_size", 18)
+	round_timer_display.reparent(round_layout)
+	round_timer_display.custom_minimum_size = Vector2(220.0, 20.0)
+	round_timer_display.add_theme_font_size_override("font_size", 12)
+
+	var edge_buttons := $MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons
+	enemy_toggle_button.reparent(edge_buttons)
+	edge_buttons.move_child(pause_button, 0)
+	edge_buttons.move_child(speed_button, 1)
+	enemy_toggle_button.text = "Enemies"
+	enemy_toggle_button.custom_minimum_size = Vector2(64.0, 40.0)
+	var edge_controls := $MainUI/HUDRoot/EdgeControls as PanelContainer
+	edge_controls.offset_left = -164.0
+
+	enemy_strip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	enemy_strip.offset_left = -446.0
+	enemy_strip.offset_top = 56.0
+	enemy_strip.offset_right = -12.0
+	enemy_strip.offset_bottom = 126.0
+	var enemy_content := enemy_strip.get_node("EnemyStripContent")
+	enemy_info_panel.reparent(hud_root)
+	enemy_info_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	enemy_info_panel.offset_left = 12.0
+	enemy_info_panel.offset_top = -188.0
+	enemy_info_panel.offset_right = 352.0
+	enemy_info_panel.offset_bottom = -12.0
+	if enemy_content.has_node("IntelTitle"):
+		enemy_content.get_node("IntelTitle").hide()
+
+	sidebar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	sidebar.offset_left = 12.0
+	sidebar.offset_top = -286.0
+	sidebar.offset_right = 452.0
+	sidebar.offset_bottom = -12.0
+	build_toggle_button.hide()
+
+	inventory_button = Button.new()
+	inventory_button.name = "InventoryButton"
+	inventory_button.text = "Items"
+	inventory_button.tooltip_text = "Open tower item inventory"
+	inventory_button.focus_mode = Control.FOCUS_NONE
+	inventory_button.toggle_mode = true
+	inventory_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	inventory_button.offset_left = -156.0
+	inventory_button.offset_top = -76.0
+	inventory_button.offset_right = -100.0
+	inventory_button.offset_bottom = -20.0
+	inventory_button.pressed.connect(_on_inventory_button_pressed)
+	thumb_controls.add_child(inventory_button)
+
+	tower_item_inventory_panel.reparent(hud_root)
+	tower_item_inventory_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	tower_item_inventory_panel.offset_left = -402.0
+	tower_item_inventory_panel.offset_top = -430.0
+	tower_item_inventory_panel.offset_right = -104.0
+	tower_item_inventory_panel.offset_bottom = -104.0
+	tower_item_inventory_panel.hide()
+	tower_items_section.reparent(tower_inspector)
+	tower_inspector.move_child(tower_items_section, 1)
+	tower_path_section.reparent(tower_inspector)
+	tower_inspector.move_child(tower_path_section, 2)
+	tower_detail_popup = PanelContainer.new()
+	tower_detail_popup.name = "TowerDetailPopup"
+	tower_detail_popup.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	tower_detail_popup.offset_left = 460.0
+	tower_detail_popup.offset_top = -286.0
+	tower_detail_popup.offset_right = 880.0
+	tower_detail_popup.offset_bottom = -12.0
+	tower_detail_popup.clip_contents = true
+	var detail_style := StyleBoxFlat.new()
+	detail_style.bg_color = Color(0.03, 0.035, 0.055, 0.92)
+	detail_style.border_color = Color(0.55, 0.50, 0.38, 0.42)
+	detail_style.set_border_width_all(1)
+	detail_style.set_corner_radius_all(10)
+	tower_detail_popup.add_theme_stylebox_override("panel", detail_style)
+	hud_root.add_child(tower_detail_popup)
+	tower_information_content.reparent(tower_detail_popup)
+	tower_detail_popup.hide()
+	_create_tower_item_slot_buttons()
+
+
+func _create_tower_item_slot_buttons() -> void:
+	var slot_row := HBoxContainer.new()
+	slot_row.name = "ItemSlotButtons"
+	slot_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	slot_row.add_theme_constant_override("separation", 5)
+	tower_items_section.add_child(slot_row)
+	tower_items_label.hide()
+	for slot_index in GameStats.TOWER_ITEM_SLOT_COUNT:
+		var slot_button := Button.new()
+		slot_button.custom_minimum_size = Vector2(74.0, 40.0)
+		slot_button.text = "%d · Empty" % (slot_index + 1)
+		slot_button.tooltip_text = "Choose a compatible item for slot %d" % (
+			slot_index + 1
+		)
+		slot_button.pressed.connect(_on_tower_item_slot_pressed.bind(slot_index))
+		slot_row.add_child(slot_button)
+		tower_item_slot_buttons.append(slot_button)
 
 
 func load_selected_map() -> void:
@@ -731,29 +872,20 @@ func layout_tower_fan_buttons() -> void:
 	if not is_instance_valid(tower_fan) or tower_fan_buttons.is_empty():
 		return
 	var button_half := Vector2.ONE * TOWER_FAN_BUTTON_SIZE * 0.5
-	var build_rect := build_toggle_button.get_global_rect()
-	var grid_left := build_rect.position.x - tower_fan.global_position.x
-	var grid_bottom := (
-		build_rect.position.y
-		- tower_fan.global_position.y
-		- TOWER_FAN_BUTTON_GAP
-	)
-	var available_width := maxf(
-		get_viewport_rect().size.x - build_rect.position.x - 16.0,
-		TOWER_FAN_BUTTON_SIZE
-	)
-	var maximum_columns_by_width := maxi(
-		int(floor(
-			(available_width + TOWER_FAN_BUTTON_GAP)
-			/ (TOWER_FAN_BUTTON_SIZE + TOWER_FAN_BUTTON_GAP)
-		)),
-		1
-	)
-	var column_count := mini(
-		mini(TOWER_FAN_MAX_COLUMNS, maximum_columns_by_width),
-		tower_fan_buttons.size()
-	)
+	var column_count := mini(TOWER_FAN_MAX_COLUMNS, tower_fan_buttons.size())
 	var cell_step := TOWER_FAN_BUTTON_SIZE + TOWER_FAN_BUTTON_GAP
+	var total_width := (
+		float(column_count) * TOWER_FAN_BUTTON_SIZE
+		+ float(column_count - 1) * TOWER_FAN_BUTTON_GAP
+	)
+	var grid_left := (
+		get_viewport_rect().size.x * 0.5
+		- total_width * 0.5
+		- tower_fan.global_position.x
+	)
+	var grid_bottom := (
+		get_viewport_rect().size.y - 16.0 - tower_fan.global_position.y
+	)
 	for button_index in tower_fan_buttons.size():
 		var row_index := button_index / column_count
 		var column_index := button_index % column_count
@@ -792,6 +924,7 @@ func show_tower_details(tower: Node) -> void:
 	):
 		clear_tower_details()
 		return
+	clear_enemy_hud_selection()
 
 	var selection_changed := displayed_tower != tower
 	displayed_tower = tower
@@ -838,6 +971,7 @@ func show_tower_details(tower: Node) -> void:
 	update_tower_path_controls(tower)
 	if tower_path_section.visible:
 		tower_path_label.hide()
+		tower_items_section.hide()
 	update_tower_target_controls(tower)
 	update_tower_sell_control(tower)
 	update_tower_inspector_panel_visibility()
@@ -882,13 +1016,18 @@ func update_tower_inspector_panel_visibility() -> void:
 	if not is_instance_valid(tower_inspector):
 		return
 	tower_information_content.visible = tower_info_expanded
-	tower_item_inventory_panel.visible = tower_info_expanded and not round_active
+	if is_instance_valid(tower_detail_popup):
+		tower_detail_popup.visible = tower_info_expanded
 	tower_target_section.visible = (
 		tower_target_panel_open and tower_has_targeting_controls
 	)
-	tower_inspector_details.visible = (
-		tower_information_content.visible or tower_target_section.visible
-	)
+	if is_instance_valid(displayed_tower):
+		tower_items_section.visible = (
+			displayed_tower.get("instance_progression") != null
+			and not tower_path_section.visible
+			and not tower_target_section.visible
+		)
+	tower_inspector_details.visible = tower_target_section.visible
 	tower_portrait_button.button_pressed = tower_info_expanded
 	tower_aim_button.button_pressed = tower_target_section.visible
 	update_context_dock_layout()
@@ -967,6 +1106,35 @@ func update_tower_item_controls(tower: Node) -> void:
 		tooltip_lines.append(tooltip)
 	tower_items_label.text = "\n".join(item_lines)
 	tower_items_label.tooltip_text = "\n\n".join(tooltip_lines)
+	for slot_index in mini(
+		tower_item_slot_buttons.size(), GameStats.TOWER_ITEM_SLOT_COUNT
+	):
+		var slot_button := tower_item_slot_buttons[slot_index]
+		var item_id := item_ids[slot_index]
+		if item_id.is_empty():
+			slot_button.text = "%d · Empty" % (slot_index + 1)
+			slot_button.tooltip_text = (
+				"Choose a compatible item for slot %d" % (slot_index + 1)
+			)
+			continue
+		var item := GameStats.get_tower_item(item_id)
+		var count := item_counts[slot_index]
+		slot_button.text = "%d · %s%s" % [
+			slot_index + 1,
+			String(item.get("display_name", item_id)),
+			" ×%d" % count if count > 1 else "",
+		]
+		slot_button.tooltip_text = String(item.get("description", ""))
+
+
+func _on_tower_item_slot_pressed(slot_index: int) -> void:
+	if not is_instance_valid(displayed_tower):
+		return
+	tower_item_inventory_panel.open_for_tower_slot(displayed_tower, slot_index)
+	inventory_button.button_pressed = true
+	_on_inventory_item_selected(
+		tower_item_inventory_panel.get_selected_inventory_item_id()
+	)
 
 
 func update_tower_path_controls(tower: Node) -> void:
@@ -1036,10 +1204,21 @@ func update_tower_evolution_controls(tower: Node) -> void:
 		tower_path_b_button,
 		tower_path_c_button,
 	]
-	tower_path_section.visible = not evolutions.is_empty()
+	var owned_evolution_id: StringName = tower.instance_progression.evolution_id
+	var minimum_required_level := GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
+	if not evolution_ids.is_empty():
+		minimum_required_level = int(evolutions[evolution_ids[0]].get(
+			"required_level", GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
+		))
+	tower_path_section.visible = (
+		not evolutions.is_empty()
+		and owned_evolution_id.is_empty()
+		and tower.instance_progression.level >= minimum_required_level
+	)
 	if evolutions.is_empty():
 		return
-	var owned_evolution_id: StringName = tower.instance_progression.evolution_id
+	if not tower_path_section.visible:
+		return
 	for index in evolution_buttons.size():
 		var button := evolution_buttons[index]
 		if index >= evolution_ids.size():
@@ -1441,6 +1620,7 @@ func _on_enemy_hud_pressed(enemy_id: StringName) -> void:
 	if selected_enemy_hud_id == enemy_id:
 		clear_enemy_hud_selection()
 	else:
+		clear_tower_details()
 		clear_relic_hud_selection()
 		show_enemy_hud_selection(enemy_id)
 
@@ -1750,6 +1930,8 @@ func clear_tower_details(tower: Node = null) -> void:
 	tower_has_targeting_controls = false
 	reset_sidebar_confirmation()
 	tower_inspector.hide()
+	if is_instance_valid(tower_detail_popup):
+		tower_detail_popup.hide()
 	tower_inspector_details.hide()
 	build_sidebar_state.show()
 	update_context_dock_layout()
@@ -1762,19 +1944,15 @@ func _on_build_toggle_pressed() -> void:
 
 
 func set_build_drawer_open(is_open: bool) -> void:
-	if is_open and not build_sidebar_state.visible:
-		return
-	if is_open and reinforcement_targeting:
-		cancel_reinforcement_targeting()
-	tower_fan_open = is_open
+	# The minimal HUD keeps unlocked families directly available at all times.
+	tower_fan_open = true
 	tower_selection_area.hide()
-	build_toggle_button.button_pressed = is_open
-	build_toggle_button.tooltip_text = (
-		"Close tower choices" if is_open else "Build towers"
-	)
-	if not is_open:
-		tower_list.deselect_all()
-	animate_tower_fan(is_open)
+	build_toggle_button.hide()
+	tower_fan.show()
+	for button in tower_fan_buttons:
+		button.modulate.a = 1.0
+		button.scale = Vector2.ONE
+	layout_tower_fan_buttons()
 	update_context_dock_layout()
 
 
@@ -1820,26 +1998,14 @@ func animate_tower_fan(is_open: bool) -> void:
 func update_context_dock_layout() -> void:
 	thumb_controls.show()
 	if tower_inspector.visible:
-		build_toggle_button.show()
-		var target_top := DOCK_COMPACT_INSPECTOR_TOP_OFFSET
-		if tower_target_section.visible:
-			target_top = DOCK_TARGET_INSPECTOR_TOP_OFFSET
-		elif tower_information_content.visible:
-			target_top = (
-				DOCK_PATH_INSPECTOR_TOP_OFFSET
-				if tower_path_section.visible
-				else DOCK_INFO_INSPECTOR_TOP_OFFSET
-			)
-		show_context_dock(
-			target_top,
-			-12.0
-		)
+		build_toggle_button.hide()
+		show_context_dock(-286.0, -12.0)
 	else:
 		if context_dock_tween != null:
 			context_dock_tween.kill()
 		sidebar.modulate.a = 1.0
 		sidebar.hide()
-		build_toggle_button.show()
+		build_toggle_button.hide()
 
 
 func show_context_dock(target_top: float, target_bottom: float) -> void:
@@ -2232,6 +2398,7 @@ func update_round_count() -> void:
 			else "Sandbox ready"
 		)
 		refresh_enemy_hud()
+		round_timer_display.show()
 		return
 	ensure_round_controller()
 	var displayed_round: int = round_controller.get_displayed_round()
@@ -2260,6 +2427,12 @@ func update_round_count() -> void:
 		round_timer_display.text = "%s: Select a tower" % relic["display_name"]
 	else:
 		round_timer_display.text = "Build Phase"
+	round_timer_display.visible = (
+		current_round_type != ROUND_STANDARD
+		or not round_active
+		or shop_open
+		or is_selecting_path_relic_tower()
+	)
 
 
 func get_round_type_display_name(round_type: StringName) -> String:
@@ -2831,7 +3004,68 @@ func get_placed_towers_for_item_management() -> Array[Node]:
 
 
 func can_manage_tower_items() -> bool:
-	return not game_ended and not round_active
+	return not game_ended
+
+
+func _on_inventory_button_pressed() -> void:
+	if inventory_button.button_pressed:
+		tower_item_inventory_panel.open_global_inventory()
+		_on_inventory_item_selected(
+			tower_item_inventory_panel.get_selected_inventory_item_id()
+		)
+	else:
+		tower_item_inventory_panel.hide()
+		clear_inventory_equip_selection()
+
+
+func _on_inventory_item_selected(item_id: StringName) -> void:
+	selected_inventory_item_id = item_id
+	for tower in get_placed_towers_for_item_management():
+		if tower.has_method("set_relic_highlight"):
+			tower.set_relic_highlight(
+			not item_id.is_empty(),
+			not item_id.is_empty()
+				and tower.item_controller.is_item_compatible(item_id)
+		)
+
+
+func clear_inventory_equip_selection() -> void:
+	selected_inventory_item_id = &""
+	refresh_relic_hud_highlights()
+
+
+func try_equip_selected_inventory_item_to_tower(tower: Node) -> bool:
+	if (
+		selected_inventory_item_id.is_empty()
+		or not tower_item_inventory_panel.visible
+		or not is_instance_valid(tower)
+	):
+		return false
+	if not tower.item_controller.is_item_compatible(selected_inventory_item_id):
+		return true
+	var slot_index: int = tower.item_controller.find_equipped_item_slot(
+		selected_inventory_item_id
+	)
+	if slot_index < 0:
+		var equipped_ids: Array[StringName] = tower.get_equipped_item_ids()
+		for candidate_slot in equipped_ids.size():
+			if equipped_ids[candidate_slot].is_empty():
+				slot_index = candidate_slot
+				break
+	if slot_index >= 0:
+		if equip_inventory_item_to_tower(
+			selected_inventory_item_id, tower, slot_index
+		):
+			tower_item_inventory_panel.open_global_inventory()
+			_on_inventory_item_selected(
+				tower_item_inventory_panel.get_selected_inventory_item_id()
+			)
+		return true
+	# A full tower needs an explicit replacement choice. The focused panel keeps
+	# the selected item and exposes all four occupied slots.
+	tower_item_inventory_panel.open_for_tower_slot(tower, 0)
+	show_tower_details(tower)
+	return true
 
 
 func equip_inventory_item_to_tower(

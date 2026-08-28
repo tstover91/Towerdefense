@@ -3,6 +3,8 @@ extends PanelContainer
 
 const GameStats = preload("res://stat_database.gd")
 
+signal selected_item_changed(item_id: StringName)
+
 @onready var inventory_option: OptionButton = $Margin/Content/Selectors/InventoryOption
 @onready var tower_option: OptionButton = $Margin/Content/Selectors/TowerOption
 @onready var slot_option: OptionButton = $Margin/Content/Selectors/SlotOption
@@ -12,6 +14,7 @@ const GameStats = preload("res://stat_database.gd")
 
 var main_context: Node
 var tower_choices: Array[Node] = []
+var compatibility_filter_tower: Node
 
 
 func _ready() -> void:
@@ -42,13 +45,40 @@ func refresh(preferred_tower: Node = null) -> void:
 	_refresh_controls()
 
 
+func open_global_inventory() -> void:
+	compatibility_filter_tower = null
+	refresh()
+	show()
+
+
+func open_for_tower_slot(tower: Node, slot_index: int) -> void:
+	compatibility_filter_tower = tower
+	refresh(tower)
+	if slot_index >= 0 and slot_index < slot_option.item_count:
+		slot_option.select(slot_index)
+	_refresh_controls()
+	show()
+
+
+func get_selected_inventory_item_id() -> StringName:
+	return _get_selected_inventory_item_id()
+
+
 func _populate_inventory(preferred_item_id: StringName) -> void:
 	inventory_option.clear()
 	var inventory: Dictionary = main_context.get_tower_item_inventory()
 	var item_ids: Array[StringName] = []
 	for item_key in inventory:
 		var item_id := StringName(item_key)
-		if int(inventory[item_key]) > 0:
+		if (
+			int(inventory[item_key]) > 0
+			and (
+				not is_instance_valid(compatibility_filter_tower)
+				or compatibility_filter_tower.item_controller.is_item_compatible(
+					item_id
+				)
+			)
+		):
 			item_ids.append(item_id)
 	item_ids.sort()
 	for item_id in item_ids:
@@ -198,6 +228,7 @@ func _get_selected_slot_index() -> int:
 
 func _on_selection_changed(_index: int) -> void:
 	_refresh_controls()
+	selected_item_changed.emit(_get_selected_inventory_item_id())
 
 
 func _on_tower_selected(_index: int) -> void:

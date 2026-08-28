@@ -80,8 +80,8 @@ func run_test() -> void:
 	))
 	gameplay.start_round()
 	assert(gameplay.round_active)
-	assert(not gameplay.unequip_tower_item_to_inventory(tower, 0))
-	assert(tower.get_equipped_item_ids()[0] == &"live_wire")
+	assert(gameplay.unequip_tower_item_to_inventory(tower, 0))
+	assert(tower.get_equipped_item_ids()[0].is_empty())
 
-	print("Round lifecycle smoke test passed: rewards, responsive side inventory, readable cards, multi-buy shop, locks, build-phase equipment, and active-wave equipment lock.")
+	print("Round lifecycle smoke test passed: rewards, responsive side inventory, readable cards, multi-buy shop, locks, and active-wave equipment management.")
 	get_tree().quit(0)

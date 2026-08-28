@@ -1418,6 +1418,11 @@ func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 		):
 			main.try_assign_path_relic_to_tower(self)
 			return
+		if (
+			main.has_method("try_equip_selected_inventory_item_to_tower")
+			and main.try_equip_selected_inventory_item_to_tower(self)
+		):
+			return
 		main.close_all_tower_menus()
 		set_selected(true)
 
