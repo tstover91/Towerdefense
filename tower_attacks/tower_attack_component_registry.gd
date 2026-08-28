@@ -21,6 +21,7 @@ const COMPONENT_SCRIPTS: Dictionary = {
 	),
 	&"saucer": preload("res://tower_attacks/saucer_attack_component.gd"),
 	&"slinger": preload("res://tower_attacks/slinger_attack_component.gd"),
+	&"irradiator": preload("res://tower_attacks/irradiator_attack_component.gd"),
 }
 
 const EVOLUTION_COMPONENT_SCRIPTS: Dictionary = {

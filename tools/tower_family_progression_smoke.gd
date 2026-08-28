@@ -32,10 +32,11 @@ func _ready() -> void:
 
 func run_test() -> void:
 	var families := GameStats.get_playable_tower_family_ids()
-	assert(families.size() == 11)
+	assert(families.size() == 12)
 	assert(families.has(&"invader"))
 	assert(families.has(&"brainiac"))
 	assert(families.has(&"dronedepot"))
+	assert(families.has(&"irradiator"))
 	assert(not families.has(&"gauss_repeater"))
 	assert(not families.has(&"beholder"))
 	assert(not families.has(&"hivemother"))

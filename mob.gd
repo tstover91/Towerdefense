@@ -87,11 +87,24 @@ var fisherman_pull_active := false
 var fisherman_minimum_progress := -1.0
 var electric_hit_count := 0
 var electric_proc_damage := 0.0
+var radiation_stack_entries: Array[Dictionary] = []
+var radiation_tick_remaining := 0.0
+var radiation_tick_interval := 1.0
+var radiation_debug_events: Array[Dictionary] = []
 var active_slow_speed_multiplier := 1.0
 var support_xp_awarded_by_source: Dictionary = {}
 
 
 func _draw() -> void:
+	if not radiation_stack_entries.is_empty():
+		var stack_count := radiation_stack_entries.size()
+		var radiation_radius := get_projectile_hit_radius() + 10.0
+		draw_circle(Vector2.ZERO, radiation_radius, Color(0.58, 1.0, 0.08, 0.10))
+		draw_arc(
+			Vector2.ZERO, radiation_radius, -PI * 0.5,
+			-PI * 0.5 + TAU * minf(float(stack_count) / 12.0, 1.0),
+			32, Color(0.78, 1.0, 0.12, 0.9), 2.5, true
+		)
 	if brainiac_link_remaining > 0.0 and brainiac_link_radius > 0.0:
 		draw_circle(Vector2.ZERO, brainiac_link_radius, Color(0.55, 0.2, 0.95, 0.08))
 		draw_arc(
@@ -184,6 +197,7 @@ func _process(delta: float) -> void:
 	_process_brainiac_link(delta)
 	_process_beholder_damage_mark(delta)
 	_process_external_vulnerability(delta)
+	_process_radiation(delta)
 	if path_follow == null or finished:
 		return
 
@@ -367,6 +381,127 @@ func _process_control_effects(delta: float) -> void:
 	if slow_remaining <= 0.0:
 		slow_context = null
 		active_slow_speed_multiplier = 1.0
+
+
+func apply_radiation(
+	stack_count: int,
+	damage_per_stack: int,
+	attack_context: AttackContext = null,
+	tick_interval := 1.0
+) -> void:
+	if finished or stack_count <= 0 or damage_per_stack <= 0:
+		return
+	var was_empty := radiation_stack_entries.is_empty()
+	radiation_tick_interval = maxf(tick_interval, 0.05)
+	for _stack in stack_count:
+		radiation_stack_entries.append({
+			"damage": damage_per_stack,
+			"context": attack_context,
+		})
+	if was_empty:
+		radiation_tick_remaining = radiation_tick_interval
+	_record_radiation_debug_event(&"apply", {
+		"added_stacks": stack_count,
+		"stacks_after": radiation_stack_entries.size(),
+		"damage_per_stack": damage_per_stack,
+	})
+	var source_tower := (
+		attack_context.get_root_tower() if attack_context != null else null
+	)
+	if is_instance_valid(source_tower) and source_tower.has_method("notify_status_applied"):
+		source_tower.notify_status_applied(self, &"radiation", attack_context)
+	queue_redraw()
+
+
+func _process_radiation(delta: float) -> void:
+	if finished or radiation_stack_entries.is_empty():
+		return
+	radiation_tick_remaining -= delta
+	while radiation_tick_remaining <= 0.0 and not radiation_stack_entries.is_empty():
+		radiation_tick_remaining += radiation_tick_interval
+		_trigger_radiation_tick()
+
+
+func _trigger_radiation_tick() -> void:
+	var stacks_before := radiation_stack_entries.size()
+	var damage_by_source: Dictionary = {}
+	for entry in radiation_stack_entries:
+		var context: AttackContext = entry.get("context") as AttackContext
+		var source_key := context.root_tower_instance_id if context != null else 0
+		if not damage_by_source.has(source_key):
+			damage_by_source[source_key] = {
+				"damage": 0,
+				"stack_count": 0,
+				"context": context,
+			}
+		var source_data: Dictionary = damage_by_source[source_key]
+		source_data["damage"] = int(source_data["damage"]) + int(entry["damage"])
+		source_data["stack_count"] = int(source_data["stack_count"]) + 1
+		damage_by_source[source_key] = source_data
+	var total_tick_damage := 0
+	for source_key in damage_by_source:
+		if finished:
+			break
+		var source_data: Dictionary = damage_by_source[source_key]
+		var context: AttackContext = source_data["context"] as AttackContext
+		var tick_context := context
+		if context != null:
+			tick_context = context.derive(
+				self, &"status", &"radiation_tick", true,
+				{
+					"radiation_tick": true,
+					"radiation_stacks": int(source_data["stack_count"]),
+				}
+			)
+		var requested_damage := int(source_data["damage"])
+		total_tick_damage += apply_damage(
+			requested_damage, &"radiation", false, false, tick_context
+		)
+	if not radiation_stack_entries.is_empty():
+		radiation_stack_entries.pop_front()
+	_record_radiation_debug_event(&"tick", {
+		"stacks_before": stacks_before,
+		"damage": total_tick_damage,
+		"stacks_after": radiation_stack_entries.size(),
+	})
+	_record_radiation_debug_event(&"decay", {
+		"removed_stacks": 1,
+		"stacks_after": radiation_stack_entries.size(),
+	})
+	queue_redraw()
+
+
+func get_radiation_stacks() -> int:
+	return radiation_stack_entries.size()
+
+
+func get_radiation_debug_state() -> Dictionary:
+	return {
+		"stacks": radiation_stack_entries.size(),
+		"seconds_until_tick": radiation_tick_remaining,
+		"tick_interval": radiation_tick_interval,
+		"events": radiation_debug_events.duplicate(true),
+	}
+
+
+func record_radiation_spread_event(details: Dictionary = {}) -> void:
+	_record_radiation_debug_event(&"spread", details)
+
+
+func record_critical_mass_trigger(details: Dictionary = {}) -> void:
+	_record_radiation_debug_event(&"critical_mass", details)
+
+
+func _record_radiation_debug_event(
+	event_type: StringName,
+	details: Dictionary
+) -> void:
+	var event := details.duplicate(true)
+	event["type"] = event_type
+	event["time_msec"] = Time.get_ticks_msec()
+	radiation_debug_events.append(event)
+	while radiation_debug_events.size() > 24:
+		radiation_debug_events.pop_front()
 
 
 func apply_slow(

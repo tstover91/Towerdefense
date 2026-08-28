@@ -520,6 +520,7 @@ const TOWER_TEXTURES := {
 	&"hivemother": preload("res://assets/towers/hivemother.png"),
 	&"dronedepot": preload("res://assets/towers/dronedepot.png"),
 	&"mechbay": preload("res://assets/towers/mechbay.png"),
+	&"irradiator": preload("res://assets/towers/irradiator.svg"),
 }
 
 # Fixed upgraded sell values preserve the previous normal-price economy without
@@ -541,6 +542,7 @@ const TOWER_UPGRADED_SELL_VALUES := {
 	&"hivemother": [200, 300, 600, 1466],
 	&"dronedepot": [500, 650, 1016, 1849],
 	&"mechbay": [900, 1050, 1350, 2400],
+	&"irradiator": [550, 675, 950, 1500],
 }
 
 const TOWER_PATH_SELL_VALUE_ADDITIONS := {
@@ -559,6 +561,7 @@ const TOWER_PATH_SELL_VALUE_ADDITIONS := {
 	&"hivemother": {&"a": 2662, &"b": 2662},
 	&"dronedepot": {&"a": 2946, &"b": 3360},
 	&"mechbay": {&"a": 4480, &"b": 4480},
+	&"irradiator": {&"a": 2500},
 }
 
 const ENEMIES := {
@@ -973,6 +976,7 @@ const PLAYABLE_TOWER_FAMILY_IDS: Array[StringName] = [
 	&"orbitalcannon",
 	&"saucer",
 	&"dronedepot",
+	&"irradiator",
 ]
 const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 	&"gauss_repeater": &"invader",
@@ -1371,6 +1375,9 @@ const TOWER_EVOLUTIONS := {
 	&"dronedepot": {
 		&"drone_depot": {"legacy_path_id": &"a"},
 		&"mech_bay": {"legacy_path_id": &"b"},
+	},
+	&"irradiator": {
+		&"reactor": {"legacy_path_id": &"a"},
 	},
 	&"slinger": {
 		&"explosive_ricochet": {"legacy_path_id": &"a"},
@@ -2918,6 +2925,74 @@ const TOWERS := {
 				"spawn_limit": 3,
 				"deployment_radius": 3.0,
 				"unit_stats": {"damage": 475, "attack_interval": 0.6, "aim_radius": 4.0, "move_speed": 78.0},
+			},
+		],
+	},
+	"irradiator": {
+		"display_name": "Irradiator",
+		"description": "An atomic-age alien isotope projector. Its cone deals no immediate damage; every enemy caught gains decaying Radiation stacks that deal damage each second.",
+		"placement_cost": 550,
+		"footprint_cells": Vector2i(2, 2),
+		"type_tags": [&"technology"],
+		"damage_tags": [&"radiation"],
+		"primary_damage_type": &"radiation",
+		"delivery_type": DELIVERY_HITSCAN,
+		"impact_mode": IMPACT_PRIMARY,
+		"bonus_tags": [],
+		"paths": {
+			"a": {
+				"display_name": "Reactor",
+				"description": "Becomes a persistent contamination field that repeatedly irradiates every enemy inside it. At Level 20, the field is larger and applies Radiation faster.",
+				"cost": 3200,
+				"unlock_level": 3,
+				"behavior_flags": {"irradiator_reactor": true},
+				"behavior_values": {
+					"reactor_radius": 4.5,
+					"reactor_application_interval": 0.75,
+					"reactor_stacks_per_application": 1,
+				},
+				"level_20": {
+					"behavior_flags": {"irradiator_reactor": true},
+					"behavior_values": {
+						"reactor_radius": 6.0,
+						"reactor_application_interval": 0.50,
+						"reactor_stacks_per_application": 1,
+					},
+				},
+			},
+		},
+		"levels": [
+			{
+				"upgrade_cost": 0,
+				"damage": 3,
+				"firerate": 0.65,
+				"range": 6.5,
+				"radiation_cone_degrees": 55.0,
+				"radiation_stacks_per_application": 1,
+			},
+			{
+				"upgrade_cost": 375,
+				"damage": 4,
+				"firerate": 0.60,
+				"range": 7.0,
+				"radiation_cone_degrees": 60.0,
+				"radiation_stacks_per_application": 1,
+			},
+			{
+				"upgrade_cost": 825,
+				"damage": 6,
+				"firerate": 0.55,
+				"range": 7.5,
+				"radiation_cone_degrees": 65.0,
+				"radiation_stacks_per_application": 1,
+			},
+			{
+				"upgrade_cost": 1650,
+				"damage": 10,
+				"firerate": 0.50,
+				"range": 8.0,
+				"radiation_cone_degrees": 70.0,
+				"radiation_stacks_per_application": 1,
 			},
 		],
 	},

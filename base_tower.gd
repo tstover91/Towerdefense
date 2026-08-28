@@ -42,6 +42,7 @@ const DAMAGE_BEAM: StringName = &"beam"
 const DAMAGE_EXPLOSIVE: StringName = &"explosive"
 const DAMAGE_MELEE: StringName = &"melee"
 const DAMAGE_ELECTRIC: StringName = &"electric"
+const DAMAGE_RADIATION: StringName = &"radiation"
 
 const BONUS_CRITICAL: StringName = &"critical"
 const BONUS_PSIONIC: StringName = &"psionic"

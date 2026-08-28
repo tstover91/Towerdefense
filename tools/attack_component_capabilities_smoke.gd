@@ -47,6 +47,7 @@ func run_test() -> void:
 		&"orbitalcannon",
 		&"saucer",
 		&"slinger",
+		&"irradiator",
 	]
 	for tower_id in registered_ids:
 		var registered_tower := create_tower(tower_id, fake_main)
