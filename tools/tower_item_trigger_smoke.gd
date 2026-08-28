@@ -1,6 +1,7 @@
 extends Node
 
 const TOWER_SCENE = preload("res://base_tower.tscn")
+const GameStats = preload("res://stat_database.gd")
 
 var received_combat_events: Array[StringName] = []
 
@@ -32,6 +33,7 @@ class FakeEnemy:
 	var traits: Array[StringName] = []
 	var health := 1000
 	var received_contexts: Array[AttackContext] = []
+	var temporary_armor_reduction := 0.0
 
 	func apply_damage_from_tower(
 		amount: int,
@@ -48,6 +50,9 @@ class FakeEnemy:
 			source_tower.notify_damage_dealt(self, received, context)
 		return received
 
+	func apply_temporary_armor_reduction(amount: float, _duration: float) -> void:
+		temporary_armor_reduction += amount
+
 
 func _ready() -> void:
 	call_deferred("run_test")
@@ -61,11 +66,11 @@ func run_test() -> void:
 	assert(trigger_tower.equip_item(&"kill_chain"))
 	assert(trigger_tower.equip_item(&"explosive_payload"))
 	assert(trigger_tower.equip_item(&"split_chamber"))
-	assert(trigger_tower.equip_item(&"split_chamber"))
+	assert(not trigger_tower.equip_item(&"split_chamber"))
 	assert(trigger_tower.get_equipped_item_ids().count(&"split_chamber") == 1)
 	assert(trigger_tower.item_controller.get_trigger_total(
 		&"additional_projectiles"
-	) == 2.0)
+	) == 1.0)
 
 	trigger_tower.damage_timer.start(10.0)
 	var critical_context := AttackContext.from_tower(
@@ -97,12 +102,14 @@ func run_test() -> void:
 		assert(received_combat_events.has(event_id))
 
 	trigger_tower.attack_delivery_controller.launch_projectile(primary, 20)
-	assert(get_tree().get_nodes_in_group("tower_projectiles").size() == 3)
+	assert(get_tree().get_nodes_in_group("tower_projectiles").size() == 2)
 	for projectile in get_tree().get_nodes_in_group("tower_projectiles"):
 		projectile.queue_free()
 
 	var wire_tower := await _create_tower(fake_main, &"invader")
 	assert(not wire_tower.can_equip_item(&"split_chamber"))
+	var other_projectile_tower := await _create_tower(fake_main, &"voidcaller")
+	assert(other_projectile_tower.can_equip_item(&"split_chamber"))
 	assert(wire_tower.equip_item(&"live_wire"))
 	var wire_primary := _create_enemy(Vector2(100.0, 0.0))
 	var wire_neighbor := _create_enemy(Vector2(108.0, 0.0))
@@ -121,6 +128,93 @@ func run_test() -> void:
 		int(wire_tower.item_controller.runtime_state_by_slot[0].get("hit_count", 0))
 		== 0
 	)
+
+	var fragment_tower := await _create_tower(fake_main, &"longshot")
+	fragment_tower.delivery_type = GameStats.DELIVERY_PROJECTILE
+	assert(fragment_tower.equip_item(&"critical_fragmentation"))
+	fragment_tower.delivery_type = GameStats.DELIVERY_PROJECTILE
+	assert(fragment_tower.equip_item(&"fracture_rounds"))
+	fragment_tower.delivery_type = GameStats.DELIVERY_PROJECTILE
+	assert(fragment_tower.equip_item(&"afterimage_round"))
+	fragment_tower.delivery_type = GameStats.DELIVERY_PROJECTILE
+	var fragment_primary := _create_enemy(Vector2(200.0, 0.0))
+	_create_enemy(Vector2(210.0, 0.0))
+	_create_enemy(Vector2(220.0, 0.0))
+	var projectile_context := AttackContext.from_tower(
+		fragment_tower,
+		fragment_tower,
+		&"projectile",
+		&"projectile",
+		{"was_critical": true, "resolved_attack_damage": 100}
+	)
+	fragment_tower.notify_damage_dealt(
+		fragment_primary, 100, projectile_context, &"ballistic"
+	)
+	assert(get_tree().get_nodes_in_group("tower_projectiles").size() == 2)
+	for projectile in get_tree().get_nodes_in_group("tower_projectiles"):
+		projectile.queue_free()
+	await get_tree().process_frame
+	fragment_tower.notify_projectile_terminated(
+		fragment_primary.global_position, 100, projectile_context
+	)
+	assert(get_tree().get_nodes_in_group("tower_projectiles").size() == 2)
+	for projectile in get_tree().get_nodes_in_group("tower_projectiles"):
+		projectile.queue_free()
+	await get_tree().process_frame
+	fragment_tower.notify_enemy_killed(fragment_primary, projectile_context)
+	assert(get_tree().get_nodes_in_group("tower_projectiles").size() == 1)
+	for projectile in get_tree().get_nodes_in_group("tower_projectiles"):
+		projectile.queue_free()
+
+	var current_tower := await _create_tower(fake_main, &"energycore")
+	assert(current_tower.equip_item(&"crippling_current"))
+	var current_enemy := _create_enemy(Vector2(300.0, 0.0))
+	current_tower.notify_damage_dealt(
+		current_enemy,
+		50,
+		AttackContext.from_tower(current_tower),
+		&"electric"
+	)
+	assert(is_equal_approx(current_enemy.temporary_armor_reduction, 2.0))
+
+	var aftershock_tower := await _create_tower(fake_main, &"reaver")
+	aftershock_tower.stats_controller.add_bonus_tag(BaseTower.BONUS_STUN)
+	assert(aftershock_tower.equip_item(&"aftershock"))
+	aftershock_tower.stats_controller.add_bonus_tag(BaseTower.BONUS_STUN)
+	assert(aftershock_tower.item_controller.get_active_item_ids().has(&"aftershock"))
+	aftershock_tower.stun_duration = 0.01
+	var stunned_enemy := _create_enemy(Vector2(400.0, 0.0))
+	var aftershock_neighbor := _create_enemy(Vector2(405.0, 0.0))
+	aftershock_tower.notify_status_applied(
+		stunned_enemy, &"stun", AttackContext.from_tower(aftershock_tower)
+	)
+	assert(not aftershock_tower.item_controller.runtime_state_by_slot[0].get(
+		"aftershock_tokens", {}
+	).is_empty())
+	await get_tree().create_timer(0.08).timeout
+	assert(aftershock_neighbor.health < 1000)
+
+	var detonator_tower := await _create_tower(fake_main, &"orbitalcannon")
+	assert(detonator_tower.equip_item(&"secondary_detonator"))
+	var detonation_enemy := _create_enemy(Vector2(500.0, 0.0))
+	var explosion_context := AttackContext.from_tower(
+		detonator_tower,
+		detonator_tower,
+		&"projectile",
+		&"explosion",
+		{
+			"area_damage": true,
+			"explosion_center": detonation_enemy.global_position,
+			"explosion_radius": 30.0,
+		}
+	)
+	detonator_tower.notify_damage_dealt(
+		detonation_enemy, 100, explosion_context, &"explosive"
+	)
+	await get_tree().create_timer(
+		GameStats.SECONDARY_DETONATOR_DELAY + 0.05
+	).timeout
+	assert(detonation_enemy.health == 965)
 	print("Tower item trigger smoke test passed: cooldown, explosion, multishot, live wire, runtime reset, and proc recursion guard.")
 	get_tree().quit(0)
 

@@ -2444,7 +2444,7 @@ func get_relic_combat_multiplier(
 			int(relics.get(&"thermite_bombs", 0)) > 0
 			and float(entry["armor"]) > 0.0
 		):
-			# Approximate the opening zero-damage hits spent stripping Armor.
+			# Approximate reduced damage while Thermite strips Armor.
 			multiplier *= 0.75
 	if damage_tags.has(&"electric") and int(relics.get(&"conductive", 0)) > 0:
 		if float(entry["armor"]) > 0.0:
@@ -2452,7 +2452,11 @@ func get_relic_combat_multiplier(
 				float(entry["armor"]),
 				&"electric"
 			)
-			multiplier *= (1.0 + armor_reduction) / (1.0 - armor_reduction)
+			var conductive_bonus := minf(
+				float(entry["armor"]) * GameStats.CONDUCTIVE_DAMAGE_PER_ARMOR,
+				GameStats.CONDUCTIVE_MAXIMUM_DAMAGE_BONUS
+			)
+			multiplier *= (1.0 + conductive_bonus) / (1.0 - armor_reduction)
 		else:
 			multiplier *= GameStats.CONDUCTIVE_UNARMORED_DAMAGE_MULTIPLIER
 	if (
@@ -2480,7 +2484,10 @@ func get_relic_combat_multiplier(
 			else GameStats.DEFAULT_CRITICAL_MULTIPLIER
 		)
 		crit_multiplier += GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"glass_cannon", 0)) + GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"deadeye", 0))
-		var noncrit := GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER if int(relics.get(&"glass_cannon", 0)) > 0 else 1.0
+		var noncrit := pow(
+			GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER,
+			float(relics.get(&"glass_cannon", 0))
+		)
 		var modified_critical_average := chance * crit_multiplier + (1.0 - chance) * noncrit
 		var baseline_critical_average := (
 			GameStats.DEFAULT_CRITICAL_CHANCE * GameStats.DEFAULT_CRITICAL_MULTIPLIER
@@ -2514,6 +2521,7 @@ func get_relic_combat_multiplier(
 		multiplier *= (
 			float(GameStats.TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER)
 			* GameStats.TRADE_AGREEMENT_UNIT_DAMAGE_MULTIPLIER
+			* GameStats.TRADE_AGREEMENT_UNIT_BUDGET_MULTIPLIER
 		)
 	return maxf(multiplier, 0.0)
 
@@ -2859,7 +2867,7 @@ func get_candidate_control_power(
 	if (
 		brake_stacks > 0
 		and candidate_has_category(candidate, &"stun")
-		and float(entry["speed"]) >= 130.0
+		and traits.has(&"fast")
 	):
 		control *= pow(1.35, float(brake_stacks))
 	if (
@@ -2872,7 +2880,7 @@ func get_candidate_control_power(
 		boss_scenario["boss"] = false
 		control = (
 			combat.get_control_value(stats, traits, boss_scenario)
-			* 0.5
+			* GameStats.BOSS_STUN_DURATION_MULTIPLIER
 			* clampf(engagement_count / base_count, 0.0, 1.0)
 		)
 	return maxf(control, 0.0)

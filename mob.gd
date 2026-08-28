@@ -40,6 +40,8 @@ var speed: float
 var cash_reward: int
 var base_damage: int
 var armor := 0.0
+var temporary_armor_reduction := 0.0
+var temporary_armor_reduction_remaining := 0.0
 var path_follow: PathFollow2D
 var finished := false
 var split_enemy_id: StringName = &""
@@ -64,6 +66,7 @@ var stun_remaining := 0.0
 var stun_context: AttackContext
 var stun_fatigue_tier := 0
 var stun_fatigue_recovery_elapsed := 0.0
+var boss_item_stun_cooldown_remaining := 0.0
 var brainiac_link_remaining := 0.0
 var brainiac_link_radius := 0.0
 var brainiac_link_damage_share := 0.0
@@ -172,6 +175,11 @@ func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
 	update_health_bar_position()
 	
 func _process(delta: float) -> void:
+	temporary_armor_reduction_remaining = maxf(
+		temporary_armor_reduction_remaining - delta, 0.0
+	)
+	if temporary_armor_reduction_remaining <= 0.0:
+		temporary_armor_reduction = 0.0
 	_process_brainiac_link(delta)
 	_process_beholder_damage_mark(delta)
 	_process_external_vulnerability(delta)
@@ -331,6 +339,9 @@ func update_health_bar_visibility() -> void:
 
 
 func _process_control_effects(delta: float) -> void:
+	boss_item_stun_cooldown_remaining = maxf(
+		boss_item_stun_cooldown_remaining - delta, 0.0
+	)
 	fisherman_pull_immunity_remaining = maxf(
 		fisherman_pull_immunity_remaining - delta,
 		0.0
@@ -587,6 +598,17 @@ func apply_stun(
 	if traits.has(&"boss") and not affects_bosses:
 		return
 	if attack_context != null:
+		if (
+			traits.has(&"boss")
+			and int(attack_context.metadata.get("youre_not_special", 0)) > 0
+		):
+			if boss_item_stun_cooldown_remaining > 0.0:
+				apply_slow(
+					GameStats.BOSS_ITEM_STUN_FALLBACK_SLOW_DURATION,
+					attack_context
+				)
+				return
+			boss_item_stun_cooldown_remaining = GameStats.BOSS_ITEM_STUN_COOLDOWN
 		var big_game_count := int(
 			attack_context.metadata.get("big_game_control", 0)
 		)
@@ -606,7 +628,7 @@ func apply_stun(
 		)
 		if (
 			emergency_brake_count > 0
-			and (traits.has(&"fast") or speed >= 130.0)
+			and traits.has(&"fast")
 		):
 			duration *= pow(
 				GameStats.EMERGENCY_BRAKE_DURATION_PER_STACK,
@@ -769,6 +791,14 @@ func apply_damage(
 		and bool(attack_context.metadata.get("shot_missed", false))
 	):
 		return 0
+	var effective_armor := maxf(armor - temporary_armor_reduction, 0.0)
+	var thermite_affects_armor := (
+		amount > 0
+		and damage_type == &"explosive"
+		and effective_armor > 0.0
+		and attack_context != null
+		and int(attack_context.metadata.get("thermite_bombs", 0)) > 0
+	)
 	if amount > 0 and apply_thermite_protection_removal(
 		damage_type, attack_context
 	):
@@ -790,6 +820,10 @@ func apply_damage(
 		amount = apply_attack_effect_damage_modifiers(
 			amount, damage_type, attack_context
 		)
+	if thermite_affects_armor:
+		amount = maxi(roundi(
+			float(amount) * GameStats.THERMITE_BOMBS_ARMORED_DAMAGE_MULTIPLIER
+		), 1)
 	var beholder_mark_multiplier := 1.0
 	if beholder_mark_remaining > 0.0 and beholder_mark_stacks > 0:
 		beholder_mark_multiplier = get_beholder_mark_damage_multiplier()
@@ -828,17 +862,22 @@ func apply_damage(
 		damage_type == &"electric"
 		and attack_context != null
 		and int(attack_context.metadata.get("conductive", 0)) > 0
-		and armor > 0.0
+		and effective_armor > 0.0
 	)
 	var armor_reduction := (
 		0.0
 		if (ignores_armor or is_electric_proc) and not conductive_armor
-		else GameStats.get_armor_damage_reduction(armor, damage_type)
+		else GameStats.get_armor_damage_reduction(effective_armor, damage_type)
 	)
 	var final_damage := maxi(
 		1,
 		roundi(
-			float(amount) * (1.0 + armor_reduction)
+			float(amount) * (
+				1.0 + minf(
+					effective_armor * GameStats.CONDUCTIVE_DAMAGE_PER_ARMOR,
+					GameStats.CONDUCTIVE_MAXIMUM_DAMAGE_BONUS
+				)
+			)
 			if conductive_armor
 			else float(amount) * (1.0 - armor_reduction)
 		)
@@ -848,7 +887,7 @@ func apply_damage(
 	health -= final_damage
 	health_bar.value = health
 	update_health_bar_visibility()
-	credit_tower_damage(received_damage, attack_context)
+	credit_tower_damage(received_damage, attack_context, damage_type)
 	if beholder_mark_multiplier > 1.0 and received_damage > 0:
 		var assisted_damage := roundi(
 			float(received_damage)
@@ -895,7 +934,8 @@ func apply_damage(
 
 func credit_tower_damage(
 	actual_damage: int,
-	attack_context: AttackContext
+	attack_context: AttackContext,
+	damage_type: StringName = &""
 ) -> void:
 	if actual_damage <= 0 or attack_context == null:
 		return
@@ -904,7 +944,20 @@ func credit_tower_damage(
 		is_instance_valid(root_tower)
 		and root_tower.has_method("notify_damage_dealt")
 	):
-		root_tower.notify_damage_dealt(self, actual_damage, attack_context)
+		root_tower.notify_damage_dealt(
+			self, actual_damage, attack_context, damage_type
+		)
+
+
+func apply_temporary_armor_reduction(amount: float, duration: float) -> void:
+	if amount <= 0.0 or duration <= 0.0 or armor <= 0.0:
+		return
+	temporary_armor_reduction = minf(
+		temporary_armor_reduction + amount, armor
+	)
+	temporary_armor_reduction_remaining = maxf(
+		temporary_armor_reduction_remaining, duration
+	)
 
 
 func consume_ablative_shield_hit() -> bool:
@@ -933,16 +986,16 @@ func apply_thermite_protection_removal(
 		shield_provider = get_nearest_ablative_shield_provider()
 	if shield_provider != null:
 		shield_provider.remove_ablative_shield_points(
-			GameStats.THERMITE_BOMBS_PROTECTION_REMOVAL
+			GameStats.THERMITE_BOMBS_SHIELD_REMOVAL
 		)
 		return true
 	if armor <= 0.0:
 		return false
 	armor = maxf(
-		armor - float(GameStats.THERMITE_BOMBS_PROTECTION_REMOVAL),
+		armor - float(GameStats.THERMITE_BOMBS_ARMOR_REMOVAL),
 		0.0
 	)
-	return true
+	return false
 
 
 func consume_projected_shield_hit() -> void:
@@ -1114,7 +1167,11 @@ func apply_chain_lightning(
 ) -> void:
 	var visited_ids: Dictionary = {get_instance_id(): true}
 	var previous_enemy: Node2D = self
+	var jump_damage := lightning_damage
 	for _jump_index in maxi(jump_count, 0):
+		jump_damage = maxi(roundi(
+			float(jump_damage) * GameStats.CHAIN_LIGHTNING_DAMAGE_FALLOFF
+		), 1)
 		var closest_enemy: Node2D
 		var closest_distance := INF
 		for candidate in get_tree().get_nodes_in_group("mobs"):
@@ -1142,7 +1199,7 @@ func apply_chain_lightning(
 			{"electric_proc": true}
 		)
 		closest_enemy.apply_damage(
-			lightning_damage, &"electric", true, false, chain_context
+			jump_damage, &"electric", true, false, chain_context
 		)
 		visited_ids[closest_enemy.get_instance_id()] = true
 		previous_enemy = closest_enemy
@@ -1191,17 +1248,15 @@ func trigger_microwave_explosion(
 ) -> void:
 	var source_tower := beam_context.get_root_tower()
 	if (
-		is_instance_valid(source_tower)
-		and source_tower.has_method("add_microwave_attack_cooldown")
+		not is_instance_valid(source_tower)
+		or not source_tower.has_method("try_trigger_microwave")
+		or not source_tower.try_trigger_microwave()
 	):
-		source_tower.add_microwave_attack_cooldown()
-	var explosion_damage := mini(
-		maxi(roundi(float(max_health) * GameStats.MICROWAVE_MAX_HEALTH_DAMAGE_RATIO), 1),
-		maxi(roundi(
-			float(killing_beam_damage)
-			* GameStats.MICROWAVE_BEAM_DAMAGE_CAP_MULTIPLIER
-		), 1)
-	)
+		return
+	var explosion_damage := maxi(roundi(
+		float(killing_beam_damage)
+		* GameStats.MICROWAVE_KILLING_HIT_DAMAGE_MULTIPLIER
+	), 1)
 	var explosion_context := beam_context.derive(
 		self,
 		&"defeated_enemy",

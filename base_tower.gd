@@ -122,6 +122,7 @@ var base_beam_hit_half_width_pixels := BEAM_HIT_HALF_WIDTH
 var death_ray_overcharge_enabled := false
 var death_ray_cycle_elapsed := 0.0
 var death_ray_overcharge_active := false
+var microwave_trigger_cooldown_remaining := 0.0
 var projectile_count := 1
 var volley_width_pixels := 0.0
 var volley_stagger := 0.0
@@ -849,14 +850,19 @@ func get_current_attack_interval() -> float:
 	return stats_controller.get_current_attack_interval()
 
 
-func add_microwave_attack_cooldown() -> void:
-	call_deferred("_apply_microwave_attack_cooldown")
+func try_trigger_microwave() -> bool:
+	if microwave_trigger_cooldown_remaining > 0.0:
+		return false
+	microwave_trigger_cooldown_remaining = GameStats.MICROWAVE_TRIGGER_COOLDOWN
+	return true
 
 
 func notify_enemy_killed(enemy: Node, attack_context: AttackContext) -> void:
 	if instance_progression != null:
 		instance_progression.record_kill(
-			TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy, attack_context)
+			_modify_xp_award(
+				TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy, attack_context)
+			)
 		)
 	if attack_component != null:
 		attack_component.on_enemy_killed(enemy, attack_context)
@@ -867,18 +873,23 @@ func notify_enemy_killed(enemy: Node, attack_context: AttackContext) -> void:
 func notify_damage_dealt(
 	enemy: Node,
 	actual_damage: int,
-	attack_context: AttackContext
+	attack_context: AttackContext,
+	damage_type: StringName = &""
 ) -> void:
 	if instance_progression == null or actual_damage <= 0:
 		return
 	instance_progression.record_damage(
 		actual_damage,
-		TOWER_XP_CREDIT_SERVICE.get_damage_xp(
-			actual_damage, enemy, attack_context
+		_modify_xp_award(
+			TOWER_XP_CREDIT_SERVICE.get_damage_xp(
+				actual_damage, enemy, attack_context
+			)
 		)
 	)
 	if item_controller != null:
-		item_controller.notify_damage_dealt(enemy, actual_damage, attack_context)
+		item_controller.notify_damage_dealt(
+			enemy, actual_damage, attack_context, damage_type
+		)
 
 
 func notify_enemy_abducted(
@@ -892,12 +903,16 @@ func notify_enemy_abducted(
 	if credited_damage > 0:
 		instance_progression.record_damage(
 			credited_damage,
-			TOWER_XP_CREDIT_SERVICE.get_damage_xp(
-				credited_damage, enemy, attack_context
+			_modify_xp_award(
+				TOWER_XP_CREDIT_SERVICE.get_damage_xp(
+					credited_damage, enemy, attack_context
+				)
 			)
 		)
 	instance_progression.record_kill(
-		TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy, attack_context)
+		_modify_xp_award(
+			TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy, attack_context)
+		)
 	)
 
 
@@ -928,9 +943,26 @@ func notify_status_applied(
 		item_controller.notify_status_applied(enemy, status_id, attack_context)
 
 
+func notify_projectile_terminated(
+	position: Vector2,
+	projectile_damage: int,
+	attack_context: AttackContext
+) -> void:
+	if item_controller != null:
+		item_controller.notify_projectile_terminated(
+			position, projectile_damage, attack_context
+		)
+
+
 func award_support_xp(amount: float) -> void:
 	if instance_progression != null:
-		instance_progression.record_control_credit(amount)
+		instance_progression.record_control_credit(_modify_xp_award(amount))
+
+
+func _modify_xp_award(amount: float) -> float:
+	if item_controller == null:
+		return maxf(amount, 0.0)
+	return item_controller.modify_and_share_xp(amount)
 
 
 func _on_instance_progression_changed() -> void:
@@ -958,16 +990,6 @@ func _refresh_progression_ui() -> void:
 		and main.has_method("show_tower_details")
 	):
 		main.show_tower_details(self)
-
-
-func _apply_microwave_attack_cooldown() -> void:
-	if not is_inside_tree() or not is_placed:
-		return
-	var remaining_cooldown := (
-		damage_timer.time_left if not damage_timer.is_stopped() else 0.0
-	)
-	attack_on_cooldown = true
-	damage_timer.start(remaining_cooldown + GameStats.MICROWAVE_ATTACK_COOLDOWN)
 
 
 func register_relentless_primary_attack(current_target: Node2D) -> void:
@@ -1223,8 +1245,13 @@ func get_targets_along_line(
 	)
 
 func _process(delta: float) -> void:
+	microwave_trigger_cooldown_remaining = maxf(
+		microwave_trigger_cooldown_remaining - delta, 0.0
+	)
 	if death_ray_overcharge_enabled:
 		process_death_ray_overcharge(delta)
+	if item_controller != null:
+		item_controller.process_combat_time(delta)
 	update_menu_layout()
 	if targeting_controller != null:
 		targeting_controller.process(delta)

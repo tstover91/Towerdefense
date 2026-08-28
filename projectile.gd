@@ -31,6 +31,7 @@ var bounce_range := 0.0
 var contact_explosions_enabled := false
 var contact_explosion_radius := 0.0
 var contact_explosion_damage_multiplier := 1.0
+var bounce_damage_multiplier := 1.0
 var infinite_pierce := false
 var pierce_loses_no_power := false
 var can_hit_hidden := false
@@ -46,6 +47,7 @@ var first_contact_made := false
 var hit_target_ids: Dictionary = {}
 var contact_splash_hit_target_ids: Dictionary = {}
 var segment_started_bounce := false
+var termination_notified := false
 var segment_query_shape := RectangleShape2D.new()
 
 
@@ -76,7 +78,8 @@ func setup(
 	attack_homing_enabled := false,
 	attack_pierce_loses_no_power := false,
 	attack_contact_explosion_damage_multiplier := 1.0,
-	attack_ownership_context: AttackContext = null
+	attack_ownership_context: AttackContext = null,
+	attack_bounce_damage_multiplier := 1.0
 ) -> void:
 	primary_target = target_node
 	original_primary_target_instance_id = (
@@ -107,6 +110,7 @@ func setup(
 		attack_contact_explosion_damage_multiplier,
 		0.0
 	)
+	bounce_damage_multiplier = maxf(attack_bounce_damage_multiplier, 0.0)
 	infinite_pierce = attack_infinite_pierce
 	pierce_loses_no_power = attack_pierce_loses_no_power
 	can_hit_hidden = attack_can_hit_hidden
@@ -115,6 +119,8 @@ func setup(
 	attack_context = attack_ownership_context
 	if attack_context == null and not source_tower_id.is_empty():
 		attack_context = AttackContext.legacy(source_tower_id, &"projectile")
+	if attack_context != null:
+		attack_context.metadata["resolved_attack_damage"] = attack_damage
 	maximum_travel_distance = maxf(max_travel_distance, distance_to_impact)
 	remaining_bounces = bounce_count
 	remaining_pierce_hits = (
@@ -155,14 +161,14 @@ func process_homing_travel(delta: float) -> void:
 	if travel_distance <= 0.0:
 		if damage_type == &"explosive":
 			resolve_explosion(global_position)
-		queue_free()
+		_finish_projectile()
 		return
 	global_position += direction * travel_distance
 	distance_traveled += travel_distance
 	if distance_traveled >= maximum_travel_distance:
 		if damage_type == &"explosive":
 			resolve_explosion(global_position)
-		queue_free()
+		_finish_projectile()
 
 
 func process_primary_travel(delta: float) -> void:
@@ -181,7 +187,7 @@ func process_primary_travel(delta: float) -> void:
 				segment_started_bounce = false
 				return
 			global_position = end
-			queue_free()
+			_finish_projectile()
 			return
 		global_position = end
 		distance_traveled += travel_distance
@@ -200,16 +206,16 @@ func process_primary_travel(delta: float) -> void:
 func resolve_first_contact_destination() -> void:
 	if damage_type == &"explosive":
 		resolve_explosion(impact_position)
-		queue_free()
+		_finish_projectile()
 		return
 	if (
 		not first_contact_made
 		or (remaining_pierce_hits <= 0 and not infinite_pierce)
 	):
-		queue_free()
+		_finish_projectile()
 		return
 	if continuation_distance <= 0.0:
-		queue_free()
+		_finish_projectile()
 		return
 	piercing_after_primary = true
 	distance_traveled = 0.0
@@ -218,11 +224,11 @@ func resolve_first_contact_destination() -> void:
 func resolve_primary_impact() -> void:
 	if damage_type == &"explosive":
 		resolve_explosion(impact_position)
-		queue_free()
+		_finish_projectile()
 		return
 
 	if not primary_target_is_at_impact():
-		queue_free()
+		_finish_projectile()
 		return
 
 	hit_target_ids[primary_target.get_instance_id()] = true
@@ -234,7 +240,7 @@ func resolve_primary_impact() -> void:
 	if begin_next_bounce():
 		return
 	if (pierce_count < 1 and not infinite_pierce) or continuation_distance <= 0.0:
-		queue_free()
+		_finish_projectile()
 		return
 
 	piercing_after_primary = true
@@ -249,6 +255,7 @@ func begin_next_bounce() -> bool:
 		return false
 
 	remaining_bounces -= 1
+	damage = maxi(roundi(float(damage) * bounce_damage_multiplier), 1)
 	if attack_context != null:
 		attack_context = attack_context.derive(
 			self,
@@ -313,20 +320,20 @@ func process_pierce_travel(delta: float) -> void:
 		continuation_distance - distance_traveled
 	)
 	if travel_distance <= 0.0:
-		queue_free()
+		_finish_projectile()
 		return
 
 	var start := global_position
 	var end := start + direction * travel_distance
 	if resolve_pierce_segment(start, end):
 		global_position = end
-		queue_free()
+		_finish_projectile()
 		return
 
 	global_position = end
 	distance_traveled += travel_distance
 	if distance_traveled >= continuation_distance:
-		queue_free()
+		_finish_projectile()
 
 
 func resolve_pierce_segment(start: Vector2, end: Vector2) -> bool:
@@ -600,6 +607,21 @@ func _notify_status_applied(
 		and root_tower.has_method("notify_status_applied")
 	):
 		root_tower.notify_status_applied(mob, status_id, resolved_context)
+
+
+func _finish_projectile() -> void:
+	if not termination_notified and attack_context != null:
+		termination_notified = true
+		var root_tower := attack_context.get_root_tower()
+		if (
+			is_instance_valid(root_tower)
+			and not root_tower.is_queued_for_deletion()
+			and root_tower.has_method("notify_projectile_terminated")
+		):
+			root_tower.notify_projectile_terminated(
+				global_position, damage, attack_context
+			)
+	queue_free()
 
 
 func derive_attack_context(derived_attack_kind: StringName) -> AttackContext:

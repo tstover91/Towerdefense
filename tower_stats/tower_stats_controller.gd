@@ -181,6 +181,12 @@ func apply_effect_combat_stat_modifiers(
 			float(stats[damage_key])
 				* GameStats.TRADE_AGREEMENT_UNIT_DAMAGE_MULTIPLIER
 		), 1)
+		for budget_key in ["damage_budget", "lifetime"]:
+			if stats.has(budget_key) and float(stats[budget_key]) > 0.0:
+				stats[budget_key] = (
+					float(stats[budget_key])
+					* GameStats.TRADE_AGREEMENT_UNIT_BUDGET_MULTIPLIER
+				)
 	if tower.has_type_tag(BaseTower.TYPE_TECHNOLOGY):
 		var network_stacks := get_owned_relic_count(&"network_upgrade")
 		if network_stacks > 0:
@@ -194,6 +200,13 @@ func apply_effect_combat_stat_modifiers(
 			stats[interval_key] = maxf(
 				float(stats[interval_key]) / (1.0 + network_speed_bonus), 0.01
 			)
+	if (
+		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
+		and get_effect_stack_count(&"relentless") > 0
+	):
+		stats[damage_key] = maxi(roundi(
+			float(stats[damage_key]) * GameStats.RELENTLESS_DAMAGE_MULTIPLIER
+		), 1)
 	if (
 		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
 		and get_effect_stack_count(&"lone_wolf") > 0
@@ -369,6 +382,7 @@ func get_explosion_radius_multiplier() -> float:
 	return (
 		pow(GameStats.HIGH_YIELD_RADIUS_MULTIPLIER, get_effect_stack_count(&"high_yield"))
 		* pow(GameStats.CONCENTRATED_CHARGE_RADIUS_MULTIPLIER, get_effect_stack_count(&"concentrated_charge"))
+		* pow(GameStats.BLAST_GEL_RADIUS_MULTIPLIER, get_effect_stack_count(&"blast_gel"))
 		* (GameStats.MAXIMUM_PAYLOAD_RADIUS_MULTIPLIER if get_owned_relic_count(&"maximum_payload") > 0 else 1.0)
 	)
 

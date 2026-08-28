@@ -17,7 +17,7 @@ func run_test() -> void:
 		10_000, &"explosive", false, true, thermite_context
 	) == 0)
 	assert(shielded.health == shielded_health)
-	assert(shielded.ablative_shield_points == 0)
+	assert(shielded.ablative_shield_points == 3)
 	shielded.ablative_shield_points = 5
 	for hit_index in 5:
 		var damage_type: StringName = &"beam" if hit_index % 2 == 0 else &"explosive"
@@ -37,7 +37,7 @@ func run_test() -> void:
 		10_000, &"explosive", false, true, thermite_context
 	) == 0)
 	assert(protected.health == protected_health)
-	assert(projector.ablative_shield_points == 7)
+	assert(projector.ablative_shield_points == 10)
 	projector.ablative_shield_points = 12
 	assert(protected.apply_damage(10_000, &"beam") == 0)
 	assert(protected.health == protected_health)

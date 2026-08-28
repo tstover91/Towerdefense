@@ -74,6 +74,7 @@ var death_ray_overcharge_enabled := false
 var death_ray_cycle_elapsed := 0.0
 var death_ray_overcharge_active := false
 var explode_on_damage_budget := false
+var explode_on_expiration := false
 var die_on_damage_budget := false
 var budget_explosion_radius_pixels := 0.0
 var budget_explosion_damage_multiplier := 1.0
@@ -92,6 +93,8 @@ var mech_hunter := false
 var hunter_pursuit_radius_pixels := 0.0
 var hunter_critical_chance := 0.30
 var visual_scale := 1.0
+var blueprint_variant: StringName = &""
+var replicated_unit := false
 
 
 func setup(
@@ -137,6 +140,10 @@ func load_definition() -> void:
 
 
 func apply_stats(unit_stats: Dictionary) -> void:
+	blueprint_variant = StringName(unit_stats.get(
+		"blueprint_variant", blueprint_variant
+	))
+	replicated_unit = bool(unit_stats.get("replicated_unit", replicated_unit))
 	movement_type = unit_stats.get("movement_type", movement_type)
 	if unit_stats.has("damage_tags"):
 		damage_tags.assign(unit_stats["damage_tags"])
@@ -230,6 +237,7 @@ func apply_stats(unit_stats: Dictionary) -> void:
 	explode_on_damage_budget = bool(
 		unit_stats.get("explode_on_damage_budget", false)
 	)
+	explode_on_expiration = bool(unit_stats.get("explode_on_expiration", false))
 	die_on_damage_budget = bool(unit_stats.get("die_on_damage_budget", false))
 	budget_explosion_radius_pixels = (
 		maxf(float(unit_stats.get("budget_explosion_radius", 0.0)), 0.0)
@@ -291,6 +299,7 @@ func apply_stats(unit_stats: Dictionary) -> void:
 		1.0
 	)
 	visual_scale = maxf(float(unit_stats.get("visual_scale", 1.0)), 0.1)
+	_apply_blueprint_visual(StringName(unit_stats.get("blueprint_variant", &"")))
 	splash_radius_pixels = maxf(
 		float(unit_stats.get("splash_radius", 0.0)) * RANGE_PIXELS_PER_UNIT,
 		0.0
@@ -308,6 +317,26 @@ func apply_stats(unit_stats: Dictionary) -> void:
 	queue_redraw()
 
 
+func _apply_blueprint_visual(variant: StringName) -> void:
+	match variant:
+		&"defective":
+			modulate = Color(0.70, 0.70, 0.70)
+		&"reinforced":
+			modulate = Color(0.70, 0.85, 1.0)
+		&"overclocked":
+			modulate = Color(1.0, 0.85, 0.35)
+		&"heavy":
+			modulate = Color(1.0, 0.60, 0.45)
+		&"mobile":
+			modulate = Color(0.55, 1.0, 0.65)
+		&"volatile":
+			modulate = Color(1.0, 0.40, 0.85)
+		_:
+			modulate = Color.WHITE
+	if replicated_unit:
+		modulate = modulate.lerp(Color(0.65, 0.90, 1.0), 0.35)
+
+
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(parent_tower) or parent_tower.is_queued_for_deletion():
 		queue_free()
@@ -315,6 +344,8 @@ func _physics_process(delta: float) -> void:
 	if lifetime > 0.0:
 		age += delta
 		if age >= lifetime:
+			if explode_on_expiration:
+				trigger_budget_explosion()
 			queue_free()
 			return
 

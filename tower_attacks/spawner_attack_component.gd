@@ -43,7 +43,10 @@ func load_level_stats(stats: Dictionary) -> void:
 	spawn_limit = maxi(int(stats.get("spawn_limit", 1)), 1)
 	spawn_batch_size = 1
 	if tower.get_effect_stack_count(&"trade_agreement") > 0:
-		spawn_limit *= GameStats.TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER
+		spawn_limit = ceili(
+			float(spawn_limit)
+			* GameStats.TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER
+		)
 		spawn_batch_size = GameStats.TRADE_AGREEMENT_SPAWN_BATCH_SIZE
 	deployment_radius_pixels = (
 		float(stats.get("deployment_radius", 1.0))
@@ -74,19 +77,31 @@ func spawn_unit() -> void:
 		return
 	var available_slots := spawn_limit - active_units.size()
 	for _unit_index in mini(spawn_batch_size, available_slots):
-		_spawn_one_unit()
+		_spawn_one_unit(false)
+		if (
+			tower.item_controller != null
+			and tower.item_controller.should_create_replication()
+		):
+			_spawn_one_unit(true)
 
 
-func _spawn_one_unit() -> void:
+func _spawn_one_unit(is_replica := false) -> void:
 	var spawned_unit: Node = SPAWNED_UNIT_SCENE.instantiate()
 	tower.get_tree().current_scene.add_child(spawned_unit)
 	spawned_unit.global_position = _get_spawned_unit_position()
 	var map_path: Path2D
 	if tower.main.has_method("get_primary_enemy_path"):
 		map_path = tower.main.get_primary_enemy_path()
+	var unit_stats: Dictionary = tower.get_current_effective_stats()[
+		"unit_stats"
+	].duplicate(true)
+	if tower.item_controller != null:
+		unit_stats = tower.item_controller.modify_spawned_unit_stats(
+			unit_stats, is_replica
+		)
 	spawned_unit.setup(
 		spawned_unit_id,
-		tower.get_current_effective_stats()["unit_stats"],
+		unit_stats,
 		tower,
 		map_path
 	)
@@ -117,7 +132,14 @@ func _refresh_unit_stats(unit_stats: Dictionary) -> void:
 	prune_units()
 	for spawned_unit in active_units:
 		if is_instance_valid(spawned_unit):
-			spawned_unit.apply_stats(unit_stats)
+			var refreshed_stats := unit_stats
+			if tower.item_controller != null:
+				refreshed_stats = tower.item_controller.apply_spawn_variant_to_stats(
+					unit_stats,
+					StringName(spawned_unit.get("blueprint_variant")),
+					bool(spawned_unit.get("replicated_unit"))
+				)
+			spawned_unit.apply_stats(refreshed_stats)
 
 
 func prune_units() -> void:

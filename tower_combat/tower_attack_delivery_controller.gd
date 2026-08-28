@@ -39,8 +39,14 @@ func attack(current_target: Node2D) -> void:
 	# Revalidate at the firing boundary so losing reveal cannot produce a shot.
 	if not tower.is_valid_target(current_target):
 		return
+	var prepared_attack_damage := tower.damage
+	if tower.item_controller != null:
+		prepared_attack_damage = maxi(roundi(
+			float(prepared_attack_damage)
+				* tower.item_controller.get_pending_attack_damage_multiplier()
+		), 1)
 	if tower.uses_continuous_beam():
-		var beam_damage := tower.damage
+		var beam_damage := prepared_attack_damage
 		if tower.attack_component != null:
 			beam_damage = tower.attack_component.get_continuous_beam_damage(
 				beam_damage
@@ -54,11 +60,11 @@ func attack(current_target: Node2D) -> void:
 	if (
 		tower.attack_component != null
 		and tower.attack_component.execute_raw_attack(
-			current_target, tower.damage
+			current_target, prepared_attack_damage
 		)
 	):
 		return
-	var base_attack_damage := tower.damage
+	var base_attack_damage := prepared_attack_damage
 	if tower.attack_component != null:
 		base_attack_damage = tower.attack_component.modify_base_attack_damage(
 			current_target, base_attack_damage
@@ -293,35 +299,31 @@ func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
 		if tower.damage_type == BaseTower.DAMAGE_EXPLOSIVE
 		else 0.0
 	)
-	var projectile_target_position := current_target.global_position
 	var maximum_projectile_distance := tower.range_radius_pixels
-	if (
-		tower.infinite_pierce
-		and tower.impact_mode == GameStats.IMPACT_FIRST_CONTACT
-	):
-		var shot_direction := (
-			current_target.global_position - tower.muzzle.global_position
-		).normalized()
-		projectile_target_position = (
-			tower.muzzle.global_position
-			+ shot_direction * maximum_projectile_distance
-		)
 	var additional_projectiles := 0
 	if tower.item_controller != null:
 		additional_projectiles = maxi(roundi(
 			tower.item_controller.get_trigger_total(&"additional_projectiles")
 		), 0)
 	var projectile_total := 1 + additional_projectiles
-	var base_offset := projectile_target_position - tower.muzzle.global_position
 	for projectile_index in projectile_total:
-		var angle_offset := 0.0
-		if projectile_total > 1:
-			angle_offset = (
-				float(projectile_index) / float(projectile_total - 1) - 0.5
-			) * deg_to_rad(10.0)
-		var destination := (
-			tower.muzzle.global_position + base_offset.rotated(angle_offset)
+		var projectile_target := current_target
+		if projectile_index > 0:
+			projectile_target = _get_split_projectile_target(current_target)
+		var base_offset := (
+			projectile_target.global_position - tower.muzzle.global_position
 		)
+		if projectile_target == current_target and projectile_index > 0:
+			base_offset = base_offset.rotated(deg_to_rad(6.0))
+		var destination := tower.muzzle.global_position + base_offset
+		if (
+			tower.infinite_pierce
+			and tower.impact_mode == GameStats.IMPACT_FIRST_CONTACT
+		):
+			destination = (
+				tower.muzzle.global_position
+				+ base_offset.normalized() * maximum_projectile_distance
+			)
 		var context := create_attack_context(
 			&"projectile",
 			null,
@@ -331,7 +333,7 @@ func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
 			true
 		)
 		launch_projectile_from_position(
-			current_target,
+			projectile_target,
 			tower.muzzle.global_position,
 			destination,
 			maximum_projectile_distance,
@@ -339,6 +341,27 @@ func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
 			impact_radius,
 			context
 		)
+
+
+func _get_split_projectile_target(primary_target: Node2D) -> Node2D:
+	var closest_target := primary_target
+	var closest_distance_squared := INF
+	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+		if (
+			candidate == primary_target
+			or not candidate is Node2D
+			or not tower.is_valid_target(candidate)
+			or tower.global_position.distance_to(candidate.global_position)
+				> tower.range_radius_pixels
+		):
+			continue
+		var distance_squared := primary_target.global_position.distance_squared_to(
+			candidate.global_position
+		)
+		if distance_squared < closest_distance_squared:
+			closest_distance_squared = distance_squared
+			closest_target = candidate
+	return closest_target
 
 
 func launch_projectile_from_position(
@@ -395,7 +418,14 @@ func launch_projectile_from_position(
 		tower.attack_component.projectile_contact_explosion_damage_multiplier()
 			if tower.attack_component != null
 			else 1.0,
-		resolved_context
+		resolved_context,
+		(
+			tower.item_controller.get_trigger_total(
+				&"bounce_damage_multiplier", 1.0
+			)
+			if tower.item_controller != null
+			else 1.0
+		)
 	)
 	return projectile
 

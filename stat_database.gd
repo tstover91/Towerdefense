@@ -13,7 +13,29 @@ const STATIC_DISCHARGE_DAMAGE_RATIO := 0.35
 const STATIC_DISCHARGE_PRIMARY_DAMAGE_RATIO := 0.50
 const STATIC_DISCHARGE_RADIUS := BUILD_CELL_SIZE * 1.25
 const OVERCHARGED_CAPACITOR_HIT_MULTIPLIER := 1.50
-const OVERCHARGED_CAPACITOR_DAMAGE_MULTIPLIER := 3.0
+const OVERCHARGED_CAPACITOR_DAMAGE_MULTIPLIER := 2.0
+const CHAIN_LIGHTNING_DAMAGE_FALLOFF := 0.75
+const BLAST_GEL_RADIUS_MULTIPLIER := 1.25
+const PATIENT_HUNTER_DAMAGE_PER_SECOND := 0.20
+const PATIENT_HUNTER_MAXIMUM_DAMAGE_BONUS := 1.00
+const REPLICATION_MATRIX_CHANCE := 0.15
+const REPLICATION_MATRIX_UNIT_MULTIPLIER := 0.50
+const TRAINING_MANUAL_XP_BONUS := 0.40
+const MENTOR_PERSONAL_XP_MULTIPLIER := 0.60
+const MENTOR_SHARE_RADIUS := BUILD_CELL_SIZE * 5.0
+const FRACTURE_ROUNDS_FRAGMENT_DAMAGE_MULTIPLIER := 0.35
+const CRITICAL_FRAGMENTATION_DAMAGE_MULTIPLIER := 0.35
+const AFTERIMAGE_ROUND_DAMAGE_MULTIPLIER := 0.40
+const SECONDARY_DETONATOR_DAMAGE_MULTIPLIER := 0.35
+const SECONDARY_DETONATOR_DELAY := 0.60
+const STICKY_CHARGE_BASE_CHANCE := 0.20
+const STICKY_CHARGE_DAMAGE_MULTIPLIER := 0.60
+const STICKY_CHARGE_DELAY := 1.50
+const STICKY_CHARGE_RADIUS := BUILD_CELL_SIZE * 1.75
+const CRIPPLING_CURRENT_ARMOR_REDUCTION := 2.0
+const CRIPPLING_CURRENT_DURATION := 3.0
+const AFTERSHOCK_DAMAGE_MULTIPLIER := 0.40
+const AFTERSHOCK_RADIUS := BUILD_CELL_SIZE * 1.50
 
 # Shared Normal-mode progression data. General-family enemies keep fixed beats;
 # three other families and two upgrades are selected separately for each run.
@@ -262,13 +284,15 @@ const MAXIMUM_PAYLOAD_DAMAGE_MULTIPLIER := 1.50
 const MAXIMUM_PAYLOAD_INTERVAL_MULTIPLIER := 1.75
 
 const LUCKY_SHOT_CHANCE_PER_STACK := 0.20
-const GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS := 2.0
-const GLASS_CANNON_NONCRITICAL_MULTIPLIER := 0.70
+const GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS := 1.0
+const GLASS_CANNON_NONCRITICAL_MULTIPLIER := 0.80
 const DEADEYE_CRITICAL_MULTIPLIER_BONUS := 2.0
 const DEADEYE_MISS_CHANCE := 0.20
 const EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER := 1.50
 
-const BOSS_STUN_DURATION_MULTIPLIER := 0.50
+const BOSS_STUN_DURATION_MULTIPLIER := 0.35
+const BOSS_ITEM_STUN_COOLDOWN := 5.0
+const BOSS_ITEM_STUN_FALLBACK_SLOW_DURATION := 2.0
 
 const PREDATORY_INSTINCT_HEALTH_THRESHOLD := 0.25
 const PREDATORY_INSTINCT_DAMAGE_PER_STACK := 0.50
@@ -280,11 +304,15 @@ const HOLLOW_POINT_DAMAGE_PER_STACK := 0.25
 const LONG_BARREL_MAX_DAMAGE_PER_STACK := 0.40
 const POINT_BLANK_MAX_DAMAGE_PER_STACK := 0.40
 
-const GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER := 1.75
-const GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER := 0.75
+const GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER := 1.50
+const GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER := 0.80
 
-const THERMITE_BOMBS_PROTECTION_REMOVAL := 5
-const CONDUCTIVE_UNARMORED_DAMAGE_MULTIPLIER := 0.85
+const THERMITE_BOMBS_ARMOR_REMOVAL := 3
+const THERMITE_BOMBS_SHIELD_REMOVAL := 2
+const THERMITE_BOMBS_ARMORED_DAMAGE_MULTIPLIER := 0.75
+const CONDUCTIVE_UNARMORED_DAMAGE_MULTIPLIER := 0.90
+const CONDUCTIVE_DAMAGE_PER_ARMOR := 0.005
+const CONDUCTIVE_MAXIMUM_DAMAGE_BONUS := 0.25
 
 const BIG_GAME_CONTROL_ELITE_DURATION_PER_STACK := 1.40
 const BIG_GAME_CONTROL_NORMAL_DURATION_PER_STACK := 0.80
@@ -314,11 +342,11 @@ const QUICK_THINKING_COOLDOWN_MULTIPLIER := 0.70
 
 const RELENTLESS_SPEED_PER_STACK := 0.15
 const RELENTLESS_MAXIMUM_STACKS := 5
+const RELENTLESS_DAMAGE_MULTIPLIER := 0.80
 
-const MICROWAVE_MAX_HEALTH_DAMAGE_RATIO := 0.30
-const MICROWAVE_BEAM_DAMAGE_CAP_MULTIPLIER := 5.0
-const MICROWAVE_EXPLOSION_RADIUS := BUILD_CELL_SIZE * 1.5
-const MICROWAVE_ATTACK_COOLDOWN := 1.0
+const MICROWAVE_KILLING_HIT_DAMAGE_MULTIPLIER := 2.0
+const MICROWAVE_EXPLOSION_RADIUS := BUILD_CELL_SIZE * 2.5
+const MICROWAVE_TRIGGER_COOLDOWN := 1.5
 
 
 const MOVEMENT_STATIONARY: StringName = &"stationary"
@@ -471,9 +499,10 @@ const RELICS := {
 const HOLIDAY_SALE_DISCOUNT_MULTIPLIER := 0.65
 const HOLIDAY_SALE_OTHER_COST_MULTIPLIER := 1.15
 const RUBBER_BULLETS_BOUNCE_RANGE := 3.0
-const TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER := 2
+const TRADE_AGREEMENT_SPAWN_LIMIT_MULTIPLIER := 1.50
 const TRADE_AGREEMENT_SPAWN_BATCH_SIZE := 2
-const TRADE_AGREEMENT_UNIT_DAMAGE_MULTIPLIER := 0.70
+const TRADE_AGREEMENT_UNIT_DAMAGE_MULTIPLIER := 0.65
+const TRADE_AGREEMENT_UNIT_BUDGET_MULTIPLIER := 0.80
 
 const TOWER_TEXTURES := {
 	&"invader": preload("res://assets/towers/invader.png"),
@@ -987,6 +1016,7 @@ const TOWER_ITEMS := {
 		"rarity": &"common",
 		"category": &"critical",
 		"price": 425,
+		"shop_enabled": false,
 		"required_all_tags": [&"critical"],
 		"stat_defaults": {"critical_chance": DEFAULT_CRITICAL_CHANCE},
 		"stat_additions": {"critical_chance": 0.12},
@@ -1009,6 +1039,7 @@ const TOWER_ITEMS := {
 		"rarity": &"common",
 		"category": &"explosive",
 		"price": 475,
+		"shop_enabled": false,
 		"required_all_tags": [&"explosive"],
 		"stat_multipliers": {
 			"damage": 1.35,
@@ -1022,6 +1053,7 @@ const TOWER_ITEMS := {
 		"rarity": &"common",
 		"category": &"beam",
 		"price": 425,
+		"shop_enabled": false,
 		"required_all_tags": [&"beam"],
 		"stat_defaults": {"beam_half_width": 2.5},
 		"stat_multipliers": {"range": 1.15, "beam_half_width": 1.25},
@@ -1054,13 +1086,13 @@ const TOWER_ITEMS := {
 	},
 	&"split_chamber": {
 		"display_name": "Split Chamber",
-		"description": "Slinger fires one additional projectile at a slight angle, but deals 20% less damage.",
+		"description": "Fires one additional projectile, but deals 30% less damage. The extra shot seeks another target when possible.",
 		"rarity": &"uncommon",
 		"category": &"projectile",
 		"price": 650,
 		"required_all_tags": [&"projectile"],
-		"allowed_tower_ids": [&"slinger"],
-		"stat_multipliers": {"damage": 0.80},
+		"max_copies_per_tower": 1,
+		"stat_multipliers": {"damage": 0.70},
 		"trigger_effects": {"additional_projectiles": 1},
 	},
 	&"live_wire": {
@@ -1086,51 +1118,221 @@ const TOWER_ITEMS := {
 		"max_copies_per_tower": 1,
 		"add_bonus_tags": [&"reveal"],
 	},
+	&"blast_gel": {
+		"display_name": "Blast Gel",
+		"description": "Explosions are 25% larger.",
+		"rarity": &"common",
+		"category": &"explosive",
+		"price": 400,
+		"required_all_tags": [&"explosive"],
+		"max_copies_per_tower": 4,
+		"item_effects": {&"blast_gel": 1},
+	},
+	&"reinforced_components": {
+		"display_name": "Reinforced Components",
+		"description": "+12% damage.",
+		"rarity": &"common",
+		"category": &"offense",
+		"price": 400,
+		"max_copies_per_tower": 4,
+		"stat_multipliers": {"damage": 1.12},
+		"unit_stat_multipliers": {"damage": 1.12},
+	},
+	&"calibrated_gears": {
+		"display_name": "Calibrated Gears",
+		"description": "Attack cooldown is 10% shorter.",
+		"rarity": &"common",
+		"category": &"offense",
+		"price": 400,
+		"max_copies_per_tower": 4,
+		"stat_multipliers": {"firerate": 0.90},
+		"unit_stat_multipliers": {"attack_interval": 0.90},
+	},
+	&"rangefinder": {
+		"display_name": "Rangefinder",
+		"description": "+15% attack range.",
+		"rarity": &"common",
+		"category": &"offense",
+		"price": 400,
+		"max_copies_per_tower": 4,
+		"stat_multipliers": {"range": 1.15},
+		"unit_stat_multipliers": {"aim_radius": 1.15, "acquisition_radius": 1.15},
+	},
+	&"kinetic_rebound": {
+		"display_name": "Kinetic Rebound",
+		"description": "Each successive ricochet deals 15% more damage than the previous hit.",
+		"rarity": &"uncommon",
+		"category": &"projectile",
+		"price": 650,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"projectile", &"ricochet"],
+		"trigger_effects": {"bounce_damage_multiplier": 1.15},
+	},
+	&"critical_fragmentation": {
+		"display_name": "Critical Fragmentation",
+		"description": "Critical projectile hits launch two fragments at other nearby enemies for 35% damage. Fragments cannot trigger item effects.",
+		"rarity": &"rare",
+		"category": &"critical",
+		"price": 900,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"projectile", &"critical"],
+		"trigger_effects": {"critical_fragment_count": 2},
+	},
+	&"afterimage_round": {
+		"display_name": "Afterimage Round",
+		"description": "Projectile kills fire a 40% damage shot at another enemy. Afterimage shots cannot trigger item effects.",
+		"rarity": &"rare",
+		"category": &"projectile",
+		"price": 875,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"projectile"],
+		"trigger_effects": {"afterimage_projectile_count": 1},
+	},
+	&"secondary_detonator": {
+		"display_name": "Secondary Detonator",
+		"description": "Explosions detonate again after 0.6 seconds for 35% damage. Secondary detonations cannot trigger items.",
+		"rarity": &"rare",
+		"category": &"explosive",
+		"price": 900,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"explosive"],
+		"trigger_effects": {"secondary_detonation": 1},
+	},
+	&"crippling_current": {
+		"display_name": "Crippling Current",
+		"description": "Electric hits reduce Armor by 2 for 3 seconds, stacking up to the target's Armor.",
+		"rarity": &"rare",
+		"category": &"electric",
+		"price": 850,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"electric"],
+		"trigger_effects": {"temporary_armor_reduction": 2.0},
+	},
+	&"aftershock": {
+		"display_name": "Aftershock",
+		"description": "When this tower's Stun ends, the enemy releases a 40% damage pulse in a 1.5-tile radius.",
+		"rarity": &"uncommon",
+		"category": &"stun",
+		"price": 650,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"stun"],
+		"trigger_effects": {"aftershock": 1},
+	},
+	&"patient_hunter": {
+		"display_name": "Patient Hunter",
+		"description": "Every second spent without attacking charges the next attack for +20% damage, up to +100%. Charge resets each wave.",
+		"rarity": &"rare",
+		"category": &"offense",
+		"price": 875,
+		"max_copies_per_tower": 1,
+		"forbidden_tags": [&"spawner"],
+		"trigger_effects": {"patient_hunter": 1},
+	},
+	&"replication_matrix": {
+		"display_name": "Replication Matrix",
+		"description": "Each normal spawn has a 15% chance to produce an additional unit with 50% damage and operating budget. Replicas cannot replicate.",
+		"rarity": &"rare",
+		"category": &"spawner",
+		"price": 900,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"spawner"],
+		"trigger_effects": {"replication_matrix": 1},
+	},
+	&"training_manual": {
+		"display_name": "Training Manual",
+		"description": "+40% XP gained, but 12% less damage.",
+		"rarity": &"common",
+		"category": &"experience",
+		"price": 425,
+		"max_copies_per_tower": 4,
+		"stat_multipliers": {"damage": 0.88},
+		"unit_stat_multipliers": {"damage": 0.88},
+		"trigger_effects": {"xp_gain_bonus": 0.40},
+	},
+	&"mentor": {
+		"display_name": "Mentor",
+		"description": "Retain 60% of earned XP and divide the other 40% among nearby towers.",
+		"rarity": &"uncommon",
+		"category": &"experience",
+		"price": 650,
+		"max_copies_per_tower": 1,
+		"trigger_effects": {"mentor": 1},
+	},
+	&"fracture_rounds": {
+		"display_name": "Fracture Rounds",
+		"description": "Projectiles split into two 35% damage fragments when they hit their final target or reach maximum range. Fragments cannot trigger items.",
+		"rarity": &"uncommon",
+		"category": &"projectile",
+		"price": 675,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"projectile"],
+		"trigger_effects": {"terminal_fragment_count": 2},
+	},
+	&"sticky_charge": {
+		"display_name": "Sticky Charge",
+		"description": "Projectile hits have an attack-speed-adjusted chance to attach a charge that explodes after 1.5 seconds for 60% damage.",
+		"rarity": &"rare",
+		"category": &"projectile",
+		"price": 875,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"projectile"],
+		"trigger_effects": {"sticky_charge": 1},
+	},
+	&"experimental_blueprint": {
+		"display_name": "Experimental Blueprint",
+		"description": "Each spawned unit receives a random modification: Reinforced, Overclocked, Heavy, Mobile, Volatile, or the rarer Defective outcome.",
+		"rarity": &"rare",
+		"category": &"spawner",
+		"price": 900,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"spawner"],
+		"trigger_effects": {"experimental_blueprint": 1},
+	},
 }
 
 ## Tower-local adapters for approved legacy relic mechanics. These definitions
 ## reuse the proven effect implementations while relic rewards remain disabled.
 const CONVERTED_RELIC_ITEM_CONFIG := {
 	&"focused_lens": {"rarity": &"common", "price": 425, "required_all_tags": [&"beam"]},
-	&"wide_lens": {"rarity": &"common", "price": 425, "required_all_tags": [&"beam"]},
+	&"wide_lens": {"rarity": &"common", "price": 425, "required_all_tags": [&"beam"], "shop_enabled": false},
 	&"interference_beam": {"rarity": &"rare", "price": 875, "required_all_tags": [&"beam"]},
-	&"microwave": {"rarity": &"rare", "price": 950, "required_all_tags": [&"beam"]},
+	&"microwave": {"rarity": &"rare", "price": 950, "required_all_tags": [&"beam"], "description": "Beam kills explode for 200% of the killing hit in a 2.5-tile radius. Triggers at most once every 1.5 seconds per tower."},
 	&"death_ray": {"rarity": &"legendary", "price": 1600, "required_all_tags": [&"beam"], "description": "Every 6 seconds, this tower overcharges for 2 seconds: double Beam damage and width with infinite Pierce."},
 	&"hollow_point": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"]},
 	&"heavy_rounds": {"rarity": &"common", "price": 400, "required_all_tags": [&"ballistic"]},
 	&"lightweight_ammo": {"rarity": &"common", "price": 400, "required_all_tags": [&"ballistic"]},
-	&"long_barrel": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"]},
-	&"point_blank": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"]},
+	&"long_barrel": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"], "shop_enabled": false},
+	&"point_blank": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"], "shop_enabled": false},
 	&"suppressive_fire": {"rarity": &"uncommon", "price": 625, "required_all_tags": [&"ballistic"]},
 	&"experimental_munitions": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"ballistic"], "description": "Grants Critical to this Ballistic tower with a base 1.5x critical multiplier."},
 	&"frenzy": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"]},
 	&"duelist": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"]},
-	&"relentless": {"rarity": &"rare", "price": 900, "required_all_tags": [&"melee"]},
-	&"giant_killer": {"rarity": &"common", "price": 450, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "Per copy: +75% Melee damage to elites and bosses, but 25% less damage to normal enemies."},
-	&"strength_in_numbers": {"rarity": &"common", "price": 425, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "+20% Melee damage per nearby Melee tower per copy, counting up to four neighbors."},
-	&"lone_wolf": {"rarity": &"uncommon", "price": 700, "required_all_tags": [&"melee"]},
+	&"relentless": {"rarity": &"rare", "price": 900, "required_all_tags": [&"melee"], "description": "Deal 20% less damage. Consecutive attacks against the same primary target gain 15% attack speed, up to five stacks; changing targets resets all stacks."},
+	&"giant_killer": {"rarity": &"common", "price": 450, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "Per copy: +50% Melee damage to elites and bosses, but 20% less damage to normal enemies."},
+	&"strength_in_numbers": {"rarity": &"common", "price": 425, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "+20% Melee damage per nearby Melee tower per copy, counting up to four neighbors.", "shop_enabled": false},
+	&"lone_wolf": {"rarity": &"uncommon", "price": 700, "required_all_tags": [&"melee"], "shop_enabled": false},
 	&"high_yield": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"]},
 	&"concentrated_charge": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"]},
 	&"crowd_pleaser": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"]},
 	&"direct_hit": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"]},
-	&"thermite_bombs": {"rarity": &"rare", "price": 925, "required_all_tags": [&"explosive"]},
+	&"thermite_bombs": {"rarity": &"rare", "price": 925, "required_all_tags": [&"explosive"], "description": "Against Armor, deal 75% damage and permanently remove 3 Armor. Against ablative shields, remove two shield points instead of one."},
 	&"charred_clothes": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"explosive"]},
-	&"conductive": {"rarity": &"rare", "price": 850, "required_all_tags": [&"electric"]},
-	&"overcharged_capacitor": {"rarity": &"uncommon", "price": 625, "required_all_tags": [&"electric"]},
+	&"conductive": {"rarity": &"rare", "price": 850, "required_all_tags": [&"electric"], "description": "Armor no longer reduces this tower's Electric damage. Gain +1% damage per 2 Armor, up to 25%, but deal 10% less to enemies without Armor."},
+	&"overcharged_capacitor": {"rarity": &"uncommon", "price": 625, "required_all_tags": [&"electric"], "description": "Lightning activates after 8 Electric hits instead of 5, but deals double damage."},
 	&"static_discharge": {"rarity": &"rare", "price": 875, "required_all_tags": [&"electric"]},
-	&"chain_lightning": {"rarity": &"uncommon", "price": 675, "required_all_tags": [&"electric"], "max_copies_per_tower": 4, "description": "Lightning procs jump to one additional nearby enemy per copy for full damage."},
+	&"chain_lightning": {"rarity": &"uncommon", "price": 675, "required_all_tags": [&"electric"], "max_copies_per_tower": 4, "description": "Lightning gains one jump per copy. The first jump deals 75% damage, and each later jump deals 75% of the previous jump."},
 	&"lucky_shot": {"rarity": &"common", "price": 400, "required_all_tags": [&"critical"]},
-	&"glass_cannon": {"rarity": &"common", "price": 450, "required_all_tags": [&"critical"], "max_copies_per_tower": 4, "description": "Per copy: +2x critical damage, but non-critical damage is multiplied by 0.7."},
+	&"glass_cannon": {"rarity": &"common", "price": 450, "required_all_tags": [&"critical"], "max_copies_per_tower": 4, "description": "Per copy: +1x critical damage, but non-critical damage is multiplied by 0.8."},
 	&"pressure_point": {"rarity": &"rare", "price": 900, "required_all_tags": [&"critical"]},
-	&"deadeye": {"rarity": &"common", "price": 450, "required_all_tags": [&"critical"], "max_copies_per_tower": 4, "description": "Per copy: +2x critical damage, but adds a compounding 20% miss chance."},
-	&"lingering_thoughts": {"rarity": &"common", "price": 400, "required_all_tags": [&"psionic"]},
-	&"quick_thinking": {"rarity": &"common", "price": 400, "required_all_tags": [&"psionic"]},
+	&"deadeye": {"rarity": &"common", "price": 450, "required_all_tags": [&"critical"], "max_copies_per_tower": 4, "description": "Per copy: +2x critical damage, but adds a compounding 20% miss chance.", "shop_enabled": false},
+	&"lingering_thoughts": {"rarity": &"common", "price": 400, "required_all_tags": [&"psionic"], "shop_enabled": false},
+	&"quick_thinking": {"rarity": &"common", "price": 400, "required_all_tags": [&"psionic"], "shop_enabled": false},
 	&"perfect_intelligence": {"rarity": &"rare", "price": 850, "required_all_tags": [&"reveal"], "description": "Hidden enemies permanently lose Hidden when they enter this tower's Reveal range."},
 	&"follow_through": {"rarity": &"rare", "price": 875, "required_all_tags": [&"pierce"]},
 	&"big_game_control": {"rarity": &"common", "price": 375, "required_all_tags": [&"stun"]},
-	&"emergency_brake": {"rarity": &"common", "price": 375, "required_all_tags": [&"stun"], "description": "Stuns last 50% longer per copy against Fast enemies."},
-	&"youre_not_special": {"rarity": &"legendary", "price": 1500, "required_all_tags": [&"stun"], "description": "This tower can stun bosses for 50% of the normal duration."},
-	&"trade_agreement": {"rarity": &"legendary", "price": 1500, "required_all_tags": [&"spawner"], "description": "This Spawner deploys two units at a time and doubles its unit limit, but its units deal 30% less damage."},
+	&"emergency_brake": {"rarity": &"common", "price": 375, "required_all_tags": [&"stun"], "description": "Stuns last 50% longer per copy against enemies with the Fast trait."},
+	&"youre_not_special": {"rarity": &"legendary", "price": 1500, "required_all_tags": [&"stun"], "description": "This tower can stun bosses for 35% duration, once per boss every 5 seconds. Blocked stuns Slow that boss for 2 seconds instead."},
+	&"trade_agreement": {"rarity": &"legendary", "price": 1500, "required_all_tags": [&"spawner"], "description": "Deploy up to two units at once and increase the unit limit by 50%. Units deal 35% less damage and have 20% less lifetime or damage budget."},
 }
 const TOWER_EVOLUTION_DEFAULT_LEVEL := 10
 const TOWER_EVOLUTIONS := {

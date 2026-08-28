@@ -8,6 +8,8 @@ signal combat_event(event_id: StringName, payload: Dictionary)
 var tower: BaseTower
 var runtime_state_by_slot: Dictionary = {}
 var attack_sequence := 0
+var patient_hunter_charge_seconds := 0.0
+var pending_patient_hunter_multiplier := 1.0
 
 
 func setup(owner_tower: BaseTower) -> void:
@@ -196,6 +198,14 @@ func get_item_effect_count(effect_id: StringName) -> int:
 
 func notify_attack_started(_target: Node = null) -> void:
 	attack_sequence += 1
+	pending_patient_hunter_multiplier = 1.0
+	if get_trigger_total(&"patient_hunter") > 0.0:
+		pending_patient_hunter_multiplier += minf(
+			patient_hunter_charge_seconds
+				* GameStats.PATIENT_HUNTER_DAMAGE_PER_SECOND,
+			GameStats.PATIENT_HUNTER_MAXIMUM_DAMAGE_BONUS
+		)
+		patient_hunter_charge_seconds = 0.0
 	combat_event.emit(&"attack_started", {
 		"tower": tower,
 		"target": _target,
@@ -204,13 +214,21 @@ func notify_attack_started(_target: Node = null) -> void:
 
 
 func get_attack_metadata() -> Dictionary:
-	return {"tower_attack_sequence": attack_sequence}
+	return {
+		"tower_attack_sequence": attack_sequence,
+		"patient_hunter_multiplier": pending_patient_hunter_multiplier,
+	}
+
+
+func get_pending_attack_damage_multiplier() -> float:
+	return maxf(pending_patient_hunter_multiplier, 1.0)
 
 
 func notify_damage_dealt(
 	enemy: Node,
 	actual_damage: int,
-	attack_context: AttackContext
+	attack_context: AttackContext,
+	damage_type: StringName = &""
 ) -> void:
 	if not _can_process_context(attack_context) or actual_damage <= 0:
 		return
@@ -236,6 +254,48 @@ func notify_damage_dealt(
 		var effects: Dictionary = GameStats.get_tower_item(item_id).get(
 			"trigger_effects", {}
 		)
+		if (
+			damage_type == &"electric"
+			and float(effects.get("temporary_armor_reduction", 0.0)) > 0.0
+			and enemy.has_method("apply_temporary_armor_reduction")
+		):
+			enemy.apply_temporary_armor_reduction(
+				float(effects["temporary_armor_reduction"]),
+				GameStats.CRIPPLING_CURRENT_DURATION
+			)
+		if (
+			attack_context.immediate_source_kind == &"projectile"
+			and int(effects.get("sticky_charge", 0)) > 0
+		):
+			_try_attach_sticky_charge(
+				slot_index, item_id, enemy, actual_damage, attack_context
+			)
+		if (
+			damage_type == &"explosive"
+			and int(effects.get("secondary_detonation", 0)) > 0
+		):
+			_register_secondary_detonation(
+				slot_index, item_id, actual_damage, attack_context
+			)
+		if (
+			bool(attack_context.metadata.get("was_critical", false))
+			and attack_context.immediate_source_kind == &"projectile"
+			and not bool(attack_context.metadata.get("area_damage", false))
+			and int(effects.get("critical_fragment_count", 0)) > 0
+		):
+			_launch_secondary_projectiles(
+				slot_index,
+				item_id,
+				enemy.global_position,
+				enemy,
+				maxi(roundi(
+					float(actual_damage)
+						* GameStats.CRITICAL_FRAGMENTATION_DAMAGE_MULTIPLIER
+				), 1),
+				int(effects["critical_fragment_count"]),
+				attack_context,
+				&"critical_fragment"
+			)
 		if (
 			float(effects.get("primary_hit_explosion_damage_multiplier", 0.0))
 			> 0.0
@@ -270,9 +330,32 @@ func notify_enemy_killed(_enemy: Node, attack_context: AttackContext) -> void:
 	for slot_index in get_slot_count():
 		if not is_item_active_in_slot(slot_index):
 			continue
+		var item_id := item_ids[slot_index]
 		var effects: Dictionary = GameStats.get_tower_item(
-			item_ids[slot_index]
+			item_id
 		).get("trigger_effects", {})
+		if (
+			int(effects.get("afterimage_projectile_count", 0)) > 0
+			and attack_context.immediate_source_kind == &"projectile"
+			and not bool(attack_context.metadata.get("area_damage", false))
+		):
+			var killing_damage := maxi(
+				int(attack_context.metadata.get("resolved_attack_damage", tower.damage)),
+				1
+			)
+			_launch_secondary_projectiles(
+				slot_index,
+				item_id,
+				_enemy.global_position if is_instance_valid(_enemy) else tower.global_position,
+				_enemy,
+				maxi(roundi(
+					float(killing_damage)
+						* GameStats.AFTERIMAGE_ROUND_DAMAGE_MULTIPLIER
+				), 1),
+				int(effects["afterimage_projectile_count"]),
+				attack_context,
+				&"afterimage_round"
+			)
 		var normal_multiplier := float(
 			effects.get("kill_cooldown_remaining_multiplier", 1.0)
 		)
@@ -317,10 +400,58 @@ func notify_status_applied(
 		"status_id": status_id,
 		"context": attack_context,
 	})
+	if status_id != &"stun" or not is_instance_valid(enemy):
+		return
+	var item_ids := get_equipped_item_ids()
+	for slot_index in get_slot_count():
+		if not is_item_active_in_slot(slot_index):
+			continue
+		var item_id := item_ids[slot_index]
+		var effects: Dictionary = GameStats.get_tower_item(item_id).get(
+			"trigger_effects", {}
+		)
+		if int(effects.get("aftershock", 0)) > 0:
+			_schedule_aftershock(slot_index, item_id, enemy, attack_context)
+
+
+func notify_projectile_terminated(
+	position: Vector2,
+	projectile_damage: int,
+	attack_context: AttackContext
+) -> void:
+	if not _can_process_context(attack_context):
+		return
+	var item_ids := get_equipped_item_ids()
+	for slot_index in get_slot_count():
+		if not is_item_active_in_slot(slot_index):
+			continue
+		var item_id := item_ids[slot_index]
+		var effects: Dictionary = GameStats.get_tower_item(item_id).get(
+			"trigger_effects", {}
+		)
+		var fragment_count := maxi(
+			int(effects.get("terminal_fragment_count", 0)), 0
+		)
+		if fragment_count > 0:
+			_launch_secondary_projectiles(
+				slot_index,
+				item_id,
+				position,
+				null,
+				maxi(roundi(
+					float(projectile_damage)
+						* GameStats.FRACTURE_ROUNDS_FRAGMENT_DAMAGE_MULTIPLIER
+				), 1),
+				fragment_count,
+				attack_context,
+				&"fracture_round"
+			)
 
 
 func reset_runtime_state() -> void:
 	runtime_state_by_slot.clear()
+	patient_hunter_charge_seconds = 0.0
+	pending_patient_hunter_multiplier = 1.0
 	for slot_index in get_slot_count():
 		runtime_state_by_slot[slot_index] = {}
 
@@ -440,6 +571,327 @@ func _trigger_live_wire(
 		)
 
 
+func _launch_secondary_projectiles(
+	slot_index: int,
+	item_id: StringName,
+	origin: Vector2,
+	excluded_enemy: Node,
+	projectile_damage: int,
+	projectile_count: int,
+	parent_context: AttackContext,
+	attack_kind: StringName
+) -> void:
+	if tower.attack_delivery_controller == null or tower.projectile_scene == null:
+		return
+	var candidates: Array[Node2D] = []
+	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+		if (
+			candidate == excluded_enemy
+			or not candidate is Node2D
+			or not tower.is_valid_target(candidate)
+		):
+			continue
+		candidates.append(candidate)
+	candidates.sort_custom(func(a: Node2D, b: Node2D) -> bool:
+		return origin.distance_squared_to(a.global_position) < origin.distance_squared_to(b.global_position)
+	)
+	var maximum_distance := 5.0 * BaseTower.RANGE_PIXELS_PER_UNIT
+	var launched := 0
+	var proc_context := _make_proc_context(
+		parent_context, slot_index, item_id, attack_kind
+	)
+	for candidate in candidates:
+		if origin.distance_to(candidate.global_position) > maximum_distance:
+			continue
+		tower.attack_delivery_controller.launch_projectile_from_position(
+			candidate,
+			origin,
+			candidate.global_position,
+			maximum_distance,
+			projectile_damage,
+			0.0,
+			proc_context
+		)
+		launched += 1
+		if launched >= projectile_count:
+			break
+
+
+func _try_attach_sticky_charge(
+	slot_index: int,
+	item_id: StringName,
+	enemy: Node,
+	actual_damage: int,
+	attack_context: AttackContext
+) -> void:
+	if not is_instance_valid(enemy) or not enemy is Node2D:
+		return
+	var normalized_interval := maxf(tower.get_current_attack_interval(), 0.01)
+	var projectile_total := maxi(tower.projectile_count, 1)
+	var proc_chance := 1.0 - pow(
+		1.0 - GameStats.STICKY_CHARGE_BASE_CHANCE,
+		normalized_interval / float(projectile_total)
+	)
+	if tower.spawn_rng.randf() > clampf(proc_chance, 0.01, 0.75):
+		return
+	var enemy_reference: WeakRef = weakref(enemy)
+	var fallback_position: Vector2 = enemy.global_position
+	var charge_damage := maxi(roundi(
+		float(actual_damage) * GameStats.STICKY_CHARGE_DAMAGE_MULTIPLIER
+	), 1)
+	var proc_context := _make_proc_context(
+		attack_context, slot_index, item_id, &"sticky_charge"
+	)
+	tower.get_tree().create_timer(
+		GameStats.STICKY_CHARGE_DELAY, false
+	).timeout.connect(func() -> void:
+		if not is_instance_valid(tower) or tower.is_queued_for_deletion():
+			return
+		var charge_enemy: Variant = enemy_reference.get_ref()
+		var center := fallback_position
+		if is_instance_valid(charge_enemy) and not charge_enemy.is_queued_for_deletion():
+			center = charge_enemy.global_position
+		_deal_item_explosion(
+			center,
+			charge_damage,
+			GameStats.STICKY_CHARGE_RADIUS,
+			proc_context
+		)
+	)
+
+
+func _register_secondary_detonation(
+	slot_index: int,
+	item_id: StringName,
+	actual_damage: int,
+	attack_context: AttackContext
+) -> void:
+	if (
+		attack_context == null
+		or not bool(attack_context.metadata.get("area_damage", false))
+	):
+		return
+	var state := _get_slot_runtime_state(slot_index)
+	var pending: Dictionary = state.get("secondary_detonations", {})
+	var context_id := attack_context.get_instance_id()
+	if pending.has(context_id):
+		pending[context_id]["damage"] = maxi(
+			int(pending[context_id]["damage"]), actual_damage
+		)
+		return
+	var center: Vector2 = attack_context.metadata.get(
+		"explosion_center", tower.global_position
+	)
+	var radius := maxf(
+		float(attack_context.metadata.get("explosion_radius", 0.0)),
+		BaseTower.BUILD_CELL_SIZE
+	)
+	pending[context_id] = {
+		"damage": actual_damage,
+		"center": center,
+		"radius": radius,
+		"context": _make_proc_context(
+			attack_context, slot_index, item_id, &"secondary_detonation"
+		),
+	}
+	state["secondary_detonations"] = pending
+	tower.get_tree().create_timer(
+		GameStats.SECONDARY_DETONATOR_DELAY, false
+	).timeout.connect(_finish_secondary_detonation.bind(slot_index, context_id))
+
+
+func _finish_secondary_detonation(slot_index: int, context_id: int) -> void:
+	if not is_instance_valid(tower) or tower.is_queued_for_deletion():
+		return
+	var state := _get_slot_runtime_state(slot_index)
+	var pending: Dictionary = state.get("secondary_detonations", {})
+	if not pending.has(context_id):
+		return
+	var detonation: Dictionary = pending[context_id]
+	pending.erase(context_id)
+	_deal_item_explosion(
+		detonation["center"],
+		maxi(roundi(
+			float(detonation["damage"])
+				* GameStats.SECONDARY_DETONATOR_DAMAGE_MULTIPLIER
+		), 1),
+		float(detonation["radius"]),
+		detonation["context"]
+	)
+
+
+func _schedule_aftershock(
+	slot_index: int,
+	item_id: StringName,
+	enemy: Node,
+	attack_context: AttackContext
+) -> void:
+	var state := _get_slot_runtime_state(slot_index)
+	var tokens: Dictionary = state.get("aftershock_tokens", {})
+	var enemy_id := enemy.get_instance_id()
+	var token := int(tokens.get(enemy_id, 0)) + 1
+	tokens[enemy_id] = token
+	state["aftershock_tokens"] = tokens
+	var enemy_reference: WeakRef = weakref(enemy)
+	var delay := maxf(tower.stun_duration, 0.05)
+	var proc_context := _make_proc_context(
+		attack_context, slot_index, item_id, &"aftershock"
+	)
+	tower.get_tree().create_timer(delay, false).timeout.connect(func() -> void:
+		if not is_instance_valid(tower) or tower.is_queued_for_deletion():
+			return
+		var current_tokens: Dictionary = _get_slot_runtime_state(
+			slot_index
+		).get("aftershock_tokens", {})
+		if int(current_tokens.get(enemy_id, 0)) != token:
+			return
+		current_tokens.erase(enemy_id)
+		var aftershock_enemy: Variant = enemy_reference.get_ref()
+		if (
+			not is_instance_valid(aftershock_enemy)
+			or aftershock_enemy.is_queued_for_deletion()
+			or bool(aftershock_enemy.get("finished"))
+		):
+			return
+		_deal_item_explosion(
+			aftershock_enemy.global_position,
+			maxi(roundi(
+				float(tower.damage) * GameStats.AFTERSHOCK_DAMAGE_MULTIPLIER
+			), 1),
+			GameStats.AFTERSHOCK_RADIUS,
+			proc_context
+		)
+	)
+
+
+func _deal_item_explosion(
+	center: Vector2,
+	base_damage: int,
+	radius: float,
+	attack_context: AttackContext
+) -> void:
+	var resolved_radius := radius * tower.get_explosion_radius_multiplier()
+	_spawn_explosion_visual(center, resolved_radius)
+	attack_context.metadata["area_damage"] = true
+	attack_context.metadata["explosion_center"] = center
+	attack_context.metadata["explosion_radius"] = resolved_radius
+	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+		if not tower.is_valid_area_target(candidate):
+			continue
+		var distance := center.distance_to(candidate.global_position)
+		if distance > resolved_radius:
+			continue
+		tower.apply_tower_damage(
+			candidate,
+			GameStats.get_explosion_damage(base_damage, distance, resolved_radius),
+			&"explosive",
+			false,
+			attack_context
+		)
+
+
+func should_create_replication() -> bool:
+	return (
+		get_trigger_total(&"replication_matrix") > 0.0
+		and tower.spawn_rng.randf() < GameStats.REPLICATION_MATRIX_CHANCE
+	)
+
+
+func modify_spawned_unit_stats(base_stats: Dictionary, is_replica := false) -> Dictionary:
+	var stats := base_stats.duplicate(true)
+	if get_trigger_total(&"experimental_blueprint") > 0.0:
+		var roll := tower.spawn_rng.randf()
+		var variant: StringName
+		if roll < 0.12:
+			variant = &"defective"
+		elif roll < 0.296:
+			variant = &"reinforced"
+		elif roll < 0.472:
+			variant = &"overclocked"
+		elif roll < 0.648:
+			variant = &"heavy"
+		elif roll < 0.824:
+			variant = &"mobile"
+		else:
+			variant = &"volatile"
+		stats = apply_spawn_variant_to_stats(stats, variant, is_replica)
+	elif is_replica:
+		stats = apply_spawn_variant_to_stats(stats, &"", true)
+	return stats
+
+
+func apply_spawn_variant_to_stats(
+	base_stats: Dictionary,
+	variant: StringName,
+	is_replica: bool
+) -> Dictionary:
+	var stats := base_stats.duplicate(true)
+	if not variant.is_empty():
+		stats["blueprint_variant"] = variant
+	match variant:
+		&"defective":
+			_multiply_spawn_stats(stats, 0.75, 1.0, 0.75)
+		&"reinforced":
+			if (
+				float(stats.get("damage_budget", 0.0)) <= 0.0
+				and float(stats.get("lifetime", 0.0)) <= 0.0
+			):
+				_multiply_spawn_stats(stats, 1.20, 1.0, 1.0)
+			else:
+				_multiply_spawn_stats(stats, 1.0, 1.0, 1.30)
+		&"overclocked":
+			_multiply_spawn_stats(stats, 1.0, 0.80, 1.0)
+		&"heavy":
+			_multiply_spawn_stats(stats, 1.30, 1.0, 1.0)
+			stats["knockback_distance"] = maxf(
+				float(stats.get("knockback_distance", 0.0)), 0.5
+			)
+		&"mobile":
+			stats["move_speed"] = float(stats.get("move_speed", 0.0)) * 1.30
+			stats["aim_radius"] = float(stats.get("aim_radius", 1.0)) * 1.20
+			stats["acquisition_radius"] = float(
+				stats.get("acquisition_radius", stats["aim_radius"])
+			) * 1.20
+		&"volatile":
+			_multiply_spawn_stats(stats, 1.15, 1.0, 1.0)
+			stats["explode_on_damage_budget"] = true
+			stats["explode_on_expiration"] = true
+			stats["budget_explosion_radius"] = maxf(
+				float(stats.get("budget_explosion_radius", 0.0)), 1.5
+			)
+			stats["budget_explosion_damage_multiplier"] = maxf(
+				float(stats.get("budget_explosion_damage_multiplier", 0.0)), 1.0
+			)
+	if is_replica:
+		_multiply_spawn_stats(
+			stats,
+			GameStats.REPLICATION_MATRIX_UNIT_MULTIPLIER,
+			1.0,
+			GameStats.REPLICATION_MATRIX_UNIT_MULTIPLIER
+		)
+		stats["replicated_unit"] = true
+	return stats
+
+
+func _multiply_spawn_stats(
+	stats: Dictionary,
+	damage_multiplier: float,
+	interval_multiplier: float,
+	budget_multiplier: float
+) -> void:
+	if stats.has("damage"):
+		stats["damage"] = maxi(roundi(
+			float(stats["damage"]) * damage_multiplier
+		), 1)
+	if stats.has("attack_interval"):
+		stats["attack_interval"] = maxf(
+			float(stats["attack_interval"]) * interval_multiplier, 0.01
+		)
+	for budget_key in ["damage_budget", "lifetime"]:
+		if stats.has(budget_key) and float(stats[budget_key]) > 0.0:
+			stats[budget_key] = float(stats[budget_key]) * budget_multiplier
+
+
 func _reduce_remaining_attack_cooldown(multiplier: float) -> void:
 	if tower.damage_timer.is_stopped():
 		return
@@ -522,7 +974,48 @@ func get_compatibility_tags() -> Array[StringName]:
 		and not tags.has(&"projectile")
 	):
 		tags.append(&"projectile")
+	if tower.bounce_count > 0 and not tags.has(&"ricochet"):
+		tags.append(&"ricochet")
 	return tags
+
+
+func process_combat_time(delta: float) -> void:
+	if (
+		delta > 0.0
+		and tower != null
+		and tower.is_placed
+		and tower.is_combat_active()
+		and get_trigger_total(&"patient_hunter") > 0.0
+	):
+		patient_hunter_charge_seconds += delta
+
+
+func modify_and_share_xp(raw_xp: float) -> float:
+	var safe_xp := maxf(raw_xp, 0.0)
+	if safe_xp <= 0.0:
+		return 0.0
+	var training_bonus := get_trigger_total(&"xp_gain_bonus")
+	var modified_xp := safe_xp * (1.0 + training_bonus)
+	if get_trigger_total(&"mentor") <= 0.0:
+		return modified_xp
+	var shared_pool := modified_xp * (1.0 - GameStats.MENTOR_PERSONAL_XP_MULTIPLIER)
+	var recipients: Array[BaseTower] = []
+	for candidate in tower.get_tree().get_nodes_in_group("towers"):
+		if (
+			candidate == tower
+			or not candidate is BaseTower
+			or not candidate.is_placed
+			or candidate.instance_progression == null
+			or tower.global_position.distance_to(candidate.global_position)
+				> GameStats.MENTOR_SHARE_RADIUS
+		):
+			continue
+		recipients.append(candidate)
+	if not recipients.is_empty():
+		var share_each := shared_pool / float(recipients.size())
+		for recipient in recipients:
+			recipient.instance_progression.grant_xp(share_each)
+	return modified_xp * GameStats.MENTOR_PERSONAL_XP_MULTIPLIER
 
 
 func apply_stat_modifiers(base_stats: Dictionary) -> Dictionary:

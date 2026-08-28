@@ -45,32 +45,51 @@ func run_checks() -> void:
 	conductive_context.metadata["conductive"] = 1
 	assert(armored.apply_damage(
 		100, &"electric", false, true, conductive_context
-	) == 129)
+	) == 110)
 	normal.max_health = 1000
 	normal.health = 1000
 	var unarmored_health: int = normal.health
 	assert(normal.apply_damage(
 		100, &"electric", false, true, conductive_context
-	) == 85)
-	assert(normal.health == unarmored_health - 85)
+	) == 90)
+	assert(normal.health == unarmored_health - 90)
 	var missed_context := AttackContext.legacy(&"longshot", &"hitscan")
 	missed_context.metadata["shot_missed"] = true
 	assert(normal.apply_damage(
 		1000, &"ballistic", false, true, missed_context
 	) == 0)
-	assert(normal.health == unarmored_health - 85)
+	assert(normal.health == unarmored_health - 90)
 	armored.health = armored_health
 	var thermite_context := AttackContext.legacy(&"orbitalcannon", &"explosion")
 	thermite_context.metadata["thermite_bombs"] = 1
 	var starting_armor: float = armored.armor
 	assert(armored.apply_damage(
 		100, &"explosive", false, true, thermite_context
-	) == 0)
-	assert(armored.health == armored_health)
+	) == 53)
+	assert(armored.health == armored_health - 53)
 	assert(is_equal_approx(
 		armored.armor,
-		starting_armor - GameStats.THERMITE_BOMBS_PROTECTION_REMOVAL
+		starting_armor - GameStats.THERMITE_BOMBS_ARMOR_REMOVAL
 	))
+
+	var boss = MOB_SCENE.instantiate()
+	boss.enemy_id = &"brute"
+	director.add_child(boss)
+	var boss_stun_context := AttackContext.legacy(&"energycore", &"shockwave")
+	boss_stun_context.metadata["youre_not_special"] = 1
+	boss.apply_stun(1.0, true, boss_stun_context)
+	assert(is_equal_approx(boss.stun_remaining, 0.35))
+	boss.apply_stun(1.0, true, boss_stun_context)
+	assert(is_equal_approx(boss.slow_remaining, 2.0))
+	assert(is_equal_approx(boss.boss_item_stun_cooldown_remaining, 5.0))
+
+	var fast_stun_context := AttackContext.legacy(&"energycore", &"shockwave")
+	fast_stun_context.metadata["emergency_brake"] = 1
+	runner.apply_stun(1.0, false, fast_stun_context)
+	assert(is_equal_approx(runner.stun_remaining, 1.5))
+	normal.speed = 200.0
+	normal.apply_stun(1.0, false, fast_stun_context)
+	assert(is_equal_approx(normal.stun_remaining, 1.0))
 
 	var buffer = MOB_SCENE.instantiate()
 	buffer.enemy_id = &"buffer"

@@ -97,17 +97,17 @@ func assert_overcharged_capacitor() -> void:
 	var context := AttackContext.legacy(&"gauss_repeater", &"projectile")
 	context.metadata["overcharged_capacitor"] = 1
 	assert(mob.get_electric_proc_hit_requirement(context) == 8)
-	assert(is_equal_approx(mob.get_electric_proc_damage_multiplier(context), 3.0))
+	assert(is_equal_approx(mob.get_electric_proc_damage_multiplier(context), 2.0))
 	var starting_health: int = mob.health
 	for _index in 7:
 		mob.apply_damage(10, &"electric", true, true, context)
 	assert(mob.health == starting_health - 70)
 	assert(mob.electric_hit_count == 7)
 	mob.apply_damage(10, &"electric", true, true, context)
-	assert(mob.health == starting_health - 152, "Eight 10-damage hits must store 24 damage, then proc for 72 damage.")
+	assert(mob.health == starting_health - 128, "Eight 10-damage hits must store 24 damage, then proc for 48 damage.")
 	context.metadata["overcharged_capacitor"] = 2
 	assert(mob.get_electric_proc_hit_requirement(context) == 12)
-	assert(is_equal_approx(mob.get_electric_proc_damage_multiplier(context), 9.0))
+	assert(is_equal_approx(mob.get_electric_proc_damage_multiplier(context), 4.0))
 
 
 func assert_static_discharge() -> void:
@@ -136,8 +136,8 @@ func assert_chain_lightning() -> void:
 	var context := AttackContext.legacy(&"saucer", &"electric_primary")
 	context.metadata["chain_lightning"] = 2
 	primary.trigger_electric_lightning_proc(100, context)
-	assert(closest.health == closest_health - 100)
-	assert(farther.health == farther_health - 100)
+	assert(closest.health == closest_health - 75)
+	assert(farther.health == farther_health - 56)
 	assert(get_tree().get_node_count_in_group("electric_arc_effects") == 2)
 
 

@@ -91,11 +91,11 @@ func run_checks() -> void:
 	assert(int(gauss_context.metadata.get("chain_lightning", 0)) == 1)
 	assert(armored.apply_damage_from_tower(
 		20, gauss.damage_type, false, gauss.tower_id, gauss_context
-	) == 26)
+	) == 22)
 	armored.health = armored.max_health
 	assert(armored.apply_damage_from_tower(
 		20, gauss.damage_type, true, gauss.tower_id, gauss_context
-	) == 26)
+	) == 22)
 
 	var depot := TOWER_SCENE.instantiate()
 	depot.main = relic_owner
