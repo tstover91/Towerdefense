@@ -731,7 +731,11 @@ func apply_control_effects(
 	if bool(resolved_context.metadata.get("shot_missed", false)):
 		return
 	if tower.slow_duration > 0.0 and current_target.has_method("apply_slow"):
-		current_target.apply_slow(tower.slow_duration, resolved_context)
+		current_target.apply_slow(
+			tower.slow_duration,
+			resolved_context,
+			tower.slow_speed_multiplier
+		)
 		tower.notify_status_applied(current_target, &"slow", resolved_context)
 	if tower.stun_duration > 0.0 and current_target.has_method("apply_stun"):
 		current_target.apply_stun(

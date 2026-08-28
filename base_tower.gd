@@ -107,6 +107,7 @@ var relentless_target_instance_id := 0
 var relentless_stacks := 0
 var pierce_loses_no_power := false
 var slow_duration := 0.0
+var slow_speed_multiplier := GameStats.SLOW_SPEED_MULTIPLIER
 var stun_duration := 0.0
 var stun_affects_bosses := false
 var bounce_count := 0

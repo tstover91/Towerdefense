@@ -52,6 +52,8 @@ func run_test() -> void:
 	tower.attack_on_cooldown = true
 	var component = tower.attack_component
 	assert(component != null)
+	assert(tower.has_damage_tag(&"ballistic"))
+	assert(not tower.has_damage_tag(&"melee"))
 	assert(component.contact_explosions_enabled)
 	var slinger_levels: Array = GameStats.get_tower(&"slinger")["levels"]
 	var expected_ranges := [11.0, 11.5, 13.0, 13.0]
@@ -68,7 +70,7 @@ func run_test() -> void:
 	var projectiles := get_tree().get_nodes_in_group("tower_projectiles")
 	assert(projectiles.size() == 1)
 	assert(projectiles[0].contact_explosions_enabled)
-	assert(is_equal_approx(projectiles[0].contact_explosion_damage_multiplier, 0.55))
+	assert(is_equal_approx(projectiles[0].contact_explosion_damage_multiplier, 0.35))
 
 	projectiles[0].queue_free()
 	await get_tree().process_frame
@@ -87,6 +89,9 @@ func run_test() -> void:
 	await get_tree().process_frame
 
 	assert(GameStats.get_tower_evolutions(&"slinger").size() == 2)
+	var level_10_stats := GameStats.get_tower_xp_level_stats(&"slinger", 10)
+	assert(int(level_10_stats["damage"]) == 44)
+	assert(int(level_10_stats["bounce_count"]) == 1)
 	_level_to_mastery(tower)
 	tower.load_base_tags()
 	tower.load_level_stats()
@@ -102,7 +107,7 @@ func run_test() -> void:
 		3.25 * BaseTower.RANGE_PIXELS_PER_UNIT
 	))
 	assert(is_equal_approx(
-		component.contact_explosion_damage_multiplier, 0.75
+		component.contact_explosion_damage_multiplier, 0.50
 	))
 	print("Slinger smoke test passed: both evolutions and Level 20 capstones.")
 	get_tree().quit(0)

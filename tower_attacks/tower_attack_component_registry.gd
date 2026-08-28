@@ -25,6 +25,9 @@ const COMPONENT_SCRIPTS: Dictionary = {
 
 const EVOLUTION_COMPONENT_SCRIPTS: Dictionary = {
 	&"invader": {
+		&"railgunner": preload(
+			"res://tower_attacks/invader_laser_attack_component.gd"
+		),
 		&"gauss_gunner": preload(
 			"res://tower_attacks/gauss_repeater_attack_component.gd"
 		),

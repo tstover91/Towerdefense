@@ -71,6 +71,10 @@ func process(delta: float) -> void:
 		is_valid_target(tower.target)
 		and not tower.uses_directional_aim()
 		and not tower.uses_continuous_beam()
+		and (
+			tower.attack_component == null
+			or not tower.attack_component.locks_aim_during_attack()
+		)
 	):
 		var desired_angle := (
 			tower.target.global_position - tower.rotator.global_position

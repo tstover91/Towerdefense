@@ -45,6 +45,34 @@ func run_test() -> void:
 		mob.set_path_follow(follow, progress)
 		mobs.append(mob)
 
+	var base_tower := TOWER_SCENE.instantiate() as BaseTower
+	base_tower.tower_id = &"energycore"
+	base_tower.main = fake_main
+	base_tower.position = Vector2(500.0, 0.0)
+	add_child(base_tower)
+	var level_10_xp: float = base_tower.instance_progression.get_total_xp_required_for_level(10)
+	base_tower.instance_progression.grant_xp(level_10_xp)
+	base_tower.confirm_placement()
+	base_tower.attack_on_cooldown = true
+	base_tower.damage_timer.stop()
+	base_tower.target = mobs[0]
+	base_tower.mobs_in_range.assign(mobs)
+	var base_component := base_tower.attack_component as EnergyCoreAttackComponent
+	assert(base_component != null)
+	assert(not base_component.branching_current_enabled)
+	assert(base_tower.projectile_count == 3)
+	var base_health_before: Array[int] = []
+	for mob in mobs:
+		base_health_before.append(int(mob.health))
+	base_tower.attack(mobs[0])
+	var independently_hit_targets := 0
+	for mob_index in mobs.size():
+		if mobs[mob_index].health < base_health_before[mob_index]:
+			independently_hit_targets += 1
+	assert(independently_hit_targets == 3)
+	assert(base_component.branch_visual_segments.size() == 3)
+	base_tower.queue_free()
+
 	var tower := TOWER_SCENE.instantiate() as BaseTower
 	tower.tower_id = &"energycore"
 	tower.tower_level = 3
@@ -70,6 +98,9 @@ func run_test() -> void:
 			mobs[mob_index].health < starting_health[mob_index],
 			"Three primary bolts plus nearby branches must damage the clustered enemies."
 		)
+		assert(is_equal_approx(
+			mobs[mob_index].active_slow_speed_multiplier, 0.60
+		))
 	assert(component.branch_visual_segments.size() >= 3)
 	assert(component.branch_visual_remaining > 0.0)
 
@@ -99,12 +130,21 @@ func run_test() -> void:
 	))
 
 	var levels: Array = GameStats.get_tower(&"energycore")["levels"]
-	var expected_slow_durations := [0.25, 0.35, 0.50, 0.65]
+	var expected_primary_targets := [1, 2, 3, 3]
+	var expected_slow_strengths := [0.25, 0.25, 0.25, 0.40]
 	for level_index in levels.size():
-		assert(is_equal_approx(
-			float(levels[level_index]["slow_duration"]),
-			expected_slow_durations[level_index]
-		))
+		assert(is_equal_approx(float(levels[level_index]["slow_duration"]), 0.50))
+		assert(int(levels[level_index]["projectile_count"]) == expected_primary_targets[level_index])
+		assert(is_equal_approx(float(levels[level_index]["slow_strength"]), expected_slow_strengths[level_index]))
+	var level_1_stats := GameStats.get_tower_xp_level_stats(&"energycore", 1)
+	var level_5_stats := GameStats.get_tower_xp_level_stats(&"energycore", 5)
+	var level_10_stats := GameStats.get_tower_xp_level_stats(&"energycore", 10)
+	var level_15_stats := GameStats.get_tower_xp_level_stats(&"energycore", 15)
+	assert(int(level_1_stats["projectile_count"]) == 1)
+	assert(int(level_5_stats["projectile_count"]) == 2)
+	assert(int(level_10_stats["projectile_count"]) == 3)
+	assert(is_equal_approx(float(level_10_stats["slow_strength"]), 0.25))
+	assert(is_equal_approx(float(level_15_stats["slow_strength"]), 0.40))
 	assert(GameStats.get_tower_evolutions(&"energycore").size() == 2)
 
 	_level_to_mastery(tower)
@@ -127,7 +167,7 @@ func run_test() -> void:
 	))
 	assert(is_equal_approx(component.branch_damage_multiplier, 0.45))
 
-	print("Energy Core smoke test passed: innate Slow, two evolutions, and Level 20 capstones.")
+	print("Energy Core smoke test passed: 25/40% Slow milestones, primary target progression, two evolutions, and Level 20 capstones.")
 	get_tree().quit(0)
 
 

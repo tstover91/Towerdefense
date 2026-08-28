@@ -40,6 +40,12 @@ class FakeMain:
 		return not game_ended and not shop_open
 
 
+class FakeTarget:
+	extends Node2D
+	var finished := false
+	var traits: Array[StringName] = []
+
+
 func _ready() -> void:
 	call_deferred("run_test")
 
@@ -62,16 +68,45 @@ func run_test() -> void:
 	assert(gauss.delivery_type == GameStats.DELIVERY_PROJECTILE)
 	assert(gauss.attack_component is GaussRepeaterAttackComponent)
 	assert(gauss.uses_directional_aim())
+	assert(gauss.has_damage_tag(&"electric"))
+	assert(not gauss.has_damage_tag(&"ballistic"))
+	assert(gauss.damage_type == &"electric")
 	assert(gauss.menu_controller.direction_ui != null)
 	assert(not gauss.attack_component.overclock_enabled)
 	_level_to(gauss, GameStats.TOWER_XP_MAX_LEVEL)
 	assert(gauss.attack_component.overclock_enabled)
 
 	var rail := await _create_evolved_tower(fake_main, &"railgunner")
-	assert(rail.delivery_type == GameStats.DELIVERY_PROJECTILE)
-	assert(rail.attack_component == null)
-	assert(rail.pierce_count == 1)
+	assert(rail.delivery_type == GameStats.DELIVERY_HITSCAN)
+	assert(rail.attack_component != null)
+	assert(
+		rail.attack_component.get_script().resource_path
+		== "res://tower_attacks/invader_laser_attack_component.gd"
+	)
+	assert(not rail.uses_shared_attack_scheduler())
+	assert(rail.has_damage_tag(&"beam"))
+	assert(not rail.has_damage_tag(&"ballistic"))
+	assert(rail.damage_type == &"beam")
+	assert(rail.pierce_count == 4)
+	assert(is_equal_approx(rail.attack_component.beam_duration, 1.0))
+	assert(is_equal_approx(rail.attack_component.tick_interval, 0.25))
 	assert(not rail.infinite_pierce)
+	var laser_target := FakeTarget.new()
+	laser_target.position = rail.position + Vector2(200.0, 40.0)
+	add_child(laser_target)
+	rail.is_placed = true
+	rail.target = laser_target
+	rail.mobs_in_range.append(laser_target)
+	rail.attack_component.process_attack(0.01)
+	assert(rail.attack_component.charge_remaining > 1.0)
+	rail.attack_component.charge_remaining = 0.01
+	rail.attack_component.process_attack(0.02)
+	assert(rail.attack_component.beam_remaining == 1.0)
+	assert(rail.attack_component.locks_aim_during_attack())
+	var locked_direction: Vector2 = rail.attack_component.locked_direction
+	laser_target.position += Vector2(0.0, 200.0)
+	rail.attack_component.process_attack(0.10)
+	assert(rail.attack_component.locked_direction.is_equal_approx(locked_direction))
 	_level_to(rail, GameStats.TOWER_XP_MAX_LEVEL)
 	assert(rail.infinite_pierce)
 

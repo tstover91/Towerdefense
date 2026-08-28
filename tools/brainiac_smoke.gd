@@ -70,6 +70,11 @@ func run_test() -> void:
 		return
 	if not _check(evolutions.has(&"brainiac") and evolutions.has(&"temporal_eye"), "Psion evolution roster is incomplete."):
 		return
+	var level_10_stats := GameStats.get_tower_xp_level_stats(&"brainiac", 10)
+	if not _check(int(level_10_stats["damage"]) == 165, "Psion's corrected level-10 damage was not loaded."):
+		return
+	if not _check(is_equal_approx(float(level_10_stats["firerate"]), 0.2), "Psion's level-10 tick interval changed unexpectedly."):
+		return
 
 	# Base Psion remains a straightforward focused beam with no evolution mechanics.
 	if not _check(tower.uses_continuous_beam(), "Base Psion should use its focused beam."):

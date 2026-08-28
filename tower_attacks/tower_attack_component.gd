@@ -48,6 +48,10 @@ func uses_continuous_beam() -> bool:
 	return false
 
 
+func locks_aim_during_attack() -> bool:
+	return false
+
+
 func get_continuous_beam_origin(default_origin: Vector2) -> Vector2:
 	return default_origin
 

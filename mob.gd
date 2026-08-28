@@ -87,6 +87,7 @@ var fisherman_pull_active := false
 var fisherman_minimum_progress := -1.0
 var electric_hit_count := 0
 var electric_proc_damage := 0.0
+var active_slow_speed_multiplier := 1.0
 var support_xp_awarded_by_source: Dictionary = {}
 
 
@@ -317,7 +318,7 @@ func get_effective_speed() -> float:
 		result *= rush_speed_multiplier
 
 	if slow_remaining > 0.0:
-		result *= GameStats.SLOW_SPEED_MULTIPLIER
+		result *= active_slow_speed_multiplier
 	return result * cached_speed_aura_multiplier
 
 
@@ -360,18 +361,28 @@ func _process_control_effects(delta: float) -> void:
 		stun_fatigue_recovery_elapsed = 0.0
 	if slow_remaining <= 0.0:
 		slow_context = null
+		active_slow_speed_multiplier = 1.0
 		return
 	slow_remaining = maxf(slow_remaining - delta, 0.0)
 	if slow_remaining <= 0.0:
 		slow_context = null
+		active_slow_speed_multiplier = 1.0
 
 
-func apply_slow(duration: float, attack_context: AttackContext = null) -> void:
+func apply_slow(
+	duration: float,
+	attack_context: AttackContext = null,
+	speed_multiplier := GameStats.SLOW_SPEED_MULTIPLIER
+) -> void:
 	if finished or duration <= 0.0:
 		return
+	speed_multiplier = clampf(speed_multiplier, 0.0, 1.0)
 	var previous_duration := slow_remaining
 	if duration >= slow_remaining:
 		slow_context = attack_context
+	active_slow_speed_multiplier = minf(
+		active_slow_speed_multiplier, speed_multiplier
+	)
 	slow_remaining = maxf(slow_remaining, duration)
 	TOWER_XP_CREDIT_SERVICE.award_control_xp(
 		self,
@@ -386,6 +397,7 @@ func clear_slow_from_context(attack_context: AttackContext) -> void:
 		return
 	slow_remaining = 0.0
 	slow_context = null
+	active_slow_speed_multiplier = 1.0
 
 
 func try_begin_fisherman_pull(

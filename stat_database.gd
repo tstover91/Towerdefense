@@ -1438,17 +1438,24 @@ const TOWERS := {
 		},
 
 		"b": {
-			"display_name": "Railgunner",
-			"description": "Fires very slow, devastating rail shots that bypass armor and pierce an additional enemy. At Level 20, shots pierce without limit.",
+			"display_name": "Laser Cannon",
+			"description": "Charges a fixed one-second Beam that damages every 0.25 seconds and pierces up to five enemies. At Level 20, the Beam gains infinite Pierce.",
 			"cost": 3500,
-			"delivery_type": DELIVERY_PROJECTILE,
-			"impact_mode": IMPACT_FIRST_CONTACT,
+			"delivery_type": DELIVERY_HITSCAN,
+			"remove_damage_tags": [&"ballistic"],
+			"add_damage_tags": [&"beam"],
+			"primary_damage_type": &"beam",
 			"add_bonus_tags": [&"pierce"],
-			"pierce_count_add": 1,
+			"pierce_count_add": 4,
 			"stat_multipliers": {
 				"damage": 3.5,
 				"firerate": 2.5,
 				"range": 1.25,
+			},
+			"behavior_flags": {"charged_laser_burst": true},
+			"behavior_values": {
+				"laser_duration": 1.0,
+				"laser_tick_interval": 0.25,
 			},
 			"level_20": {
 				"behavior_flags": {"infinite_pierce": true},
@@ -1461,6 +1468,9 @@ const TOWERS := {
 			"cost": 3500,
 			"delivery_type": DELIVERY_PROJECTILE,
 			"impact_mode": IMPACT_FIRST_CONTACT,
+			"remove_damage_tags": [&"ballistic"],
+			"add_damage_tags": [&"electric"],
+			"primary_damage_type": &"electric",
 			"stat_multipliers": {
 				"damage": 0.40,
 				"firerate": 0.14,
@@ -1794,7 +1804,7 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 130,
+				"damage": 100,
 				"firerate": 0.2,
 				"range": 7.5,
 				"beam_turn_speed_degrees": 480.0,
@@ -1802,7 +1812,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 667,
-				"damage": 160,
+				"damage": 130,
 				"firerate": 0.2,
 				"range": 8.0,
 				"beam_turn_speed_degrees": 720.0,
@@ -1810,7 +1820,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 2000,
-				"damage": 270,
+				"damage": 200,
 				"firerate": 0.2,
 				"range": 8.25,
 				"beam_turn_speed_degrees": 720.0,
@@ -1818,7 +1828,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 3000,
-				"damage": 405,
+				"damage": 300,
 				"firerate": 0.15,
 				"range": 9.0,
 				"beam_turn_speed_degrees": 900.0,
@@ -2120,27 +2130,27 @@ const TOWERS := {
 		"placement_cost": 225,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
-		"damage_tags": [&"melee"],
-		"primary_damage_type": &"melee",
+		"damage_tags": [&"ballistic"],
+		"primary_damage_type": &"ballistic",
 		"delivery_type": DELIVERY_PROJECTILE,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [],
 		"paths": {
 			"a": {
 				"display_name": "Explosive Ricochet",
-				"description": "Increases impact damage by 30%. The initial hit and every bounced impact create an Explosive blast dealing 55% damage in a 2.5-tile radius. At Level 20, blasts deal 75% damage in a 3.25-tile radius.",
+				"description": "Increases impact damage by 10%. The initial hit and every bounced impact create an Explosive blast dealing 35% damage in a 2.5-tile radius. At Level 20, blasts deal 50% damage in a 3.25-tile radius.",
 				"cost": 3750,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
 				"stat_multipliers": {
-					"damage": 1.30,
+					"damage": 1.10,
 				},
 				"behavior_flags": {
 					"slinger_contact_explosions": true,
 				},
 				"behavior_values": {
 					"contact_explosion_radius": 2.5,
-					"contact_explosion_damage_multiplier": 0.55,
+					"contact_explosion_damage_multiplier": 0.35,
 				},
 				"level_20": {
 					"behavior_flags": {
@@ -2148,20 +2158,20 @@ const TOWERS := {
 					},
 					"behavior_values": {
 						"contact_explosion_radius": 3.25,
-						"contact_explosion_damage_multiplier": 0.75,
+						"contact_explosion_damage_multiplier": 0.50,
 					},
 				},
 			},
 			"b": {
 				"display_name": "Razor Disc",
-				"description": "Increases impact damage by 129%. The disc pierces every enemy in its line until maximum range. At Level 20, it no longer loses damage after each enemy.",
+				"description": "Increases impact damage by 60%. The disc pierces every enemy in its line until maximum range. At Level 20, it no longer loses damage after each enemy.",
 				"cost": 3750,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"pierce"],
 				"pierce_count_add": 1,
 				"impact_mode": IMPACT_FIRST_CONTACT,
 				"stat_multipliers": {
-					"damage": 2.285714,
+					"damage": 1.60,
 				},
 				"stat_overrides": {"bounce_count": 0},
 				"behavior_flags": {
@@ -2178,7 +2188,7 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 24,
+				"damage": 18,
 				"projectile_speed": 480.0,
 				"firerate": 1.0,
 				"range": 11.0,
@@ -2187,7 +2197,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 300,
-				"damage": 48,
+				"damage": 32,
 				"projectile_speed": 520.0,
 				"firerate": 0.666667,
 				"range": 11.5,
@@ -2196,7 +2206,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 570,
-				"damage": 86,
+				"damage": 56,
 				"projectile_speed": 570.0,
 				"firerate": 0.666667,
 				"range": 13.0,
@@ -2205,7 +2215,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1350,
-				"damage": 168,
+				"damage": 110,
 				"projectile_speed": 570.0,
 				"firerate": 0.666667,
 				"range": 13.0,
@@ -2496,7 +2506,8 @@ const TOWERS := {
 				"firerate": 0.40,
 				"range": 7.5,
 				"projectile_count": 1,
-				"slow_duration": 0.25,
+				"slow_duration": 0.50,
+				"slow_strength": 0.25,
 			},
 			{
 				"upgrade_cost": 95,
@@ -2504,15 +2515,17 @@ const TOWERS := {
 				"firerate": 0.40,
 				"range": 7.5,
 				"projectile_count": 2,
-				"slow_duration": 0.35,
+				"slow_duration": 0.50,
+				"slow_strength": 0.25,
 			},
 			{
 				"upgrade_cost": 330,
 				"damage": 30,
 				"firerate": 0.40,
 				"range": 8.25,
-				"projectile_count": 2,
+				"projectile_count": 3,
 				"slow_duration": 0.50,
+				"slow_strength": 0.25,
 			},
 			{
 				"upgrade_cost": 1400,
@@ -2520,7 +2533,8 @@ const TOWERS := {
 				"firerate": 0.40,
 				"range": 8.25,
 				"projectile_count": 3,
-				"slow_duration": 0.65,
+				"slow_duration": 0.50,
+				"slow_strength": 0.40,
 			},
 		],
 	},

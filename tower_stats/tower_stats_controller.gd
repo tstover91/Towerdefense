@@ -45,6 +45,13 @@ func load_level_stats() -> void:
 	tower.miss_chance = clampf(float(stats.get("miss_chance", 0.0)), 0.0, 1.0)
 	tower.pierce_loses_no_power = bool(stats.get("pierce_loses_no_power", false))
 	tower.slow_duration = maxf(float(stats.get("slow_duration", 0.0)), 0.0)
+	tower.slow_speed_multiplier = clampf(
+		1.0 - float(stats.get(
+			"slow_strength", 1.0 - GameStats.SLOW_SPEED_MULTIPLIER
+		)),
+		0.0,
+		1.0
+	)
 	tower.stun_duration = maxf(float(stats.get("stun_duration", 0.0)), 0.0)
 	tower.stun_affects_bosses = bool(stats.get("stun_affects_bosses", false))
 	tower.bounce_count = maxi(int(stats.get("bounce_count", 0)), 0)

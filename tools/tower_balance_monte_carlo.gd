@@ -799,7 +799,13 @@ func get_control_value(stats: Dictionary, traits: Dictionary, scenario: Dictiona
 	var value := 0.0
 	var slow_duration := float(stats.get("slow_duration", 0.0))
 	if slow_duration > 0.0:
-		value += minf(slow_duration / interval, 1.0) * targets * (1.0 - GameStats.SLOW_SPEED_MULTIPLIER)
+		value += (
+			minf(slow_duration / interval, 1.0)
+			* targets
+			* float(stats.get(
+				"slow_strength", 1.0 - GameStats.SLOW_SPEED_MULTIPLIER
+			))
+		)
 	var stun_duration := float(stats.get("stun_duration", 0.0))
 	if stun_duration > 0.0 and (not bool(scenario["boss"]) or bool(stats.get("stun_affects_bosses", false))):
 		# Repeated stuns quickly settle into fatigue, so sustained control uses the middle fatigue tier.
