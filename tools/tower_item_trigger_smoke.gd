@@ -34,6 +34,8 @@ class FakeEnemy:
 	var health := 1000
 	var received_contexts: Array[AttackContext] = []
 	var temporary_armor_reduction := 0.0
+	var electric_hits := 0
+	var electric_damage_contributed := 0
 
 	func apply_damage_from_tower(
 		amount: int,
@@ -52,6 +54,13 @@ class FakeEnemy:
 
 	func apply_temporary_armor_reduction(amount: float, _duration: float) -> void:
 		temporary_armor_reduction += amount
+
+	func register_electric_hit(
+		received_damage: int,
+		_attack_context: AttackContext
+	) -> void:
+		electric_hits += 1
+		electric_damage_contributed += received_damage
 
 
 func _ready() -> void:
@@ -87,7 +96,21 @@ func run_test() -> void:
 	trigger_tower.notify_spawned_unit_created(primary)
 	trigger_tower.notify_spawned_unit_removed(primary, true)
 	trigger_tower.notify_damage_dealt(primary, 100, critical_context)
-	assert(nearby.health == 965)
+	var payload_effects: Dictionary = GameStats.get_tower_item(
+		&"explosive_payload"
+	)["trigger_effects"]
+	var payload_radius := (
+		float(payload_effects["primary_hit_explosion_radius"])
+		* BaseTower.RANGE_PIXELS_PER_UNIT
+	)
+	var payload_damage := GameStats.get_explosion_damage(
+		roundi(100.0 * float(
+			payload_effects["primary_hit_explosion_damage_multiplier"]
+		)),
+		primary.global_position.distance_to(nearby.global_position),
+		payload_radius
+	)
+	assert(nearby.health == 1000 - payload_damage)
 	assert(nearby.received_contexts.size() == 1)
 	assert(nearby.received_contexts[0].is_item_proc())
 	assert(nearby.received_contexts[0].generation == 1)
@@ -112,21 +135,13 @@ func run_test() -> void:
 	assert(other_projectile_tower.can_equip_item(&"split_chamber"))
 	assert(wire_tower.equip_item(&"live_wire"))
 	var wire_primary := _create_enemy(Vector2(100.0, 0.0))
-	var wire_neighbor := _create_enemy(Vector2(108.0, 0.0))
 	var wire_context := AttackContext.from_tower(wire_tower)
-	for _hit_index in 4:
+	for _hit_index in GameStats.ELECTRIC_HITS_TO_PROC:
 		wire_tower.notify_damage_dealt(wire_primary, 50, wire_context)
-	assert(wire_neighbor.health == 980)
-	assert(wire_neighbor.received_contexts[0].attack_kind == &"item_live_wire")
+	assert(wire_primary.electric_hits == GameStats.ELECTRIC_HITS_TO_PROC)
 	assert(
-		int(wire_tower.item_controller.runtime_state_by_slot[0].get("hit_count", -1))
-		== 0
-	)
-
-	wire_tower.item_controller.reset_runtime_state()
-	assert(
-		int(wire_tower.item_controller.runtime_state_by_slot[0].get("hit_count", 0))
-		== 0
+		wire_primary.electric_damage_contributed
+		== 50 * GameStats.ELECTRIC_HITS_TO_PROC
 	)
 
 	var fragment_tower := await _create_tower(fake_main, &"longshot")

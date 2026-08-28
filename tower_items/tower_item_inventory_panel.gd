@@ -50,8 +50,6 @@ func refresh(_preferred_tower: Node = null) -> void:
 	empty_label.visible = item_ids.is_empty()
 	if not item_ids.has(previous_item_id):
 		selected_item_id = &""
-	if selected_item_id.is_empty() and not item_ids.is_empty():
-		selected_item_id = item_ids[0]
 	_refresh_selection_display()
 
 

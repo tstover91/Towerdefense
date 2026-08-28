@@ -689,6 +689,11 @@ func _schedule_aftershock(
 	state["aftershock_tokens"] = tokens
 	var enemy_reference: WeakRef = weakref(enemy)
 	var delay := maxf(tower.stun_duration, 0.05)
+	# Snapshot the proc when it is created. Mid-wave equipment changes may
+	# recalculate tower.damage before the delayed blast resolves.
+	var aftershock_damage := maxi(roundi(
+		float(tower.damage) * GameStats.AFTERSHOCK_DAMAGE_MULTIPLIER
+	), 1)
 	var proc_context := _make_proc_context(
 		attack_context, slot_index, item_id, &"aftershock"
 	)
@@ -710,9 +715,7 @@ func _schedule_aftershock(
 			return
 		_deal_item_explosion(
 			aftershock_enemy.global_position,
-			maxi(roundi(
-				float(tower.damage) * GameStats.AFTERSHOCK_DAMAGE_MULTIPLIER
-			), 1),
+			aftershock_damage,
 			GameStats.AFTERSHOCK_RADIUS,
 			proc_context
 		)
@@ -1069,7 +1072,10 @@ func _apply_numeric_minimums(stats: Dictionary, minimums: Dictionary) -> void:
 
 
 func _refresh_tower_after_item_change() -> void:
-	reset_runtime_state()
+	# Equipment is intentionally editable during combat. Recalculate the
+	# tower's tags and stats without clearing charges or delayed proc records:
+	# effects already created must resolve, while new attacks immediately use
+	# the newly equipped loadout. Runtime state is reset at the next round.
 	tower.load_base_tags()
 	tower.load_level_stats()
 	if tower.selected and tower.main != null and tower.main.has_method("show_tower_details"):

@@ -63,10 +63,15 @@ func run_checks() -> void:
 	var thermite_context := AttackContext.legacy(&"orbitalcannon", &"explosion")
 	thermite_context.metadata["thermite_bombs"] = 1
 	var starting_armor: float = armored.armor
+	var expected_thermite_damage := roundi(
+		float(roundi(
+			100.0 * GameStats.THERMITE_BOMBS_ARMORED_DAMAGE_MULTIPLIER
+		)) * GameStats.get_armor_damage_multiplier(starting_armor, &"explosive")
+	)
 	assert(armored.apply_damage(
 		100, &"explosive", false, true, thermite_context
-	) == 53)
-	assert(armored.health == armored_health - 53)
+	) == expected_thermite_damage)
+	assert(armored.health == armored_health - expected_thermite_damage)
 	assert(is_equal_approx(
 		armored.armor,
 		starting_armor - GameStats.THERMITE_BOMBS_ARMOR_REMOVAL

@@ -1,5 +1,16 @@
 # Project tools
 
+## Smoke-test suite
+
+Run every lightweight smoke scene with one command. Each scene has its own
+timeout so a failed assertion cannot leave the suite hanging indefinitely:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_smoke_tests.ps1 -GodotPath "C:\path\to\Godot_console.exe"
+```
+
+Use `-TimeoutSeconds 30` if a slower development machine needs more time.
+
 Run the tower balance simulation through its lightweight scene so it uses the
 same startup path as the game:
 
