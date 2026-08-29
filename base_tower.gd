@@ -150,6 +150,8 @@ var range_preview_valid := true
 var item_highlight_active := false
 var item_highlight_compatible := false
 var aim_direction := Vector2.RIGHT
+var has_directional_aim_marker := false
+var directional_aim_marker_position := Vector2.ZERO
 var main: Node
 var spawn_rng := RandomNumberGenerator.new()
 var attack_component: TowerAttackComponent
@@ -203,6 +205,8 @@ func _draw() -> void:
 			5.0,
 			true
 		)
+	if uses_directional_aim() and has_directional_aim_marker and is_placed:
+		_draw_directional_aim_marker(to_local(directional_aim_marker_position))
 	if not range_preview_visible:
 		return
 
@@ -317,6 +321,25 @@ func draw_active_beam() -> void:
 	var beam_length := get_continuous_beam_length(target, beam_start_world)
 	var beam_end_world := beam_start_world + beam_direction * beam_length
 	draw_beam_segment(to_local(beam_start_world), to_local(beam_end_world))
+
+
+func _draw_directional_aim_marker(local_position: Vector2) -> void:
+	var marker_color := Color(1.0, 0.45, 0.15, 0.75)
+	draw_arc(local_position, 12.0, 0.0, TAU, 32, marker_color, 2.0, true)
+	draw_line(
+		local_position + Vector2(-18.0, 0.0),
+		local_position + Vector2(18.0, 0.0),
+		marker_color,
+		2.0,
+		true
+	)
+	draw_line(
+		local_position + Vector2(0.0, -18.0),
+		local_position + Vector2(0.0, 18.0),
+		marker_color,
+		2.0,
+		true
+	)
 
 
 func draw_beam_segment(beam_start: Vector2, beam_end: Vector2) -> void:
@@ -647,6 +670,8 @@ func confirm_manual_target_position(world_position: Vector2) -> bool:
 	if new_direction.is_zero_approx():
 		return false
 	aim_direction = new_direction
+	directional_aim_marker_position = world_position
+	has_directional_aim_marker = true
 	if attack_component != null:
 		attack_component.on_aim_direction_changed()
 	target = null
