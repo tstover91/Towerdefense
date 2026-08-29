@@ -1388,7 +1388,7 @@ func update_tower_evolution_controls(tower: Node) -> void:
 		minimum_required_level = int(evolutions[evolution_ids[0]].get(
 			"required_level", GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
 		))
-	var evolution_available := (
+	var evolution_available: bool = (
 		not evolutions.is_empty()
 		and owned_evolution_id.is_empty()
 		and tower.instance_progression.level >= minimum_required_level
