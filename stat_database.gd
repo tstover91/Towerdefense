@@ -1877,14 +1877,14 @@ const TOWERS := {
 					"enforcer_stun_duration": 0.50,
 					"enforcer_push_distance": 1.0,
 				},
-				"level_20": {
-					"stat_overrides": {"melee_max_targets": 8},
-					"behavior_flags": {"reaver_enforcer": true},
-					"behavior_values": {
-						"enforcer_slam_interval": 3,
-						"enforcer_slam_radius": 3.5,
-						"enforcer_slam_max_targets": 12,
-						"enforcer_secondary_damage_multiplier": 1.0,
+			"level_20": {
+				"stat_overrides": {"melee_max_targets": 6},
+				"behavior_flags": {"reaver_enforcer": true},
+				"behavior_values": {
+					"enforcer_slam_interval": 3,
+					"enforcer_slam_radius": 3.5,
+					"enforcer_slam_max_targets": 10,
+					"enforcer_secondary_damage_multiplier": 0.75,
 						"enforcer_stun_duration": 1.0,
 						"enforcer_push_distance": 2.0,
 					},
@@ -1932,13 +1932,13 @@ const TOWERS := {
 					"champion_spin_radius_multiplier": 1.0,
 					"champion_spin_max_targets": 8,
 				},
-				"level_20": {
-					"behavior_flags": {"reaver_champion": true},
-					"behavior_values": {
-						"champion_spin_interval": 2,
-						"champion_spin_damage_multiplier": 1.85,
-						"champion_spin_radius_multiplier": 1.15,
-						"champion_spin_max_targets": 12,
+			"level_20": {
+				"behavior_flags": {"reaver_champion": true},
+				"behavior_values": {
+					"champion_spin_interval": 3,
+					"champion_spin_damage_multiplier": 1.65,
+					"champion_spin_radius_multiplier": 1.15,
+					"champion_spin_max_targets": 10,
 					},
 				},
 			},
@@ -2521,21 +2521,21 @@ const TOWERS := {
 			},
 			"b": {
 				"display_name": "Tesla Core",
-				"description": "Each primary bolt branches to two nearby enemies for 30% damage and applies Slow. At Level 20, bolts branch to four enemies at longer range for 45% damage.",
+			"description": "Each primary bolt branches to one nearby enemy for 25% damage and applies Slow. At Level 20, bolts branch to two unique enemies at longer range for 30% damage.",
 				"cost": 3000,
 				"unlock_level": 3,
 				"behavior_flags": {"energy_branching_current": true},
 				"behavior_values": {
-					"branch_additional_targets": 2,
-					"branch_range": 4.0,
-					"branch_damage_multiplier": 0.30,
+				"branch_additional_targets": 1,
+				"branch_range": 4.0,
+				"branch_damage_multiplier": 0.25,
 				},
 				"level_20": {
 					"behavior_flags": {"energy_branching_current": true},
 					"behavior_values": {
-						"branch_additional_targets": 4,
-						"branch_range": 6.0,
-						"branch_damage_multiplier": 0.45,
+					"branch_additional_targets": 2,
+					"branch_range": 6.0,
+					"branch_damage_multiplier": 0.30,
 					},
 				},
 			},
@@ -2606,10 +2606,10 @@ const TOWERS := {
 					"saucer_rocket_splash_radius": 3.0,
 					"saucer_rocket_count": 2,
 				},
-				"level_20": {
-					"stat_multipliers": {"firerate": 0.85, "flyer_move_speed": 1.15, "projectile_speed": 1.20},
-					"behavior_flags": {"saucer_twin_rockets": true},
-					"behavior_values": {"saucer_rocket_damage_multiplier": 1.5, "saucer_rocket_interval": 2.0, "saucer_rocket_splash_radius": 3.0, "saucer_rocket_count": 3},
+			"level_20": {
+				"stat_multipliers": {"flyer_move_speed": 1.15, "projectile_speed": 1.20},
+				"behavior_flags": {"saucer_twin_rockets": true},
+				"behavior_values": {"saucer_rocket_damage_multiplier": 1.5, "saucer_rocket_interval": 3.0, "saucer_rocket_splash_radius": 3.0, "saucer_rocket_count": 3},
 				},
 			},
 			"b": {

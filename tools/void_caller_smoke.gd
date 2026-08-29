@@ -92,25 +92,13 @@ func run_test() -> void:
 	))
 
 	component.singularity_remaining = 4.0
-	fake_main.relics[&"lingering_thoughts"] = 1
-	fake_main.relics[&"quick_thinking"] = 1
-	fake_main.relics[&"high_yield"] = 1
-	fake_main.relics[&"maximum_payload"] = 1
-	tower.load_level_stats()
-	var expected_duration := (
-		GameStats.LINGERING_THOUGHTS_DURATION_MULTIPLIER
-		* GameStats.QUICK_THINKING_DURATION_MULTIPLIER
-	)
-	var expected_cooldown := (
-		10.0
-		* GameStats.QUICK_THINKING_COOLDOWN_MULTIPLIER
-		* GameStats.MAXIMUM_PAYLOAD_INTERVAL_MULTIPLIER
-	)
+	assert(tower.equip_item(&"high_yield"))
+	var expected_duration := 1.0
+	var expected_cooldown := 10.0
 	var expected_radius := (
 		5.0
 		* BaseTower.RANGE_PIXELS_PER_UNIT
 		* GameStats.HIGH_YIELD_RADIUS_MULTIPLIER
-		* GameStats.MAXIMUM_PAYLOAD_RADIUS_MULTIPLIER
 	)
 	assert(is_equal_approx(component.singularity_pull_duration, expected_duration))
 	assert(is_equal_approx(component.singularity_cooldown, expected_cooldown))

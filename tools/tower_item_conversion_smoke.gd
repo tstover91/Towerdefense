@@ -240,6 +240,16 @@ func run_test() -> void:
 	)
 	assert(electric_target.registered_hits == 1)
 
+	# Tag-granting prerequisites must work regardless of their physical slot
+	# order after swaps. Put Conductive before the Live Wire that enables it.
+	var reversed_wire_tower := await _create_tower(fake_main, &"invader")
+	assert(reversed_wire_tower.equip_item(&"live_wire", 3))
+	assert(reversed_wire_tower.equip_item(&"conductive", 0))
+	assert(reversed_wire_tower.get_equipped_item_ids()[0] == &"conductive")
+	assert(reversed_wire_tower.get_equipped_item_ids()[3] == &"live_wire")
+	assert(reversed_wire_tower.item_controller.is_item_active_in_slot(0))
+	assert(reversed_wire_tower.item_controller.is_item_active_in_slot(3))
+
 	var depot := await _create_tower(fake_main, &"dronedepot")
 	var base_unit_damage := int(
 		depot.get_current_effective_stats()["unit_stats"]["damage"]

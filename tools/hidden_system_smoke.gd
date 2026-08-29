@@ -29,10 +29,6 @@ func _init() -> void:
 
 func run_checks() -> void:
 	var relic_owner := RelicOwner.new()
-	relic_owner.relics[&"conductive"] = 1
-	relic_owner.relics[&"overcharged_capacitor"] = 2
-	relic_owner.relics[&"static_discharge"] = 1
-	relic_owner.relics[&"chain_lightning"] = 1
 	root.add_child(relic_owner)
 
 	var gauss := TOWER_SCENE.instantiate()
@@ -40,6 +36,10 @@ func run_checks() -> void:
 	gauss.tower_id = &"gauss_repeater"
 	root.add_child(gauss)
 	gauss.global_position = Vector2.ZERO
+	assert(gauss.equip_item(&"conductive"))
+	assert(gauss.equip_item(&"overcharged_capacitor"))
+	assert(gauss.equip_item(&"static_discharge"))
+	assert(gauss.equip_item(&"chain_lightning"))
 
 	var mob := MOB_SCENE.instantiate()
 	mob.enemy_id = &"hidden"
@@ -86,7 +86,7 @@ func run_checks() -> void:
 	assert(gauss.damage_type == &"electric")
 	var gauss_context: AttackContext = gauss.create_attack_context(&"projectile")
 	assert(int(gauss_context.metadata.get("conductive", 0)) == 1)
-	assert(int(gauss_context.metadata.get("overcharged_capacitor", 0)) == 2)
+	assert(int(gauss_context.metadata.get("overcharged_capacitor", 0)) == 1)
 	assert(int(gauss_context.metadata.get("static_discharge", 0)) == 1)
 	assert(int(gauss_context.metadata.get("chain_lightning", 0)) == 1)
 	assert(armored.apply_damage_from_tower(

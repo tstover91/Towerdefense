@@ -127,7 +127,7 @@ func run_test() -> void:
 	tower.load_base_tags()
 	tower.load_level_stats()
 	assert(component.rocket_count == 3)
-	assert(is_equal_approx(component.rocket_interval, 2.0))
+	assert(is_equal_approx(component.rocket_interval, 3.0))
 	tower.purchased_paths.assign([&"b"])
 	tower.load_base_tags()
 	tower.load_level_stats()

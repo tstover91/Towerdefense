@@ -7,11 +7,7 @@ const DEFAULT_DURATION := 30.0
 const RANGE_PIXELS_PER_UNIT := 12.9
 const TARGET_HIT_RADIUS := 12.0
 const DEFAULT_REPORT_PATH := "res://balance_reports/tower_monte_carlo.csv"
-const BALANCED_TOWERS: Array[StringName] = [
-	&"invader", &"gauss_repeater", &"beholder", &"reaver", &"brainiac",
-	&"longshot", &"slinger", &"voidcaller", &"orbitalcannon", &"energycore",
-	&"saucer", &"fisherman",
-]
+const BALANCE_LEVELS: Array[int] = [1, 5, 10, 15, 19, 20]
 
 var rng := RandomNumberGenerator.new()
 var iterations := DEFAULT_ITERATIONS
@@ -31,7 +27,11 @@ func run_balance_simulation() -> void:
 	rng.seed = seed_value
 	build_enemy_scenarios()
 	validate_tower_progression()
-	var tower_count := tower_filter.size() if not tower_filter.is_empty() else BALANCED_TOWERS.size()
+	var tower_count := (
+		tower_filter.size()
+		if not tower_filter.is_empty()
+		else GameStats.PLAYABLE_TOWER_FAMILY_IDS.size()
+	)
 	print("Balance simulator: %d towers, %d enemy types, %d iterations, %.1f seconds" % [tower_count, scenarios.size(), iterations, duration])
 	var rows := run_simulation()
 	write_report(rows)
@@ -40,20 +40,18 @@ func run_balance_simulation() -> void:
 
 
 func validate_tower_progression() -> void:
-	for tower_key in GameStats.TOWERS:
-		var tower_id := StringName(tower_key)
+	for tower_id in GameStats.PLAYABLE_TOWER_FAMILY_IDS:
 		var tower: Dictionary = GameStats.get_tower(tower_id)
 		var levels: Array = tower["levels"]
 		assert(levels.size() == 4, "%s must have exactly four regular levels" % tower_id)
-		var sell_values: Array = GameStats.TOWER_UPGRADED_SELL_VALUES.get(tower_id, [])
-		assert(sell_values.size() == levels.size(), "%s sell values must match its levels" % tower_id)
-		if not GameStats.get_tower_evolutions(tower_id).is_empty():
-			for evolution in GameStats.get_tower_evolutions(tower_id).values():
-				assert(int(evolution.get("required_level", 0)) >= 10, "%s evolution must require XP Level 10 or later" % tower_id)
-		else:
-			for path_id in tower.get("paths", {}):
-				var path: Dictionary = tower["paths"][path_id]
-				assert(int(path.get("unlock_level", -1)) == 3, "%s path %s must unlock at the fourth regular level" % [tower_id, path_id])
+		var evolutions := GameStats.get_tower_evolutions(tower_id)
+		assert(not evolutions.is_empty(), "%s has no evolution choices" % tower_id)
+		for evolution in evolutions.values():
+			assert(
+				int(evolution.get("required_level", 0)) == GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL,
+				"%s evolution must unlock at XP Level %d" % [tower_id, GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL]
+			)
+			assert(not evolution.get("level_20", {}).is_empty(), "%s evolution has no Level 20 capstone" % tower_id)
 
 
 func read_arguments() -> void:
@@ -74,24 +72,17 @@ func read_arguments() -> void:
 
 func run_simulation() -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
-	for tower_key in GameStats.TOWERS:
-		var tower_id := StringName(tower_key)
-		if tower_filter.is_empty() and not BALANCED_TOWERS.has(tower_id):
-			continue
+	for tower_id in GameStats.PLAYABLE_TOWER_FAMILY_IDS:
 		if not tower_filter.is_empty() and not tower_filter.has(tower_id):
 			continue
-		var tower: Dictionary = GameStats.get_tower(tower_id)
-		var levels: Array = tower["levels"]
-		for level in levels.size():
-			rows.append_array(simulate_variant(tower_id, level, [], "base"))
-		var maximum_level := levels.size() - 1
-		var paths: Dictionary = tower.get("paths", {})
-		if paths.has("a"):
-			rows.append_array(simulate_variant(tower_id, maximum_level, [&"a"], "path_a"))
-		if paths.has("b"):
-			rows.append_array(simulate_variant(tower_id, maximum_level, [&"b"], "path_b"))
-		if paths.has("c"):
-			rows.append_array(simulate_variant(tower_id, maximum_level, [&"c"], "path_c"))
+		for xp_level in BALANCE_LEVELS:
+			rows.append_array(simulate_variant(tower_id, xp_level, &"", "base"))
+			if xp_level < GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL:
+				continue
+			for evolution_id in GameStats.get_tower_evolutions(tower_id):
+				rows.append_array(simulate_variant(
+					tower_id, xp_level, StringName(evolution_id), String(evolution_id)
+				))
 	return rows
 
 
@@ -168,14 +159,14 @@ func get_enemy_pack_size(enemy: Dictionary) -> int:
 
 func simulate_variant(
 	tower_id: StringName,
-	level: int,
-	paths: Array[StringName],
+	xp_level: int,
+	evolution_id: StringName,
 	variant_name: String
 ) -> Array[Dictionary]:
 	var tower: Dictionary = GameStats.get_tower(tower_id)
-	var stats := get_variant_stats(tower_id, level, paths)
-	var traits := get_variant_traits(tower_id, level, paths)
-	var cost := get_variant_cost(tower_id, level, paths)
+	var stats := get_variant_stats(tower_id, xp_level, evolution_id)
+	var traits := get_variant_traits(tower_id, xp_level, evolution_id)
+	var cost := get_variant_cost(tower_id, evolution_id)
 	var result: Array[Dictionary] = []
 	for scenario in scenarios:
 		var samples: Array[float] = []
@@ -189,7 +180,7 @@ func simulate_variant(
 		result.append({
 			"tower_id": tower_id,
 			"tower_name": tower["display_name"],
-			"level": level,
+			"level": xp_level,
 			"variant": variant_name,
 			"scenario": scenario["id"],
 			"enemy_name": scenario["enemy_name"],
@@ -207,12 +198,12 @@ func simulate_variant(
 
 func get_variant_stats(
 	tower_id: StringName,
-	level: int,
-	paths: Array[StringName]
+	xp_level: int,
+	evolution_id: StringName
 ) -> Dictionary:
-	var stats := GameStats.get_tower_level(tower_id, level)
-	for path_id in paths:
-		var path := GameStats.get_tower_path(tower_id, path_id)
+	var stats := GameStats.get_tower_xp_level_stats(tower_id, xp_level)
+	if not evolution_id.is_empty():
+		var path := GameStats.get_tower_evolution(tower_id, evolution_id)
 		apply_numeric_modifiers(stats, path.get("stat_multipliers", {}), true)
 		apply_numeric_modifiers(stats, path.get("stat_additions", {}), false)
 		if path.has("pierce_count_add"):
@@ -221,14 +212,10 @@ func get_variant_stats(
 				+ int(path.get("pierce_count_add", 0))
 			)
 		for conditional in path.get("conditional_stat_multipliers", []):
-			if paths.has(StringName(conditional.get("unless_path", &""))):
-				continue
 			apply_numeric_modifiers(stats, conditional.get("values", {}), true)
 		for key in path.get("stat_overrides", {}):
 			stats[key] = path["stat_overrides"][key]
 		for conditional in path.get("conditional_stat_overrides", []):
-			if paths.has(StringName(conditional.get("unless_path", &""))):
-				continue
 			for key in conditional.get("values", {}):
 				stats[key] = conditional["values"][key]
 		if stats.has("unit_stats"):
@@ -238,7 +225,23 @@ func get_variant_stats(
 			for key in path.get("unit_stat_overrides", {}):
 				unit_stats[key] = path["unit_stat_overrides"][key]
 			stats["unit_stats"] = unit_stats
+		if xp_level >= GameStats.TOWER_XP_MAX_LEVEL:
+			apply_stat_definition(stats, path.get("level_20", {}))
 	return stats
+
+
+func apply_stat_definition(stats: Dictionary, definition: Dictionary) -> void:
+	apply_numeric_modifiers(stats, definition.get("stat_multipliers", {}), true)
+	apply_numeric_modifiers(stats, definition.get("stat_additions", {}), false)
+	for key in definition.get("stat_overrides", {}):
+		stats[key] = definition["stat_overrides"][key]
+	if stats.has("unit_stats"):
+		var unit_stats: Dictionary = stats["unit_stats"]
+		apply_numeric_modifiers(unit_stats, definition.get("unit_stat_multipliers", {}), true)
+		apply_numeric_modifiers(unit_stats, definition.get("unit_stat_additions", {}), false)
+		for key in definition.get("unit_stat_overrides", {}):
+			unit_stats[key] = definition["unit_stat_overrides"][key]
+		stats["unit_stats"] = unit_stats
 
 
 func apply_numeric_modifiers(stats: Dictionary, modifiers: Dictionary, multiply: bool) -> void:
@@ -251,13 +254,18 @@ func apply_numeric_modifiers(stats: Dictionary, modifiers: Dictionary, multiply:
 			stats[key] = float(stats[key]) * float(modifiers[key]) if multiply else float(stats[key]) + float(modifiers[key])
 
 
-func get_variant_traits(tower_id: StringName, level: int, paths: Array[StringName]) -> Dictionary:
+func get_variant_traits(
+	tower_id: StringName,
+	xp_level: int,
+	evolution_id: StringName
+) -> Dictionary:
 	var tower := GameStats.get_tower(tower_id)
 	var damage_tags: Array = tower.get("damage_tags", []).duplicate()
 	var bonus_tags: Array = tower.get("bonus_tags", []).duplicate()
 	var levels: Array = tower.get("levels", [])
+	var ability_rank := GameStats.get_stat_rank_for_xp_level(xp_level)
 
-	for level_index in range(0, mini(level + 1, levels.size())):
+	for level_index in range(0, mini(ability_rank + 1, levels.size())):
 		var level_data: Dictionary = levels[level_index]
 
 		for tag in level_data.get("add_damage_tags", []):
@@ -278,12 +286,12 @@ func get_variant_traits(tower_id: StringName, level: int, paths: Array[StringNam
 	var impact := StringName(tower.get("impact_mode", GameStats.IMPACT_PRIMARY))
 	var flags := {}
 	var values := {}
-	for level_index in range(0, mini(level + 1, levels.size())):
+	for level_index in range(0, mini(ability_rank + 1, levels.size())):
 		var level_data: Dictionary = levels[level_index]
 		flags.merge(level_data.get("behavior_flags", {}), true)
 		values.merge(level_data.get("behavior_values", {}), true)
-	for path_id in paths:
-		var path := GameStats.get_tower_path(tower_id, path_id)
+	if not evolution_id.is_empty():
+		var path := GameStats.get_tower_evolution(tower_id, evolution_id)
 		for tag in path.get("add_damage_tags", []):
 			if not damage_tags.has(tag): damage_tags.append(tag)
 		for tag in path.get("remove_damage_tags", []): damage_tags.erase(tag)
@@ -295,15 +303,24 @@ func get_variant_traits(tower_id: StringName, level: int, paths: Array[StringNam
 		if path.has("impact_mode"): impact = StringName(path["impact_mode"])
 		flags.merge(path.get("behavior_flags", {}), true)
 		values.merge(path.get("behavior_values", {}), true)
-	return {"damage_tags": damage_tags, "bonus_tags": bonus_tags, "primary_type": primary_type, "delivery": delivery, "impact": impact, "flags": flags, "values": values, "paths": paths}
+		if xp_level >= GameStats.TOWER_XP_MAX_LEVEL:
+			var capstone: Dictionary = path.get("level_20", {})
+			for tag in capstone.get("add_damage_tags", []):
+				if not damage_tags.has(tag): damage_tags.append(tag)
+			for tag in capstone.get("remove_damage_tags", []): damage_tags.erase(tag)
+			for tag in capstone.get("add_bonus_tags", []):
+				if not bonus_tags.has(tag): bonus_tags.append(tag)
+			for tag in capstone.get("remove_bonus_tags", []): bonus_tags.erase(tag)
+			flags.merge(capstone.get("behavior_flags", {}), true)
+			values.merge(capstone.get("behavior_values", {}), true)
+	return {"damage_tags": damage_tags, "bonus_tags": bonus_tags, "primary_type": primary_type, "delivery": delivery, "impact": impact, "flags": flags, "values": values, "evolution_id": evolution_id}
 
 
-func get_variant_cost(tower_id: StringName, level: int, paths: Array[StringName]) -> int:
+func get_variant_cost(tower_id: StringName, evolution_id: StringName) -> int:
 	var tower := GameStats.get_tower(tower_id)
 	var cost := int(tower["placement_cost"])
-	var levels: Array = tower["levels"]
-	for current_level in range(1, level + 1): cost += int(levels[current_level]["upgrade_cost"])
-	for path_id in paths: cost += int(GameStats.get_tower_path(tower_id, path_id).get("cost", 0))
+	if not evolution_id.is_empty():
+		cost += int(GameStats.get_tower_evolution(tower_id, evolution_id).get("cost", 0))
 	return cost
 
 
@@ -312,11 +329,14 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 		return 0.0
 	if stats.has("unit_stats"):
 		return simulate_spawner_trial(tower_id, stats, traits, scenario)
+	if tower_id == &"irradiator":
+		return simulate_irradiator_trial(stats, traits, scenario)
 	if (
 		tower_id == &"orbitalcannon"
 		and (
 			traits["flags"].get("orbital_solar_lance", false)
 			or traits["flags"].get("orbital_bombardment", false)
+			or traits["flags"].get("orbital_atomic_strike", false)
 		)
 	):
 		return simulate_orbital_path_trial(stats, traits, scenario)
@@ -584,6 +604,10 @@ func simulate_orbital_path_trial(
 		else 0.0
 	)
 	var base_damage := float(stats.get("damage", 0))
+	if flags.get("orbital_atomic_strike", false):
+		base_damage = float(roundi(
+			base_damage * float(values.get("atomic_damage_multiplier", 4.0))
+		))
 	if flags.get("orbital_bombardment", false) and not flags.get("orbital_solar_lance", false):
 		base_damage = float(roundi(
 			base_damage * float(values.get("bombardment_damage_multiplier", 0.38))
@@ -594,6 +618,11 @@ func simulate_orbital_path_trial(
 		else float(stats.get("splash_radius", 0.0))
 		* float(values.get("bombardment_radius_multiplier", 0.70))
 	)
+	if flags.get("orbital_atomic_strike", false):
+		hit_radius = (
+			float(stats.get("splash_radius", 0.0))
+			* float(values.get("atomic_blast_radius_multiplier", 1.35))
+		)
 	var tick_count := 1
 	if flags.get("orbital_solar_lance", false):
 		var lance_duration := float(values.get("solar_lance_duration", 1.5))
@@ -655,10 +684,105 @@ func simulate_orbital_path_trial(
 				)
 				strike_damage = minf(strike_damage, float(scenario["health"]))
 				total += strike_damage * float(tick_count)
+				if (
+					flags.get("orbital_atomic_strike", false)
+					and strike_damage < float(scenario["health"])
+				):
+					var radiation_damage := maxf(
+						floorf(base_damage * float(values.get(
+							"atomic_radiation_damage_multiplier", 0.04
+						))), 1.0
+					)
+					radiation_damage = apply_armor(
+						radiation_damage, &"radiation",
+						float(scenario.get("armor", 0.0)), false
+					)
+					total += simulate_radiation_tail(
+						float(values.get("fallout_duration", 8.0)),
+						radiation_damage,
+						int(values.get("atomic_radiation_stacks", 10)),
+						float(values.get("fallout_application_interval", 1.0)),
+						int(values.get("fallout_stacks_per_application", 1))
+					)
 	var regeneration := float(scenario.get("regeneration", 0.0))
 	if regeneration > 0.0:
 		total = maxf(total - regeneration * duration * float(enemy_count), 0.0)
 	return total / duration
+
+
+func simulate_irradiator_trial(
+	stats: Dictionary,
+	traits: Dictionary,
+	scenario: Dictionary
+) -> float:
+	var flags: Dictionary = traits["flags"]
+	var values: Dictionary = traits["values"]
+	var reactor := bool(flags.get("irradiator_reactor", false))
+	var application_interval := (
+		maxf(float(values.get("reactor_application_interval", 0.75)), 0.05)
+		if reactor
+		else maxf(float(stats.get("firerate", 0.65)), 0.05)
+	)
+	var stacks_per_application := (
+		maxi(int(values.get("reactor_stacks_per_application", 1)), 1)
+		if reactor
+		else maxi(int(stats.get("radiation_stacks_per_application", 1)), 1)
+	)
+	var enemy_count := maxi(int(scenario.get("enemies", 1)), 1)
+	var target_fraction := 1.0
+	if reactor:
+		target_fraction = clampf(
+			0.25 + float(values.get("reactor_radius", 4.5)) * 0.08,
+			0.25,
+			0.85
+		)
+	else:
+		target_fraction = clampf(
+			float(stats.get("radiation_cone_degrees", 60.0)) / 180.0,
+			0.20,
+			0.55
+		)
+	var affected_targets := maxf(float(enemy_count) * target_fraction, 1.0)
+	var radiation_damage := apply_armor(
+		float(stats.get("damage", 1.0)), &"radiation",
+		float(scenario.get("armor", 0.0)), false
+	)
+	var per_target := simulate_radiation_tail(
+		duration,
+		radiation_damage,
+		0,
+		application_interval,
+		stacks_per_application
+	)
+	per_target = minf(per_target, float(scenario.get("health", 1.0)))
+	return per_target * affected_targets / duration
+
+
+func simulate_radiation_tail(
+	active_duration: float,
+	damage_per_stack: float,
+	initial_stacks: int,
+	application_interval: float,
+	stacks_per_application: int
+) -> float:
+	var stacks := maxi(initial_stacks, 0)
+	var total := 0.0
+	var elapsed := 0.0
+	var next_application := maxf(application_interval, 0.05)
+	var next_tick := 1.0
+	while elapsed < active_duration:
+		if next_application <= next_tick and next_application <= active_duration:
+			elapsed = next_application
+			stacks += maxi(stacks_per_application, 0)
+			next_application += maxf(application_interval, 0.05)
+		elif next_tick <= active_duration:
+			elapsed = next_tick
+			total += float(stacks) * damage_per_stack
+			stacks = maxi(stacks - 1, 0)
+			next_tick += 1.0
+		else:
+			break
+	return total
 
 
 func get_reaver_attack_profile(
@@ -1185,6 +1309,7 @@ func percentile(values: Array[float], ratio: float) -> float:
 
 func get_model_note(tower_id: StringName) -> String:
 	match tower_id:
+		&"invader": return "base hitscan plus Gunslinger, fixed Laser burst, and Gauss spread/overclock modeled"
 		&"gauss_repeater": return "spread tightening; overclock; tracking and Heavy Shot approximated"
 		&"brainiac": return "target-reset Brainiac ramp/Link and Temporal Eye rotating bubble modeled"
 		&"beholder": return "Converging beams, interception/Pierce, and Withering Gaze self-amplification modeled"
@@ -1192,7 +1317,8 @@ func get_model_note(tower_id: StringName) -> String:
 		&"longshot": return "Anti-Materiel critical stats and Kill Chain execution reloads approximated"
 		&"slinger": return "bounce availability; Pierce falloff and contact splash modeled"
 		&"voidcaller": return "orb geometry; simultaneous Barrage and Singularity coverage modeled"
-		&"orbitalcannon": return "accurate manual placement assumed; area; stun; Lance ramp and Slow modeled"
+		&"orbitalcannon": return "accurate manual placement assumed; area, Lance, Bombardment, Atomic Radiation, and Fallout approximated"
+		&"irradiator": return "cone/field coverage and decaying Radiation stack ticks approximated"
 		&"energycore": return "distinct primary targets; Slow; Shockwave and Branching Current modeled"
 		&"saucer": return "pursuit, Gunship salvos, hunting abductions/specimens, and Mothership vulnerability modeled"
 		&"fisherman": return "forward cone, multi-hooks, tether intersections, pull immunity, and chain mines modeled"
@@ -1220,7 +1346,11 @@ func print_summary(rows: Array[Dictionary]) -> void:
 	for scenario in scenarios:
 		var candidates: Array[Dictionary] = []
 		for row in rows:
-			if row["scenario"] == scenario["id"] and row["variant"] in ["path_a", "path_b", "path_c"]:
+			if (
+				row["scenario"] == scenario["id"]
+				and int(row["level"]) == GameStats.TOWER_XP_MAX_LEVEL
+				and row["variant"] != "base"
+			):
 				candidates.append(row)
 		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["dps_per_100"]) > float(b["dps_per_100"]))
 		print("\n", String(scenario["id"]).to_upper(), " top max-path efficiency")

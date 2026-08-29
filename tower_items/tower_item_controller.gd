@@ -1017,22 +1017,43 @@ func _apply_stat_defaults(stats: Dictionary, defaults: Dictionary) -> void:
 
 
 func apply_tag_changes() -> int:
-	var pierce_addition := 0
 	var item_ids := get_equipped_item_ids()
 	var item_counts := get_equipped_item_counts()
+	# Resolve tag-granting prerequisites to a fixed point. This makes linked
+	# builds independent of slot order: Conductive in slot 0 remains active
+	# when Live Wire in slot 3 is what grants Electric, for example.
+	for _pass in item_ids.size():
+		var previous_tag_count := (
+			tower.type_tags.size()
+			+ tower.damage_tags.size()
+			+ tower.bonus_tags.size()
+		)
+		for slot_index in item_ids.size():
+			var item_id := item_ids[slot_index]
+			if item_id.is_empty() or not is_item_active_in_slot(slot_index):
+				continue
+			var item := GameStats.get_tower_item(item_id)
+			for tag in item.get("add_type_tags", []):
+				tower.stats_controller.add_type_tag(StringName(tag))
+			for tag in item.get("add_damage_tags", []):
+				tower.stats_controller.add_damage_tag(StringName(tag))
+			for tag in item.get("add_bonus_tags", []):
+				tower.stats_controller.add_bonus_tag(StringName(tag))
+		var current_tag_count := (
+			tower.type_tags.size()
+			+ tower.damage_tags.size()
+			+ tower.bonus_tags.size()
+		)
+		if current_tag_count == previous_tag_count:
+			break
+	var pierce_addition := 0
 	for slot_index in item_ids.size():
 		var item_id := item_ids[slot_index]
 		if item_id.is_empty() or not is_item_active_in_slot(slot_index):
 			continue
-		var item := GameStats.get_tower_item(item_id)
-		for tag in item.get("add_type_tags", []):
-			tower.stats_controller.add_type_tag(StringName(tag))
-		for tag in item.get("add_damage_tags", []):
-			tower.stats_controller.add_damage_tag(StringName(tag))
-		for tag in item.get("add_bonus_tags", []):
-			tower.stats_controller.add_bonus_tag(StringName(tag))
 		pierce_addition += (
-			int(item.get("pierce_count_add", 0)) * item_counts[slot_index]
+			int(GameStats.get_tower_item(item_id).get("pierce_count_add", 0))
+			* item_counts[slot_index]
 		)
 	return pierce_addition
 

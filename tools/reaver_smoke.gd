@@ -128,10 +128,10 @@ func run_test() -> void:
 	if not _check(is_equal_approx(component.assassinate_critical_multiplier_bonus, 1.0), "Assassin Deathblow capstone was not loaded."):
 		return
 	_load_path(tower, &"c")
-	if not _check(component.champion_spin_interval == 2 and component.champion_spin_max_targets == 12, "Champion capstone was not loaded."):
+	if not _check(component.champion_spin_interval == 3 and component.champion_spin_max_targets == 10 and is_equal_approx(component.champion_spin_damage_multiplier, 1.65), "Champion capstone was not loaded."):
 		return
 	_load_path(tower, &"a")
-	if not _check(component.melee_max_targets == 8 and is_equal_approx(component.enforcer_stun_duration, 1.0), "Enforcer capstone was not loaded."):
+	if not _check(component.melee_max_targets == 6 and component.enforcer_slam_max_targets == 10 and is_equal_approx(component.enforcer_secondary_damage_multiplier, 0.75) and is_equal_approx(component.enforcer_stun_duration, 1.0), "Enforcer capstone was not loaded."):
 		return
 
 	print("Reaver smoke test passed: immediate sweep, Assassin, Champion, Enforcer, control, and capstones.")

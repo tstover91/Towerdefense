@@ -192,8 +192,7 @@ func run_test() -> void:
 	assert(is_equal_approx(mob.get_beholder_mark_damage_multiplier(), 1.0))
 
 	# Microwave uses an internal trigger cooldown without pausing the tower.
-	fake_main.relics[&"microwave"] = 1
-	tower.load_level_stats()
+	assert(tower.equip_item(&"microwave"))
 	tower.damage_timer.start(0.5)
 	var microwave_context := tower.create_attack_context(&"beam_tick")
 	mob.trigger_microwave_explosion(tower.damage, microwave_context)

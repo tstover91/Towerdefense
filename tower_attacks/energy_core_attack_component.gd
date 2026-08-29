@@ -11,9 +11,9 @@ var shockwave_damage_multiplier := 0.35
 var shockwave_stun_duration := 1.0
 var shockwave_visual_remaining := 0.0
 var branching_current_enabled := false
-var branch_additional_targets := 2
+var branch_additional_targets := 1
 var branch_range_pixels := 0.0
-var branch_damage_multiplier := 0.30
+var branch_damage_multiplier := 0.25
 var branch_visual_segments: Array[Dictionary] = []
 var branch_visual_remaining := 0.0
 var previous_shockwave_remaining := 0.0
@@ -26,9 +26,9 @@ func reset_path_behaviors() -> void:
 	shockwave_damage_multiplier = 0.35
 	shockwave_stun_duration = 1.0
 	branching_current_enabled = false
-	branch_additional_targets = 2
+	branch_additional_targets = 1
 	branch_range_pixels = 0.0
-	branch_damage_multiplier = 0.30
+	branch_damage_multiplier = 0.25
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
@@ -49,7 +49,7 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 	if flags.get("energy_branching_current", false):
 		branching_current_enabled = true
 		branch_additional_targets = maxi(
-			int(values.get("branch_additional_targets", 2)),
+			int(values.get("branch_additional_targets", 1)),
 			0
 		)
 		branch_range_pixels = (
@@ -57,7 +57,7 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 			* BaseTower.RANGE_PIXELS_PER_UNIT
 		)
 		branch_damage_multiplier = clampf(
-			float(values.get("branch_damage_multiplier", 0.30)),
+			float(values.get("branch_damage_multiplier", 0.25)),
 			0.0,
 			1.0
 		)
@@ -219,11 +219,15 @@ func execute_attack(current_target: Node2D, attack_damage: int) -> bool:
 			"context": primary_context,
 		})
 	if branching_current_enabled:
+		var excluded_branch_ids: Dictionary = {}
+		for primary_strike in primary_strikes:
+			excluded_branch_ids[primary_strike["target"].get_instance_id()] = true
 		for primary_strike in primary_strikes:
 			_apply_branches(
 				primary_strike["target"],
 				attack_damage,
-				primary_strike["context"]
+				primary_strike["context"],
+				excluded_branch_ids
 			)
 	branch_visual_remaining = BRANCH_VISUAL_DURATION
 	tower.queue_redraw()
@@ -271,9 +275,9 @@ func _is_target_preferred(candidate: Node2D, selected_target: Node2D) -> bool:
 func _apply_branches(
 	primary_target: Node2D,
 	attack_damage: int,
-	primary_context: AttackContext
+	primary_context: AttackContext,
+	excluded_ids: Dictionary
 ) -> void:
-	var excluded_ids: Dictionary = {primary_target.get_instance_id(): true}
 	var branch_damage := maxi(
 		roundi(float(attack_damage) * branch_damage_multiplier),
 		1

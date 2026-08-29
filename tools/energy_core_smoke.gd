@@ -84,7 +84,8 @@ func run_test() -> void:
 	var component := tower.attack_component as EnergyCoreAttackComponent
 	assert(component != null)
 	assert(component.branching_current_enabled)
-	assert(component.branch_additional_targets == 2)
+	assert(component.branch_additional_targets == 1)
+	assert(is_equal_approx(component.branch_damage_multiplier, 0.25))
 	assert(not component.shockwave_enabled)
 	var starting_health: Array[int] = []
 	for mob in mobs:
@@ -160,12 +161,12 @@ func run_test() -> void:
 	tower.load_level_stats()
 	assert(not component.shockwave_enabled)
 	assert(component.branching_current_enabled)
-	assert(component.branch_additional_targets == 4)
+	assert(component.branch_additional_targets == 2)
 	assert(is_equal_approx(
 		component.branch_range_pixels,
 		6.0 * BaseTower.RANGE_PIXELS_PER_UNIT
 	))
-	assert(is_equal_approx(component.branch_damage_multiplier, 0.45))
+	assert(is_equal_approx(component.branch_damage_multiplier, 0.30))
 
 	print("Energy Core smoke test passed: 25/40% Slow milestones, primary target progression, two evolutions, and Level 20 capstones.")
 	get_tree().quit(0)

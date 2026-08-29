@@ -97,7 +97,7 @@ func run_test() -> void:
 	):
 		return
 	if not _check(
-		equipped_slinger.damage == 20
+		equipped_slinger.damage == 15
 		and is_equal_approx(equipped_slinger.loaded_attack_interval, 0.78),
 		"Overclocked Actuator did not apply its damage/attack-speed tradeoff."
 	):
