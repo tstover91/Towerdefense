@@ -1,7 +1,7 @@
 extends Node
 
 const MapData = preload("res://map_database.gd")
-const MAIN_MENU_SCENE := "res://main_menu.tscn"
+const MAIN_MENU_SCENE := "res://ui/screens/main_menu_visual.tscn"
 const GAMEPLAY_SCENE := "res://main.tscn"
 
 var sandbox_mode := false

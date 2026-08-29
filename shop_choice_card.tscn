@@ -27,6 +27,7 @@ stretch_mode = 5
 [node name="NameLabel" type="Label" parent="MarginContainer/CardLayout"]
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
+theme_type_variation = &"DisplayLabel"
 theme_override_font_sizes/font_size = 18
 text = "Item Name"
 horizontal_alignment = 1
@@ -35,7 +36,7 @@ autowrap_mode = 2
 
 [node name="CategoryLabel" type="Label" parent="MarginContainer/CardLayout"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.498, 0.2235, 0.7569, 1)
+theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
 text = "General"
 horizontal_alignment = 1
 

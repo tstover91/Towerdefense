@@ -2,6 +2,18 @@ class_name PauseMenu
 extends Control
 
 const GameStats = preload("res://stat_database.gd")
+const PAUSE_ITEM_TILE = preload(
+	"res://ui/components/pause_item_tile_visual.tscn"
+)
+const PAUSE_ENEMY_TILE = preload(
+	"res://ui/components/pause_enemy_tile_visual.tscn"
+)
+const RARITY_COLORS := {
+	&"common": Color(0.08, 0.76, 0.84),
+	&"uncommon": Color(0.86, 0.22, 0.70),
+	&"rare": Color(0.96, 0.72, 0.12),
+	&"legendary": Color(0.96, 0.95, 0.88),
+}
 
 @onready var empty_items_label: Label = $PausePanel/MarginContainer/PauseLayout/ContentRow/ItemsArea/EmptyItemsLabel
 @onready var items_scroll: ScrollContainer = $PausePanel/MarginContainer/PauseLayout/ContentRow/ItemsArea/ItemsScroll
@@ -45,9 +57,7 @@ func populate_owned_items(owned_items: Dictionary) -> void:
 			continue
 		var item_stats: Dictionary = GameStats.get_tower_item(item_id)
 		var owned_count := int(owned_items[item_id])
-		var item_tile := Button.new()
-		item_tile.custom_minimum_size = Vector2(185, 64)
-		item_tile.focus_mode = Control.FOCUS_NONE
+		var item_tile := PAUSE_ITEM_TILE.instantiate() as Button
 		item_tile.text = "%s  ×%d\n%s" % [
 			item_stats["display_name"],
 			owned_count,
@@ -63,6 +73,22 @@ func populate_owned_items(owned_items: Dictionary) -> void:
 				owned_count,
 			]
 		)
+		var rarity := StringName(item_stats.get("rarity", &"common"))
+		var rarity_color: Color = RARITY_COLORS.get(
+			rarity, Color(0.35, 0.38, 0.4)
+		)
+		for state in ["normal", "hover", "pressed"]:
+			var tile_style := StyleBoxFlat.new()
+			tile_style.bg_color = (
+				Color("100d10") if state == "normal" else Color("2b2028")
+			)
+			tile_style.border_color = rarity_color
+			tile_style.set_border_width_all(1 if state == "normal" else 3)
+			tile_style.corner_radius_top_left = 2
+			tile_style.corner_radius_top_right = 8
+			tile_style.corner_radius_bottom_right = 2
+			tile_style.corner_radius_bottom_left = 8
+			item_tile.add_theme_stylebox_override(state, tile_style)
 		items_grid.add_child(item_tile)
 
 
@@ -85,9 +111,7 @@ func populate_enemy_pool(enemy_ids: Array[StringName], enemy_round: int) -> void
 	)
 	for enemy_id in sorted_ids:
 		var enemy := GameStats.get_enemy(enemy_id)
-		var enemy_tile := Button.new()
-		enemy_tile.custom_minimum_size = Vector2(185, 58)
-		enemy_tile.focus_mode = Control.FOCUS_NONE
+		var enemy_tile := PAUSE_ENEMY_TILE.instantiate() as Button
 		enemy_tile.text = String(enemy["display_name"])
 		enemy_tile.tooltip_text = get_enemy_tooltip(enemy_id, enemy_round)
 		enemies_grid.add_child(enemy_tile)

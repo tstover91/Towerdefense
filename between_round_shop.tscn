@@ -24,7 +24,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
-color = Color(0.035, 0.04, 0.075, 0.76)
+color = Color(0.08, 0.10, 0.11, 0.62)
 
 [node name="ShopPanel" type="PanelContainer" parent="InputBlocker"]
 layout_mode = 1
@@ -54,6 +54,7 @@ theme_override_constants/separation = 6
 
 [node name="TitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
 layout_mode = 2
+theme_type_variation = &"DisplayLabel"
 theme_override_font_sizes/font_size = 26
 text = "Round Complete"
 horizontal_alignment = 1
@@ -66,7 +67,7 @@ alignment = 1
 [node name="HealthLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/StatusRow"]
 custom_minimum_size = Vector2(150, 30)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8588, 0.4784, 0.4196, 1)
+theme_override_colors/font_color = Color(0.925, 0.451, 0.329, 1)
 text = "Health 100/100"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -74,7 +75,7 @@ vertical_alignment = 1
 [node name="MoneyLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/StatusRow"]
 custom_minimum_size = Vector2(150, 30)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8392, 0.702, 0.4039, 1)
+theme_override_colors/font_color = Color(0.945, 0.745, 0.271, 1)
 text = "$0"
 horizontal_alignment = 1
 vertical_alignment = 1

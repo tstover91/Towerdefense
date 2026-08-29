@@ -3,16 +3,16 @@
 [ext_resource type="Script" path="res://sandbox_panel.gd" id="1_sandbox"]
 
 [sub_resource type="StyleBoxFlat" id="StylePanel"]
-bg_color = Color(0.025, 0.045, 0.065, 0.97)
+bg_color = Color(0.094, 0.082, 0.09, 0.96)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.2, 0.65, 0.72, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+border_color = Color(0.835, 0.678, 0.616, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 10
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 10
 
 [node name="SandboxPanel" type="Control"]
 visible = false
@@ -54,14 +54,15 @@ theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="Panel/Margin/Layout"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.95, 1, 1)
+theme_type_variation = &"DisplayLabel"
+theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
 theme_override_font_sizes/font_size = 22
 text = "Sandbox Controls"
 horizontal_alignment = 1
 
 [node name="StatusLabel" type="Label" parent="Panel/Margin/Layout"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.68, 0.78, 0.84, 1)
+theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
 text = "Ready"
 horizontal_alignment = 1
 autowrap_mode = 2

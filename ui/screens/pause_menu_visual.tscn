@@ -1,0 +1,182 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://pause_menu.gd" id="1_pause"]
+[ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="2_theme"]
+[ext_resource type="StyleBox" path="res://assets/ui/equipment_panel_style.tres" id="3_equipment_panel"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxPausePanel"]
+bg_color = Color(0.894, 0.882, 0.839, 0.99)
+border_width_left = 5
+border_width_top = 5
+border_width_right = 5
+border_width_bottom = 5
+border_color = Color(0.204, 0.227, 0.239, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 14
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 14
+shadow_color = Color(0.125, 0.149, 0.165, 0.62)
+shadow_size = 8
+shadow_offset = Vector2(0, 8)
+
+[node name="PauseMenu" type="Control"]
+process_mode = 2
+visible = false
+z_index = 200
+z_as_relative = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme = ExtResource("2_theme")
+script = ExtResource("1_pause")
+
+[node name="Dimmer" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.08, 0.10, 0.11, 0.68)
+
+[node name="PausePanel" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(900, 500)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -450.0
+offset_top = -250.0
+offset_right = 450.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("3_equipment_panel")
+
+[node name="MarginContainer" type="MarginContainer" parent="PausePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 28
+
+[node name="PauseLayout" type="VBoxContainer" parent="PausePanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="PausePanel/MarginContainer/PauseLayout"]
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
+theme_override_font_sizes/font_size = 30
+text = "Paused"
+horizontal_alignment = 1
+
+[node name="MenuButtons" type="HBoxContainer" parent="PausePanel/MarginContainer/PauseLayout"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="ResumeButton" type="Button" parent="PausePanel/MarginContainer/PauseLayout/MenuButtons"]
+custom_minimum_size = Vector2(190, 48)
+layout_mode = 2
+text = "Resume"
+
+[node name="RestartButton" type="Button" parent="PausePanel/MarginContainer/PauseLayout/MenuButtons"]
+custom_minimum_size = Vector2(190, 48)
+layout_mode = 2
+text = "Restart Run"
+
+[node name="QuitButton" type="Button" parent="PausePanel/MarginContainer/PauseLayout/MenuButtons"]
+custom_minimum_size = Vector2(190, 48)
+layout_mode = 2
+text = "Main Menu"
+
+[node name="ItemsSeparator" type="HSeparator" parent="PausePanel/MarginContainer/PauseLayout"]
+layout_mode = 2
+
+[node name="ContentRow" type="HBoxContainer" parent="PausePanel/MarginContainer/PauseLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="ItemsArea" type="VBoxContainer" parent="PausePanel/MarginContainer/PauseLayout/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="ItemsHeader" type="Label" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/ItemsArea"]
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
+theme_override_font_sizes/font_size = 22
+text = "Tower Items"
+horizontal_alignment = 1
+
+[node name="EmptyItemsLabel" type="Label" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/ItemsArea"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "No tower items acquired yet."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ItemsScroll" type="ScrollContainer" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/ItemsArea"]
+visible = false
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ItemsGrid" type="GridContainer" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/ItemsArea/ItemsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 1
+
+[node name="ContentSeparator" type="VSeparator" parent="PausePanel/MarginContainer/PauseLayout/ContentRow"]
+layout_mode = 2
+
+[node name="EnemyArea" type="VBoxContainer" parent="PausePanel/MarginContainer/PauseLayout/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="EnemyHeader" type="Label" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/EnemyArea"]
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
+theme_override_font_sizes/font_size = 22
+text = "Enemy Pool"
+horizontal_alignment = 1
+
+[node name="EmptyEnemiesLabel" type="Label" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/EnemyArea"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "No enemies are currently available."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="EnemiesScroll" type="ScrollContainer" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/EnemyArea"]
+visible = false
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EnemiesGrid" type="GridContainer" parent="PausePanel/MarginContainer/PauseLayout/ContentRow/EnemyArea/EnemiesScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 2
+
+[connection signal="pressed" from="PausePanel/MarginContainer/PauseLayout/MenuButtons/ResumeButton" to="." method="_on_resume_button_pressed"]
+[connection signal="pressed" from="PausePanel/MarginContainer/PauseLayout/MenuButtons/RestartButton" to="." method="_on_restart_button_pressed"]
+[connection signal="pressed" from="PausePanel/MarginContainer/PauseLayout/MenuButtons/QuitButton" to="." method="_on_quit_button_pressed"]
+
+

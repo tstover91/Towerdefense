@@ -6,10 +6,10 @@ const GameStats = preload("res://stat_database.gd")
 signal selected_item_changed(item_id: StringName)
 
 const RARITY_COLORS := {
-	&"common": Color(0.25, 0.75, 0.85),
-	&"uncommon": Color(0.35, 0.85, 0.42),
-	&"rare": Color(0.88, 0.30, 0.82),
-	&"legendary": Color(1.0, 0.68, 0.16),
+	&"common": Color(0.08, 0.76, 0.84),
+	&"uncommon": Color(0.86, 0.22, 0.70),
+	&"rare": Color(0.96, 0.72, 0.12),
+	&"legendary": Color(0.96, 0.95, 0.88),
 }
 
 @onready var item_grid: GridContainer = $Margin/Content/GridScroll/ItemGrid
@@ -90,13 +90,19 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 	)
 	for state in ["normal", "hover", "pressed"]:
 		var style := StyleBoxFlat.new()
-		style.bg_color = rarity_color.darkened(
-			0.82 if state == "normal" else 0.72
+		style.bg_color = (
+			Color("100d10") if state == "normal" else Color("2b2028")
 		)
 		style.border_color = rarity_color
 		style.set_border_width_all(3 if state == "pressed" else 1)
-		style.set_corner_radius_all(9)
+		style.corner_radius_top_left = 2
+		style.corner_radius_top_right = 7
+		style.corner_radius_bottom_right = 2
+		style.corner_radius_bottom_left = 7
 		button.add_theme_stylebox_override(state, style)
+	button.add_theme_color_override("font_color", Color("f1e7d3"))
+	button.add_theme_color_override("font_hover_color", Color("f1e7d3"))
+	button.add_theme_color_override("font_pressed_color", Color("f1e7d3"))
 	button.pressed.connect(_on_item_pressed.bind(item_id))
 	return button
 

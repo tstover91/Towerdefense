@@ -4,10 +4,10 @@ extends PanelContainer
 signal chosen(item_id: StringName, quantity: int)
 signal lock_toggled(is_locked: bool)
 
-const COMMON_COLOR := Color(0.15, 0.85, 0.96)
-const UNCOMMON_COLOR := Color(0.35, 0.92, 0.42)
-const RARE_COLOR := Color(0.94, 0.27, 0.83)
-const LEGENDARY_COLOR := Color(1.0, 0.72, 0.16)
+const COMMON_COLOR := Color(0.08, 0.76, 0.84)
+const UNCOMMON_COLOR := Color(0.86, 0.22, 0.70)
+const RARE_COLOR := Color(0.96, 0.72, 0.12)
+const LEGENDARY_COLOR := Color(0.96, 0.95, 0.88)
 const RARITY_COLORS := {
 	&"common": COMMON_COLOR,
 	&"uncommon": UNCOMMON_COLOR,
@@ -26,9 +26,9 @@ const RARITY_COLORS := {
 var item_id: StringName = &""
 var reward_quantity := 1
 var default_panel_style: StyleBox
-var default_name_color := Color.WHITE
-var default_category_color := Color.WHITE
-var default_owned_color := Color.WHITE
+var default_name_color := Color("20262a")
+var default_category_color := Color("596166")
+var default_owned_color := Color("596166")
 var shop_mode := false
 var item_price := 0
 var offer_locked := false
@@ -105,10 +105,13 @@ func display_empty_slot() -> void:
 	item_id = &""
 	_set_card_content_visible(false)
 	var empty_style := StyleBoxFlat.new()
-	empty_style.bg_color = Color(0.02, 0.025, 0.04, 0.18)
-	empty_style.border_color = Color(0.55, 0.55, 0.62, 0.12)
+	empty_style.bg_color = Color(0.063, 0.051, 0.063, 0.62)
+	empty_style.border_color = Color(0.357, 0.255, 0.302, 0.5)
 	empty_style.set_border_width_all(1)
-	empty_style.set_corner_radius_all(10)
+	empty_style.corner_radius_top_left = 3
+	empty_style.corner_radius_top_right = 9
+	empty_style.corner_radius_bottom_right = 3
+	empty_style.corner_radius_bottom_left = 9
 	add_theme_stylebox_override("panel", empty_style)
 
 
@@ -132,20 +135,21 @@ func apply_rarity_style(rarity: StringName) -> void:
 		return
 	var rarity_color: Color = RARITY_COLORS[rarity]
 	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = rarity_color.darkened(0.84)
+	panel_style.bg_color = Color(0.094, 0.082, 0.09, 0.9)
 	panel_style.border_color = rarity_color
 	panel_style.set_border_width_all(3)
-	panel_style.set_corner_radius_all(10)
-	panel_style.shadow_color = Color(rarity_color, 0.28)
-	panel_style.shadow_size = 5
+	panel_style.corner_radius_top_left = 3
+	panel_style.corner_radius_top_right = 10
+	panel_style.corner_radius_bottom_right = 3
+	panel_style.corner_radius_bottom_left = 10
+	panel_style.shadow_color = Color(0.09, 0.067, 0.086, 0.78)
+	panel_style.shadow_size = 4
 	add_theme_stylebox_override("panel", panel_style)
-	name_label.add_theme_color_override(
-		"font_color", rarity_color.lightened(0.18)
+	name_label.add_theme_color_override("font_color", Color("f1e7d3"))
+	category_label.add_theme_color_override(
+		"font_color", rarity_color
 	)
-	category_label.add_theme_color_override("font_color", rarity_color)
-	owned_label.add_theme_color_override(
-		"font_color", rarity_color.lightened(0.30)
-	)
+	owned_label.add_theme_color_override("font_color", Color("b8a4aa"))
 
 
 func set_selected(selected: bool) -> void:

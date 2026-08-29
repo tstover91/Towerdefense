@@ -1,37 +1,39 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://main_menu.gd" id="1_menu"]
 [ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="2_theme"]
+[ext_resource type="StyleBox" path="res://assets/ui/recessed_button_hover_style.tres" id="3_hover"]
+[ext_resource type="StyleBox" path="res://assets/ui/recessed_button_pressed_style.tres" id="4_pressed"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBackground"]
-bg_color = Color(0.1255, 0.1294, 0.2275, 1)
+bg_color = Color(0.055, 0.043, 0.052, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleCard"]
-bg_color = Color(1, 0.9412, 0.7608, 1)
+bg_color = Color(0.094, 0.082, 0.09, 0.96)
 border_width_left = 6
 border_width_top = 6
 border_width_right = 6
 border_width_bottom = 6
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
-corner_radius_top_left = 24
-corner_radius_top_right = 24
-corner_radius_bottom_right = 24
-corner_radius_bottom_left = 24
-shadow_color = Color(0.6078, 0.8902, 0.2314, 0.65)
-shadow_size = 14
+border_color = Color(0.835, 0.678, 0.616, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 16
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 16
+shadow_color = Color(0.09, 0.067, 0.086, 0.82)
+shadow_size = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleButton"]
-bg_color = Color(0.2078, 0.8392, 0.9098, 1)
+bg_color = Color(0.094, 0.082, 0.09, 0.84)
 border_width_left = 4
 border_width_top = 4
 border_width_right = 4
 border_width_bottom = 4
-border_color = Color(0.1255, 0.1294, 0.2275, 1)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-shadow_color = Color(0.1255, 0.1294, 0.2275, 0.72)
+border_color = Color(0.835, 0.678, 0.616, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 10
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 10
+shadow_color = Color(0.09, 0.067, 0.086, 0.76)
 shadow_size = 4
 shadow_offset = Vector2(0, 4)
 
@@ -60,7 +62,7 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 6.0
 grow_horizontal = 2
-color = Color(1, 0.5412, 0.1686, 1)
+color = Color(0.925, 0.451, 0.329, 1)
 
 [node name="Content" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -89,16 +91,17 @@ layout_mode = 2
 
 [node name="Title" type="Label" parent="Content/Card/Content"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6078, 0.8902, 0.2314, 1)
-theme_override_colors/font_outline_color = Color(0.1255, 0.1294, 0.2275, 1)
-theme_override_constants/outline_size = 5
+theme_type_variation = &"DisplayLabel"
+theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
+theme_override_colors/font_outline_color = Color(0.09, 0.067, 0.086, 1)
+theme_override_constants/outline_size = 2
 theme_override_font_sizes/font_size = 46
 text = "TOWER DEFENCE"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Content/Card/Content"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2706, 0.2941, 0.3922, 1)
+theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
 theme_override_font_sizes/font_size = 18
 text = "Choose a level"
 horizontal_alignment = 1
@@ -123,6 +126,8 @@ custom_minimum_size = Vector2(540, 82)
 layout_mode = 2
 theme_override_font_sizes/font_size = 23
 theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = ExtResource("3_hover")
+theme_override_styles/pressed = ExtResource("4_pressed")
 text = "PLAY\nStandard 24-round run"
 
 [node name="SandboxButton" type="Button" parent="Content/Card/Content/LevelButtons"]
@@ -130,6 +135,8 @@ custom_minimum_size = Vector2(540, 96)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = ExtResource("3_hover")
+theme_override_styles/pressed = ExtResource("4_pressed")
 text = "SANDBOX\nUnlimited money • All towers • Enemy controls"
 
 [node name="BottomSpacer" type="Control" parent="Content/Card/Content"]
@@ -145,7 +152,7 @@ text = "Quit"
 
 [node name="Footer" type="Label" parent="Content/Card/Content"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2706, 0.2941, 0.3922, 1)
+theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
 text = "Choose a map, then select a game mode."
 horizontal_alignment = 1
 
