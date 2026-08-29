@@ -613,23 +613,47 @@ func uses_manual_ground_targeting() -> bool:
 
 
 func begin_manual_targeting() -> void:
-	if not uses_manual_ground_targeting() or main == null:
+	if main == null:
 		return
-	if attack_component != null:
+	if uses_manual_ground_targeting() and attack_component != null:
 		attack_component.begin_manual_targeting()
+	elif uses_directional_aim():
+		hide_action_menus()
+		show_current_range_preview()
+		main.begin_manual_tower_targeting(self)
+		queue_redraw()
 
 
 func cancel_manual_targeting() -> void:
-	if attack_component != null:
+	if uses_manual_ground_targeting() and attack_component != null:
 		attack_component.cancel_manual_targeting()
+	elif uses_directional_aim():
+		queue_redraw()
+		set_selected(false)
 
 
 func confirm_manual_target_position(world_position: Vector2) -> bool:
-	return (
-		attack_component.confirm_manual_target_position(world_position)
-		if attack_component != null
-		else false
-	)
+	if uses_manual_ground_targeting() and attack_component != null:
+		return attack_component.confirm_manual_target_position(world_position)
+	if not uses_directional_aim():
+		return false
+	if (
+		main != null
+		and main.has_method("is_world_position_in_playable_area")
+		and not main.is_world_position_in_playable_area(world_position)
+	):
+		return false
+	var new_direction := global_position.direction_to(world_position)
+	if new_direction.is_zero_approx():
+		return false
+	aim_direction = new_direction
+	if attack_component != null:
+		attack_component.on_aim_direction_changed()
+	target = null
+	rotator.rotation = aim_direction.angle()
+	queue_redraw()
+	set_selected(false)
+	return true
 
 
 func is_valid_orbital_target_position(world_position: Vector2) -> bool:

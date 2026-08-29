@@ -3645,6 +3645,9 @@ static func get_tower_item(item_id: StringName) -> Dictionary:
 		item.erase("enabled")
 		item.erase("stackable")
 	item["id"] = item_id
+	var icon_path := "res://assets/ui/item_icons/glyphs/%s.svg" % item_id
+	if ResourceLoader.exists(icon_path):
+		item["texture"] = ResourceLoader.load(icon_path)
 	return item
 
 

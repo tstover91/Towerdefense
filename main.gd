@@ -70,6 +70,9 @@ const PTI_TOWER_BUILD = preload("res://assets/ui/pti_hud/tower_build.png")
 const PTI_TOWER_BUILD_SELECTED = preload(
 	"res://assets/ui/pti_hud/tower_build_selected.png"
 )
+const TOWER_BUILD_BUTTON_SCENE = preload(
+	"res://ui/components/tower_build_button_visual.tscn"
+)
 const PTI_TOWER_CARD = preload("res://assets/ui/pti_hud/tower_card.png")
 const PTI_INVENTORY = preload("res://assets/ui/pti_hud/inventory.png")
 const PTI_TOWER_SELL = preload("res://assets/ui/pti_hud/tower_sell.png")
@@ -147,12 +150,13 @@ signal round_ended(round_number: int)
 @onready var tower_fan: Control = $MainUI/HUDRoot/TowerFan
 @onready var build_toggle_button: Button = $MainUI/HUDRoot/BuildToggleButton
 @onready var reinforcement_button: Button = $MainUI/HUDRoot/ThumbControls/ReinforcementButton
-@onready var reinforcement_cooldown_label: Label = $MainUI/HUDRoot/ThumbControls/ReinforcementButton/CooldownLabel
+@onready var reinforcement_cooldown_label: Label = get_node("MainUI/HUDRoot/ThumbControls/ReinforcementButton").find_child("CooldownLabel", true, false) as Label
+@onready var reinforcement_action_label: Label = get_node("MainUI/HUDRoot/ThumbControls/ReinforcementButton").find_child("ActionLabel", true, false) as Label
 @onready var tower_inspector: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector
 @onready var sidebar: Control = $MainUI/HUDRoot/Sidebar
 @onready var money_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/moneydisplay
 @onready var lives_display: Label = $MainUI/HUDRoot/TopLeftPanel/StatusMargin/StatusGrid/livesdisplay
-@onready var round_count_display: Label = $MainUI/HUDRoot/TopCenterRoundPanel/RoundLayout/roundcount
+@onready var round_count_display: Label = get_node("MainUI/HUDRoot/TopCenterRoundPanel").find_child("roundcount", true, false) as Label
 @onready var round_timer_display: Label = $MainUI/HUDRoot/TopCenterRoundPanel/RoundLayout/roundtimer
 @onready var enemy_strip: PanelContainer = $MainUI/HUDRoot/EnemyStrip
 @onready var enemy_toggle_button: Button = $MainUI/HUDRoot/EnemyIntelButton
@@ -163,6 +167,7 @@ signal round_ended(round_number: int)
 @onready var tower_name_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerNameLabel
 @onready var tower_level_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerLevelLabel
 @onready var tower_xp_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerXpLabel
+@onready var tower_xp_bar: ProgressBar = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle/TowerXpBar
 @onready var tower_portrait_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/PortraitButton
 @onready var tower_aim_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/AimButton
 @onready var tower_inspector_details: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorScroll
@@ -182,6 +187,7 @@ signal round_ended(round_number: int)
 @onready var tower_path_c_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection/PathButtons/PathCButton
 @onready var tower_path_description: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection/PathDescription
 @onready var tower_path_confirm_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection/PathConfirmButton
+@onready var tower_evolution_tab_button: Button = $MainUI/HUDRoot/EvolutionTabButton
 @onready var tower_target_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection
 @onready var tower_target_buttons: GridContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons
 @onready var tower_target_first: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetFirst
@@ -190,7 +196,8 @@ signal round_ended(round_number: int)
 @onready var tower_target_high: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetHigh
 @onready var tower_direction_buttons: GridContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons
 @onready var tower_manual_target_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/ManualTargetButton
-@onready var tower_sell_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/SellButton
+@onready var tower_sell_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/SellButtonMargin/SellButton
+@onready var tower_sell_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/SellButtonMargin/SellButton/SellText/Label
 var mobs_left_to_spawn := 0
 var mobs_alive := 0
 var spawn_schedule: Array[Dictionary] = []
@@ -431,6 +438,7 @@ var tower_fan_open := false
 var tower_info_expanded := false
 var tower_target_panel_open := false
 var tower_has_targeting_controls := false
+var tower_evolution_panel_open := false
 var placement_drag_candidate_kind: StringName = &""
 var placement_drag_candidate_slot := -1
 var placement_drag_pointer_index := -1
@@ -519,6 +527,14 @@ func _configure_between_round_screen(screen: BetweenRoundShop) -> void:
 func _configure_minimal_hud() -> void:
 	inventory_button = $MainUI/HUDRoot/ThumbControls/InventoryButton
 	tower_detail_popup = $MainUI/HUDRoot/TowerDetailPopup
+	if not speed_button.pressed.is_connected(_on_speed_button_pressed):
+		speed_button.pressed.connect(_on_speed_button_pressed)
+	if not pause_button.pressed.is_connected(_on_pause_button_pressed):
+		pause_button.pressed.connect(_on_pause_button_pressed)
+	if not build_toggle_button.pressed.is_connected(_on_build_toggle_pressed):
+		build_toggle_button.pressed.connect(_on_build_toggle_pressed)
+	if not tower_list.item_selected.is_connected(_on_item_list_item_selected):
+		tower_list.item_selected.connect(_on_item_list_item_selected)
 	tower_item_slot_buttons.clear()
 	var slot_grid := $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons
 	for child in slot_grid.get_children():
@@ -607,7 +623,12 @@ func _apply_pti_hud_artwork() -> void:
 	pause_button.custom_minimum_size = Vector2(64.0, 64.0)
 	speed_button.add_theme_font_size_override("font_size", 16)
 	_apply_button_texture(speed_button, PTI_GAME_SPEED)
-	_apply_button_texture(pause_button, PTI_PLAY_BUTTON)
+	pause_button.add_theme_font_size_override("font_size", 27)
+	pause_button.add_theme_color_override("font_color", Color("f1e7d3"))
+	pause_button.add_theme_color_override("font_hover_color", Color("f1e7d3"))
+	pause_button.add_theme_color_override("font_pressed_color", Color("e5ddcf"))
+	pause_button.add_theme_color_override("font_disabled_color", Color("9b9186"))
+	_apply_button_texture(pause_button, PTI_GAME_SPEED)
 
 	enemy_toggle_button.offset_left = -208.0
 	enemy_toggle_button.offset_top = 8.0
@@ -623,7 +644,7 @@ func _apply_pti_hud_artwork() -> void:
 	reinforcement_button.offset_right = -16.0
 	reinforcement_button.offset_bottom = -16.0
 	reinforcement_button.custom_minimum_size = Vector2(96.0, 96.0)
-	reinforcement_button.text = "DROP"
+	reinforcement_button.text = ""
 	reinforcement_button.add_theme_font_size_override("font_size", 14)
 	for color_state in [
 		"font_color",
@@ -731,7 +752,8 @@ func _configure_compact_tower_card() -> void:
 		tower_target_section,
 		tower_items_section.get_index()
 	)
-	tower_target_section.custom_minimum_size = Vector2.ZERO
+	# Reserve the full two-row targeting area so lower rows never jump.
+	tower_target_section.custom_minimum_size = Vector2(0.0, 109.0)
 	tower_target_section.add_theme_constant_override("separation", 3)
 	var target_header := tower_target_section.get_node("TargetHeader") as Label
 	target_header.text = "AIM MODE"
@@ -739,17 +761,18 @@ func _configure_compact_tower_card() -> void:
 	var target_grid := tower_target_section.get_node(
 		"TargetButtons"
 	) as GridContainer
-	target_grid.columns = 4
-	target_grid.custom_minimum_size = Vector2(180.0, 42.0)
+	target_grid.columns = 2
+	target_grid.custom_minimum_size = Vector2(180.0, 88.0)
 	target_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	target_grid.add_theme_constant_override("h_separation", 4)
+	target_grid.add_theme_constant_override("v_separation", 4)
 	for target_button in [
 		tower_target_first,
 		tower_target_last,
 		tower_target_low,
 		tower_target_high,
 	]:
-		target_button.custom_minimum_size = Vector2(42.0, 42.0)
+		target_button.custom_minimum_size = Vector2(88.0, 42.0)
 		target_button.add_theme_font_size_override("font_size", 9)
 		target_button.add_theme_color_override("font_color", UI_CREAM)
 		target_button.add_theme_color_override("font_hover_color", UI_CREAM)
@@ -777,16 +800,17 @@ func _configure_compact_tower_card() -> void:
 	tower_items_section.add_theme_constant_override("separation", 3)
 	var items_header := tower_items_section.get_node("ItemsHeader") as Label
 	items_header.add_theme_font_size_override("font_size", 11)
+	tower_manual_target_button.custom_minimum_size = Vector2(180.0, 42.0)
+	tower_manual_target_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
 	var card_spacer := Control.new()
 	card_spacer.name = "CardSpacer"
 	card_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tower_inspector.add_child(card_spacer)
-	tower_sell_button.reparent(tower_inspector)
 	tower_sell_button.custom_minimum_size = Vector2(176.0, 48.0)
 	tower_sell_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	tower_sell_button.add_theme_font_size_override("font_size", 12)
-	_apply_button_texture(tower_sell_button, PTI_TOWER_SELL)
+	_style_tower_sell_button()
 
 
 func _create_tower_item_slot_buttons() -> void:
@@ -803,20 +827,28 @@ func _create_tower_item_slot_buttons() -> void:
 		var slot_button := Button.new()
 		slot_button.custom_minimum_size = Vector2(42.0, 42.0)
 		slot_button.add_theme_font_size_override("font_size", 9)
-		slot_button.text = "%d\nEMPTY" % (slot_index + 1)
+		var slot_margin := MarginContainer.new()
+		slot_margin.name = "SlotText"
+		slot_margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		slot_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot_button.add_child(slot_margin)
+		var slot_label := Label.new()
+		slot_label.name = "Label"
+		slot_label.text = "%d\nEMPTY" % (slot_index + 1)
+		slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		slot_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		slot_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot_margin.add_child(slot_label)
 		for state in ["normal", "hover", "pressed"]:
 			var slot_style := StyleBoxFlat.new()
 			slot_style.bg_color = (
-				Color("100d10") if state == "normal" else Color("2b2028")
+				Color("21131f") if state == "normal" else Color("2b2028")
 			)
 			slot_style.border_color = (
 				Color("5b414d") if state == "normal" else UI_CYAN
 			)
-			slot_style.set_border_width_all(1 if state == "normal" else 2)
-			slot_style.corner_radius_top_left = 2
-			slot_style.corner_radius_top_right = 7
-			slot_style.corner_radius_bottom_right = 2
-			slot_style.corner_radius_bottom_left = 7
+			slot_style.set_border_width_all(2)
+			slot_style.set_corner_radius_all(5)
 			slot_button.add_theme_stylebox_override(state, slot_style)
 		slot_button.add_theme_color_override("font_color", UI_CREAM)
 		slot_button.add_theme_color_override("font_hover_color", UI_CREAM)
@@ -938,59 +970,14 @@ func create_tower_fan_button(
 ) -> Button:
 	var tower_id := get_sidebar_tower_id(slot_index)
 	var cost := get_tower_build_cost(tower_id)
-	var button := Button.new()
+	var button := TOWER_BUILD_BUTTON_SCENE.instantiate() as TowerBuildButtonVisual
 	button.name = "Tower_%s" % String(tower_id)
-	button.custom_minimum_size = Vector2.ONE * TOWER_FAN_BUTTON_SIZE
-	button.size = Vector2.ONE * TOWER_FAN_BUTTON_SIZE
-	button.focus_mode = Control.FOCUS_NONE
-	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.tooltip_text = "Drag %s onto the map · $%d" % [
-		tower_data["display_name"], cost
-	]
-	button.set_meta("slot_index", slot_index)
-	_apply_button_texture(button, PTI_TOWER_BUILD, PTI_TOWER_BUILD_SELECTED)
-
-	var icon := TextureRect.new()
-	icon.name = "TowerIcon"
-	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	icon.offset_left = 13.0
-	icon.offset_top = 8.0
-	icon.offset_right = -13.0
-	icon.offset_bottom = -21.0
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.texture = tower_data.get("texture", DEFAULT_TOWER_ICON)
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	button.add_child(icon)
-
-	var price_label := Label.new()
-	price_label.name = "PriceLabel"
-	price_label.anchor_left = 0.5
-	price_label.anchor_top = 1.0
-	price_label.anchor_right = 0.5
-	price_label.anchor_bottom = 1.0
-	price_label.offset_left = -27.0
-	price_label.offset_top = -25.0
-	price_label.offset_right = 27.0
-	price_label.offset_bottom = -5.0
-	price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	price_label.text = "$%d" % cost
-	price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	price_label.add_theme_color_override(
-		"font_color", UI_CREAM
+	button.configure(
+		tower_data.get("texture", DEFAULT_TOWER_ICON),
+		String(tower_data["display_name"]),
+		cost,
+		slot_index
 	)
-	price_label.add_theme_font_size_override("font_size", 12)
-	var price_style := StyleBoxFlat.new()
-	price_style.bg_color = Color(0.027, 0.063, 0.09, 0.94)
-	price_style.border_color = UI_GOLD
-	price_style.set_border_width_all(1)
-	price_style.corner_radius_top_left = 2
-	price_style.corner_radius_top_right = 6
-	price_style.corner_radius_bottom_right = 2
-	price_style.corner_radius_bottom_left = 6
-	price_label.add_theme_stylebox_override("normal", price_style)
-	button.add_child(price_label)
 	button.pressed.connect(_on_tower_fan_button_pressed.bind(slot_index))
 	button.gui_input.connect(_on_tower_fan_button_gui_input.bind(slot_index))
 	return button
@@ -1059,22 +1046,32 @@ func show_tower_details(tower: Node) -> void:
 	if selection_changed:
 		tower_info_expanded = false
 		tower_target_panel_open = false
+		tower_evolution_panel_open = false
 	var stats: Dictionary = tower.get_sidebar_stats()
 	build_sidebar_state.hide()
 	tower_inspector.show()
 	tower_selection_area.hide()
 	tower_name_label.text = stats["display_name"]
 	var xp_level := int(stats.get("xp_level", 1))
-	tower_level_label.text = "Level %d of %d" % [
-		xp_level,
-		GameStats.TOWER_XP_MAX_LEVEL,
-	]
+	tower_level_label.text = "LV %02d" % xp_level
 	var xp_into_level := float(stats.get("xp_into_level", 0.0))
 	var xp_to_next_level := float(stats.get("xp_to_next_level", 0.0))
+	tower_xp_label.hide()
 	if xp_to_next_level <= 0.0:
 		tower_xp_label.text = "MAX LEVEL"
+		tower_xp_bar.min_value = 0.0
+		tower_xp_bar.max_value = 1.0
+		tower_xp_bar.value = 1.0
+		tower_xp_bar.tooltip_text = "Maximum level reached"
 	else:
 		tower_xp_label.text = "%.1f / %.1f XP" % [
+			xp_into_level,
+			xp_to_next_level,
+		]
+		tower_xp_bar.min_value = 0.0
+		tower_xp_bar.max_value = xp_to_next_level
+		tower_xp_bar.value = xp_into_level
+		tower_xp_bar.tooltip_text = "%.1f / %.1f XP" % [
 			xp_into_level,
 			xp_to_next_level,
 		]
@@ -1094,9 +1091,6 @@ func show_tower_details(tower: Node) -> void:
 		tower_item_inventory_panel.refresh(tower)
 	update_tower_upgrade_controls(tower, stats)
 	update_tower_path_controls(tower)
-	if tower_path_section.visible:
-		tower_path_label.hide()
-		tower_items_section.hide()
 	update_tower_target_controls(tower)
 	update_tower_sell_control(tower)
 	update_tower_inspector_panel_visibility()
@@ -1110,6 +1104,7 @@ func connect_tower_inspector_signals() -> void:
 	tower_path_b_button.pressed.connect(_on_sidebar_path_slot_pressed.bind(1))
 	tower_path_c_button.pressed.connect(_on_sidebar_path_slot_pressed.bind(2))
 	tower_path_confirm_button.pressed.connect(_on_sidebar_path_confirmed)
+	tower_evolution_tab_button.pressed.connect(_on_tower_evolution_tab_pressed)
 	tower_target_first.pressed.connect(_on_sidebar_target_pressed.bind(0))
 	tower_target_last.pressed.connect(_on_sidebar_target_pressed.bind(1))
 	tower_target_low.pressed.connect(_on_sidebar_target_pressed.bind(2))
@@ -1120,6 +1115,12 @@ func connect_tower_inspector_signals() -> void:
 			_on_sidebar_direction_pressed.bind(direction_index)
 		)
 	tower_manual_target_button.pressed.connect(_on_sidebar_manual_target_pressed)
+	tower_manual_target_button.button_down.connect(
+		_set_special_target_label_pressed.bind(true)
+	)
+	tower_manual_target_button.button_up.connect(
+		_set_special_target_label_pressed.bind(false)
+	)
 	tower_sell_button.pressed.connect(_on_sidebar_sell_pressed)
 
 
@@ -1140,29 +1141,36 @@ func _on_tower_aim_pressed() -> void:
 func update_tower_inspector_panel_visibility() -> void:
 	if not is_instance_valid(tower_inspector):
 		return
+	var showing_evolution := tower_path_section.visible
 	tower_information_content.visible = tower_info_expanded
 	if is_instance_valid(tower_detail_popup):
 		tower_detail_popup.visible = tower_info_expanded
-	tower_target_section.visible = tower_has_targeting_controls
+	# Evolution mode keeps only the tower name from the normal card header.
+	tower_level_label.visible = not showing_evolution
+	tower_xp_bar.visible = not showing_evolution
+	tower_xp_label.hide()
+	tower_target_section.visible = not showing_evolution
 	if is_instance_valid(displayed_tower):
 		tower_items_section.visible = (
 			displayed_tower.get("instance_progression") != null
-			and not tower_path_section.visible
+			and not showing_evolution
 		)
+	tower_sell_button.get_parent().visible = not showing_evolution
 	tower_inspector_details.hide()
 	update_context_dock_layout()
 
 
 func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
+	# Tower levels are XP-driven; the old purchase-upgrade button is not used.
+	tower_upgrade_button.hide()
 	if tower.get("instance_progression") != null:
 		tower_upgrade_section.hide()
-		tower_upgrade_button.hide()
 		return
 	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
 	var next_level := int(stats["level"]) + 1
 	var has_level_upgrade := next_level < levels.size()
 	tower_upgrade_section.visible = has_level_upgrade
-	tower_upgrade_button.visible = has_level_upgrade
+	tower_upgrade_button.hide()
 	if not has_level_upgrade:
 		return
 	var upgrade_cost := int(levels[next_level]["upgrade_cost"])
@@ -1233,22 +1241,25 @@ func update_tower_item_controls(tower: Node) -> void:
 		var item_id := item_ids[slot_index]
 		_style_tower_item_slot(slot_button, item_id)
 		if item_id.is_empty():
-			slot_button.text = "%d\nEMPTY" % (slot_index + 1)
+			slot_button.icon = null
+			_set_item_slot_text(slot_button, "%d\nEMPTY" % (slot_index + 1))
 			slot_button.tooltip_text = (
 				"Choose a compatible item for slot %d" % (slot_index + 1)
 			)
 			continue
 		var item := GameStats.get_tower_item(item_id)
 		var count := item_counts[slot_index]
-		var short_item_name := String(
-			item.get("display_name", item_id)
-		).split(" ", false)[0].left(5).to_upper()
-		slot_button.text = "%d\n%s%s" % [
-			slot_index + 1,
-			short_item_name,
-			" ×%d" % count if count > 1 else "",
-		]
+		slot_button.icon = item.get("texture") as Texture2D
+		slot_button.expand_icon = true
+		slot_button.icon_max_width = 34
+		_set_item_slot_text(slot_button, "×%d" % count if count > 1 else "")
 		slot_button.tooltip_text = String(item.get("description", ""))
+
+
+func _set_item_slot_text(slot_button: Button, slot_text: String) -> void:
+	slot_button.text = ""
+	var slot_label := slot_button.get_node("SlotText/Label") as Label
+	slot_label.text = slot_text
 
 
 func _style_tower_item_slot(slot_button: Button, item_id: StringName) -> void:
@@ -1261,14 +1272,11 @@ func _style_tower_item_slot(slot_button: Button, item_id: StringName) -> void:
 	for state in ["normal", "hover", "pressed"]:
 		var style := StyleBoxFlat.new()
 		style.bg_color = (
-			Color("100d10") if state == "normal" else Color("2b2028")
+			Color("21131f") if state == "normal" else Color("2b2028")
 		)
 		style.border_color = accent if state == "normal" else accent.lightened(0.18)
-		style.set_border_width_all(2 if state == "normal" else 3)
-		style.corner_radius_top_left = 2
-		style.corner_radius_top_right = 7
-		style.corner_radius_bottom_right = 2
-		style.corner_radius_bottom_left = 7
+		style.set_border_width_all(2)
+		style.set_corner_radius_all(5)
 		slot_button.add_theme_stylebox_override(state, style)
 
 
@@ -1307,6 +1315,7 @@ func _on_tower_item_slot_pressed(slot_index: int) -> void:
 
 
 func update_tower_path_controls(tower: Node) -> void:
+	tower_evolution_tab_button.hide()
 	if tower.has_evolution_options():
 		update_tower_evolution_controls(tower)
 		return
@@ -1379,11 +1388,18 @@ func update_tower_evolution_controls(tower: Node) -> void:
 		minimum_required_level = int(evolutions[evolution_ids[0]].get(
 			"required_level", GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
 		))
-	tower_path_section.visible = (
+	var evolution_available := (
 		not evolutions.is_empty()
 		and owned_evolution_id.is_empty()
 		and tower.instance_progression.level >= minimum_required_level
 	)
+	tower_evolution_tab_button.visible = evolution_available
+	tower_evolution_tab_button.tooltip_text = (
+		"Return to tower controls"
+		if tower_evolution_panel_open
+		else "Show evolution choices"
+	)
+	tower_path_section.visible = evolution_available and tower_evolution_panel_open
 	if evolutions.is_empty():
 		return
 	if not tower_path_section.visible:
@@ -1404,7 +1420,8 @@ func update_tower_evolution_controls(tower: Node) -> void:
 			"required_level",
 			GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
 		))
-		button.tooltip_text = String(evolution.get("description", ""))
+		var evolution_description := String(evolution.get("description", ""))
+		button.tooltip_text = evolution_description
 		if owned_evolution_id == evolution_id:
 			button.text = "%s · OWNED" % evolution_name
 			button.disabled = true
@@ -1412,10 +1429,14 @@ func update_tower_evolution_controls(tower: Node) -> void:
 			button.text = "%s · LOCKED" % evolution_name
 			button.disabled = true
 		elif tower.instance_progression.level < required_level:
-			button.text = "%s · LV %d" % [evolution_name, required_level]
+			button.text = "%s · LV %02d" % [evolution_name, required_level]
 			button.disabled = true
 		else:
-			button.text = "%s · $%d" % [evolution_name, evolution_cost]
+			button.text = (
+				"%s · READY" % evolution_name
+				if evolution_cost <= 0
+				else "%s · $%d" % [evolution_name, evolution_cost]
+			)
 			button.disabled = not tower.can_purchase_evolution(evolution_id)
 		button.button_pressed = tower.pending_evolution_choice == evolution_id
 	var has_pending_choice: bool = not StringName(
@@ -1458,29 +1479,29 @@ func update_tower_target_controls(tower: Node) -> void:
 	tower_aim_button.hide()
 	if not shows_targeting:
 		tower_target_panel_open = false
-		tower_target_section.hide()
+		tower_target_buttons.hide()
+		tower_direction_buttons.hide()
+		tower_manual_target_button.hide()
 		return
 	var manual_targeting: bool = tower.uses_manual_ground_targeting()
 	var directional_targeting: bool = tower.uses_directional_aim()
-	tower_manual_target_button.visible = manual_targeting
-	tower_direction_buttons.visible = directional_targeting and not manual_targeting
+	tower_manual_target_button.visible = manual_targeting or directional_targeting
+	_set_special_target_button_text(
+		"Set Aim Direction" if directional_targeting else "Set Ground Target"
+	)
+	tower_direction_buttons.hide()
 	tower_target_buttons.visible = not manual_targeting and not directional_targeting
-	if directional_targeting:
-		for direction_index in tower_direction_buttons.get_child_count():
-			var direction_button := tower_direction_buttons.get_child(
-				direction_index
-			) as Button
-			direction_button.toggle_mode = true
-			direction_button.button_pressed = tower.aim_direction.is_equal_approx(
-				TowerMenuController.AIM_DIRECTIONS[direction_index]
-			)
 	if manual_targeting or directional_targeting:
 		return
 	var drone_targeting: bool = tower.uses_drone_targeting()
-	tower_target_first.text = "Spread" if drone_targeting else "First"
-	tower_target_last.text = "Focus" if drone_targeting else "Last"
-	tower_target_low.text = "Low"
-	tower_target_high.text = "High"
+	_set_target_button_text(
+		tower_target_first, "Spread" if drone_targeting else "First"
+	)
+	_set_target_button_text(
+		tower_target_last, "Focus" if drone_targeting else "Last"
+	)
+	_set_target_button_text(tower_target_low, "Low")
+	_set_target_button_text(tower_target_high, "High")
 	tower_target_low.visible = not drone_targeting
 	tower_target_high.visible = not drone_targeting
 	var current_mode: int = (
@@ -1496,6 +1517,33 @@ func update_tower_target_controls(tower: Node) -> void:
 			tower_target_high,
 		][index] as Button
 		button.button_pressed = current_mode == index
+		var button_label := button.get_node("MarginContainer/Label") as Label
+		button_label.add_theme_color_override(
+			"font_color", UI_INK if button.button_pressed else UI_CREAM
+		)
+
+
+func _set_target_button_text(button: Button, label_text: String) -> void:
+	button.text = ""
+	var button_label := button.get_node("MarginContainer/Label") as Label
+	button_label.text = label_text
+
+
+func _set_special_target_button_text(label_text: String) -> void:
+	tower_manual_target_button.text = ""
+	var button_label := tower_manual_target_button.get_node(
+		"MarginContainer/Label"
+	) as Label
+	button_label.text = label_text
+
+
+func _set_special_target_label_pressed(is_pressed: bool) -> void:
+	var button_label := tower_manual_target_button.get_node(
+		"MarginContainer/Label"
+	) as Label
+	button_label.add_theme_color_override(
+		"font_color", UI_INK if is_pressed else UI_CREAM
+	)
 
 
 func update_tower_sell_control(tower: Node) -> void:
@@ -1503,12 +1551,32 @@ func update_tower_sell_control(tower: Node) -> void:
 	var awaiting_confirmation := (
 		int(tower.get("pending_action")) == BaseTower.MenuAction.SELL
 	)
-	tower_sell_button.text = (
-		"Tap Again · $%d" if awaiting_confirmation else "Sell · $%d"
+	tower_sell_button.text = ""
+	tower_sell_label.text = (
+		"CONFIRM · $%d" if awaiting_confirmation else "SELL · $%d"
 	) % sell_price
 	tower_sell_button.tooltip_text = (
 		"Tap twice to sell. Tapping anywhere else cancels confirmation."
 	)
+
+
+func _style_tower_sell_button() -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = UI_ORANGE
+	normal.draw_center = true
+	normal.border_color = UI_CREAM
+	normal.set_border_width_all(2)
+	normal.set_corner_radius_all(5)
+	var hover: StyleBoxFlat = normal.duplicate()
+	hover.bg_color = UI_ORANGE.lightened(0.10)
+	var pressed: StyleBoxFlat = normal.duplicate()
+	pressed.bg_color = UI_ORANGE.darkened(0.15)
+	for state in ["normal", "disabled"]:
+		tower_sell_button.add_theme_stylebox_override(state, normal)
+	tower_sell_button.add_theme_stylebox_override("hover", hover)
+	tower_sell_button.add_theme_stylebox_override("pressed", pressed)
+	tower_sell_button.add_theme_stylebox_override("hover_pressed", pressed)
+	tower_sell_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
 
 func _on_sidebar_upgrade_pressed() -> void:
@@ -1544,6 +1612,14 @@ func _on_sidebar_path_confirmed() -> void:
 			displayed_tower.purchase_selected_path()
 
 
+func _on_tower_evolution_tab_pressed() -> void:
+	if not is_instance_valid(displayed_tower):
+		return
+	tower_evolution_panel_open = not tower_evolution_panel_open
+	update_tower_path_controls(displayed_tower)
+	update_tower_inspector_panel_visibility()
+
+
 func _on_sidebar_target_pressed(mode: int) -> void:
 	if not is_instance_valid(displayed_tower):
 		return
@@ -1568,11 +1644,14 @@ func _on_sidebar_manual_target_pressed() -> void:
 
 
 func _on_sidebar_sell_pressed() -> void:
-	if (
-		is_instance_valid(displayed_tower)
-		and prepare_sidebar_double_tap(BaseTower.MenuAction.SELL)
-	):
+	if not is_instance_valid(displayed_tower):
+		return
+	var sell_now := prepare_sidebar_double_tap(BaseTower.MenuAction.SELL)
+	if sell_now:
 		displayed_tower.request_sell()
+	elif is_instance_valid(displayed_tower):
+		# Do not wait for a general inspector refresh to show confirmation.
+		update_tower_sell_control(displayed_tower)
 
 
 func _on_sidebar_back_pressed() -> void:
@@ -1829,6 +1908,8 @@ func clear_tower_details(tower: Node = null) -> void:
 	tower_info_expanded = false
 	tower_target_panel_open = false
 	tower_has_targeting_controls = false
+	tower_evolution_panel_open = false
+	tower_evolution_tab_button.hide()
 	reset_sidebar_confirmation()
 	tower_inspector.hide()
 	if is_instance_valid(tower_detail_popup):
@@ -2053,15 +2134,17 @@ func update_reinforcement_button() -> void:
 		return
 	var option := get_selected_reinforcement_option()
 	var display_name := String(option.get("display_name", "Reinforcements"))
-	reinforcement_button.text = "DROP"
+	reinforcement_button.text = ""
 	reinforcement_button.button_pressed = reinforcement_targeting
 	reinforcement_cooldown_label.hide()
+	reinforcement_action_label.show()
 	if reinforcement_targeting:
 		reinforcement_button.tooltip_text = (
 			"Release to deploy %s; tap again to cancel" % display_name
 		)
 		reinforcement_button.disabled = false
 	elif reinforcement_cooldown_remaining > 0.0:
+		reinforcement_action_label.hide()
 		reinforcement_cooldown_label.show()
 		reinforcement_cooldown_label.text = "%d" % ceili(
 			reinforcement_cooldown_remaining
@@ -2102,12 +2185,23 @@ func update_tower_affordability() -> void:
 		if tower_id.is_empty():
 			continue
 		var placement_cost := get_tower_build_cost(tower_id)
-		button.disabled = not sandbox_mode and money < placement_cost
-		button.modulate = (
-			Color.WHITE
-			if not button.disabled
-			else Color(0.72, 0.70, 0.68, 0.72)
-		)
+		var is_affordable := sandbox_mode or money >= placement_cost
+		if button is TowerBuildButtonVisual:
+			(button as TowerBuildButtonVisual).set_affordable(is_affordable)
+		else:
+			button.disabled = not is_affordable
+	update_tower_fan_selection()
+
+
+func update_tower_fan_selection() -> void:
+	for button in tower_fan_buttons:
+		var slot_index := int(button.get_meta("slot_index"))
+		var tower_id := get_sidebar_tower_id(slot_index)
+		var is_selected := build_mode and tower_id == pending_tower_type
+		if button is TowerBuildButtonVisual:
+			(button as TowerBuildButtonVisual).set_selected(is_selected)
+		else:
+			button.button_pressed = is_selected
 
 func add_money(amount: int) -> void:
 	ensure_run_state()
@@ -2939,6 +3033,7 @@ func cancel_pending_tower_placement() -> void:
 	):
 		clear_placement_drag_state()
 	tower_list.deselect_all()
+	update_tower_fan_selection()
 	update_play_pause_button()
 	
 func _spawn_mob():
@@ -4101,6 +4196,7 @@ func _on_tower_cancelled(tower: Node2D) -> void:
 	clear_tower_details(tower)
 	ensure_build_controller()
 	build_controller.clear_pending_placement()
+	update_tower_fan_selection()
 	update_play_pause_button()
 
 
@@ -4121,6 +4217,7 @@ func start_build_tower() -> void:
 	pending_tower.tower_cancelled.connect(_on_tower_cancelled)
 	pending_tower.tower_sold.connect(_on_tower_sold)
 	build_controller.begin_placement(pending_tower)
+	update_tower_fan_selection()
 	update_play_pause_button()
 	add_child(pending_tower)
 	show_tower_details(pending_tower)
@@ -4185,8 +4282,24 @@ func _on_speed_button_pressed() -> void:
 
 func update_speed_button() -> void:
 	var speed_text := "%dx" % int(game_speed)
-	speed_button.text = speed_text
+	_set_visual_button_text(speed_button, speed_text)
 	speed_button.tooltip_text = "Game Speed: %s" % speed_text
+
+
+func _set_visual_button_text(button: Button, value: String) -> void:
+	var play_label := button.find_child("PlayLabel", true, false) as Label
+	var pause_label := button.find_child("PauseLabel", true, false) as Label
+	if play_label != null and pause_label != null:
+		button.text = ""
+		play_label.visible = value == "▶"
+		pause_label.visible = value == "Ⅱ"
+		return
+	var visual_label := button.find_child("Label", true, false) as Label
+	if visual_label != null:
+		button.text = ""
+		visual_label.text = value
+		return
+	button.text = value
 
 
 func _on_pause_button_pressed() -> void:
@@ -4218,13 +4331,13 @@ func update_play_pause_button() -> void:
 		pause_button.disabled = true
 		return
 	if round_active:
-		pause_button.text = ""
-		_apply_button_texture(pause_button, PTI_PAUSE_BUTTON)
+		_set_visual_button_text(pause_button, "Ⅱ")
+		_apply_button_texture(pause_button, PTI_GAME_SPEED)
 		pause_button.tooltip_text = "Pause"
 		pause_button.disabled = false
 	else:
-		pause_button.text = ""
-		_apply_button_texture(pause_button, PTI_PLAY_BUTTON)
+		_set_visual_button_text(pause_button, "▶")
+		_apply_button_texture(pause_button, PTI_GAME_SPEED)
 		pause_button.tooltip_text = "Start Round %d" % mini(
 			round_number + 1,
 			max_rounds

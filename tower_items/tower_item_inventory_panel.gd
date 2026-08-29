@@ -79,7 +79,10 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 	button.custom_minimum_size = Vector2(62.0, 62.0)
 	button.toggle_mode = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.text = "%s\n×%d" % [_get_item_initials(display_name), quantity]
+	button.text = ""
+	button.icon = item.get("texture") as Texture2D
+	button.expand_icon = true
+	button.icon_max_width = 48
 	button.tooltip_text = "%s\n%s" % [
 		display_name,
 		String(item.get("description", "")),
@@ -103,17 +106,24 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 	button.add_theme_color_override("font_color", Color("f1e7d3"))
 	button.add_theme_color_override("font_hover_color", Color("f1e7d3"))
 	button.add_theme_color_override("font_pressed_color", Color("f1e7d3"))
+	var count_label := Label.new()
+	count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	count_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	count_label.offset_left = -26.0
+	count_label.offset_top = -20.0
+	count_label.offset_right = -4.0
+	count_label.offset_bottom = -2.0
+	count_label.text = "×%d" % quantity
+	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	count_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	count_label.add_theme_color_override("font_color", Color("f1e7d3"))
+	count_label.add_theme_color_override("font_shadow_color", Color("100d10"))
+	count_label.add_theme_constant_override("shadow_offset_x", 1)
+	count_label.add_theme_constant_override("shadow_offset_y", 1)
+	count_label.add_theme_font_size_override("font_size", 12)
+	button.add_child(count_label)
 	button.pressed.connect(_on_item_pressed.bind(item_id))
 	return button
-
-
-func _get_item_initials(display_name: String) -> String:
-	var words := display_name.split(" ", false)
-	if words.is_empty():
-		return "?"
-	if words.size() == 1:
-		return words[0].left(2).to_upper()
-	return (words[0].left(1) + words[1].left(1)).to_upper()
 
 
 func _on_item_pressed(item_id: StringName) -> void:

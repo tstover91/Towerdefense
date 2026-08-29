@@ -154,16 +154,14 @@ func update_menu_buttons() -> void:
 		target_mode_button.text = "Target\nGround"
 	elif tower.uses_directional_aim():
 		target_mode_button.disabled = false
-		target_mode_button.text = "Aim\nDirection"
+		target_mode_button.text = "Set Aim\nDirection"
 	else:
 		target_mode_button.disabled = false
 		target_mode_button.text = "Target\n%s" % _get_target_mode_name()
 
 
 func refresh_attack_controls() -> void:
-	if tower.uses_directional_aim() and direction_ui == null:
-		_create_direction_ui()
-	elif not tower.uses_directional_aim() and direction_ui != null:
+	if direction_ui != null:
 		direction_ui.queue_free()
 		direction_ui = null
 	update_menu_buttons()
@@ -249,7 +247,7 @@ func handle_target_mode_pressed() -> void:
 		return
 	if tower.uses_standard_spawner_system() and not tower.uses_drone_targeting():
 		return
-	if tower.uses_manual_ground_targeting():
+	if tower.uses_manual_ground_targeting() or tower.uses_directional_aim():
 		tower.begin_manual_targeting()
 		return
 	show_target_menu()

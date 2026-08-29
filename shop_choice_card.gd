@@ -84,7 +84,8 @@ func display_shop_item(
 	item_price = int(item_stats.get("price", 0))
 	offer_locked = is_locked
 	name_label.text = item_stats["display_name"]
-	portrait.hide()
+	portrait.texture = item_stats.get("texture") as Texture2D
+	portrait.visible = portrait.texture != null
 	category_label.text = "%s • %s" % [
 		String(item_stats.get("rarity", &"common")).capitalize(),
 		String(item_stats.get("category", &"general")).capitalize(),

@@ -1,30 +1,28 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cvm84so7pulao"]
 
-[ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="1_ulw4r"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/health_bar.png" id="2_pmt5c"]
+[ext_resource type="Theme" uid="uid://b3cpgvx4587eo" path="res://assets/ui/saturday_invasion_theme.tres" id="1_ulw4r"]
+[ext_resource type="Texture2D" uid="uid://bth62386fb5xw" path="res://assets/ui/pti_hud/health_bar.png" id="2_pmt5c"]
 [ext_resource type="StyleBox" path="res://assets/ui/equipment_panel_style.tres" id="3_rv8pp"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/play_button.png" id="4_kjgx5"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/game_speed.png" id="5_7o4cc"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/reinforcement_button.png" id="6_jqij5"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/reinforment_button_selected.png" id="7_co4v0"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/inventory_button.png" id="8_aso82"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/tower_build.png" id="9_886yw"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/tower_build_selected.png" id="10_bwjmh"]
-[ext_resource type="Texture2D" path="res://assets/towers/orbitalcannon.png" id="11_xmctq"]
-[ext_resource type="Texture2D" path="res://assets/towers/voidcaller.png" id="12_r7re0"]
+[ext_resource type="Texture2D" uid="uid://c0pdar1sxbsla" path="res://assets/ui/pti_hud/game_speed.png" id="5_7o4cc"]
+[ext_resource type="Texture2D" uid="uid://wgbosba4s3wp" path="res://assets/ui/pti_hud/reinforcement_button.png" id="6_jqij5"]
+[ext_resource type="Texture2D" uid="uid://gd8d543lihfs" path="res://assets/ui/pti_hud/reinforment_button_selected.png" id="7_co4v0"]
+[ext_resource type="Texture2D" uid="uid://2mcbh6mk8mnb" path="res://assets/ui/pti_hud/inventory_button.png" id="8_aso82"]
+[ext_resource type="Texture2D" uid="uid://bi7664hxdg0jo" path="res://assets/towers/orbitalcannon.png" id="11_xmctq"]
+[ext_resource type="Texture2D" uid="uid://dxqu0wfclsddh" path="res://assets/towers/voidcaller.png" id="12_r7re0"]
 [ext_resource type="StyleBox" path="res://assets/ui/recessed_button_style.tres" id="13_a5wlq"]
 [ext_resource type="StyleBox" path="res://assets/ui/recessed_button_pressed_style.tres" id="14_njjxc"]
 [ext_resource type="StyleBox" path="res://assets/ui/recessed_button_hover_style.tres" id="15_xbxso"]
-[ext_resource type="Texture2D" path="res://assets/ui/build_towers.svg" id="16_3ru6y"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/tower_card.png" id="17_1fek1"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="18_6eq6b"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/tower_sell.png" id="19_8m46w"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/round_counter.png" id="20_epxw3"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/intel.png" id="21_pdqux"]
+[ext_resource type="Texture2D" uid="uid://b4ql5u0pgkrxi" path="res://assets/ui/build_towers.svg" id="16_3ru6y"]
+[ext_resource type="Texture2D" uid="uid://cwlitwsqivkgg" path="res://assets/ui/pti_hud/tower_card.png" id="17_1fek1"]
+[ext_resource type="Texture2D" uid="uid://n5wurppyeq5" path="res://icon.svg" id="18_6eq6b"]
+[ext_resource type="Texture2D" uid="uid://b4g7ia51pmj2y" path="res://assets/ui/pti_hud/tower_sell.png" id="19_8m46w"]
+[ext_resource type="Texture2D" uid="uid://c5g0phqbl0dyh" path="res://assets/ui/pti_hud/round_counter.png" id="20_epxw3"]
+[ext_resource type="Texture2D" uid="uid://d22v011rxvo32" path="res://assets/ui/pti_hud/intel.png" id="21_pdqux"]
 [ext_resource type="PackedScene" path="res://tower_items/tower_item_inventory_panel.tscn" id="22_gmgvv"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/inventory.png" id="23_q3gsg"]
-[ext_resource type="Script" path="res://tower_items/tower_item_inventory_panel.gd" id="24_1ut0d"]
-[ext_resource type="Texture2D" path="res://assets/ui/equipment_panel.svg" id="25_rt46t"]
+[ext_resource type="Texture2D" uid="uid://dobxnm4bki3oj" path="res://assets/ui/pti_hud/inventory.png" id="23_q3gsg"]
+[ext_resource type="Texture2D" uid="uid://cmvhng7wvear6" path="res://assets/ui/equipment_panel.svg" id="25_rt46t"]
+[ext_resource type="PackedScene" uid="uid://ct5c7x18dlvof" path="res://ui/components/tower_build_button_visual.tscn" id="26_tower_button"]
+[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/upgrade_tab.png" id="28_upgrade_tab"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_d7apq"]
 texture = ExtResource("2_pmt5c")
@@ -87,23 +85,23 @@ corner_radius_bottom_left = 8
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_status"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_4mmiv"]
-texture = ExtResource("4_kjgx5")
+texture = ExtResource("5_7o4cc")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_v61vv"]
-texture = ExtResource("4_kjgx5")
+texture = ExtResource("5_7o4cc")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_xakfi"]
-texture = ExtResource("4_kjgx5")
+texture = ExtResource("5_7o4cc")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_vckpb"]
-texture = ExtResource("4_kjgx5")
+texture = ExtResource("5_7o4cc")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_evfy2"]
-texture = ExtResource("4_kjgx5")
+texture = ExtResource("5_7o4cc")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0p3pn"]
@@ -174,74 +172,6 @@ modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_4whbk"]
 
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_kcy3q"]
-texture = ExtResource("9_886yw")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_nemp3"]
-texture = ExtResource("10_bwjmh")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_gxi01"]
-texture = ExtResource("9_886yw")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_2aqgs"]
-texture = ExtResource("10_bwjmh")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_gk8w3"]
-texture = ExtResource("9_886yw")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_m5rlw"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8qm30"]
-bg_color = Color(0.027, 0.063, 0.09, 0.94)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.94509804, 0.74509805, 0.27058825, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 6
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_swjwr"]
-texture = ExtResource("9_886yw")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ht33c"]
-texture = ExtResource("10_bwjmh")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ev1fw"]
-texture = ExtResource("9_886yw")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_x60xf"]
-texture = ExtResource("10_bwjmh")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ehf48"]
-texture = ExtResource("9_886yw")
-modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_h5pap"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_s7ye6"]
-bg_color = Color(0.027, 0.063, 0.09, 0.94)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.94509804, 0.74509805, 0.27058825, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 6
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 6
-
 [sub_resource type="Theme" id="Theme_tower_inspector"]
 default_font_size = 15
 Button/colors/font_color = Color(0.898, 0.898, 0.863, 1)
@@ -259,6 +189,12 @@ Label/colors/font_color = Color(0.953, 0.949, 0.914, 1)
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_vb6lc"]
 texture = ExtResource("17_1fek1")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fakjx"]
+bg_color = Color(0.09019608, 0.06666667, 0.08627451, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d42bq"]
+bg_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upgrade_normal"]
 bg_color = Color(0.12, 0.22, 0.19, 0.98)
@@ -454,150 +390,6 @@ corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_1c8jq"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_n4644"]
-bg_color = Color(0.0627451, 0.050980393, 0.0627451, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.35686275, 0.25490198, 0.3019608, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p6q04"]
-bg_color = Color(0.16862746, 0.1254902, 0.15686275, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lf8od"]
-bg_color = Color(0.16862746, 0.1254902, 0.15686275, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vav86"]
-bg_color = Color(0.0627451, 0.050980393, 0.0627451, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.35686275, 0.25490198, 0.3019608, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jvhty"]
-bg_color = Color(0.16862746, 0.1254902, 0.15686275, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fjwp8"]
-bg_color = Color(0.16862746, 0.1254902, 0.15686275, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7eimv"]
-bg_color = Color(0.0627451, 0.050980393, 0.0627451, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.35686275, 0.25490198, 0.3019608, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i7bbi"]
-bg_color = Color(0.16862746, 0.1254902, 0.15686275, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yxw5d"]
-bg_color = Color(0.16862746, 0.1254902, 0.15686275, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_my2nb"]
-bg_color = Color(0.0627451, 0.050980393, 0.0627451, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.35686275, 0.25490198, 0.3019608, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vk4fs"]
-bg_color = Color(0.16862746, 0.1254902, 0.15686275, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_r13cl"]
-bg_color = Color(0.16862746, 0.1254902, 0.15686275, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 7
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 7
-
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ttvlq"]
 texture = ExtResource("19_8m46w")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
@@ -619,6 +411,13 @@ texture = ExtResource("19_8m46w")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_avdk1"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sell_fill"]
+bg_color = Color(0.9254902, 0.4509804, 0.32941177, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_cc7h5"]
 texture = ExtResource("20_epxw3")
@@ -661,6 +460,13 @@ texture_margin_top = 18.0
 texture_margin_right = 18.0
 texture_margin_bottom = 18.0
 
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_evolution_tab"]
+texture = ExtResource("28_upgrade_tab")
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_evolution_tab_hover"]
+texture = ExtResource("28_upgrade_tab")
+modulate_color = Color(1.08, 1.08, 1.08, 1)
+
 [node name="HUDRoot" type="Control" unique_id=386170543]
 layout_mode = 3
 anchors_preset = 15
@@ -680,12 +486,52 @@ offset_bottom = 72.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxTexture_d7apq")
 
+[node name="EvolutionTabButton" type="Button" parent="."]
+visible = false
+custom_minimum_size = Vector2(31, 64)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 233.0
+offset_top = -342.0
+offset_right = 264.0
+offset_bottom = -278.0
+grow_vertical = 0
+tooltip_text = "Show evolution choices"
+focus_mode = 0
+theme_override_styles/normal = SubResource("StyleBoxTexture_evolution_tab")
+theme_override_styles/hover = SubResource("StyleBoxTexture_evolution_tab_hover")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_evolution_tab_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_avdk1")
+
+[node name="TabText" type="MarginContainer" parent="EvolutionTabButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 1
+theme_override_constants/margin_right = 5
+
+[node name="Label" type="Label" parent="EvolutionTabButton/TabText"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.090196, 0.066667, 0.086275, 1)
+theme_override_font_sizes/font_size = 11
+text = "E\nV\nO"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="StatusMargin" type="MarginContainer" parent="TopLeftPanel" unique_id=886293298]
 layout_mode = 2
 theme_override_constants/margin_left = 18
-theme_override_constants/margin_top = 6
+theme_override_constants/margin_top = 1
 theme_override_constants/margin_right = 14
-theme_override_constants/margin_bottom = 6
+theme_override_constants/margin_bottom = 9
 
 [node name="StatusGrid" type="HBoxContainer" parent="TopLeftPanel/StatusMargin" unique_id=872170004]
 layout_mode = 2
@@ -694,10 +540,11 @@ theme_override_constants/separation = 8
 [node name="livesdisplay" type="Label" parent="TopLeftPanel/StatusMargin/StatusGrid" unique_id=854572826]
 custom_minimum_size = Vector2(136, 48)
 layout_mode = 2
-theme_type_variation = &"DisplayLabel"
+theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.925, 0.451, 0.329, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 20
 text = "HEALTH  100 / 100"
+horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="HealthDivider" type="VSeparator" parent="TopLeftPanel/StatusMargin/StatusGrid" unique_id=1297323859]
@@ -717,9 +564,9 @@ size_flags_vertical = 4
 [node name="moneydisplay" type="Label" parent="TopLeftPanel/StatusMargin/StatusGrid" unique_id=1926460251]
 custom_minimum_size = Vector2(72, 48)
 layout_mode = 2
-theme_type_variation = &"DisplayLabel"
+theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.945, 0.745, 0.271, 1)
-theme_override_font_sizes/font_size = 17
+theme_override_font_sizes/font_size = 20
 text = "$750"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -793,7 +640,7 @@ layout_mode = 2
 theme_override_constants/margin_left = 0
 theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 0
-theme_override_constants/margin_bottom = 0
+theme_override_constants/margin_bottom = 11
 
 [node name="Buttons" type="HBoxContainer" parent="EdgeControls/ControlMargin" unique_id=473957465]
 layout_mode = 2
@@ -806,6 +653,8 @@ tooltip_text = "Start Round 1"
 theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
 theme_override_colors/font_pressed_color = Color(0.898, 0.898, 0.863, 1)
 theme_override_colors/font_hover_color = Color(0.898, 0.898, 0.863, 1)
+theme_override_colors/font_disabled_color = Color(0.6078, 0.5686, 0.5255, 1)
+theme_override_font_sizes/font_size = 27
 theme_override_styles/normal = SubResource("StyleBoxTexture_4mmiv")
 theme_override_styles/pressed = SubResource("StyleBoxTexture_v61vv")
 theme_override_styles/hover = SubResource("StyleBoxTexture_xakfi")
@@ -813,21 +662,80 @@ theme_override_styles/hover_pressed = SubResource("StyleBoxTexture_vckpb")
 theme_override_styles/disabled = SubResource("StyleBoxTexture_evfy2")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_0p3pn")
 
+[node name="PlayText" type="MarginContainer" parent="EdgeControls/ControlMargin/Buttons/PauseButton" unique_id=1949526692]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 21
+theme_override_constants/margin_top = -5
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 2
+
+[node name="PlayLabel" type="Label" parent="EdgeControls/ControlMargin/Buttons/PauseButton/PlayText" unique_id=268640274]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
+theme_override_font_sizes/font_size = 26
+text = "▶"
+
+[node name="PauseText" type="MarginContainer" parent="EdgeControls/ControlMargin/Buttons/PauseButton" unique_id=1578008166]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 2
+
+[node name="PauseLabel" type="Label" parent="EdgeControls/ControlMargin/Buttons/PauseButton/PauseText" unique_id=1956628946]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
+theme_override_font_sizes/font_size = 26
+text = "Ⅱ"
+
 [node name="SpeedButton" type="Button" parent="EdgeControls/ControlMargin/Buttons" unique_id=1595602652]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 tooltip_text = "Game Speed: 1x"
+theme_type_variation = &"BoogalooButton"
 theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
 theme_override_colors/font_pressed_color = Color(0.898, 0.898, 0.863, 1)
 theme_override_colors/font_hover_color = Color(0.898, 0.898, 0.863, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 29
 theme_override_styles/normal = SubResource("StyleBoxTexture_owok2")
 theme_override_styles/pressed = SubResource("StyleBoxTexture_08hpx")
 theme_override_styles/hover = SubResource("StyleBoxTexture_2p1my")
 theme_override_styles/hover_pressed = SubResource("StyleBoxTexture_fura0")
 theme_override_styles/disabled = SubResource("StyleBoxTexture_uxp73")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_0d5gl")
-text = "1x"
+
+[node name="MarginContainer" type="MarginContainer" parent="EdgeControls/ControlMargin/Buttons/SpeedButton" unique_id=882175631]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 17
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 5
+
+[node name="Label" type="Label" parent="EdgeControls/ControlMargin/Buttons/SpeedButton/MarginContainer" unique_id=429459516]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_font_sizes/font_size = 26
+text = "X1"
 
 [node name="ThumbControls" type="Control" parent="." unique_id=322040250]
 z_index = 20
@@ -854,6 +762,7 @@ offset_bottom = -16.0
 grow_horizontal = 0
 grow_vertical = 0
 tooltip_text = "Drag onto the map · Deploys three alien grunts that pursue and slow nearby enemies."
+theme_type_variation = &"BoogalooButton"
 theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_hover_color = Color(0.94509804, 0.90588236, 0.827451, 1)
@@ -861,7 +770,7 @@ theme_override_colors/icon_normal_color = Color(0.898, 0.898, 0.863, 0.94)
 theme_override_colors/icon_pressed_color = Color(0.898, 0.898, 0.863, 1)
 theme_override_colors/icon_hover_color = Color(0.898, 0.898, 0.863, 1)
 theme_override_colors/icon_disabled_color = Color(0.898, 0.898, 0.863, 0.42)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 23
 theme_override_styles/normal = SubResource("StyleBoxTexture_3xcw3")
 theme_override_styles/pressed = SubResource("StyleBoxTexture_oiket")
 theme_override_styles/hover = SubResource("StyleBoxTexture_lovc5")
@@ -870,23 +779,49 @@ theme_override_styles/disabled = SubResource("StyleBoxTexture_yf7uc")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_rgnyg")
 disabled = true
 toggle_mode = true
-text = "DROP"
 
-[node name="CooldownLabel" type="Label" parent="ThumbControls/ReinforcementButton" unique_id=1970866330]
-visible = false
+[node name="MarginContainer2" type="MarginContainer" parent="ThumbControls/ReinforcementButton" unique_id=1867207696]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 7
+
+[node name="CooldownLabel" type="Label" parent="ThumbControls/ReinforcementButton/MarginContainer2" unique_id=1970866330]
+visible = false
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
 theme_override_colors/font_outline_color = Color(0.0196, 0.0235, 0.0353, 0.82)
 theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 55
 text = "9"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="ActionText" type="MarginContainer" parent="ThumbControls/ReinforcementButton" unique_id=389389747]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 13
+theme_override_constants/margin_right = 2
+theme_override_constants/margin_bottom = 5
+
+[node name="ActionLabel" type="Label" parent="ThumbControls/ReinforcementButton/ActionText" unique_id=1071189332]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_font_sizes/font_size = 22
+text = "DEPLOY"
 
 [node name="InventoryButton" type="Button" parent="ThumbControls" unique_id=153702417]
 custom_minimum_size = Vector2(112, 64)
@@ -901,10 +836,11 @@ offset_right = -120.0
 offset_bottom = -16.0
 tooltip_text = "Open tower item inventory"
 focus_mode = 0
+theme_type_variation = &"BoogalooButton"
 theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_hover_color = Color(0.94509804, 0.90588236, 0.827451, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("StyleBoxTexture_gg374")
 theme_override_styles/pressed = SubResource("StyleBoxTexture_l8pg5")
 theme_override_styles/hover = SubResource("StyleBoxTexture_eixoa")
@@ -912,6 +848,24 @@ theme_override_styles/hover_pressed = SubResource("StyleBoxTexture_qlvra")
 theme_override_styles/disabled = SubResource("StyleBoxTexture_6c6ns")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_4whbk")
 toggle_mode = true
+
+[node name="MarginContainer" type="MarginContainer" parent="ThumbControls/InventoryButton" unique_id=425437063]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 17
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 2
+theme_override_constants/margin_bottom = 9
+
+[node name="Label" type="Label" parent="ThumbControls/InventoryButton/MarginContainer" unique_id=1535038082]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_font_sizes/font_size = 23
 text = "ITEMS"
 
 [node name="TowerFan" type="Control" parent="." unique_id=1898065964]
@@ -924,105 +878,12 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Tower_orbitalcannon" type="Button" parent="TowerFan" unique_id=1827440977]
-custom_minimum_size = Vector2(96, 96)
+[node name="TowerPreview1" parent="TowerFan" unique_id=365218202 instance=ExtResource("26_tower_button")]
 layout_mode = 0
-offset_left = 476.0
+offset_left = 528.0
 offset_top = 1040.0
-offset_right = 572.0
+offset_right = 624.0
 offset_bottom = 1136.0
-pivot_offset = Vector2(48, 48)
-tooltip_text = "Drag Orbital Cannon onto the map · $350"
-focus_mode = 0
-mouse_default_cursor_shape = 2
-theme_override_styles/normal = SubResource("StyleBoxTexture_kcy3q")
-theme_override_styles/pressed = SubResource("StyleBoxTexture_nemp3")
-theme_override_styles/hover = SubResource("StyleBoxTexture_gxi01")
-theme_override_styles/hover_pressed = SubResource("StyleBoxTexture_2aqgs")
-theme_override_styles/disabled = SubResource("StyleBoxTexture_gk8w3")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_m5rlw")
-metadata/slot_index = 0
-metadata/fan_target_position = Vector2(476, 1040)
-
-[node name="TowerIcon" type="TextureRect" parent="TowerFan/Tower_orbitalcannon" unique_id=1623407765]
-layout_mode = 0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 13.0
-offset_top = 8.0
-offset_right = -13.0
-offset_bottom = -21.0
-mouse_filter = 2
-texture = ExtResource("11_xmctq")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="PriceLabel" type="Label" parent="TowerFan/Tower_orbitalcannon" unique_id=1144174614]
-layout_mode = 0
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -27.0
-offset_top = -25.0
-offset_right = 27.0
-offset_bottom = -5.0
-theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
-theme_override_font_sizes/font_size = 12
-theme_override_styles/normal = SubResource("StyleBoxFlat_8qm30")
-text = "$350"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Tower_voidcaller" type="Button" parent="TowerFan" unique_id=137722518]
-custom_minimum_size = Vector2(96, 96)
-layout_mode = 0
-offset_left = 580.0
-offset_top = 1040.0
-offset_right = 676.0
-offset_bottom = 1136.0
-pivot_offset = Vector2(48, 48)
-tooltip_text = "Drag Void Caller onto the map · $675"
-focus_mode = 0
-mouse_default_cursor_shape = 2
-theme_override_styles/normal = SubResource("StyleBoxTexture_swjwr")
-theme_override_styles/pressed = SubResource("StyleBoxTexture_ht33c")
-theme_override_styles/hover = SubResource("StyleBoxTexture_ev1fw")
-theme_override_styles/hover_pressed = SubResource("StyleBoxTexture_x60xf")
-theme_override_styles/disabled = SubResource("StyleBoxTexture_ehf48")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_h5pap")
-metadata/slot_index = 1
-metadata/fan_target_position = Vector2(580, 1040)
-
-[node name="TowerIcon" type="TextureRect" parent="TowerFan/Tower_voidcaller" unique_id=601517335]
-layout_mode = 0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 13.0
-offset_top = 8.0
-offset_right = -13.0
-offset_bottom = -21.0
-mouse_filter = 2
-texture = ExtResource("12_r7re0")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="PriceLabel" type="Label" parent="TowerFan/Tower_voidcaller" unique_id=974592898]
-layout_mode = 0
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -27.0
-offset_top = -25.0
-offset_right = 27.0
-offset_bottom = -5.0
-theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
-theme_override_font_sizes/font_size = 12
-theme_override_styles/normal = SubResource("StyleBoxFlat_s7ye6")
-text = "$675"
-horizontal_alignment = 1
-vertical_alignment = 1
 
 [node name="BuildToggleButton" type="Button" parent="." unique_id=1587658736]
 visible = false
@@ -1052,14 +913,13 @@ icon = ExtResource("16_3ru6y")
 expand_icon = true
 
 [node name="Sidebar" type="PanelContainer" parent="." unique_id=1348787309]
-visible = false
 clip_contents = true
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = -374.0
+offset_top = -382.0
 offset_right = 237.0
 offset_bottom = -16.0
 grow_horizontal = 2
@@ -1072,7 +932,7 @@ layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_bottom = 18
 
 [node name="SidebarLayout" type="VBoxContainer" parent="Sidebar/SidebarMargin" unique_id=458329320]
 layout_mode = 2
@@ -1135,7 +995,6 @@ text = "Reinforcements"
 horizontal_alignment = 1
 
 [node name="TowerInspector" type="VBoxContainer" parent="Sidebar/SidebarMargin/SidebarLayout" unique_id=1058751168]
-visible = false
 clip_contents = true
 layout_mode = 2
 size_flags_vertical = 3
@@ -1164,22 +1023,37 @@ size_flags_horizontal = 3
 
 [node name="TowerNameLabel" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle" unique_id=1593012101]
 layout_mode = 2
-theme_type_variation = &"DisplayLabel"
-theme_override_font_sizes/font_size = 20
+theme_type_variation = &"BoogalooLabel"
+theme_override_font_sizes/font_size = 30
 text = "Tower"
+horizontal_alignment = 1
 autowrap_mode = 2
 
 [node name="TowerLevelLabel" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle" unique_id=570188361]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_font_sizes/font_size = 13
-text = "Level 1 of 20"
+text = "LV 01"
+horizontal_alignment = 1
 
 [node name="TowerXpLabel" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle" unique_id=2146984705]
+visible = false
 layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.518, 0.843, 0.69, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 16
 text = "0.0 / 28.0 XP"
+horizontal_alignment = 1
+
+[node name="TowerXpBar" type="ProgressBar" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader/InspectorTitle" unique_id=1297809752]
+custom_minimum_size = Vector2(130, 10)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/background = SubResource("StyleBoxFlat_fakjx")
+theme_override_styles/fill = SubResource("StyleBoxFlat_d42bq")
+value = 45.0
+show_percentage = false
 
 [node name="AimButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/InspectorHeader" unique_id=1338738891]
 visible = false
@@ -1190,11 +1064,13 @@ toggle_mode = true
 text = "Aim"
 
 [node name="CompactActions" type="HBoxContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=37076949]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 1
 
 [node name="UpgradeButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/CompactActions" unique_id=765467943]
+visible = false
 custom_minimum_size = Vector2(56, 40)
 layout_mode = 2
 size_flags_vertical = 4
@@ -1209,26 +1085,28 @@ text = "Upgrade · $0"
 clip_text = true
 
 [node name="TargetSection" type="VBoxContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=386935556]
-visible = false
+custom_minimum_size = Vector2(0, 109)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_constants/separation = 3
 
 [node name="TargetHeader" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection" unique_id=1109806923]
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "AIM MODE"
+theme_type_variation = &"BoogalooLabel"
+theme_override_font_sizes/font_size = 15
+text = "TARGETING MODE"
 horizontal_alignment = 1
 
 [node name="TargetButtons" type="GridContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection" unique_id=1954809807]
-custom_minimum_size = Vector2(180, 42)
+custom_minimum_size = Vector2(180, 88)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_constants/h_separation = 4
-columns = 4
+theme_override_constants/v_separation = 4
+columns = 2
 
 [node name="TargetFirst" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons" unique_id=2106154436]
-custom_minimum_size = Vector2(42, 42)
+custom_minimum_size = Vector2(88, 42)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.09019608, 0.06666667, 0.08627451, 1)
@@ -1240,10 +1118,32 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
 theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_gybya")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_678wo")
 toggle_mode = true
+
+[node name="MarginContainer" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetFirst" unique_id=41016393]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 3
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetFirst/MarginContainer" unique_id=1040083931]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 15
 text = "First"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="TargetLast" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons" unique_id=806716448]
-custom_minimum_size = Vector2(42, 42)
+custom_minimum_size = Vector2(88, 42)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.09019608, 0.06666667, 0.08627451, 1)
@@ -1255,10 +1155,32 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_wori3")
 theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_v2f87")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_d5su0")
 toggle_mode = true
+
+[node name="MarginContainer" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetLast" unique_id=573095713]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 3
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetLast/MarginContainer" unique_id=1150485935]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 15
 text = "Last"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="TargetLow" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons" unique_id=292034377]
-custom_minimum_size = Vector2(42, 42)
+custom_minimum_size = Vector2(88, 42)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.09019608, 0.06666667, 0.08627451, 1)
@@ -1270,10 +1192,32 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_1nf65")
 theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_yh7as")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_kr3ad")
 toggle_mode = true
-text = "Lowest HP"
+
+[node name="MarginContainer" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetLow" unique_id=1949871308]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 3
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetLow/MarginContainer" unique_id=1066705387]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 15
+text = "Low"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="TargetHigh" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons" unique_id=230647126]
-custom_minimum_size = Vector2(42, 42)
+custom_minimum_size = Vector2(88, 42)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.09019608, 0.06666667, 0.08627451, 1)
@@ -1285,7 +1229,29 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_uflxp")
 theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_8osal")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_1c8jq")
 toggle_mode = true
-text = "Highest HP"
+
+[node name="MarginContainer" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetHigh" unique_id=1614830096]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 3
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetHigh/MarginContainer" unique_id=1832881410]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 15
+text = "High"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="DirectionButtons" type="GridContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection" unique_id=484670526]
 visible = false
@@ -1326,9 +1292,43 @@ text = "↗"
 
 [node name="ManualTargetButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection" unique_id=1025599165]
 visible = false
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(180, 42)
 layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"BoogalooButton"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_colors/font_pressed_color = Color(0.09019608, 0.06666667, 0.08627451, 1)
+theme_override_colors/font_hover_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_fp0i2")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gybya")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
+theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_gybya")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_678wo")
+
+[node name="MarginContainer" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/ManualTargetButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 5
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 5
+theme_override_constants/margin_bottom = 3
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/ManualTargetButton/MarginContainer"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 15
 text = "Set Ground Target"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="ItemsSection" type="VBoxContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=914317764]
 custom_minimum_size = Vector2(210, 0)
@@ -1337,8 +1337,9 @@ theme_override_constants/separation = 3
 
 [node name="ItemsHeader" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection" unique_id=2060103778]
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "TOWER ITEMS · 4 SLOTS"
+theme_type_variation = &"BoogalooLabel"
+theme_override_font_sizes/font_size = 15
+text = "EQUIPPED ITEMS"
 horizontal_alignment = 1
 
 [node name="ItemsLabel" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection" unique_id=577158309]
@@ -1369,11 +1370,33 @@ theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_hover_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_font_sizes/font_size = 9
-theme_override_styles/normal = SubResource("StyleBoxFlat_n4644")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_p6q04")
-theme_override_styles/hover = SubResource("StyleBoxFlat_lf8od")
+theme_override_styles/normal = SubResource("StyleBoxFlat_fp0i2")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gybya")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
+
+[node name="SlotText" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons/ItemSlot1" unique_id=1736205465]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 3
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons/ItemSlot1/SlotText" unique_id=1771527507]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 9
 text = "1
 EMPTY"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="ItemSlot2" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons" unique_id=179870478]
 custom_minimum_size = Vector2(42, 42)
@@ -1383,11 +1406,33 @@ theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_hover_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_font_sizes/font_size = 9
-theme_override_styles/normal = SubResource("StyleBoxFlat_vav86")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_jvhty")
-theme_override_styles/hover = SubResource("StyleBoxFlat_fjwp8")
+theme_override_styles/normal = SubResource("StyleBoxFlat_fp0i2")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gybya")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
+
+[node name="SlotText" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons/ItemSlot2" unique_id=1549185389]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 3
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons/ItemSlot2/SlotText" unique_id=294208281]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 9
 text = "2
 EMPTY"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="ItemSlot3" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons" unique_id=1356001678]
 custom_minimum_size = Vector2(42, 42)
@@ -1397,11 +1442,33 @@ theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_hover_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_font_sizes/font_size = 9
-theme_override_styles/normal = SubResource("StyleBoxFlat_7eimv")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_i7bbi")
-theme_override_styles/hover = SubResource("StyleBoxFlat_yxw5d")
+theme_override_styles/normal = SubResource("StyleBoxFlat_fp0i2")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gybya")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
+
+[node name="SlotText" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons/ItemSlot3" unique_id=1216608638]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 3
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons/ItemSlot3/SlotText" unique_id=837070466]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 9
 text = "3
 EMPTY"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="ItemSlot4" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons" unique_id=126557197]
 custom_minimum_size = Vector2(42, 42)
@@ -1411,67 +1478,110 @@ theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_pressed_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_colors/font_hover_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_font_sizes/font_size = 9
-theme_override_styles/normal = SubResource("StyleBoxFlat_my2nb")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_vk4fs")
-theme_override_styles/hover = SubResource("StyleBoxFlat_r13cl")
+theme_override_styles/normal = SubResource("StyleBoxFlat_fp0i2")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gybya")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
+
+[node name="SlotText" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons/ItemSlot4" unique_id=1666136007]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 3
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons/ItemSlot4/SlotText" unique_id=870718542]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 9
 text = "4
 EMPTY"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="PathSection" type="VBoxContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=1741797897]
 visible = false
-custom_minimum_size = Vector2(300, 0)
+custom_minimum_size = Vector2(190, 0)
 layout_mode = 2
-theme_override_constants/separation = 6
+size_flags_horizontal = 4
+theme_override_constants/separation = 4
 
 [node name="PathHeader" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection" unique_id=2081470421]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "EVOLUTION"
+theme_type_variation = &"BoogalooLabel"
+theme_override_font_sizes/font_size = 20
+text = "CHOOSE EVOLUTION"
 horizontal_alignment = 1
 
-[node name="PathButtons" type="HBoxContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection" unique_id=688285623]
+[node name="PathButtons" type="VBoxContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection" unique_id=688285623]
+custom_minimum_size = Vector2(180, 146)
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 4
 
 [node name="PathAButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection/PathButtons" unique_id=1294589786]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(180, 46)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
+theme_type_variation = &"BoogalooButton"
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_fp0i2")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gybya")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
 toggle_mode = true
 text = "Path A"
 clip_text = true
 
 [node name="PathBButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection/PathButtons" unique_id=1170576176]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(180, 46)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
+theme_type_variation = &"BoogalooButton"
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_fp0i2")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gybya")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
 toggle_mode = true
 text = "Path B"
 clip_text = true
 
 [node name="PathCButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection/PathButtons" unique_id=254643757]
 visible = false
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(180, 46)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
+theme_type_variation = &"BoogalooButton"
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_fp0i2")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gybya")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
 toggle_mode = true
 text = "Path C"
 clip_text = true
 
 [node name="PathDescription" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection" unique_id=1338432793]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(180, 32)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
-theme_override_font_sizes/font_size = 12
-text = "Select a path to view its effect."
+theme_override_font_sizes/font_size = 11
+text = "Select an evolution."
 horizontal_alignment = 1
 autowrap_mode = 2
 
 [node name="PathConfirmButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection" unique_id=1253013750]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(180, 40)
 layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"BoogalooButton"
+theme_override_font_sizes/font_size = 15
 disabled = true
-text = "Select a Path"
+text = "SELECT"
 clip_text = true
 
 [node name="InspectorScroll" type="VBoxContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=330119543]
@@ -1490,23 +1600,66 @@ alignment = 1
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="SellButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=1166012293]
+[node name="SellButtonMargin" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=638042251]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_bottom = 14
+
+[node name="SellButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/SellButtonMargin" unique_id=1166012293]
 custom_minimum_size = Vector2(176, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
+theme_type_variation = &"BoogalooButton"
 theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
 theme_override_colors/font_pressed_color = Color(0.902, 0.6941, 0.6549, 1)
 theme_override_colors/font_hover_color = Color(0.902, 0.6941, 0.6549, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 18
 theme_override_styles/normal = SubResource("StyleBoxTexture_ttvlq")
 theme_override_styles/pressed = SubResource("StyleBoxTexture_fl44s")
 theme_override_styles/hover = SubResource("StyleBoxTexture_jm8mi")
 theme_override_styles/hover_pressed = SubResource("StyleBoxTexture_nmshg")
 theme_override_styles/disabled = SubResource("StyleBoxTexture_gbguv")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_avdk1")
-text = "Sell · $0"
 clip_text = true
+
+[node name="SellFill" type="Panel" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/SellButtonMargin/SellButton" unique_id=9631818]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = -2.0
+offset_bottom = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_sell_fill")
+
+[node name="SellText" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/SellButtonMargin/SellButton" unique_id=677774798]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 13
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 13
+
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/SellButtonMargin/SellButton/SellText" unique_id=973069747]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.09019608, 0.06666667, 0.08627451, 1)
+theme_override_colors/font_outline_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_constants/outline_size = 1
+theme_override_font_sizes/font_size = 18
+text = "SELL · $0"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="TopCenterRoundPanel" type="PanelContainer" parent="." unique_id=1460725584]
 layout_mode = 0
@@ -1525,12 +1678,17 @@ mouse_filter = 2
 theme_override_constants/separation = -4
 alignment = 1
 
-[node name="roundcount" type="Label" parent="TopCenterRoundPanel/RoundLayout" unique_id=1111336532]
+[node name="MarginContainer" type="MarginContainer" parent="TopCenterRoundPanel/RoundLayout" unique_id=597862453]
+layout_mode = 2
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_bottom = -3
+
+[node name="roundcount" type="Label" parent="TopCenterRoundPanel/RoundLayout/MarginContainer" unique_id=1111336532]
 custom_minimum_size = Vector2(188, 44)
 layout_mode = 2
-theme_type_variation = &"DisplayLabel"
+theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 25
 text = "ROUND  1 / 24"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -1538,28 +1696,32 @@ vertical_alignment = 1
 [node name="roundtimer" type="Label" parent="TopCenterRoundPanel/RoundLayout" unique_id=1101724491]
 custom_minimum_size = Vector2(188, 28)
 layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 17
 text = "Build Phase"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="EnemyIntelButton" type="Button" parent="." unique_id=366819049]
 custom_minimum_size = Vector2(64, 64)
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -208.0
 offset_top = 8.0
 offset_right = -144.0
 offset_bottom = 72.0
+grow_horizontal = 0
 size_flags_vertical = 4
 tooltip_text = "Open enemy intel"
 focus_mode = 0
+theme_type_variation = &"BoogalooButton"
 theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
 theme_override_colors/font_pressed_color = Color(0.898, 0.898, 0.863, 1)
 theme_override_colors/font_hover_color = Color(0.898, 0.898, 0.863, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 20
 theme_override_styles/normal = SubResource("StyleBoxTexture_auonw")
 theme_override_styles/pressed = SubResource("StyleBoxTexture_2f4l2")
 theme_override_styles/hover = SubResource("StyleBoxTexture_mlnxd")
@@ -1567,6 +1729,23 @@ theme_override_styles/hover_pressed = SubResource("StyleBoxTexture_v8rak")
 theme_override_styles/disabled = SubResource("StyleBoxTexture_5rivf")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_ybx8c")
 toggle_mode = true
+
+[node name="EnemyIntelText" type="MarginContainer" parent="EnemyIntelButton" unique_id=1833170130]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 11
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_bottom = 4
+
+[node name="Label" type="Label" parent="EnemyIntelButton/EnemyIntelText" unique_id=670907117]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_font_sizes/font_size = 18
 text = "INTEL"
 
 [node name="EnemyInfoPanel" type="PanelContainer" parent="." unique_id=985612352]
@@ -1605,7 +1784,7 @@ theme_override_font_sizes/font_size = 13
 text = "Simple enemy description."
 autowrap_mode = 2
 
-[node name="TowerItemInventoryPanel" type="PanelContainer" parent="." unique_id=371614345 instance=ExtResource("22_gmgvv")]
+[node name="TowerItemInventoryPanel" parent="." unique_id=371614345 instance=ExtResource("22_gmgvv")]
 visible = false
 layout_mode = 0
 anchor_left = 1.0
@@ -1617,77 +1796,13 @@ offset_top = -410.0
 offset_right = -16.0
 offset_bottom = -120.0
 theme_override_styles/panel = SubResource("StyleBoxTexture_1ynp3")
-script = ExtResource("24_1ut0d")
 
-[node name="Margin" type="MarginContainer" parent="TowerItemInventoryPanel" unique_id=2084440690]
+[node name="Margin2" type="MarginContainer" parent="TowerItemInventoryPanel" unique_id=2084440690]
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
-
-[node name="Content" type="VBoxContainer" parent="TowerItemInventoryPanel/Margin" unique_id=1714988991]
-layout_mode = 2
-theme_override_constants/separation = 3
-
-[node name="Header" type="Label" parent="TowerItemInventoryPanel/Margin/Content" unique_id=2102925861]
-layout_mode = 2
-theme_type_variation = &"DisplayLabel"
-theme_override_font_sizes/font_size = 12
-text = "ITEM INVENTORY"
-horizontal_alignment = 1
-
-[node name="InstructionLabel" type="Label" parent="TowerItemInventoryPanel/Margin/Content" unique_id=222752396]
-visible = false
-layout_mode = 2
-theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
-theme_override_font_sizes/font_size = 11
-text = "Select an item, then click a tower or one of its slots."
-horizontal_alignment = 1
-autowrap_mode = 2
-
-[node name="GridScroll" type="ScrollContainer" parent="TowerItemInventoryPanel/Margin/Content" unique_id=72178856]
-custom_minimum_size = Vector2(0, 88)
-layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="ItemGrid" type="GridContainer" parent="TowerItemInventoryPanel/Margin/Content/GridScroll" unique_id=901495624]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/h_separation = 6
-theme_override_constants/v_separation = 6
-columns = 2
-
-[node name="EmptyLabel" type="Label" parent="TowerItemInventoryPanel/Margin/Content" unique_id=452702823]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "Inventory Empty"
-horizontal_alignment = 1
-
-[node name="SelectedName" type="Label" parent="TowerItemInventoryPanel/Margin/Content" unique_id=2087212263]
-layout_mode = 2
-theme_type_variation = &"DisplayLabel"
-theme_override_font_sizes/font_size = 10
-text = "No item selected"
-horizontal_alignment = 1
-
-[node name="SelectedDescription" type="Label" parent="TowerItemInventoryPanel/Margin/Content" unique_id=1054475542]
-custom_minimum_size = Vector2(0, 28)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
-theme_override_font_sizes/font_size = 9
-text = "Choose an item from the grid."
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="StatusLabel" type="Label" parent="TowerItemInventoryPanel/Margin/Content" unique_id=881294624]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.518, 0.843, 0.69, 1)
-theme_override_font_sizes/font_size = 9
-horizontal_alignment = 1
-autowrap_mode = 2
 
 [node name="TowerDetailPopup" type="PanelContainer" parent="." unique_id=1104547605]
 visible = false
