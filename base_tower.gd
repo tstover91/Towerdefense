@@ -677,7 +677,6 @@ func confirm_manual_target_position(world_position: Vector2) -> bool:
 	target = null
 	rotator.rotation = aim_direction.angle()
 	queue_redraw()
-	set_selected(false)
 	return true
 
 
@@ -1433,6 +1432,9 @@ func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 			main.has_method("try_equip_selected_inventory_item_to_tower")
 			and main.try_equip_selected_inventory_item_to_tower(self)
 		):
+			return
+		if selected:
+			set_selected(false)
 			return
 		main.close_all_tower_menus()
 		set_selected(true)
