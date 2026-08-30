@@ -1,12 +1,43 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://between_round_shop.gd" id="1_shop"]
-[ext_resource type="PackedScene" path="res://ui/components/shop_choice_card_visual.tscn" id="2_card"]
+[ext_resource type="PackedScene" path="res://ui/components/tower_draft_card_visual.tscn" id="2_card"]
 [ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="3_theme"]
 [ext_resource type="PackedScene" path="res://tower_items/tower_item_inventory_panel.tscn" id="4_inventory"]
+[ext_resource type="Texture2D" path="res://assets/ui/shop/shop_window.png" id="5_window"]
+[ext_resource type="Texture2D" path="res://assets/ui/shop/continue_button.png" id="6_continue"]
+
+[sub_resource type="StyleBoxTexture" id="StyleWindow"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+texture = ExtResource("5_window")
+texture_margin_left = 22.0
+texture_margin_top = 22.0
+texture_margin_right = 22.0
+texture_margin_bottom = 22.0
+
+[sub_resource type="StyleBoxTexture" id="StyleContinueNormal"]
+texture = ExtResource("6_continue")
+
+[sub_resource type="StyleBoxTexture" id="StyleContinueHover"]
+texture = ExtResource("6_continue")
+modulate_color = Color(1.08, 1.08, 1.03, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleContinuePressed"]
+texture = ExtResource("6_continue")
+modulate_color = Color(0.72, 0.88, 0.76, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleContinueDisabled"]
+texture = ExtResource("6_continue")
+modulate_color = Color(0.55, 0.62, 0.56, 0.58)
+
+[sub_resource type="StyleBoxEmpty" id="StyleEmpty"]
 
 [node name="BetweenRoundShop" type="Control"]
 visible = false
+z_index = 100
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -24,123 +55,188 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
-color = Color(0.08, 0.10, 0.11, 0.62)
+color = Color(0.025, 0.025, 0.025, 0.68)
 
 [node name="ShopPanel" type="PanelContainer" parent="InputBlocker"]
+custom_minimum_size = Vector2(852, 525)
 layout_mode = 1
-anchors_preset = 15
-anchor_left = 0.08
-anchor_top = 0.10
-anchor_right = 0.92
-anchor_bottom = 0.90
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -426.0
+offset_top = -262.5
+offset_right = 426.0
+offset_bottom = 262.5
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleWindow")
 
 [node name="MarginContainer" type="MarginContainer" parent="InputBlocker/ShopPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 18
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 18
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 13
 
-[node name="ShopContent" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer"]
+[node name="ShopContent" type="Control" parent="InputBlocker/ShopPanel/MarginContainer"]
+custom_minimum_size = Vector2(808, 494)
 layout_mode = 2
-theme_override_constants/separation = 14
 
 [node name="MainColumn" type="VBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
 
-[node name="TitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
-layout_mode = 2
-theme_type_variation = &"DisplayLabel"
-theme_override_font_sizes/font_size = 26
-text = "Round Complete"
-horizontal_alignment = 1
-
-[node name="StatusRow" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
+[node name="HeaderRow" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
+custom_minimum_size = Vector2(0, 55)
 layout_mode = 2
 theme_override_constants/separation = 12
-alignment = 1
 
-[node name="HealthLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/StatusRow"]
-custom_minimum_size = Vector2(150, 30)
+[node name="BrandBlock" type="VBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HeaderRow"]
+custom_minimum_size = Vector2(270, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.925, 0.451, 0.329, 1)
-text = "Health 100/100"
+size_flags_horizontal = 3
+theme_override_constants/separation = -3
+
+[node name="SpecialProjectsLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HeaderRow/BrandBlock"]
+layout_mode = 2
+theme_type_variation = &"BoogalooDisplayLabel"
+theme_override_font_sizes/font_size = 30
+text = "SPECIAL PROJECTS"
+vertical_alignment = 1
+
+[node name="AgencyLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HeaderRow/BrandBlock"]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
+theme_override_font_sizes/font_size = 12
+text = "EXTRATERRESTRIAL ASSET ASSIGNMENT · FORM 13-C"
+
+[node name="TitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HeaderRow"]
+custom_minimum_size = Vector2(235, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"BoogalooDisplayLabel"
+theme_override_font_sizes/font_size = 22
+text = "ROUND 0 COMPLETE"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="MoneyLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/StatusRow"]
-custom_minimum_size = Vector2(150, 30)
+[node name="StatusBlock" type="VBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HeaderRow"]
+custom_minimum_size = Vector2(205, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.945, 0.745, 0.271, 1)
+size_flags_horizontal = 3
+theme_override_constants/separation = -4
+
+[node name="FundsRow" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HeaderRow/StatusBlock"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="FundsLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HeaderRow/StatusBlock/FundsRow"]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.882, 0.82, 0.729, 1)
+theme_override_font_sizes/font_size = 22
+text = "FUNDS"
+vertical_alignment = 1
+
+[node name="MoneyLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HeaderRow/StatusBlock/FundsRow"]
+custom_minimum_size = Vector2(105, 34)
+layout_mode = 2
+theme_type_variation = &"BoogalooDisplayLabel"
+theme_override_colors/font_color = Color(0.518, 0.843, 0.69, 1)
+theme_override_font_sizes/font_size = 28
 text = "$0"
-horizontal_alignment = 1
+horizontal_alignment = 2
 vertical_alignment = 1
+
+[node name="HealthLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/HeaderRow/StatusBlock"]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.925, 0.451, 0.329, 1)
+theme_override_font_sizes/font_size = 18
+text = "HEALTH 100/100"
+horizontal_alignment = 2
 
 [node name="SubtitleLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
-text = "Choose one tower family"
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
+theme_override_font_sizes/font_size = 16
+text = "Select one tower family for authorization"
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="ShopCards" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
+custom_minimum_size = Vector2(0, 289)
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 10
+theme_override_constants/separation = 15
 alignment = 1
 
 [node name="ShopChoiceCard1" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards" instance=ExtResource("2_card")]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.0
 
 [node name="ShopChoiceCard2" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards" instance=ExtResource("2_card")]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.0
 
 [node name="ShopChoiceCard3" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards" instance=ExtResource("2_card")]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.0
-
-[node name="ShopChoiceCard4" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopCards" instance=ExtResource("2_card")]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.0
 
 [node name="OwnedItemsLabel" type="Label" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
+custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
-text = "Current roster: None"
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
+theme_override_font_sizes/font_size = 13
+text = "CURRENT ROSTER: NONE"
 horizontal_alignment = 1
+vertical_alignment = 1
 text_overrun_behavior = 3
+
+[node name="ShopActions" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
+custom_minimum_size = Vector2(0, 67)
+layout_mode = 2
+alignment = 1
+
+[node name="ContinueButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopActions"]
+custom_minimum_size = Vector2(191, 67)
+layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"BoogalooButton"
+theme_override_colors/font_color = Color(0.098, 0.051, 0.094, 1)
+theme_override_colors/font_hover_color = Color(0.098, 0.051, 0.094, 1)
+theme_override_colors/font_pressed_color = Color(0.098, 0.051, 0.094, 1)
+theme_override_colors/font_disabled_color = Color(0.098, 0.051, 0.094, 0.48)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleContinueNormal")
+theme_override_styles/hover = SubResource("StyleContinueHover")
+theme_override_styles/pressed = SubResource("StyleContinuePressed")
+theme_override_styles/hover_pressed = SubResource("StyleContinuePressed")
+theme_override_styles/disabled = SubResource("StyleContinueDisabled")
+theme_override_styles/focus = SubResource("StyleEmpty")
+disabled = true
+text = "SELECT A TOWER"
 
 [node name="TowerItemInventoryPanel" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent" instance=ExtResource("4_inventory")]
 visible = false
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-
-[node name="ShopActions" type="HBoxContainer" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="RerollButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopActions"]
-visible = false
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Reroll · $50"
-
-[node name="HealthButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
-custom_minimum_size = Vector2(0, 38)
-layout_mode = 2
-text = "Recover 20 Health - $150"
-
-[node name="ContinueButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
-disabled = true
-text = "Choose a Tower Family"
-
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -145.0
+offset_right = -20.0
+offset_bottom = 145.0
+grow_horizontal = 0
+grow_vertical = 2

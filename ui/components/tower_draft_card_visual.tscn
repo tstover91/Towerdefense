@@ -1,0 +1,124 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://shop_choice_card.gd" id="1_card"]
+[ext_resource type="Texture2D" path="res://assets/ui/shop/tower_draft_card.svg" id="2_card_art"]
+[ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="3_theme"]
+[ext_resource type="Texture2D" path="res://assets/ui/shop/tower_draft_card_selected.svg" id="4_selected_art"]
+
+[sub_resource type="StyleBoxTexture" id="StyleCard"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+texture = ExtResource("2_card_art")
+texture_margin_left = 14.0
+texture_margin_top = 14.0
+texture_margin_right = 14.0
+texture_margin_bottom = 42.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleEmpty"]
+
+[sub_resource type="StyleBoxTexture" id="StyleCardSelected"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+texture = ExtResource("4_selected_art")
+texture_margin_left = 14.0
+texture_margin_top = 14.0
+texture_margin_right = 14.0
+texture_margin_bottom = 42.0
+
+[node name="ShopChoiceCard" type="PanelContainer"]
+custom_minimum_size = Vector2(248, 289)
+offset_right = 248.0
+offset_bottom = 289.0
+size_flags_horizontal = 4
+theme = ExtResource("3_theme")
+theme_override_styles/panel = SubResource("StyleCard")
+script = ExtResource("1_card")
+selected_panel_style = SubResource("StyleCardSelected")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 11
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 11
+theme_override_constants/margin_bottom = 5
+
+[node name="CardLayout" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="Portrait" type="TextureRect" parent="MarginContainer/CardLayout"]
+custom_minimum_size = Vector2(0, 104)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="NameLabel" type="Label" parent="MarginContainer/CardLayout"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+theme_type_variation = &"BoogalooDisplayLabel"
+theme_override_font_sizes/font_size = 23
+text = "TOWER NAME"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="CategoryLabel" type="Label" parent="MarginContainer/CardLayout"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.518, 0.843, 0.69, 1)
+theme_override_font_sizes/font_size = 15
+text = "TOWER TYPE"
+horizontal_alignment = 1
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="DescriptionLabel" type="Label" parent="MarginContainer/CardLayout"]
+custom_minimum_size = Vector2(0, 55)
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.882, 0.82, 0.729, 1)
+theme_override_font_sizes/font_size = 14
+text = "Short tower description"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="OwnedLabel" type="Label" parent="MarginContainer/CardLayout"]
+visible = false
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+text = "Owned: 0"
+horizontal_alignment = 1
+
+[node name="LockButton" type="Button" parent="MarginContainer/CardLayout"]
+visible = false
+layout_mode = 2
+text = "Lock"
+
+[node name="SelectCenter" type="CenterContainer" parent="MarginContainer/CardLayout"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+
+[node name="ChooseButton" type="Button" parent="MarginContainer/CardLayout/SelectCenter"]
+custom_minimum_size = Vector2(94, 34)
+layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"BoogalooButton"
+theme_override_colors/font_color = Color(0.098, 0.051, 0.094, 1)
+theme_override_colors/font_hover_color = Color(0.812, 0.251, 0.251, 1)
+theme_override_colors/font_pressed_color = Color(0.098, 0.051, 0.094, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleEmpty")
+theme_override_styles/hover = SubResource("StyleEmpty")
+theme_override_styles/pressed = SubResource("StyleEmpty")
+theme_override_styles/hover_pressed = SubResource("StyleEmpty")
+theme_override_styles/disabled = SubResource("StyleEmpty")
+theme_override_styles/focus = SubResource("StyleEmpty")
+text = "SELECT"

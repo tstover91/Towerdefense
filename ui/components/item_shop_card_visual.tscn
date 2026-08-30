@@ -1,0 +1,162 @@
+[gd_scene format=3 uid="uid://cr1e1gwttgmm4"]
+
+[ext_resource type="Script" uid="uid://ctlhtku70l6li" path="res://shop_choice_card.gd" id="1_card"]
+[ext_resource type="Texture2D" uid="uid://cusv2s5uht722" path="res://assets/ui/shop/item_card_common.png" id="2_card_art"]
+[ext_resource type="Texture2D" uid="uid://dvsm45580tlm" path="res://assets/ui/shop/lock_button.png" id="3_lock_art"]
+[ext_resource type="Theme" uid="uid://b3cpgvx4587eo" path="res://assets/ui/saturday_invasion_theme.tres" id="4_theme"]
+
+[sub_resource type="StyleBoxTexture" id="StyleCard"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+texture = ExtResource("2_card_art")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 38.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleEmpty"]
+
+[sub_resource type="StyleBoxTexture" id="StyleLockNormal"]
+texture = ExtResource("3_lock_art")
+
+[sub_resource type="StyleBoxTexture" id="StyleLockPressed"]
+texture = ExtResource("3_lock_art")
+modulate_color = Color(0.518, 0.843, 0.69, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleLockHover"]
+texture = ExtResource("3_lock_art")
+modulate_color = Color(1.08, 1.05, 0.96, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleLockDisabled"]
+texture = ExtResource("3_lock_art")
+modulate_color = Color(0.55, 0.52, 0.5, 0.55)
+
+[node name="ShopChoiceCard" type="PanelContainer" unique_id=1159178587]
+custom_minimum_size = Vector2(181, 303)
+offset_right = 181.0
+offset_bottom = 303.0
+size_flags_horizontal = 4
+theme = ExtResource("4_theme")
+theme_override_styles/panel = SubResource("StyleCard")
+script = ExtResource("1_card")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1429773321]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 7
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 5
+
+[node name="CardLayout" type="VBoxContainer" parent="MarginContainer" unique_id=956470479]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/CardLayout" unique_id=1173291203]
+layout_mode = 2
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+
+[node name="HeaderRow" type="HBoxContainer" parent="MarginContainer/CardLayout/MarginContainer" unique_id=515726122]
+custom_minimum_size = Vector2(0, 33)
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RarityBanner" type="PanelContainer" parent="MarginContainer/CardLayout/MarginContainer/HeaderRow" unique_id=724008500]
+custom_minimum_size = Vector2(125, 25)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleEmpty")
+
+[node name="CategoryLabel" type="Label" parent="MarginContainer/CardLayout/MarginContainer/HeaderRow/RarityBanner" unique_id=176013810]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.533, 0.831, 0.816, 1)
+theme_override_font_sizes/font_size = 16
+text = "COMMON"
+horizontal_alignment = 1
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="LockButton" type="Button" parent="MarginContainer/CardLayout/MarginContainer/HeaderRow" unique_id=1757719316]
+custom_minimum_size = Vector2(32, 33)
+layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"BoogalooButton"
+theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
+theme_override_colors/font_pressed_color = Color(0.945, 0.906, 0.827, 1)
+theme_override_colors/font_hover_color = Color(0.945, 0.906, 0.827, 1)
+theme_override_font_sizes/font_size = 9
+theme_override_styles/normal = SubResource("StyleLockNormal")
+theme_override_styles/pressed = SubResource("StyleLockPressed")
+theme_override_styles/hover = SubResource("StyleLockHover")
+theme_override_styles/hover_pressed = SubResource("StyleLockPressed")
+theme_override_styles/disabled = SubResource("StyleLockDisabled")
+theme_override_styles/focus = SubResource("StyleEmpty")
+toggle_mode = true
+text = "LOCK"
+
+[node name="Portrait" type="TextureRect" parent="MarginContainer/CardLayout" unique_id=1491085309]
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="NameLabel" type="Label" parent="MarginContainer/CardLayout" unique_id=2019678340]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_type_variation = &"BoogalooDisplayLabel"
+theme_override_font_sizes/font_size = 22
+text = "ITEM NAME"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="DescriptionLabel" type="Label" parent="MarginContainer/CardLayout" unique_id=1720355167]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.882, 0.82, 0.729, 1)
+theme_override_font_sizes/font_size = 16
+text = "Short item description"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="OwnedLabel" type="Label" parent="MarginContainer/CardLayout" unique_id=2019551969]
+custom_minimum_size = Vector2(0, 17)
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
+theme_override_font_sizes/font_size = 15
+text = "Inventory: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PriceCenter" type="CenterContainer" parent="MarginContainer/CardLayout" unique_id=1967214348]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+
+[node name="ChooseButton" type="Button" parent="MarginContainer/CardLayout/PriceCenter" unique_id=1774807337]
+custom_minimum_size = Vector2(94, 34)
+layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"BoogalooButton"
+theme_override_colors/font_color = Color(0.09803922, 0.050980393, 0.09411765, 1)
+theme_override_colors/font_pressed_color = Color(0.098, 0.051, 0.094, 1)
+theme_override_colors/font_hover_color = Color(0.812, 0.251, 0.251, 1)
+theme_override_colors/font_disabled_color = Color(0.357, 0.255, 0.302, 0.55)
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleEmpty")
+theme_override_styles/pressed = SubResource("StyleEmpty")
+theme_override_styles/hover = SubResource("StyleEmpty")
+theme_override_styles/hover_pressed = SubResource("StyleEmpty")
+theme_override_styles/disabled = SubResource("StyleEmpty")
+theme_override_styles/focus = SubResource("StyleEmpty")
+text = "$120"
