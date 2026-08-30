@@ -10,6 +10,8 @@ const GameStats = preload("res://stat_database.gd")
 @onready var enemy_count: SpinBox = $Panel/Margin/Layout/EnemyControls/EnemyCount
 @onready var variant_selector: OptionButton = $Panel/Margin/Layout/EnemyControls/VariantSelector
 @onready var status_label: Label = $Panel/Margin/Layout/StatusLabel
+@onready var selected_tower_label: Label = $Panel/Margin/Layout/TowerLevelSection/SelectedTower
+@onready var tower_level: SpinBox = $Panel/Margin/Layout/TowerLevelSection/LevelControls/TowerLevel
 
 var main: Node
 var enemy_ids: Array[StringName] = []
@@ -28,12 +30,29 @@ func configure(game: Node) -> void:
 	for variant_id in variant_ids:
 		variant_selector.add_item(String(variant_id).capitalize())
 	wave_number.value = 10
-	status_label.text = "Ready. Towers and upgrades cost no money."
+	status_label.text = "Ready. All towers and items are available."
+	clear_tower_level()
 	show()
 
 
 func set_status(message: String) -> void:
 	status_label.text = message
+
+
+func show_tower_level(tower: Node) -> void:
+	if not is_instance_valid(tower) or tower.get("instance_progression") == null:
+		clear_tower_level()
+		return
+	var tower_data := GameStats.get_tower(StringName(tower.get("tower_id")))
+	selected_tower_label.text = String(tower_data.get("display_name", "Selected Tower"))
+	tower_level.set_value_no_signal(int(tower.instance_progression.level))
+	tower_level.editable = true
+
+
+func clear_tower_level() -> void:
+	selected_tower_label.text = "Select a tower to set its level"
+	tower_level.set_value_no_signal(1)
+	tower_level.editable = false
 
 
 func _selected_wave() -> int:
@@ -82,6 +101,13 @@ func _on_clear_pressed() -> void:
 
 func _on_restore_health_pressed() -> void:
 	main.sandbox_restore_health()
+
+
+func _on_apply_level_pressed() -> void:
+	if main.sandbox_set_selected_tower_level(int(tower_level.value)):
+		set_status("Selected tower set to LV %02d." % int(tower_level.value))
+	else:
+		set_status("Select a placed tower first.")
 
 
 func _on_main_menu_pressed() -> void:

@@ -2,8 +2,10 @@ class_name TowerItemInventoryPanel
 extends PanelContainer
 
 const GameStats = preload("res://stat_database.gd")
+const BOOGALOO_FONT = preload("res://assets/fonts/Boogaloo-Regular.ttf")
 
 signal selected_item_changed(item_id: StringName)
+signal selected_item_confirmed(item_id: StringName)
 
 const RARITY_COLORS := {
 	&"common": Color(0.08, 0.76, 0.84),
@@ -11,6 +13,7 @@ const RARITY_COLORS := {
 	&"rare": Color(0.96, 0.72, 0.12),
 	&"legendary": Color(0.96, 0.95, 0.88),
 }
+const SELECTION_MINT := Color("84d7b0")
 
 @onready var item_grid: GridContainer = $Margin/Content/GridScroll/ItemGrid
 @onready var empty_label: Label = $Margin/Content/EmptyLabel
@@ -82,7 +85,7 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 	button.text = ""
 	button.icon = item.get("texture") as Texture2D
 	button.expand_icon = true
-	button.icon_max_width = 48
+	button.add_theme_constant_override("icon_max_width", 48)
 	button.tooltip_text = "%s\n%s" % [
 		display_name,
 		String(item.get("description", "")),
@@ -96,7 +99,7 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 		style.bg_color = (
 			Color("100d10") if state == "normal" else Color("2b2028")
 		)
-		style.border_color = rarity_color
+		style.border_color = SELECTION_MINT if state == "pressed" else rarity_color
 		style.set_border_width_all(3 if state == "pressed" else 1)
 		style.corner_radius_top_left = 2
 		style.corner_radius_top_right = 7
@@ -120,6 +123,7 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 	count_label.add_theme_color_override("font_shadow_color", Color("100d10"))
 	count_label.add_theme_constant_override("shadow_offset_x", 1)
 	count_label.add_theme_constant_override("shadow_offset_y", 1)
+	count_label.add_theme_font_override("font", BOOGALOO_FONT)
 	count_label.add_theme_font_size_override("font_size", 12)
 	button.add_child(count_label)
 	button.pressed.connect(_on_item_pressed.bind(item_id))
@@ -127,8 +131,17 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 
 
 func _on_item_pressed(item_id: StringName) -> void:
+	var confirms_selection := selected_item_id == item_id
 	selected_item_id = item_id
 	status_label.text = "Click a highlighted tower or a specific item slot."
+	_refresh_selection_display()
+	selected_item_changed.emit(selected_item_id)
+	if confirms_selection:
+		selected_item_confirmed.emit(selected_item_id)
+
+
+func clear_selection() -> void:
+	selected_item_id = &""
 	_refresh_selection_display()
 	selected_item_changed.emit(selected_item_id)
 

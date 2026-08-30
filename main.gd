@@ -122,6 +122,7 @@ const UI_RARITY_COLORS := {
 const TOWER_FAN_BUTTON_SIZE := 96.0
 const TOWER_FAN_BUTTON_GAP := 8.0
 const TOWER_FAN_MAX_COLUMNS := 5
+const SANDBOX_ITEM_QUANTITY := 20
 const PLACEMENT_DRAG_THRESHOLD := 12.0
 const PLACEMENT_DRAG_PREVIEW_OFFSET := Vector2(0.0, -75.0)
 const HUD_STRIP_LEFT := 12.0
@@ -455,6 +456,8 @@ var inventory_button: Button
 var tower_detail_popup: PanelContainer
 var selected_inventory_item_id: StringName = &""
 var tower_item_slot_buttons: Array[Button] = []
+var pending_item_removal_tower_id := 0
+var pending_item_removal_slot := -1
 var tower_card_open_top := -374.0
 var tower_card_open_bottom := -16.0
 
@@ -479,6 +482,8 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_align_sidebar_to_build_grid)
 	var mode: Dictionary = GameStats.get_mode(mode_id)
 	run_state.initialize(mode, sandbox_mode)
+	if sandbox_mode:
+		stock_sandbox_inventory()
 	tower_item_inventory_service = TowerItemInventoryServiceScript.new()
 	tower_item_inventory_service.setup(run_state)
 	max_rounds = mode["max_rounds"]
@@ -504,6 +509,9 @@ func _ready() -> void:
 	tower_item_inventory_panel.setup(self)
 	tower_item_inventory_panel.selected_item_changed.connect(
 		_on_inventory_item_selected
+	)
+	tower_item_inventory_panel.selected_item_confirmed.connect(
+		_on_inventory_item_confirmed
 	)
 	set_build_drawer_open(true)
 	update_play_pause_button()
@@ -699,7 +707,8 @@ func _apply_pti_hud_artwork() -> void:
 	var inventory_scroll := inventory_content.get_node(
 		"GridScroll"
 	) as ScrollContainer
-	inventory_scroll.custom_minimum_size = Vector2(0.0, 88.0)
+	inventory_scroll.custom_minimum_size = Vector2(0.0, 112.0)
+	inventory_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var inventory_grid := inventory_scroll.get_node("ItemGrid") as GridContainer
 	inventory_grid.columns = 2
 	var inventory_empty := inventory_content.get_node("EmptyLabel") as Label
@@ -987,7 +996,11 @@ func layout_tower_fan_buttons() -> void:
 	if not is_instance_valid(tower_fan) or tower_fan_buttons.is_empty():
 		return
 	var button_half := Vector2.ONE * TOWER_FAN_BUTTON_SIZE * 0.5
-	var column_count := mini(TOWER_FAN_MAX_COLUMNS, tower_fan_buttons.size())
+	var column_count := (
+		ceili(float(tower_fan_buttons.size()) / 2.0)
+		if sandbox_mode
+		else mini(TOWER_FAN_MAX_COLUMNS, tower_fan_buttons.size())
+	)
 	var cell_step := TOWER_FAN_BUTTON_SIZE + TOWER_FAN_BUTTON_GAP
 	var total_width := (
 		float(column_count) * TOWER_FAN_BUTTON_SIZE
@@ -1042,7 +1055,11 @@ func show_tower_details(tower: Node) -> void:
 	clear_enemy_hud_selection()
 
 	var selection_changed := displayed_tower != tower
+	if selection_changed:
+		clear_pending_item_removal()
 	displayed_tower = tower
+	if sandbox_mode and is_instance_valid(sandbox_panel):
+		sandbox_panel.show_tower_level(tower)
 	if selection_changed:
 		tower_info_expanded = false
 		tower_target_panel_open = false
@@ -1199,6 +1216,7 @@ func update_tower_item_controls(tower: Node) -> void:
 	var tooltip_lines: PackedStringArray = []
 	var item_ids: Array[StringName] = tower.get_equipped_item_ids()
 	var item_counts: Array[int] = tower.get_equipped_item_counts()
+	var choosing_swap_slot := is_tower_full_for_selected_inventory_item(tower)
 	for slot_index in GameStats.TOWER_ITEM_SLOT_COUNT:
 		var item_id := item_ids[slot_index]
 		if item_id.is_empty():
@@ -1239,7 +1257,13 @@ func update_tower_item_controls(tower: Node) -> void:
 	):
 		var slot_button := tower_item_slot_buttons[slot_index]
 		var item_id := item_ids[slot_index]
-		_style_tower_item_slot(slot_button, item_id)
+		_style_tower_item_slot(
+			slot_button,
+			item_id,
+			pending_item_removal_tower_id == tower.get_instance_id()
+				and pending_item_removal_slot == slot_index,
+			choosing_swap_slot and not item_id.is_empty()
+		)
 		if item_id.is_empty():
 			slot_button.icon = null
 			_set_item_slot_text(slot_button, "%d\nEMPTY" % (slot_index + 1))
@@ -1251,7 +1275,7 @@ func update_tower_item_controls(tower: Node) -> void:
 		var count := item_counts[slot_index]
 		slot_button.icon = item.get("texture") as Texture2D
 		slot_button.expand_icon = true
-		slot_button.icon_max_width = 34
+		slot_button.add_theme_constant_override("icon_max_width", 34)
 		_set_item_slot_text(slot_button, "×%d" % count if count > 1 else "")
 		slot_button.tooltip_text = String(item.get("description", ""))
 
@@ -1262,9 +1286,16 @@ func _set_item_slot_text(slot_button: Button, slot_text: String) -> void:
 	slot_label.text = slot_text
 
 
-func _style_tower_item_slot(slot_button: Button, item_id: StringName) -> void:
+func _style_tower_item_slot(
+	slot_button: Button,
+	item_id: StringName,
+	confirming_removal := false,
+	choosing_swap := false
+) -> void:
 	var accent := Color("5b414d")
-	if not item_id.is_empty():
+	if confirming_removal or choosing_swap:
+		accent = UI_ORANGE
+	elif not item_id.is_empty():
 		var item := GameStats.get_tower_item(item_id)
 		accent = UI_RARITY_COLORS.get(
 			StringName(item.get("rarity", &"common")), UI_CYAN
@@ -1287,18 +1318,20 @@ func _on_tower_item_slot_pressed(slot_index: int) -> void:
 		tower_item_inventory_panel.get_selected_inventory_item_id()
 	)
 	if tower_item_inventory_panel.visible and not item_id.is_empty():
+		clear_pending_item_removal()
 		if displayed_tower.item_controller.can_equip_or_swap_item(
 			item_id, slot_index
 		):
-			equip_inventory_item_to_tower(item_id, displayed_tower, slot_index)
-			tower_item_inventory_panel.set_status(
-				"Equipped to %s slot %d." % [
-					tower_name_label.text, slot_index + 1
-				]
-			)
-			_on_inventory_item_selected(
-				tower_item_inventory_panel.get_selected_inventory_item_id()
-			)
+			if equip_inventory_item_to_tower(
+				item_id, displayed_tower, slot_index
+			):
+				tower_item_inventory_panel.clear_selection()
+				tower_item_inventory_panel.set_status(
+					"Equipped to %s slot %d." % [
+						tower_name_label.text, slot_index + 1
+					]
+				)
+				update_tower_item_controls(displayed_tower)
 		else:
 			var reason: String = displayed_tower.item_controller.get_incompatibility_reason(
 				item_id, slot_index
@@ -1307,6 +1340,23 @@ func _on_tower_item_slot_pressed(slot_index: int) -> void:
 				reason if not reason.is_empty() else "That item cannot use this slot."
 			)
 		return
+	var equipped_ids: Array[StringName] = displayed_tower.get_equipped_item_ids()
+	var equipped_item_id := equipped_ids[slot_index]
+	if not equipped_item_id.is_empty():
+		var tower_instance_id := displayed_tower.get_instance_id()
+		if (
+			pending_item_removal_tower_id == tower_instance_id
+			and pending_item_removal_slot == slot_index
+		):
+			clear_pending_item_removal()
+			unequip_tower_item_to_inventory(displayed_tower, slot_index)
+			update_tower_item_controls(displayed_tower)
+			return
+		pending_item_removal_tower_id = tower_instance_id
+		pending_item_removal_slot = slot_index
+		update_tower_item_controls(displayed_tower)
+		return
+	clear_pending_item_removal()
 	tower_item_inventory_panel.open_for_tower_slot(displayed_tower, slot_index)
 	inventory_button.button_pressed = true
 	_on_inventory_item_selected(
@@ -1905,6 +1955,9 @@ func clear_tower_details(tower: Node = null) -> void:
 	if tower != null and displayed_tower != tower:
 		return
 	displayed_tower = null
+	if sandbox_mode and is_instance_valid(sandbox_panel):
+		sandbox_panel.clear_tower_level()
+	clear_pending_item_removal()
 	tower_info_expanded = false
 	tower_target_panel_open = false
 	tower_has_targeting_controls = false
@@ -2658,7 +2711,11 @@ func _on_item_purchase_requested(slot_index: int, item_id: StringName) -> void:
 	run_state.set_locked_tower_item_offers(
 		item_shop_manager.get_locked_offer_ids()
 	)
-	refresh_item_inventory_interfaces()
+	# The shop view refresh below also rebuilds its inventory panel. Refresh only
+	# the separate HUD inventory here so the visible shop grid is not torn down
+	# and recreated twice during the same purchase input event.
+	if is_instance_valid(tower_item_inventory_panel):
+		tower_item_inventory_panel.refresh()
 	refresh_item_shop_view()
 
 
@@ -2889,6 +2946,23 @@ func can_manage_tower_items() -> bool:
 	return not game_ended
 
 
+func stock_sandbox_inventory() -> void:
+	for item_id in GameStats.get_tower_item_ids():
+		run_state.add_tower_item(item_id, SANDBOX_ITEM_QUANTITY)
+
+
+func sandbox_set_selected_tower_level(new_level: int) -> bool:
+	if (
+		not sandbox_mode
+		or not is_instance_valid(displayed_tower)
+		or displayed_tower.get("instance_progression") == null
+	):
+		return false
+	displayed_tower.instance_progression.set_level_for_sandbox(new_level)
+	show_tower_details(displayed_tower)
+	return true
+
+
 func _on_inventory_button_pressed() -> void:
 	if inventory_button.button_pressed:
 		tower_item_inventory_panel.open_global_inventory()
@@ -2901,6 +2975,7 @@ func _on_inventory_button_pressed() -> void:
 
 
 func _on_inventory_item_selected(item_id: StringName) -> void:
+	clear_pending_item_removal()
 	selected_inventory_item_id = item_id
 	for tower in get_placed_towers_for_item_management():
 		if tower.has_method("set_item_compatibility_highlight"):
@@ -2908,7 +2983,9 @@ func _on_inventory_item_selected(item_id: StringName) -> void:
 				not item_id.is_empty(),
 				not item_id.is_empty()
 					and tower.item_controller.is_item_compatible(item_id)
-		)
+			)
+	if is_instance_valid(displayed_tower):
+		update_tower_item_controls(displayed_tower)
 
 
 func clear_inventory_equip_selection() -> void:
@@ -2916,6 +2993,35 @@ func clear_inventory_equip_selection() -> void:
 	for tower in get_placed_towers_for_item_management():
 		if tower.has_method("set_item_compatibility_highlight"):
 			tower.set_item_compatibility_highlight(false)
+
+
+func _on_inventory_item_confirmed(item_id: StringName) -> void:
+	if item_id.is_empty() or not is_instance_valid(displayed_tower):
+		return
+	try_equip_selected_inventory_item_to_tower(displayed_tower)
+
+
+func clear_pending_item_removal() -> void:
+	pending_item_removal_tower_id = 0
+	pending_item_removal_slot = -1
+
+
+func is_tower_full_for_selected_inventory_item(tower: Node) -> bool:
+	if (
+		selected_inventory_item_id.is_empty()
+		or not tower_item_inventory_panel.visible
+		or not is_instance_valid(tower)
+		or tower.get("item_controller") == null
+	):
+		return false
+	if tower.item_controller.find_equipped_item_slot(
+		selected_inventory_item_id
+	) >= 0:
+		return false
+	for equipped_item_id in tower.get_equipped_item_ids():
+		if StringName(equipped_item_id).is_empty():
+			return false
+	return true
 
 
 func try_equip_selected_inventory_item_to_tower(tower: Node) -> bool:
@@ -2926,6 +3032,7 @@ func try_equip_selected_inventory_item_to_tower(tower: Node) -> bool:
 	):
 		return false
 	if not tower.item_controller.is_item_compatible(selected_inventory_item_id):
+		tower_item_inventory_panel.set_status("That item is not compatible with this tower.")
 		return true
 	var slot_index: int = tower.item_controller.find_equipped_item_slot(
 		selected_inventory_item_id
@@ -2941,14 +3048,19 @@ func try_equip_selected_inventory_item_to_tower(tower: Node) -> bool:
 			selected_inventory_item_id, tower, slot_index
 		):
 			tower_item_inventory_panel.open_global_inventory()
-			_on_inventory_item_selected(
-				tower_item_inventory_panel.get_selected_inventory_item_id()
-			)
+			tower_item_inventory_panel.clear_selection()
 		return true
 	# A full tower needs an explicit replacement choice. The focused panel keeps
 	# the selected item and exposes all four occupied slots.
+	if not bool(tower.get("selected")):
+		close_all_tower_menus()
+		tower.set_selected(true)
 	tower_item_inventory_panel.open_for_tower_slot(tower, 0)
+	inventory_button.button_pressed = true
 	show_tower_details(tower)
+	tower_item_inventory_panel.set_status(
+		"All slots are full. Tap one coral slot to swap its item."
+	)
 	return true
 
 
@@ -3907,6 +4019,7 @@ func handle_placement_drag_input(event: InputEvent) -> bool:
 
 func _input(event: InputEvent) -> void:
 	cancel_sidebar_confirmation_on_other_press(event)
+	close_inventory_on_outside_press(event)
 	if handle_placement_drag_input(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -3934,6 +4047,53 @@ func _input(event: InputEvent) -> void:
 		var targeting_tower: Node2D = build_controller.manual_targeting_tower
 		if targeting_tower.confirm_manual_target_position(get_global_mouse_position()):
 			finish_manual_tower_targeting(targeting_tower)
+
+
+func close_inventory_on_outside_press(event: InputEvent) -> void:
+	if not is_instance_valid(tower_item_inventory_panel) or not tower_item_inventory_panel.visible:
+		return
+	var press_position := Vector2.ZERO
+	if (
+		event is InputEventMouseButton
+		and event.button_index == MOUSE_BUTTON_LEFT
+		and event.pressed
+	):
+		press_position = event.position
+	elif event is InputEventScreenTouch and event.pressed:
+		press_position = event.position
+	else:
+		return
+	if tower_item_inventory_panel.get_global_rect().has_point(press_position):
+		return
+	if sidebar.visible and sidebar.get_global_rect().has_point(press_position):
+		return
+	# Let the toggle button perform its normal close without changing its state
+	# before the Button receives this same input event.
+	if inventory_button.get_global_rect().has_point(press_position):
+		return
+	if is_screen_position_over_tower(press_position):
+		return
+	tower_item_inventory_panel.hide()
+	inventory_button.button_pressed = false
+	tower_item_inventory_panel.clear_selection()
+	clear_inventory_equip_selection()
+
+
+func is_screen_position_over_tower(screen_position: Vector2) -> bool:
+	var query := PhysicsPointQueryParameters2D.new()
+	query.position = get_canvas_transform().affine_inverse() * screen_position
+	query.collision_mask = 2
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	for result in get_world_2d().direct_space_state.intersect_point(query, 16):
+		var collider := result.get("collider") as Node
+		if (
+			is_instance_valid(collider)
+			and is_instance_valid(collider.get_parent())
+			and collider.get_parent().is_in_group("towers")
+		):
+			return true
+	return false
 
 
 func cancel_sidebar_confirmation_on_other_press(event: InputEvent) -> void:

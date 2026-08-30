@@ -69,6 +69,16 @@ func grant_xp(amount: float) -> void:
 		level_changed.emit(level, previous_level)
 
 
+func set_level_for_sandbox(new_level: int) -> void:
+	var resolved_level := clampi(new_level, 1, MAX_LEVEL)
+	var previous_level := level
+	level = resolved_level
+	xp = get_total_xp_required_for_level(resolved_level)
+	progression_changed.emit()
+	if level != previous_level:
+		level_changed.emit(level, previous_level)
+
+
 func choose_evolution(new_evolution_id: StringName, gold_spent: int) -> bool:
 	if new_evolution_id.is_empty() or not evolution_id.is_empty():
 		return false

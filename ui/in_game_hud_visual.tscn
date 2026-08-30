@@ -18,15 +18,24 @@
 [ext_resource type="Texture2D" uid="uid://b4g7ia51pmj2y" path="res://assets/ui/pti_hud/tower_sell.png" id="19_8m46w"]
 [ext_resource type="Texture2D" uid="uid://c5g0phqbl0dyh" path="res://assets/ui/pti_hud/round_counter.png" id="20_epxw3"]
 [ext_resource type="Texture2D" uid="uid://d22v011rxvo32" path="res://assets/ui/pti_hud/intel.png" id="21_pdqux"]
-[ext_resource type="PackedScene" path="res://tower_items/tower_item_inventory_panel.tscn" id="22_gmgvv"]
+[ext_resource type="PackedScene" uid="uid://k83ta5elfwxq" path="res://tower_items/tower_item_inventory_panel.tscn" id="22_gmgvv"]
 [ext_resource type="Texture2D" uid="uid://dobxnm4bki3oj" path="res://assets/ui/pti_hud/inventory.png" id="23_q3gsg"]
 [ext_resource type="Texture2D" uid="uid://cmvhng7wvear6" path="res://assets/ui/equipment_panel.svg" id="25_rt46t"]
 [ext_resource type="PackedScene" uid="uid://ct5c7x18dlvof" path="res://ui/components/tower_build_button_visual.tscn" id="26_tower_button"]
-[ext_resource type="Texture2D" path="res://assets/ui/pti_hud/upgrade_tab.png" id="28_upgrade_tab"]
+[ext_resource type="Texture2D" uid="uid://c2qjgpi8i3hb4" path="res://assets/ui/pti_hud/upgrade_tab.png" id="28_upgrade_tab"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_d7apq"]
 texture = ExtResource("2_pmt5c")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_evolution_tab"]
+texture = ExtResource("28_upgrade_tab")
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_evolution_tab_hover"]
+texture = ExtResource("28_upgrade_tab")
+modulate_color = Color(1.08, 1.08, 1.08, 1)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_avdk1"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_blf1x"]
 bg_color = Color(0.32, 0.32, 0.32, 0.76)
@@ -410,8 +419,6 @@ modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
 texture = ExtResource("19_8m46w")
 modulate_color = Color(0.72156864, 0.6784314, 0.6431373, 1)
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_avdk1"]
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sell_fill"]
 bg_color = Color(0.9254902, 0.4509804, 0.32941177, 1)
 corner_radius_top_left = 5
@@ -460,13 +467,6 @@ texture_margin_top = 18.0
 texture_margin_right = 18.0
 texture_margin_bottom = 18.0
 
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_evolution_tab"]
-texture = ExtResource("28_upgrade_tab")
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_evolution_tab_hover"]
-texture = ExtResource("28_upgrade_tab")
-modulate_color = Color(1.08, 1.08, 1.08, 1)
-
 [node name="HUDRoot" type="Control" unique_id=386170543]
 layout_mode = 3
 anchors_preset = 15
@@ -485,46 +485,6 @@ offset_right = 264.0
 offset_bottom = 72.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxTexture_d7apq")
-
-[node name="EvolutionTabButton" type="Button" parent="."]
-visible = false
-custom_minimum_size = Vector2(31, 64)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 233.0
-offset_top = -342.0
-offset_right = 264.0
-offset_bottom = -278.0
-grow_vertical = 0
-tooltip_text = "Show evolution choices"
-focus_mode = 0
-theme_override_styles/normal = SubResource("StyleBoxTexture_evolution_tab")
-theme_override_styles/hover = SubResource("StyleBoxTexture_evolution_tab_hover")
-theme_override_styles/pressed = SubResource("StyleBoxTexture_evolution_tab_hover")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_avdk1")
-
-[node name="TabText" type="MarginContainer" parent="EvolutionTabButton"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_constants/margin_left = 1
-theme_override_constants/margin_right = 5
-
-[node name="Label" type="Label" parent="EvolutionTabButton/TabText"]
-layout_mode = 2
-mouse_filter = 2
-theme_type_variation = &"BoogalooLabel"
-theme_override_colors/font_color = Color(0.090196, 0.066667, 0.086275, 1)
-theme_override_font_sizes/font_size = 11
-text = "E\nV\nO"
-horizontal_alignment = 1
-vertical_alignment = 1
 
 [node name="StatusMargin" type="MarginContainer" parent="TopLeftPanel" unique_id=886293298]
 layout_mode = 2
@@ -577,6 +537,47 @@ modulate = Color(1, 0.9412, 0.7608, 0.22)
 custom_minimum_size = Vector2(1, 26)
 layout_mode = 2
 size_flags_vertical = 4
+
+[node name="EvolutionTabButton" type="Button" parent="." unique_id=286667869]
+visible = false
+custom_minimum_size = Vector2(31, 64)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 233.0
+offset_top = -342.0
+offset_right = 264.0
+offset_bottom = -278.0
+grow_vertical = 0
+tooltip_text = "Show evolution choices"
+focus_mode = 0
+theme_override_styles/normal = SubResource("StyleBoxTexture_evolution_tab")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_evolution_tab_hover")
+theme_override_styles/hover = SubResource("StyleBoxTexture_evolution_tab_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_avdk1")
+
+[node name="TabText" type="MarginContainer" parent="EvolutionTabButton" unique_id=92359103]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 1
+theme_override_constants/margin_right = 5
+
+[node name="Label" type="Label" parent="EvolutionTabButton/TabText" unique_id=671140208]
+layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.090196, 0.066667, 0.086275, 1)
+theme_override_font_sizes/font_size = 11
+text = "E
+V
+O"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="EnemyStrip" type="PanelContainer" parent="." unique_id=1601395973]
 visible = false
@@ -1306,7 +1307,7 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_dxomt")
 theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_gybya")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_678wo")
 
-[node name="MarginContainer" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/ManualTargetButton"]
+[node name="MarginContainer" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/ManualTargetButton" unique_id=667476367]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -1319,9 +1320,8 @@ theme_override_constants/margin_top = 3
 theme_override_constants/margin_right = 5
 theme_override_constants/margin_bottom = 3
 
-[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/ManualTargetButton/MarginContainer"]
+[node name="Label" type="Label" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/ManualTargetButton/MarginContainer" unique_id=387050570]
 layout_mode = 2
-mouse_filter = 2
 theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
 theme_override_font_sizes/font_size = 15
@@ -1785,8 +1785,10 @@ text = "Simple enemy description."
 autowrap_mode = 2
 
 [node name="TowerItemInventoryPanel" parent="." unique_id=371614345 instance=ExtResource("22_gmgvv")]
-visible = false
-layout_mode = 0
+custom_minimum_size = Vector2(300, 300)
+clip_contents = false
+layout_mode = 1
+anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
@@ -1795,9 +1797,12 @@ offset_left = -208.0
 offset_top = -410.0
 offset_right = -16.0
 offset_bottom = -120.0
+grow_horizontal = 0
+grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxTexture_1ynp3")
 
 [node name="Margin2" type="MarginContainer" parent="TowerItemInventoryPanel" unique_id=2084440690]
+visible = false
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 12

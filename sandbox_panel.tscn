@@ -67,6 +67,42 @@ text = "Ready"
 horizontal_alignment = 1
 autowrap_mode = 2
 
+[node name="TowerLevelSection" type="VBoxContainer" parent="Panel/Margin/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SelectedTower" type="Label" parent="Panel/Margin/Layout/TowerLevelSection"]
+layout_mode = 2
+text = "Select a tower to set its level"
+horizontal_alignment = 1
+
+[node name="LevelControls" type="HBoxContainer" parent="Panel/Margin/Layout/TowerLevelSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="LevelLabel" type="Label" parent="Panel/Margin/Layout/TowerLevelSection/LevelControls"]
+layout_mode = 2
+text = "LEVEL"
+vertical_alignment = 1
+
+[node name="TowerLevel" type="SpinBox" parent="Panel/Margin/Layout/TowerLevelSection/LevelControls"]
+custom_minimum_size = Vector2(92, 40)
+layout_mode = 2
+min_value = 1.0
+max_value = 20.0
+value = 1.0
+rounded = true
+editable = false
+
+[node name="ApplyLevel" type="Button" parent="Panel/Margin/Layout/TowerLevelSection/LevelControls"]
+custom_minimum_size = Vector2(104, 40)
+layout_mode = 2
+text = "Apply Level"
+
+[node name="TowerLevelSeparator" type="HSeparator" parent="Panel/Margin/Layout"]
+layout_mode = 2
+
 [node name="WaveSettings" type="HBoxContainer" parent="Panel/Margin/Layout"]
 layout_mode = 2
 alignment = 1
@@ -202,3 +238,4 @@ text = "Hide Sandbox"
 [connection signal="pressed" from="Panel/Margin/Layout/EnemyControls/SpawnEnemy" to="." method="_on_spawn_enemy_pressed"]
 [connection signal="pressed" from="Panel/Margin/Layout/UtilityButtons/RestoreHealth" to="." method="_on_restore_health_pressed"]
 [connection signal="pressed" from="Panel/Margin/Layout/UtilityButtons/MainMenu" to="." method="_on_main_menu_pressed"]
+[connection signal="pressed" from="Panel/Margin/Layout/TowerLevelSection/LevelControls/ApplyLevel" to="." method="_on_apply_level_pressed"]

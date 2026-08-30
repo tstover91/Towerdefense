@@ -1,77 +1,92 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://k83ta5elfwxq"]
 
-[ext_resource type="Script" path="res://tower_items/tower_item_inventory_panel.gd" id="1_panel"]
+[ext_resource type="Script" uid="uid://blxvnhk5rejv7" path="res://tower_items/tower_item_inventory_panel.gd" id="1_panel"]
+[ext_resource type="Texture2D" uid="uid://dobxnm4bki3oj" path="res://assets/ui/pti_hud/inventory.png" id="2_inventory"]
+[ext_resource type="FontFile" uid="uid://dfuh5bevx7lgn" path="res://assets/fonts/Boogaloo-Regular.ttf" id="3_boogaloo"]
 
-[node name="TowerItemInventoryPanel" type="PanelContainer"]
-custom_minimum_size = Vector2(300, 300)
+[sub_resource type="StyleBoxTexture" id="StyleBox_inventory"]
+texture = ExtResource("2_inventory")
+
+[node name="TowerItemInventoryPanel" type="PanelContainer" unique_id=1716246753]
+custom_minimum_size = Vector2(192, 290)
+clip_contents = true
+theme_override_styles/panel = SubResource("StyleBox_inventory")
 script = ExtResource("1_panel")
 
-[node name="Margin" type="MarginContainer" parent="."]
+[node name="Margin" type="MarginContainer" parent="." unique_id=1468017]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 10
 
-[node name="Content" type="VBoxContainer" parent="Margin"]
+[node name="Content" type="VBoxContainer" parent="Margin" unique_id=1674967686]
 layout_mode = 2
 theme_override_constants/separation = 7
 
-[node name="Header" type="Label" parent="Margin/Content"]
+[node name="Header" type="Label" parent="Margin/Content" unique_id=404863455]
 layout_mode = 2
-theme_type_variation = &"DisplayLabel"
+theme_type_variation = &"BoogalooDisplayLabel"
+theme_override_fonts/font = ExtResource("3_boogaloo")
 theme_override_font_sizes/font_size = 15
 text = "ITEM INVENTORY"
 horizontal_alignment = 1
 
-[node name="InstructionLabel" type="Label" parent="Margin/Content"]
+[node name="InstructionLabel" type="Label" parent="Margin/Content" unique_id=1821986418]
 layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
+theme_override_fonts/font = ExtResource("3_boogaloo")
 theme_override_font_sizes/font_size = 11
 text = "Select an item, then click a tower or one of its slots."
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="GridScroll" type="ScrollContainer" parent="Margin/Content"]
-custom_minimum_size = Vector2(0, 154)
+[node name="GridScroll" type="ScrollContainer" parent="Margin/Content" unique_id=303042610]
+custom_minimum_size = Vector2(0, 112)
 layout_mode = 2
-size_flags_vertical = 3
+size_flags_vertical = 0
 horizontal_scroll_mode = 0
 
-[node name="ItemGrid" type="GridContainer" parent="Margin/Content/GridScroll"]
+[node name="ItemGrid" type="GridContainer" parent="Margin/Content/GridScroll" unique_id=2137671538]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 6
 columns = 4
 
-[node name="EmptyLabel" type="Label" parent="Margin/Content"]
+[node name="EmptyLabel" type="Label" parent="Margin/Content" unique_id=1174105165]
 visible = false
 layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_fonts/font = ExtResource("3_boogaloo")
 text = "Inventory Empty"
 horizontal_alignment = 1
 
-[node name="SelectedName" type="Label" parent="Margin/Content"]
+[node name="SelectedName" type="Label" parent="Margin/Content" unique_id=1560389074]
 layout_mode = 2
-theme_type_variation = &"DisplayLabel"
+theme_type_variation = &"BoogalooDisplayLabel"
+theme_override_fonts/font = ExtResource("3_boogaloo")
 theme_override_font_sizes/font_size = 14
 text = "No item selected"
 horizontal_alignment = 1
 
-[node name="SelectedDescription" type="Label" parent="Margin/Content"]
+[node name="SelectedDescription" type="Label" parent="Margin/Content" unique_id=1464045558]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.722, 0.643, 0.667, 1)
+theme_override_fonts/font = ExtResource("3_boogaloo")
 theme_override_font_sizes/font_size = 11
-text = "Choose an item from the grid."
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="StatusLabel" type="Label" parent="Margin/Content"]
+[node name="StatusLabel" type="Label" parent="Margin/Content" unique_id=1990095457]
 layout_mode = 2
+theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.518, 0.843, 0.69, 1)
+theme_override_fonts/font = ExtResource("3_boogaloo")
 theme_override_font_sizes/font_size = 11
-text = ""
 horizontal_alignment = 1
 autowrap_mode = 2
