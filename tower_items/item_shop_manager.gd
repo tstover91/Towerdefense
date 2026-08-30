@@ -4,8 +4,10 @@ extends RefCounted
 const GameStats = preload("res://stat_database.gd")
 
 const OFFER_COUNT := 4
-const BASE_REROLL_COST := 50
-const REROLL_COST_STEP := 50
+const REROLL_BASE_COST := 40
+const REROLL_BASE_COST_PER_ROUND := 10
+const REROLL_MINIMUM_COST_STEP := 25
+const REROLL_COST_STEP_PER_ROUND := 5
 const RARITY_WEIGHTS_BY_ROUND := {
 	&"early": {&"common": 100.0, &"uncommon": 50.0, &"rare": 15.0, &"legendary": 1.0},
 	&"middle": {&"common": 75.0, &"uncommon": 65.0, &"rare": 35.0, &"legendary": 5.0},
@@ -17,6 +19,7 @@ var rng: RandomNumberGenerator
 var offers: Array[StringName] = []
 var locked_slots: Array[bool] = []
 var reroll_count := 0
+var current_shop_round := 1
 
 
 func _init(random_source: RandomNumberGenerator = null) -> void:
@@ -33,6 +36,7 @@ func open_shop(
 	persisted_locked_offers: Array[StringName],
 	preferred_item_ids: Array[StringName] = []
 ) -> void:
+	current_shop_round = maxi(round_number, 1)
 	reroll_count = 0
 	for slot_index in OFFER_COUNT:
 		offers[slot_index] = &""
@@ -54,7 +58,15 @@ func open_shop(
 
 
 func get_reroll_cost() -> int:
-	return BASE_REROLL_COST + REROLL_COST_STEP * reroll_count
+	var base_cost := (
+		REROLL_BASE_COST
+		REROLL_BASE_COST_PER_ROUND * current_shop_round
+	)
+	var cost_step := maxi(
+		REROLL_MINIMUM_COST_STEP,
+		REROLL_COST_STEP_PER_ROUND * current_shop_round
+	)
+	return base_cost + cost_step * reroll_count
 
 
 func has_rerollable_slots() -> bool:
@@ -70,6 +82,7 @@ func reroll(
 ) -> void:
 	if not has_rerollable_slots():
 		return
+	current_shop_round = maxi(round_number, 1)
 	reroll_count += 1
 	for slot_index in OFFER_COUNT:
 		if not locked_slots[slot_index]:
