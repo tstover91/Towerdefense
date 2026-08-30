@@ -33,6 +33,8 @@ func run_test() -> void:
 	await get_tree().process_frame
 	tower.confirm_placement()
 	tower.set_selected(true)
+	assert(gameplay.tower_has_targeting_controls)
+	assert(gameplay.tower_target_buttons.visible)
 	assert(gameplay.sandbox_set_selected_tower_level(20))
 	assert(tower.instance_progression.level == 20)
 	assert(gameplay.sandbox_set_selected_tower_level(1))

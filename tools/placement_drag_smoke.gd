@@ -36,11 +36,23 @@ func run_checks() -> void:
 	var tower_release := make_touch(3, valid_release_screen, false)
 	assert(director.handle_placement_drag_input(tower_release))
 	assert(director.active_placement_drag_kind.is_empty())
-	assert(not director.build_mode)
-	assert(director.money < money_before)
+	assert(director.build_mode)
+	assert(not director.place_mode)
+	assert(director.money == money_before)
 	var placed_towers := get_tree().get_nodes_in_group("towers")
 	assert(placed_towers.size() == 1)
-	assert(bool(placed_towers[0].get("is_placed")))
+	assert(not bool(placed_towers[0].get("is_placed")))
+	await get_tree().physics_frame
+	var pending_tower := placed_towers[0] as Node2D
+	var confirm_screen_position: Vector2 = (
+		director.get_canvas_transform() * pending_tower.global_position
+	)
+	assert(director.handle_pending_tower_placement_press(
+		make_touch(3, confirm_screen_position, true)
+	))
+	assert(not director.build_mode)
+	assert(director.money < money_before)
+	assert(bool(pending_tower.get("is_placed")))
 	var money_after_build: int = director.money
 	director._on_tower_fan_button_gui_input(
 		make_touch(4, Vector2(92.0, 500.0), true), 0
@@ -52,9 +64,11 @@ func run_checks() -> void:
 	assert(director.handle_placement_drag_input(
 		make_touch(4, Vector2.ZERO, false)
 	))
-	assert(not director.build_mode)
-	assert(not is_instance_valid(director.tower_to_place))
+	assert(director.build_mode)
+	assert(is_instance_valid(director.tower_to_place))
 	assert(director.money == money_after_build)
+	director.cancel_pending_tower_placement()
+	assert(not director.build_mode)
 
 	director.round_number = 1
 	director.round_active = true
@@ -78,7 +92,7 @@ func run_checks() -> void:
 	assert(director.reinforcement_cooldown_remaining > 0.0)
 	assert(get_tree().get_nodes_in_group("reinforcement_drops").size() == 1)
 
-	print("Placement drag smoke test passed: offset previews and release-to-build/deploy.")
+	print("Placement drag smoke test passed: offset previews, tap-to-confirm towers, and release-to-deploy reinforcements.")
 	director.queue_free()
 	get_tree().quit(0)
 

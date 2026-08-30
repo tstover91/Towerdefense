@@ -26,6 +26,9 @@ func _ready() -> void:
 	assert(controller.tower_to_place == tower)
 	controller.await_confirmation()
 	assert(not controller.place_mode and controller.build_mode)
+	controller.resume_placement()
+	assert(controller.place_mode and controller.build_mode)
+	controller.await_confirmation()
 
 	var snapped_position: Vector2 = controller.get_tower_build_position(
 		Vector2(75.0, 91.0),

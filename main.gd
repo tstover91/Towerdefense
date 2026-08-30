@@ -1518,8 +1518,10 @@ func update_tower_evolution_controls(tower: Node) -> void:
 func update_tower_target_controls(tower: Node) -> void:
 	var attack_component: Variant = tower.get("attack_component")
 	var shows_targeting: bool = (
-		attack_component != null
-		and attack_component.shows_target_mode_control()
+		(
+			attack_component == null
+			or attack_component.shows_target_mode_control()
+		)
 		and (
 			not tower.uses_standard_spawner_system()
 			or tower.uses_drone_targeting()
@@ -3973,11 +3975,7 @@ func finish_active_placement_drag(screen_position: Vector2) -> void:
 			is_instance_valid(tower_to_place)
 			and can_place_tower(tower_to_place.position)
 		):
-			var placed_tower := tower_to_place
 			finalize_tower_placement()
-			placed_tower._on_confirm_pressed()
-		else:
-			cancel_pending_tower_placement()
 	elif completed_kind == DRAG_KIND_REINFORCEMENT:
 		if not deploy_reinforcements(placement_drag_world_position):
 			cancel_reinforcement_targeting()
@@ -4166,6 +4164,21 @@ func _unhandled_input(event: InputEvent) -> void:
 			deploy_reinforcements(get_global_mouse_position())
 			return
 
+	if (
+		build_mode
+		and (
+			event.is_action_pressed("ui_cancel")
+			or (
+				event is InputEventMouseButton
+				and event.button_index == MOUSE_BUTTON_RIGHT
+				and event.pressed
+			)
+		)
+	):
+		cancel_pending_tower_placement()
+		get_viewport().set_input_as_handled()
+		return
+
 	if event.is_action_pressed("ui_cancel") and not game_ended:
 		get_viewport().set_input_as_handled()
 		open_pause_menu()
@@ -4187,13 +4200,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	):
 		clear_enemy_hud_selection()
 
-	if (
-		place_mode
-		and event is InputEventMouseButton
-		and event.button_index == MOUSE_BUTTON_LEFT
-		and event.pressed
-	):
-		finalize_tower_placement()
+	if handle_pending_tower_placement_press(event):
+		get_viewport().set_input_as_handled()
 		return
 
 	if event is InputEventMouseButton and event.pressed and not build_mode:
@@ -4234,8 +4242,63 @@ func finalize_tower_placement() -> void:
 		return
 	build_controller.await_confirmation()
 	tower_to_place.position = pos
-	tower_to_place.get_node("towerconfirm").visible = true
+	tower_to_place.await_build_confirmation()
 	tower_list.deselect_all()
+
+
+func handle_pending_tower_placement_press(event: InputEvent) -> bool:
+	if not build_mode or not is_instance_valid(tower_to_place):
+		return false
+	var screen_position := Vector2.ZERO
+	if (
+		event is InputEventMouseButton
+		and event.button_index == MOUSE_BUTTON_LEFT
+		and event.pressed
+	):
+		screen_position = event.position
+	elif event is InputEventScreenTouch and event.pressed:
+		screen_position = event.position
+	else:
+		return false
+
+	if (
+		not place_mode
+		and get_tower_at_screen_position(screen_position) == tower_to_place
+	):
+		if can_place_tower(tower_to_place.position):
+			tower_to_place._on_confirm_pressed()
+		return true
+
+	build_controller.resume_placement()
+	tower_to_place.begin_placement()
+	var world_position := get_canvas_transform().affine_inverse() * screen_position
+	tower_to_place.position = get_tower_build_position(
+		world_position, pending_tower_type
+	)
+	var placement_is_valid := can_place_tower(tower_to_place.position)
+	tower_to_place.set_range_preview(true, placement_is_valid)
+	if placement_is_valid:
+		finalize_tower_placement()
+	else:
+		var sprite := tower_to_place.get_node("Sprite2D") as CanvasItem
+		sprite.modulate = Color(1.0, 0.0, 0.0, 0.5)
+	return true
+
+
+func get_tower_at_screen_position(screen_position: Vector2) -> Node2D:
+	var query := PhysicsPointQueryParameters2D.new()
+	query.position = get_canvas_transform().affine_inverse() * screen_position
+	query.collision_mask = 2
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	for result in get_world_2d().direct_space_state.intersect_point(query, 16):
+		var collider := result.get("collider") as Node
+		if not is_instance_valid(collider):
+			continue
+		var candidate := collider.get_parent() as Node2D
+		if is_instance_valid(candidate) and candidate.is_in_group("towers"):
+			return candidate
+	return null
 
 
 func world_to_build_cell(world_position: Vector2) -> Vector2i:

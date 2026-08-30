@@ -34,6 +34,16 @@ func await_confirmation() -> void:
 	place_mode = false
 
 
+func resume_placement() -> void:
+	if is_instance_valid(tower_to_place):
+		place_mode = true
+
+
+func resume_placement() -> void:
+	if is_instance_valid(tower_to_place):
+		place_mode = true
+
+
 func clear_pending_placement() -> Node2D:
 	var pending_tower := tower_to_place
 	place_mode = false
