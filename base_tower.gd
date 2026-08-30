@@ -748,18 +748,6 @@ func await_build_confirmation() -> void:
 	queue_redraw()
 
 
-func await_build_confirmation() -> void:
-	# The pending tower itself replaces the old Confirm/Cancel controls.
-	# It remains non-combatant but becomes tappable for the confirming press.
-	$clickarea.monitoring = true
-	$clickarea.input_pickable = true
-	$clickarea/CollisionShape2D.disabled = false
-	visual_sprite.modulate = Color(1.0, 1.0, 1.0, 0.72)
-	if menu_controller != null:
-		menu_controller.hide_confirmation_menu()
-	queue_redraw()
-
-
 func confirm_placement() -> void:
 	is_placed = true
 	refresh_range_monitoring_state()
