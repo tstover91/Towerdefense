@@ -101,9 +101,9 @@ func _init() -> void:
 		&"tank": {1: [&"bruiser"], 2: [&"juggernaut"]},
 		&"armor": {1: [&"armored"], 2: [&"swat_enforcer"]},
 		&"buffs": {1: [&"buffer"], 2: []},
-		&"hidden": {1: [&"hidden"], 2: []},
-		&"healer": {1: [&"regenerator"], 2: []},
-		&"summon": {1: [&"summoner"], 2: []},
+		&"hidden": {1: [], 2: [&"hidden"]},
+		&"healer": {1: [], 2: [&"regenerator"]},
+		&"summon": {1: [], 2: [&"summoner"]},
 		&"shields": {1: [&"shielded"], 2: [&"shield_projector"]},
 		&"general": {
 			1: [&"normal"],

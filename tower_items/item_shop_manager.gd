@@ -60,7 +60,7 @@ func open_shop(
 func get_reroll_cost() -> int:
 	var base_cost := (
 		REROLL_BASE_COST
-		REROLL_BASE_COST_PER_ROUND * current_shop_round
+		+ REROLL_BASE_COST_PER_ROUND * current_shop_round
 	)
 	var cost_step := maxi(
 		REROLL_MINIMUM_COST_STEP,
