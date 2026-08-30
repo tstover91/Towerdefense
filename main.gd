@@ -30,7 +30,6 @@ const ROUND_PAYDAY: StringName = RoundControllerScript.ROUND_PAYDAY
 const VARIANT_NORMAL: StringName = &"normal"
 const VARIANT_HORDE: StringName = &"horde"
 const VARIANT_ELITE: StringName = &"elite"
-const VARIANT_PAYDAY: StringName = &"payday"
 const ENEMY_AURA_REFRESH_INTERVAL := 0.15
 const MAX_POOLED_HITSCAN_EFFECTS := 128
 const MAX_POOLED_EXPLOSION_EFFECTS := 64
@@ -51,55 +50,14 @@ const TOWER_DRAFT_ROUNDS: Array[int] = [3, 8, 12]
 const REINFORCEMENT_DRAFT_ROUNDS: Array[int] = []
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
-const PTI_HEALTH_BAR = preload("res://assets/ui/pti_hud/health_bar.png")
-const PTI_ROUND_COUNTER = preload("res://assets/ui/pti_hud/round_counter.png")
 const PTI_GAME_SPEED = preload("res://assets/ui/pti_hud/game_speed.png")
-const PTI_PLAY_BUTTON = preload("res://assets/ui/pti_hud/play_button.png")
-const PTI_PAUSE_BUTTON = preload("res://assets/ui/pti_hud/pause_button.png")
-const PTI_INTEL_BUTTON = preload("res://assets/ui/pti_hud/intel.png")
-const PTI_INVENTORY_BUTTON = preload(
-	"res://assets/ui/pti_hud/inventory_button.png"
-)
-const PTI_REINFORCEMENT_BUTTON = preload(
-	"res://assets/ui/pti_hud/reinforcement_button.png"
-)
-const PTI_REINFORCEMENT_SELECTED = preload(
-	"res://assets/ui/pti_hud/reinforment_button_selected.png"
-)
-const PTI_TOWER_BUILD = preload("res://assets/ui/pti_hud/tower_build.png")
-const PTI_TOWER_BUILD_SELECTED = preload(
-	"res://assets/ui/pti_hud/tower_build_selected.png"
-)
 const TOWER_BUILD_BUTTON_SCENE = preload(
 	"res://ui/components/tower_build_button_visual.tscn"
-)
-const PTI_TOWER_CARD = preload("res://assets/ui/pti_hud/tower_card.png")
-const PTI_INVENTORY = preload("res://assets/ui/pti_hud/inventory.png")
-const PTI_TOWER_SELL = preload("res://assets/ui/pti_hud/tower_sell.png")
-const UI_EQUIPMENT_PANEL_STYLE = preload(
-	"res://assets/ui/equipment_panel_style.tres"
-)
-const UI_ROUND_READOUT_STYLE = preload(
-	"res://assets/ui/round_readout_style.tres"
-)
-const UI_RECESSED_BUTTON_STYLE = preload(
-	"res://assets/ui/recessed_button_style.tres"
-)
-const UI_RECESSED_BUTTON_HOVER_STYLE = preload(
-	"res://assets/ui/recessed_button_hover_style.tres"
-)
-const UI_RECESSED_BUTTON_PRESSED_STYLE = preload(
-	"res://assets/ui/recessed_button_pressed_style.tres"
 )
 const TOWER_SLOT_COUNT := 5
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_ITEM: StringName = &"item"
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
-const DOCK_BUILD_TOP_OFFSET := -230.0
-const DOCK_COMPACT_INSPECTOR_TOP_OFFSET := -108.0
-const DOCK_INFO_INSPECTOR_TOP_OFFSET := -218.0
-const DOCK_PATH_INSPECTOR_TOP_OFFSET := -286.0
-const DOCK_TARGET_INSPECTOR_TOP_OFFSET := -188.0
 const BUILD_BLOCKER_COLLISION_MASK := 4
 const AFFORDABLE_TOWER_COLOR := Color(0.35, 1.0, 0.35)
 const UNAFFORDABLE_TOWER_COLOR := Color(1.0, 0.3, 0.3)
@@ -108,8 +66,6 @@ const UI_CREAM := Color("f1e7d3")
 const UI_LIME := Color("84d7b0")
 const UI_CYAN := Color("84d7b0")
 const UI_ORANGE := Color("ec7354")
-const UI_RED := Color("ec7354")
-const UI_PURPLE := Color("a33f91")
 const UI_MAGENTA := Color("db38b3")
 const UI_GOLD := Color("f1be45")
 const PTI_HUD_TEXTURE_TINT := Color("b8ada4")
@@ -125,10 +81,6 @@ const TOWER_FAN_MAX_COLUMNS := 5
 const SANDBOX_ITEM_QUANTITY := 20
 const PLACEMENT_DRAG_THRESHOLD := 12.0
 const PLACEMENT_DRAG_PREVIEW_OFFSET := Vector2(0.0, -75.0)
-const HUD_STRIP_LEFT := 12.0
-const HUD_STRIP_RIGHT_MARGIN := 12.0
-const HUD_STRIP_ICON_WIDTH := 30.0
-const HUD_STRIP_ICON_SEPARATION := 3.0
 const DRAG_KIND_TOWER: StringName = &"tower"
 const DRAG_KIND_REINFORCEMENT: StringName = &"reinforcement"
 
@@ -195,7 +147,6 @@ signal round_ended(round_number: int)
 @onready var tower_target_last: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetLast
 @onready var tower_target_low: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetLow
 @onready var tower_target_high: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/TargetButtons/TargetHigh
-@onready var tower_direction_buttons: GridContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons
 @onready var tower_manual_target_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/ManualTargetButton
 @onready var tower_sell_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/SellButtonMargin/SellButton
 @onready var tower_sell_label: Label = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/SellButtonMargin/SellButton/SellText/Label
@@ -458,6 +409,14 @@ var selected_inventory_item_id: StringName = &""
 var tower_item_slot_buttons: Array[Button] = []
 var pending_item_removal_tower_id := 0
 var pending_item_removal_slot := -1
+var reinforcement_button_state_initialized := false
+var reinforcement_button_last_id: StringName = &""
+var reinforcement_button_last_cooldown_seconds := -1
+var reinforcement_button_last_targeting := false
+var reinforcement_button_last_game_ended := false
+var reinforcement_button_last_round_active := false
+var reinforcement_button_last_shop_open := false
+var reinforcement_button_last_build_mode := false
 var tower_card_open_top := -374.0
 var tower_card_open_bottom := -16.0
 
@@ -579,295 +538,6 @@ func _apply_button_texture(
 	button.add_theme_stylebox_override("hover_pressed", _texture_style(pressed))
 	button.add_theme_stylebox_override("disabled", _texture_style(normal_texture))
 	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-
-
-func _apply_pti_hud_artwork() -> void:
-	var status_panel := $MainUI/HUDRoot/TopLeftPanel as PanelContainer
-	status_panel.offset_left = 8.0
-	status_panel.offset_top = 8.0
-	status_panel.offset_right = 264.0
-	status_panel.offset_bottom = 72.0
-	status_panel.add_theme_stylebox_override(
-		"panel", _texture_style(PTI_HEALTH_BAR)
-	)
-
-	var round_panel := $MainUI/HUDRoot/TopCenterRoundPanel as PanelContainer
-	round_panel.offset_left = -98.0
-	round_panel.offset_top = 4.0
-	round_panel.offset_right = 98.0
-	round_panel.offset_bottom = 100.0
-	round_panel.add_theme_stylebox_override(
-		"panel", _texture_style(PTI_ROUND_COUNTER)
-	)
-	round_count_display.custom_minimum_size = Vector2(188.0, 44.0)
-	round_timer_display.custom_minimum_size = Vector2(188.0, 28.0)
-	round_count_display.add_theme_font_size_override("font_size", 19)
-	round_timer_display.add_theme_font_size_override("font_size", 12)
-	var round_layout := round_count_display.get_parent() as VBoxContainer
-	round_layout.add_theme_constant_override("separation", -4)
-
-	var status_grid := lives_display.get_parent() as HBoxContainer
-	var status_margin := status_grid.get_parent() as MarginContainer
-	status_margin.add_theme_constant_override("margin_left", 18)
-	status_margin.add_theme_constant_override("margin_top", 6)
-	status_margin.add_theme_constant_override("margin_right", 14)
-	status_margin.add_theme_constant_override("margin_bottom", 6)
-	status_grid.add_theme_constant_override("separation", 8)
-	lives_display.custom_minimum_size = Vector2(136.0, 48.0)
-	lives_display.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	lives_display.add_theme_font_size_override("font_size", 15)
-	money_display.custom_minimum_size = Vector2(72.0, 48.0)
-	money_display.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	money_display.add_theme_font_size_override("font_size", 17)
-
-	var edge_controls := $MainUI/HUDRoot/EdgeControls as PanelContainer
-	edge_controls.offset_left = -140.0
-	edge_controls.offset_top = 8.0
-	edge_controls.offset_right = -8.0
-	edge_controls.offset_bottom = 72.0
-	var edge_buttons := $MainUI/HUDRoot/EdgeControls/ControlMargin/Buttons
-	edge_buttons.add_theme_constant_override("separation", 4)
-	speed_button.custom_minimum_size = Vector2(64.0, 64.0)
-	pause_button.custom_minimum_size = Vector2(64.0, 64.0)
-	speed_button.add_theme_font_size_override("font_size", 16)
-	_apply_button_texture(speed_button, PTI_GAME_SPEED)
-	pause_button.add_theme_font_size_override("font_size", 27)
-	pause_button.add_theme_color_override("font_color", Color("f1e7d3"))
-	pause_button.add_theme_color_override("font_hover_color", Color("f1e7d3"))
-	pause_button.add_theme_color_override("font_pressed_color", Color("e5ddcf"))
-	pause_button.add_theme_color_override("font_disabled_color", Color("9b9186"))
-	_apply_button_texture(pause_button, PTI_GAME_SPEED)
-
-	enemy_toggle_button.offset_left = -208.0
-	enemy_toggle_button.offset_top = 8.0
-	enemy_toggle_button.offset_right = -144.0
-	enemy_toggle_button.offset_bottom = 72.0
-	enemy_toggle_button.custom_minimum_size = Vector2(64.0, 64.0)
-	enemy_toggle_button.text = "INTEL"
-	enemy_toggle_button.add_theme_font_size_override("font_size", 13)
-	_apply_button_texture(enemy_toggle_button, PTI_INTEL_BUTTON)
-
-	reinforcement_button.offset_left = -112.0
-	reinforcement_button.offset_top = -112.0
-	reinforcement_button.offset_right = -16.0
-	reinforcement_button.offset_bottom = -16.0
-	reinforcement_button.custom_minimum_size = Vector2(96.0, 96.0)
-	reinforcement_button.text = ""
-	reinforcement_button.add_theme_font_size_override("font_size", 14)
-	for color_state in [
-		"font_color",
-		"font_hover_color",
-		"font_pressed_color",
-	]:
-		reinforcement_button.add_theme_color_override(color_state, UI_CREAM)
-	_apply_button_texture(
-		reinforcement_button,
-		PTI_REINFORCEMENT_BUTTON,
-		PTI_REINFORCEMENT_SELECTED
-	)
-
-	inventory_button.offset_left = -232.0
-	inventory_button.offset_top = -80.0
-	inventory_button.offset_right = -120.0
-	inventory_button.offset_bottom = -16.0
-	inventory_button.custom_minimum_size = Vector2(112.0, 64.0)
-	inventory_button.text = "ITEMS"
-	inventory_button.add_theme_font_size_override("font_size", 14)
-	for color_state in [
-		"font_color",
-		"font_hover_color",
-		"font_pressed_color",
-	]:
-		inventory_button.add_theme_color_override(color_state, UI_CREAM)
-	_apply_button_texture(inventory_button, PTI_INVENTORY_BUTTON)
-
-	sidebar.offset_left = 16.0
-	sidebar.offset_top = -374.0
-	sidebar.offset_right = 237.0
-	sidebar.offset_bottom = -16.0
-	sidebar.add_theme_stylebox_override(
-		"panel", _texture_style(PTI_TOWER_CARD)
-	)
-	var inventory_panel := tower_item_inventory_panel as PanelContainer
-	inventory_panel.add_theme_stylebox_override(
-		"panel", _texture_style(PTI_INVENTORY)
-	)
-	var inventory_margin := inventory_panel.get_node("Margin") as MarginContainer
-	inventory_margin.add_theme_constant_override("margin_left", 10)
-	inventory_margin.add_theme_constant_override("margin_top", 12)
-	inventory_margin.add_theme_constant_override("margin_right", 10)
-	inventory_margin.add_theme_constant_override("margin_bottom", 10)
-	var inventory_content := inventory_panel.get_node(
-		"Margin/Content"
-	) as VBoxContainer
-	inventory_content.add_theme_constant_override("separation", 3)
-	var inventory_header := inventory_content.get_node("Header") as Label
-	inventory_header.add_theme_font_size_override("font_size", 12)
-	inventory_content.get_node("InstructionLabel").hide()
-	var inventory_scroll := inventory_content.get_node(
-		"GridScroll"
-	) as ScrollContainer
-	inventory_scroll.custom_minimum_size = Vector2(0.0, 112.0)
-	inventory_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	var inventory_grid := inventory_scroll.get_node("ItemGrid") as GridContainer
-	inventory_grid.columns = 2
-	var inventory_empty := inventory_content.get_node("EmptyLabel") as Label
-	inventory_empty.add_theme_font_size_override("font_size", 11)
-	var inventory_name := inventory_content.get_node("SelectedName") as Label
-	inventory_name.add_theme_font_size_override("font_size", 10)
-	var inventory_description := inventory_content.get_node(
-		"SelectedDescription"
-	) as Label
-	inventory_description.custom_minimum_size = Vector2(0.0, 28.0)
-	inventory_description.add_theme_font_size_override("font_size", 9)
-	var inventory_status := inventory_content.get_node("StatusLabel") as Label
-	inventory_status.add_theme_font_size_override("font_size", 9)
-
-
-func _configure_compact_tower_card() -> void:
-	var sidebar_margin := sidebar.get_node("SidebarMargin") as MarginContainer
-	for side in ["left", "top", "right", "bottom"]:
-		sidebar_margin.add_theme_constant_override("margin_%s" % side, 10)
-	tower_inspector.add_theme_constant_override("separation", 5)
-	var inspector_header := tower_name_label.get_parent().get_parent() as HBoxContainer
-	inspector_header.custom_minimum_size = Vector2(0.0, 68.0)
-	inspector_header.add_theme_constant_override("separation", 6)
-	tower_portrait_button.hide()
-	tower_portrait_button.custom_minimum_size = Vector2.ZERO
-	var inspector_title := tower_name_label.get_parent() as VBoxContainer
-	inspector_title.custom_minimum_size = Vector2(190.0, 0.0)
-	tower_name_label.add_theme_font_size_override("font_size", 20)
-	tower_level_label.add_theme_font_size_override("font_size", 13)
-	tower_xp_label.add_theme_font_size_override("font_size", 11)
-
-	var compact_actions := HBoxContainer.new()
-	compact_actions.name = "CompactActions"
-	compact_actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	compact_actions.add_theme_constant_override("separation", 4)
-	tower_inspector.add_child(compact_actions)
-	tower_inspector.move_child(compact_actions, 1)
-	for action_button in [
-		tower_upgrade_button,
-	]:
-		action_button.reparent(compact_actions)
-		action_button.add_theme_font_size_override("font_size", 10)
-		action_button.clip_text = true
-	tower_upgrade_button.custom_minimum_size = Vector2(56.0, 40.0)
-	tower_aim_button.hide()
-	tower_aim_button.custom_minimum_size = Vector2.ZERO
-
-	tower_target_section.reparent(tower_inspector)
-	tower_inspector.move_child(
-		tower_target_section,
-		tower_items_section.get_index()
-	)
-	# Reserve the full two-row targeting area so lower rows never jump.
-	tower_target_section.custom_minimum_size = Vector2(0.0, 109.0)
-	tower_target_section.add_theme_constant_override("separation", 3)
-	var target_header := tower_target_section.get_node("TargetHeader") as Label
-	target_header.text = "AIM MODE"
-	target_header.add_theme_font_size_override("font_size", 11)
-	var target_grid := tower_target_section.get_node(
-		"TargetButtons"
-	) as GridContainer
-	target_grid.columns = 2
-	target_grid.custom_minimum_size = Vector2(180.0, 88.0)
-	target_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	target_grid.add_theme_constant_override("h_separation", 4)
-	target_grid.add_theme_constant_override("v_separation", 4)
-	for target_button in [
-		tower_target_first,
-		tower_target_last,
-		tower_target_low,
-		tower_target_high,
-	]:
-		target_button.custom_minimum_size = Vector2(88.0, 42.0)
-		target_button.add_theme_font_size_override("font_size", 9)
-		target_button.add_theme_color_override("font_color", UI_CREAM)
-		target_button.add_theme_color_override("font_hover_color", UI_CREAM)
-		target_button.add_theme_color_override("font_pressed_color", UI_INK)
-		var target_normal := StyleBoxFlat.new()
-		target_normal.bg_color = Color("21131f")
-		target_normal.border_color = Color("6c5864")
-		target_normal.set_border_width_all(2)
-		target_normal.set_corner_radius_all(5)
-		var target_hover: StyleBoxFlat = target_normal.duplicate()
-		target_hover.border_color = UI_CYAN
-		var target_selected := StyleBoxFlat.new()
-		target_selected.bg_color = UI_CYAN
-		target_selected.border_color = UI_CREAM
-		target_selected.set_border_width_all(2)
-		target_selected.set_corner_radius_all(5)
-		target_button.add_theme_stylebox_override("normal", target_normal)
-		target_button.add_theme_stylebox_override("hover", target_hover)
-		target_button.add_theme_stylebox_override("pressed", target_selected)
-		target_button.add_theme_stylebox_override(
-			"hover_pressed", target_selected
-		)
-		target_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-
-	tower_items_section.add_theme_constant_override("separation", 3)
-	var items_header := tower_items_section.get_node("ItemsHeader") as Label
-	items_header.add_theme_font_size_override("font_size", 11)
-	tower_manual_target_button.custom_minimum_size = Vector2(180.0, 42.0)
-	tower_manual_target_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-
-	var card_spacer := Control.new()
-	card_spacer.name = "CardSpacer"
-	card_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tower_inspector.add_child(card_spacer)
-	tower_sell_button.custom_minimum_size = Vector2(176.0, 48.0)
-	tower_sell_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	tower_sell_button.add_theme_font_size_override("font_size", 12)
-	_style_tower_sell_button()
-
-
-func _create_tower_item_slot_buttons() -> void:
-	var slot_row := GridContainer.new()
-	slot_row.name = "ItemSlotButtons"
-	slot_row.columns = 4
-	slot_row.custom_minimum_size = Vector2(180.0, 0.0)
-	slot_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	slot_row.add_theme_constant_override("h_separation", 4)
-	slot_row.add_theme_constant_override("v_separation", 4)
-	tower_items_section.add_child(slot_row)
-	tower_items_label.hide()
-	for slot_index in GameStats.TOWER_ITEM_SLOT_COUNT:
-		var slot_button := Button.new()
-		slot_button.custom_minimum_size = Vector2(42.0, 42.0)
-		slot_button.add_theme_font_size_override("font_size", 9)
-		var slot_margin := MarginContainer.new()
-		slot_margin.name = "SlotText"
-		slot_margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		slot_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		slot_button.add_child(slot_margin)
-		var slot_label := Label.new()
-		slot_label.name = "Label"
-		slot_label.text = "%d\nEMPTY" % (slot_index + 1)
-		slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		slot_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		slot_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		slot_margin.add_child(slot_label)
-		for state in ["normal", "hover", "pressed"]:
-			var slot_style := StyleBoxFlat.new()
-			slot_style.bg_color = (
-				Color("21131f") if state == "normal" else Color("2b2028")
-			)
-			slot_style.border_color = (
-				Color("5b414d") if state == "normal" else UI_CYAN
-			)
-			slot_style.set_border_width_all(2)
-			slot_style.set_corner_radius_all(5)
-			slot_button.add_theme_stylebox_override(state, slot_style)
-		slot_button.add_theme_color_override("font_color", UI_CREAM)
-		slot_button.add_theme_color_override("font_hover_color", UI_CREAM)
-		slot_button.add_theme_color_override("font_pressed_color", UI_CREAM)
-		slot_button.tooltip_text = "Choose a compatible item for slot %d" % (
-			slot_index + 1
-		)
-		slot_button.pressed.connect(_on_tower_item_slot_pressed.bind(slot_index))
-		slot_row.add_child(slot_button)
-		tower_item_slot_buttons.append(slot_button)
 
 
 func load_selected_map() -> void:
@@ -1126,11 +796,6 @@ func connect_tower_inspector_signals() -> void:
 	tower_target_last.pressed.connect(_on_sidebar_target_pressed.bind(1))
 	tower_target_low.pressed.connect(_on_sidebar_target_pressed.bind(2))
 	tower_target_high.pressed.connect(_on_sidebar_target_pressed.bind(3))
-	for direction_index in tower_direction_buttons.get_child_count():
-		var direction_button := tower_direction_buttons.get_child(direction_index) as Button
-		direction_button.pressed.connect(
-			_on_sidebar_direction_pressed.bind(direction_index)
-		)
 	tower_manual_target_button.pressed.connect(_on_sidebar_manual_target_pressed)
 	tower_manual_target_button.button_down.connect(
 		_set_special_target_label_pressed.bind(true)
@@ -1532,7 +1197,6 @@ func update_tower_target_controls(tower: Node) -> void:
 	if not shows_targeting:
 		tower_target_panel_open = false
 		tower_target_buttons.hide()
-		tower_direction_buttons.hide()
 		tower_manual_target_button.hide()
 		return
 	var manual_targeting: bool = tower.uses_manual_ground_targeting()
@@ -1541,7 +1205,6 @@ func update_tower_target_controls(tower: Node) -> void:
 	_set_special_target_button_text(
 		"Set Aim Direction" if directional_targeting else "Set Ground Target"
 	)
-	tower_direction_buttons.hide()
 	tower_target_buttons.visible = not manual_targeting and not directional_targeting
 	if manual_targeting or directional_targeting:
 		return
@@ -1612,25 +1275,6 @@ func update_tower_sell_control(tower: Node) -> void:
 	)
 
 
-func _style_tower_sell_button() -> void:
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = UI_ORANGE
-	normal.draw_center = true
-	normal.border_color = UI_CREAM
-	normal.set_border_width_all(2)
-	normal.set_corner_radius_all(5)
-	var hover: StyleBoxFlat = normal.duplicate()
-	hover.bg_color = UI_ORANGE.lightened(0.10)
-	var pressed: StyleBoxFlat = normal.duplicate()
-	pressed.bg_color = UI_ORANGE.darkened(0.15)
-	for state in ["normal", "disabled"]:
-		tower_sell_button.add_theme_stylebox_override(state, normal)
-	tower_sell_button.add_theme_stylebox_override("hover", hover)
-	tower_sell_button.add_theme_stylebox_override("pressed", pressed)
-	tower_sell_button.add_theme_stylebox_override("hover_pressed", pressed)
-	tower_sell_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-
-
 func _on_sidebar_upgrade_pressed() -> void:
 	if (
 		is_instance_valid(displayed_tower)
@@ -1679,13 +1323,6 @@ func _on_sidebar_target_pressed(mode: int) -> void:
 	update_tower_target_controls(displayed_tower)
 	tower_target_panel_open = false
 	update_tower_inspector_panel_visibility()
-
-
-func _on_sidebar_direction_pressed(direction_index: int) -> void:
-	if is_instance_valid(displayed_tower):
-		displayed_tower.select_aim_direction(direction_index)
-		tower_target_panel_open = false
-		update_tower_inspector_panel_visibility()
 
 
 func _on_sidebar_manual_target_pressed() -> void:
@@ -2187,6 +1824,29 @@ func clear_reinforcement_drops() -> void:
 func update_reinforcement_button() -> void:
 	if not is_instance_valid(reinforcement_button):
 		return
+	var current_id := selected_reinforcement_id
+	var current_cooldown_seconds := ceili(reinforcement_cooldown_remaining)
+	var current_targeting := reinforcement_targeting
+	if (
+		reinforcement_button_state_initialized
+		and current_id == reinforcement_button_last_id
+		and current_cooldown_seconds
+			== reinforcement_button_last_cooldown_seconds
+		and current_targeting == reinforcement_button_last_targeting
+		and game_ended == reinforcement_button_last_game_ended
+		and round_active == reinforcement_button_last_round_active
+		and shop_open == reinforcement_button_last_shop_open
+		and build_mode == reinforcement_button_last_build_mode
+	):
+		return
+	reinforcement_button_state_initialized = true
+	reinforcement_button_last_id = current_id
+	reinforcement_button_last_cooldown_seconds = current_cooldown_seconds
+	reinforcement_button_last_targeting = current_targeting
+	reinforcement_button_last_game_ended = game_ended
+	reinforcement_button_last_round_active = round_active
+	reinforcement_button_last_shop_open = shop_open
+	reinforcement_button_last_build_mode = build_mode
 	var option := get_selected_reinforcement_option()
 	var display_name := String(option.get("display_name", "Reinforcements"))
 	reinforcement_button.text = ""

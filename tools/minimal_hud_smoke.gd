@@ -14,14 +14,13 @@ func run_test() -> void:
 	await get_tree().process_frame
 	var hud := main.get_node("MainUI/HUDRoot")
 	var round_count = main.round_count_display
-	assert(round_count.get_parent().get_parent().name == "TopCenterRoundPanel")
+	assert(round_count.find_parent("TopCenterRoundPanel") != null)
 	assert(main.lives_display.get_parent() == main.money_display.get_parent())
 	var edge_buttons = main.pause_button.get_parent()
 	assert(edge_buttons.get_child(0) == main.pause_button)
 	assert(edge_buttons.get_child(1) == main.speed_button)
 	assert(main.enemy_toggle_button.get_parent() == hud)
 	assert(main.enemy_toggle_button.position.y > main.pause_button.position.y)
-	assert(not main.relic_strip.visible)
 	assert(main.enemy_info_panel.get_parent() == hud)
 	assert(main.sidebar.anchor_left == 0.0 and main.sidebar.anchor_bottom == 1.0)
 	assert(main.tower_fan.visible)

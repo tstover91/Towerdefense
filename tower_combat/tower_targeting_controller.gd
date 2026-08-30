@@ -3,8 +3,10 @@ extends Node
 
 const GameStats = preload("res://stat_database.gd")
 const DIRECTIONAL_LINE_HALF_WIDTH := 3.0
+const DIRECTIONAL_TARGET_SCAN_INTERVAL := 0.10
 
 var tower: BaseTower
+var directional_target_scan_remaining := 0.0
 
 
 func setup(owner_tower: BaseTower) -> void:
@@ -12,6 +14,9 @@ func setup(owner_tower: BaseTower) -> void:
 
 
 func process(delta: float) -> void:
+	directional_target_scan_remaining = maxf(
+		directional_target_scan_remaining - delta, 0.0
+	)
 	if (
 		tower.relentless_target_instance_id > 0
 		and (
@@ -58,7 +63,11 @@ func process(delta: float) -> void:
 	):
 		tower.target = null
 	if not is_valid_target(tower.target):
-		select_target()
+		if (
+			not tower.uses_directional_aim()
+			or directional_target_scan_remaining <= 0.0
+		):
+			select_target()
 	request_attack_if_ready()
 	tower.process_continuous_beam_aim(delta)
 	if tower.attack_component != null:
@@ -202,6 +211,7 @@ func on_body_exited(body: Node2D) -> void:
 		body.remove_global_reveal_source(tower)
 	if body == tower.target:
 		tower.target = null
+		request_target_refresh()
 
 
 func is_valid_target(candidate: Variant) -> bool:
@@ -269,9 +279,14 @@ func remove_reveal_source_from_all_mobs() -> void:
 
 func select_target() -> void:
 	if tower.uses_directional_aim():
+		directional_target_scan_remaining = DIRECTIONAL_TARGET_SCAN_INTERVAL
 		select_directional_target()
 		return
 	tower.target = select_standard_target()
+
+
+func request_target_refresh() -> void:
+	directional_target_scan_remaining = 0.0
 
 
 func select_standard_target() -> Node2D:

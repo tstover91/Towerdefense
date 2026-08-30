@@ -80,5 +80,32 @@ func run_test() -> void:
 	assert(mob.health < health_after_first_attack, "A ready tower must fire immediately when a later target enters.")
 	assert(tower.attack_on_cooldown)
 
-	print("Target acquisition smoke test passed: immediate ready attacks and strict cooldown preservation.")
+	var directional_tower := TOWER_SCENE.instantiate() as BaseTower
+	directional_tower.tower_id = &"gauss_repeater"
+	directional_tower.main = fake_main
+	directional_tower.position = Vector2(0.0, 500.0)
+	add_child(directional_tower)
+	directional_tower.confirm_placement()
+	directional_tower.targeting_controller.process(0.0)
+	assert(
+		directional_tower.targeting_controller.directional_target_scan_remaining
+		> 0.0
+	)
+	var scan_remaining: float = (
+		directional_tower.targeting_controller.directional_target_scan_remaining
+	)
+	directional_tower.targeting_controller.process(0.01)
+	assert(
+		directional_tower.targeting_controller.directional_target_scan_remaining
+		< scan_remaining
+	)
+	directional_tower.confirm_manual_target_position(
+		directional_tower.global_position + Vector2.RIGHT * 100.0
+	)
+	assert(
+		directional_tower.targeting_controller.directional_target_scan_remaining
+		== 0.0
+	)
+
+	print("Target acquisition smoke test passed: immediate ready attacks, strict cooldown preservation, and throttled directional scans.")
 	get_tree().quit(0)

@@ -14,9 +14,9 @@ func run_test() -> void:
 	)
 	assert(controller.selected_reinforcement_id == &"grunt_squad")
 	assert(not controller.get_selected_option().is_empty())
-	assert(controller.can_begin_targeting(false, true, false, false, false))
-	assert(not controller.can_begin_targeting(false, false, false, false, false))
-	assert(not controller.can_begin_targeting(false, true, true, false, false))
+	assert(controller.can_begin_targeting(false, true, false, false))
+	assert(not controller.can_begin_targeting(false, false, false, false))
+	assert(not controller.can_begin_targeting(false, true, true, false))
 
 	assert(controller.begin_targeting())
 	assert(controller.targeting)

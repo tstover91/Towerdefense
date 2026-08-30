@@ -71,7 +71,7 @@ func run_test() -> void:
 	assert(gauss.has_damage_tag(&"electric"))
 	assert(not gauss.has_damage_tag(&"ballistic"))
 	assert(gauss.damage_type == &"electric")
-	assert(gauss.menu_controller.direction_ui != null)
+	assert(not gauss.has_node("DirectionUI"))
 	assert(not gauss.attack_component.overclock_enabled)
 	_level_to(gauss, GameStats.TOWER_XP_MAX_LEVEL)
 	assert(gauss.attack_component.overclock_enabled)

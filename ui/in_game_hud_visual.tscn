@@ -1265,43 +1265,6 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="DirectionButtons" type="GridContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection" unique_id=484670526]
-visible = false
-layout_mode = 2
-columns = 4
-
-[node name="DirectionE" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons" unique_id=903421109]
-layout_mode = 2
-text = "→"
-
-[node name="DirectionSE" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons" unique_id=910856051]
-layout_mode = 2
-text = "↘"
-
-[node name="DirectionS" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons" unique_id=1789098234]
-layout_mode = 2
-text = "↓"
-
-[node name="DirectionSW" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons" unique_id=508597954]
-layout_mode = 2
-text = "↙"
-
-[node name="DirectionW" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons" unique_id=1519176965]
-layout_mode = 2
-text = "←"
-
-[node name="DirectionNW" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons" unique_id=321734694]
-layout_mode = 2
-text = "↖"
-
-[node name="DirectionN" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons" unique_id=524231964]
-layout_mode = 2
-text = "↑"
-
-[node name="DirectionNE" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection/DirectionButtons" unique_id=1408925846]
-layout_mode = 2
-text = "↗"
-
 [node name="ManualTargetButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/TargetSection" unique_id=1025599165]
 visible = false
 custom_minimum_size = Vector2(180, 42)

@@ -4,28 +4,6 @@ extends Node
 const GameStats = preload("res://stat_database.gd")
 const MENU_HALF_WIDTH := 120.0
 const MENU_EDGE_MARGIN := 8.0
-const DIRECTION_BUTTON_RADIUS := 72.0
-const AIM_DIRECTIONS: Array[Vector2] = [
-	Vector2(1.0, 0.0),
-	Vector2(0.70710678, 0.70710678),
-	Vector2(0.0, 1.0),
-	Vector2(-0.70710678, 0.70710678),
-	Vector2(-1.0, 0.0),
-	Vector2(-0.70710678, -0.70710678),
-	Vector2(0.0, -1.0),
-	Vector2(0.70710678, -0.70710678),
-]
-const AIM_DIRECTION_ARROWS := ["→", "↘", "↓", "↙", "←", "↖", "↑", "↗"]
-const AIM_DIRECTION_NAMES := [
-	"East",
-	"Southeast",
-	"South",
-	"Southwest",
-	"West",
-	"Northwest",
-	"North",
-	"Northeast",
-]
 
 var tower: BaseTower
 var confirmation_menu: Control
@@ -39,7 +17,6 @@ var path_a_button: Button
 var path_b_button: Button
 var path_confirm_button: Button
 var path_description: Label
-var direction_ui: Node2D
 
 
 func setup(owner_tower: BaseTower) -> void:
@@ -55,7 +32,6 @@ func setup(owner_tower: BaseTower) -> void:
 	path_b_button = tower.get_node("pathui/PathB")
 	path_confirm_button = tower.get_node("pathui/ConfirmPath")
 	path_description = tower.get_node("pathui/Description")
-	_create_direction_ui()
 	update_menu_buttons()
 
 
@@ -76,8 +52,6 @@ func show_main_menu() -> void:
 	main_menu.visible = false
 	target_menu.visible = false
 	path_menu.visible = false
-	if direction_ui != null:
-		direction_ui.visible = false
 	update_menu_buttons()
 	_show_tower_details_if_selected()
 
@@ -90,8 +64,6 @@ func show_target_menu() -> void:
 	target_menu.visible = false
 	_configure_target_menu()
 	path_menu.visible = false
-	if direction_ui != null:
-		direction_ui.visible = false
 	_show_tower_details_if_selected()
 
 
@@ -103,8 +75,6 @@ func show_path_menu() -> void:
 	tower.show_current_range_preview()
 	main_menu.visible = false
 	target_menu.visible = false
-	if direction_ui != null:
-		direction_ui.visible = false
 	path_menu.visible = false
 	update_path_menu()
 	_show_tower_details_if_selected()
@@ -117,8 +87,6 @@ func close_menus() -> void:
 	main_menu.visible = false
 	target_menu.visible = false
 	path_menu.visible = false
-	if direction_ui != null:
-		direction_ui.visible = false
 	tower.set_range_preview(false)
 	if tower.main != null:
 		tower.main.clear_tower_details(tower)
@@ -128,8 +96,6 @@ func hide_action_menus() -> void:
 	main_menu.visible = false
 	target_menu.visible = false
 	path_menu.visible = false
-	if direction_ui != null:
-		direction_ui.visible = false
 
 
 func update_menu_buttons() -> void:
@@ -161,9 +127,6 @@ func update_menu_buttons() -> void:
 
 
 func refresh_attack_controls() -> void:
-	if direction_ui != null:
-		direction_ui.queue_free()
-		direction_ui = null
 	update_menu_buttons()
 
 
@@ -272,7 +235,6 @@ func update_layout() -> void:
 		and not main_menu.visible
 		and not target_menu.visible
 		and not path_menu.visible
-		and (direction_ui == null or not direction_ui.visible)
 	):
 		return
 	var viewport_size := tower.get_viewport_rect().size
@@ -348,44 +310,6 @@ func _get_drone_target_mode_name() -> String:
 	)
 
 
-func _create_direction_ui() -> void:
-	if not tower.uses_directional_aim():
-		return
-	direction_ui = Node2D.new()
-	direction_ui.name = "DirectionUI"
-	direction_ui.z_index = 101
-	direction_ui.z_as_relative = false
-	direction_ui.visible = false
-	tower.add_child(direction_ui)
-	for index in AIM_DIRECTIONS.size():
-		var button := Button.new()
-		button.name = "Direction%d" % index
-		button.text = AIM_DIRECTION_ARROWS[index]
-		button.tooltip_text = AIM_DIRECTION_NAMES[index]
-		button.focus_mode = Control.FOCUS_NONE
-		button.size = Vector2(36.0, 36.0)
-		button.position = (
-			AIM_DIRECTIONS[index] * DIRECTION_BUTTON_RADIUS
-			- button.size * 0.5
-		)
-		button.pressed.connect(_on_direction_button_pressed.bind(index))
-		direction_ui.add_child(button)
-
-
-func select_aim_direction(index: int) -> void:
-	if index < 0 or index >= AIM_DIRECTIONS.size():
-		return
-	tower.aim_direction = AIM_DIRECTIONS[index]
-	if tower.attack_component != null:
-		tower.attack_component.on_aim_direction_changed()
-	tower.target = null
-	tower.rotator.rotation = tower.aim_direction.angle()
-	tower.queue_redraw()
-	show_main_menu()
-
-
-func _on_direction_button_pressed(index: int) -> void:
-	select_aim_direction(index)
 
 
 func _show_tower_details_if_selected() -> void:

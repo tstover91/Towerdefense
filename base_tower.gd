@@ -528,11 +528,6 @@ func select_sidebar_target_mode(mode: int) -> void:
 		menu_controller.select_target_option(mode)
 
 
-func select_aim_direction(direction_index: int) -> void:
-	if menu_controller != null:
-		menu_controller.select_aim_direction(direction_index)
-
-
 func get_path_status_text() -> String:
 	return progression_controller.get_path_status_text()
 
@@ -672,6 +667,8 @@ func confirm_manual_target_position(world_position: Vector2) -> bool:
 	aim_direction = new_direction
 	directional_aim_marker_position = world_position
 	has_directional_aim_marker = true
+	if targeting_controller != null:
+		targeting_controller.request_target_refresh()
 	if attack_component != null:
 		attack_component.on_aim_direction_changed()
 	target = null
