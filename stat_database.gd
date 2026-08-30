@@ -3754,6 +3754,7 @@ static func get_tower_draft_entry(tower_id: StringName) -> Dictionary:
 		"display_name": tower["display_name"],
 		"texture": tower.get("texture"),
 		"description": description,
+		"placement_cost": int(tower["placement_cost"]),
 		"rarity": &"tower",
 		"category": " + ".join(type_names),
 		"stackable": false,

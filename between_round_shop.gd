@@ -215,6 +215,8 @@ func build_owned_items_text(owned_items: Dictionary) -> String:
 
 
 func update_owned_items_display(owned_items: Dictionary) -> void:
+	if owned_items_label == null:
+		return
 	var owned_text := build_owned_items_text(owned_items)
 	owned_items_label.text = owned_text
 	owned_items_label.tooltip_text = owned_text

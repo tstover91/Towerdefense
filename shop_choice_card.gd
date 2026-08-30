@@ -45,6 +45,9 @@ const SHOP_CARD_TEXTURES := {
 @onready var owned_label := find_child("OwnedLabel", true, false) as Label
 @onready var lock_button := find_child("LockButton", true, false) as Button
 @onready var choose_button := find_child("ChooseButton", true, false) as Button
+@onready var build_cost_label := find_child(
+	"BuildCostLabel", true, false
+) as Label
 @onready var rarity_banner := find_child(
 	"RarityBanner", true, false
 ) as PanelContainer
@@ -58,6 +61,7 @@ var default_owned_color := Color("596166")
 var shop_mode := false
 var item_price := 0
 var offer_locked := false
+var draft_build_cost := 0
 
 
 func _ready() -> void:
@@ -80,6 +84,7 @@ func display_item(
 	shop_mode = false
 	_set_card_content_visible(true)
 	item_id = item_stats["id"]
+	draft_build_cost = int(item_stats.get("placement_cost", 0))
 	reward_quantity = maxi(quantity, 1)
 	name_label.text = item_stats["display_name"]
 	portrait.texture = item_stats.get("texture") as Texture2D
@@ -102,7 +107,12 @@ func display_item(
 		StringName(item_stats.get("rarity", &"")) if show_owned_count else &""
 	)
 	choose_button.disabled = false
-	choose_button.text = get_choice_button_text(false)
+	if selected_panel_style != null:
+		choose_button.text = ""
+		if build_cost_label != null:
+			build_cost_label.text = "BUILD\n$%d" % draft_build_cost
+	else:
+		choose_button.text = get_choice_button_text(false)
 	lock_button.hide()
 
 
@@ -245,12 +255,16 @@ func _set_category_text(category_text: String) -> void:
 
 func set_selected(selected: bool) -> void:
 	choose_button.disabled = false
-	choose_button.text = get_choice_button_text(selected)
 	if selected_panel_style != null:
+		choose_button.text = ""
+		if build_cost_label != null:
+			build_cost_label.text = "BUILD\n$%d" % draft_build_cost
 		add_theme_stylebox_override(
 			"panel",
 			selected_panel_style if selected else default_panel_style
 		)
+	else:
+		choose_button.text = get_choice_button_text(selected)
 
 
 func get_choice_button_text(selected: bool) -> String:
