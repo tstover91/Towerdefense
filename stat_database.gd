@@ -1009,6 +1009,9 @@ const TOWER_ITEMS := {
 		"stat_defaults": {"bounce_count": 0},
 		"stat_additions": {"bounce_count": 1},
 		"stat_minimums": {"bounce_range": 5.0},
+		"unit_stat_defaults": {"bounce_count": 0},
+		"unit_stat_additions": {"bounce_count": 1},
+		"unit_stat_minimums": {"bounce_range": 5.0},
 	},
 	&"penetrator_rounds": {
 		"display_name": "Penetrator Rounds",
@@ -1020,6 +1023,8 @@ const TOWER_ITEMS := {
 		"required_all_tags": [&"projectile"],
 		"add_bonus_tags": [&"pierce"],
 		"pierce_count_add": 1,
+		"unit_stat_defaults": {"pierce_count": 0},
+		"unit_stat_additions": {"pierce_count": 1},
 	},
 	&"targeting_computer": {
 		"display_name": "Targeting Computer",
@@ -1105,6 +1110,7 @@ const TOWER_ITEMS := {
 		"required_all_tags": [&"projectile"],
 		"max_copies_per_tower": 1,
 		"stat_multipliers": {"damage": 0.70},
+		"unit_stat_multipliers": {"damage": 0.70},
 		"trigger_effects": {"additional_projectiles": 1},
 	},
 	&"live_wire": {

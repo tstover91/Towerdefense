@@ -1030,6 +1030,15 @@ func apply_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 				stats[key] = item["stat_overrides"][key]
 			if stats.has("unit_stats"):
 				var unit_stats: Dictionary = stats["unit_stats"]
+				_append_unique_tags(
+					unit_stats, "additional_type_tags", item.get("add_type_tags", [])
+				)
+				_append_unique_tags(
+					unit_stats, "additional_damage_tags", item.get("add_damage_tags", [])
+				)
+				_append_unique_tags(
+					unit_stats, "additional_bonus_tags", item.get("add_bonus_tags", [])
+				)
 				_apply_stat_defaults(
 					unit_stats, item.get("unit_stat_defaults", {})
 				)
@@ -1044,6 +1053,20 @@ func apply_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 				)
 				stats["unit_stats"] = unit_stats
 	return stats
+
+
+func _append_unique_tags(
+	stats: Dictionary,
+	key: String,
+	tags: Array
+) -> void:
+	var combined: Array = stats.get(key, []).duplicate()
+	for tag in tags:
+		var resolved_tag := StringName(tag)
+		if not combined.has(resolved_tag):
+			combined.append(resolved_tag)
+	if not combined.is_empty():
+		stats[key] = combined
 
 
 func _apply_stat_defaults(stats: Dictionary, defaults: Dictionary) -> void:

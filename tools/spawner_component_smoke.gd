@@ -72,11 +72,20 @@ func run_test() -> void:
 	# Base Factory deploys stationary technological Sentry Turrets.
 	if not _check(component.spawned_unit_id == &"sentry_turret", "Base Factory did not load its Sentry Turret."):
 		return
+	if not _check(tower.equip_item(&"ricochet_module"), "Factory could not equip Ricochet Module."):
+		return
+	var ricochet_stats: Dictionary = tower.get_current_effective_stats()["unit_stats"]
+	if not _check(int(ricochet_stats.get("bounce_count", 0)) == 1, "Ricochet Module did not add a bounce to Factory sentries."):
+		return
+	if not _check(float(ricochet_stats.get("bounce_range", 0.0)) >= 5.0, "Ricochet Module did not give Factory sentries a bounce range."):
+		return
 	if not _check(not tower.has_bonus_tag(&"reveal") and not component.uses_drone_targeting(), "Base Factory inherited Drone-only behavior."):
 		return
 	component.spawn_unit()
 	var sentry := component.active_units[0] as SpawnedUnit
 	if not _check(sentry.movement_type == GameStats.MOVEMENT_STATIONARY and sentry.type_tags.has(&"technology"), "Factory Sentry is not a stationary technological unit."):
+		return
+	if not _check(sentry.bounce_count == 1 and sentry.bounce_range_pixels > 0.0, "Spawned Factory Sentry did not inherit Ricochet Module."):
 		return
 	sentry.critical_chance = 0.0
 	sentry.patient_hunter_charge_seconds = 5.0
@@ -85,6 +94,23 @@ func run_test() -> void:
 		return
 	sentry.finish_patient_hunter_attack(true)
 	if not _check(is_zero_approx(sentry.patient_hunter_charge_seconds), "Spawned unit did not consume Patient Hunter charge."):
+		return
+	if not _check(tower.unequip_item(0) == &"patient_hunter", "Could not remove Patient Hunter for item inheritance checks."):
+		return
+	if not _check(tower.equip_item(&"penetrator_rounds"), "Factory could not equip Penetrator Rounds."):
+		return
+	if not _check(tower.equip_item(&"split_chamber"), "Factory could not equip Split Chamber."):
+		return
+	if not _check(tower.equip_item(&"scanner_implant"), "Factory could not equip Scanner Implant."):
+		return
+	var inherited_stats: Dictionary = tower.get_current_effective_stats()["unit_stats"]
+	if not _check(int(inherited_stats.get("pierce_count", 0)) == 1, "Factory units did not inherit Penetrator Rounds."):
+		return
+	if not _check(int(inherited_stats.get("damage", 0)) == roundi(float(ricochet_stats.get("damage", 0)) * 0.70), "Factory units did not inherit Split Chamber's damage penalty."):
+		return
+	if not _check(Array(inherited_stats.get("additional_bonus_tags", [])).has(&"reveal"), "Factory units did not inherit Scanner Implant's Reveal tag."):
+		return
+	if not _check(tower.item_controller.get_trigger_total(&"additional_projectiles") == 1.0, "Factory units did not expose Split Chamber's extra shot."):
 		return
 
 	# Drone Depot safely replaces Sentries with expendable mobile Drones.

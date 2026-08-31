@@ -149,6 +149,10 @@ func apply_stats(unit_stats: Dictionary) -> void:
 	movement_type = unit_stats.get("movement_type", movement_type)
 	if unit_stats.has("damage_tags"):
 		damage_tags.assign(unit_stats["damage_tags"])
+	for tag in unit_stats.get("additional_type_tags", []):
+		var type_tag := StringName(tag)
+		if not type_tags.has(type_tag):
+			type_tags.append(type_tag)
 	for tag in unit_stats.get("additional_damage_tags", []):
 		var damage_tag := StringName(tag)
 		if not damage_tags.has(damage_tag):
@@ -1086,16 +1090,22 @@ func apply_attack_knockback(
 func trigger_budget_explosion() -> void:
 	if budget_explosion_radius_pixels <= 0.0:
 		return
+	var resolved_explosion_radius := budget_explosion_radius_pixels
+	if (
+		is_instance_valid(parent_tower)
+		and parent_tower.has_method("get_explosion_radius_multiplier")
+	):
+		resolved_explosion_radius *= parent_tower.get_explosion_radius_multiplier()
 	if EXPLOSION_ZONE_SCENE != null and get_tree().current_scene != null:
 		if get_tree().current_scene.has_method("spawn_explosion_visual"):
 			get_tree().current_scene.spawn_explosion_visual(
-				global_position, budget_explosion_radius_pixels
+				global_position, resolved_explosion_radius
 			)
 		else:
 			var explosion_zone := EXPLOSION_ZONE_SCENE.instantiate() as Node2D
 			get_tree().current_scene.add_child(explosion_zone)
 			explosion_zone.global_position = global_position
-			explosion_zone.setup(budget_explosion_radius_pixels)
+			explosion_zone.setup(resolved_explosion_radius)
 	var explosion_damage := maxi(
 		roundi(float(damage) * budget_explosion_damage_multiplier),
 		1
@@ -1104,18 +1114,18 @@ func trigger_budget_explosion() -> void:
 		create_attack_context(&"drone_payload_explosion"),
 		get_tree(),
 		global_position,
-		budget_explosion_radius_pixels
+		resolved_explosion_radius
 	)
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if not AreaDamage.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_to_blast: float = global_position.distance_to(mob.global_position)
-		if distance_to_blast > budget_explosion_radius_pixels:
+		if distance_to_blast > resolved_explosion_radius:
 			continue
 		var dealt_damage := GameStats.get_explosion_damage(
 			explosion_damage,
 			distance_to_blast,
-			budget_explosion_radius_pixels
+			resolved_explosion_radius
 		)
 		apply_owned_damage(
 			mob,
@@ -1131,6 +1141,13 @@ func launch_projectile_volley(
 	attack_damage: int,
 	damage_type: StringName
 ) -> void:
+	var additional_projectiles := 0
+	if is_instance_valid(parent_tower):
+		var controller: Variant = parent_tower.get("item_controller")
+		if controller != null:
+			additional_projectiles = maxi(roundi(
+				controller.get_trigger_total(&"additional_projectiles")
+			), 0)
 	var aim_offset := current_target.global_position - global_position
 	var perpendicular := Vector2.UP
 	if not aim_offset.is_zero_approx():
@@ -1184,6 +1201,75 @@ func launch_projectile_volley(
 				false
 			)
 		)
+	for _additional_index in additional_projectiles:
+		launch_split_projectile(current_target, attack_damage, damage_type)
+
+
+func launch_split_projectile(
+	primary_target: Node2D,
+	attack_damage: int,
+	damage_type: StringName
+) -> void:
+	var projectile_target := get_split_projectile_target(primary_target)
+	var destination := projectile_target.global_position
+	if projectile_target == primary_target:
+		destination = global_position + (
+			primary_target.global_position - global_position
+		).rotated(deg_to_rad(6.0))
+	var projectile := PROJECTILE_SCENE.instantiate() as TowerProjectile
+	get_tree().current_scene.add_child(projectile)
+	projectile.global_position = global_position
+	projectile.setup(
+		projectile_target,
+		destination,
+		projectile_speed,
+		maxf(aim_radius_pixels, global_position.distance_to(destination)),
+		attack_damage,
+		damage_type,
+		impact_mode,
+		splash_radius_pixels,
+		pierce_count,
+		slow_duration,
+		stun_duration,
+		stun_affects_bosses,
+		bounce_count,
+		bounce_range_pixels,
+		false,
+		0.0,
+		false,
+		has_bonus_tag(&"reveal"),
+		StringName(parent_tower.get("tower_id")),
+		false,
+		pierce_loses_no_power,
+		1.0,
+		create_attack_context(&"spawned_projectile", null, true, true).derive(
+			projectile,
+			&"projectile",
+			&"spawned_projectile",
+			true
+		)
+	)
+
+
+func get_split_projectile_target(primary_target: Node2D) -> Node2D:
+	var closest_target := primary_target
+	var closest_distance_squared := INF
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if (
+			candidate == primary_target
+			or not candidate is Node2D
+			or not is_valid_target(candidate)
+			or global_position.distance_to(candidate.global_position)
+				> get_effective_attack_radius()
+		):
+			continue
+		var distance_squared := primary_target.global_position.distance_squared_to(
+			candidate.global_position
+		)
+		if distance_squared < closest_distance_squared:
+			closest_distance_squared = distance_squared
+			closest_target = candidate
+	return closest_target
 
 
 func perform_hitscan_attack(
