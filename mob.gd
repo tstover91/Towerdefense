@@ -97,7 +97,7 @@ var support_xp_awarded_by_source: Dictionary = {}
 
 func _draw() -> void:
 	if not radiation_stack_entries.is_empty():
-		var stack_count := radiation_stack_entries.size()
+		var stack_count := _get_total_radiation_amount()
 		var radiation_radius := get_projectile_hit_radius() + 10.0
 		draw_circle(Vector2.ZERO, radiation_radius, Color(0.58, 1.0, 0.08, 0.10))
 		draw_arc(
@@ -404,17 +404,17 @@ func apply_radiation(
 		), 1)
 	var was_empty := radiation_stack_entries.is_empty()
 	radiation_tick_interval = maxf(tick_interval, 0.05)
-	for _stack in stack_count:
-		radiation_stack_entries.append({
-			"damage": damage_per_stack,
-			"context": attack_context,
-		})
+	var added_radiation := stack_count * damage_per_stack
+	radiation_stack_entries.append({
+		"damage": added_radiation,
+		"context": attack_context,
+	})
 	if was_empty:
 		radiation_tick_remaining = radiation_tick_interval
 	_record_radiation_debug_event(&"apply", {
-		"added_stacks": stack_count,
-		"stacks_after": radiation_stack_entries.size(),
-		"damage_per_stack": damage_per_stack,
+		"added_stacks": added_radiation,
+		"stacks_after": _get_total_radiation_amount(),
+		"damage_per_stack": 1,
 	})
 	var source_tower := (
 		attack_context.get_root_tower() if attack_context != null else null
@@ -434,7 +434,7 @@ func _process_radiation(delta: float) -> void:
 
 
 func _trigger_radiation_tick() -> void:
-	var stacks_before := radiation_stack_entries.size()
+	var stacks_before := _get_total_radiation_amount()
 	var damage_by_source: Dictionary = {}
 	for entry in radiation_stack_entries:
 		var context: AttackContext = entry.get("context") as AttackContext
@@ -447,7 +447,9 @@ func _trigger_radiation_tick() -> void:
 			}
 		var source_data: Dictionary = damage_by_source[source_key]
 		source_data["damage"] = int(source_data["damage"]) + int(entry["damage"])
-		source_data["stack_count"] = int(source_data["stack_count"]) + 1
+		source_data["stack_count"] = (
+			int(source_data["stack_count"]) + int(entry["damage"])
+		)
 		damage_by_source[source_key] = source_data
 	var total_tick_damage := 0
 	for source_key in damage_by_source:
@@ -468,50 +470,63 @@ func _trigger_radiation_tick() -> void:
 		total_tick_damage += apply_damage(
 			requested_damage, &"radiation", false, false, tick_context
 		)
-	# Decay each source independently so a newer tower cannot push an older
-	# tower's stacks out of the shared Radiation pool. Within each source, keep
-	# the newest half of its stacks.
-	var stacks_to_keep_by_source: Dictionary = {}
-	for source_key in damage_by_source:
-		stacks_to_keep_by_source[source_key] = floori(
-			float(int(damage_by_source[source_key]["stack_count"])) * 0.5
-		)
+	# Radiation is stored as pending damage. Each application keeps its source
+	# attribution. Decay Suppressor fields affect the enemy's entire Radiation
+	# pool while it remains inside the evolved Irradiator's cone.
+	var radiation_retention := _get_radiation_tick_retention()
 	var surviving_entries: Array[Dictionary] = []
-	for entry_index in range(radiation_stack_entries.size() - 1, -1, -1):
-		var entry: Dictionary = radiation_stack_entries[entry_index]
-		var entry_context: AttackContext = entry.get("context") as AttackContext
-		var entry_source_key := (
-			entry_context.root_tower_instance_id
-			if entry_context != null else 0
+	for entry in radiation_stack_entries:
+		var remaining_damage := floori(
+			float(int(entry["damage"])) * radiation_retention
 		)
-		var remaining_to_keep := int(
-			stacks_to_keep_by_source.get(entry_source_key, 0)
-		)
-		if remaining_to_keep <= 0:
+		if remaining_damage <= 0:
 			continue
-		surviving_entries.push_front(entry)
-		stacks_to_keep_by_source[entry_source_key] = remaining_to_keep - 1
-	var removed_stacks := stacks_before - surviving_entries.size()
+		var surviving_entry := entry.duplicate()
+		surviving_entry["damage"] = remaining_damage
+		surviving_entries.append(surviving_entry)
 	radiation_stack_entries = surviving_entries
+	var stacks_after := _get_total_radiation_amount()
+	var removed_stacks := stacks_before - stacks_after
 	_record_radiation_debug_event(&"tick", {
 		"stacks_before": stacks_before,
 		"damage": total_tick_damage,
-		"stacks_after": radiation_stack_entries.size(),
+		"stacks_after": stacks_after,
 	})
 	_record_radiation_debug_event(&"decay", {
 		"removed_stacks": removed_stacks,
-		"stacks_after": radiation_stack_entries.size(),
+		"stacks_after": stacks_after,
 	})
 	queue_redraw()
 
 
 func get_radiation_stacks() -> int:
-	return radiation_stack_entries.size()
+	return _get_total_radiation_amount()
+
+
+func _get_total_radiation_amount() -> int:
+	var total := 0
+	for entry in radiation_stack_entries:
+		total += maxi(int(entry.get("damage", 0)), 0)
+	return total
+
+
+func _get_radiation_tick_retention() -> float:
+	for candidate in get_tree().get_nodes_in_group("towers"):
+		if not is_instance_valid(candidate):
+			continue
+		var component: Variant = candidate.get("attack_component")
+		if (
+			component != null
+			and component.has_method("suppresses_radiation_decay_for")
+			and component.suppresses_radiation_decay_for(self)
+		):
+			return 0.75
+	return 0.50
 
 
 func get_radiation_debug_state() -> Dictionary:
 	return {
-		"stacks": radiation_stack_entries.size(),
+		"stacks": _get_total_radiation_amount(),
 		"seconds_until_tick": radiation_tick_remaining,
 		"tick_interval": radiation_tick_interval,
 		"events": radiation_debug_events.duplicate(true),

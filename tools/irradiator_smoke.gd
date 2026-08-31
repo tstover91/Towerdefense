@@ -31,7 +31,8 @@ func run_test() -> void:
 	assert_radiation_decay_curve()
 	assert_isotope_converter()
 	assert_attack_modes()
-	print("Irradiator smoke test passed: family registration, halving Radiation decay, Isotope Converter safety, attack modes, and Reactor capstone data.")
+	assert_decay_suppressor()
+	print("Irradiator smoke test passed: family registration, Radiation decay, Isotope Converter safety, cone/Reactor modes, and Decay Suppressor.")
 	get_tree().quit()
 
 
@@ -41,6 +42,7 @@ func assert_family_registration() -> void:
 	assert(data["damage_tags"].has(&"radiation"))
 	assert(data["primary_damage_type"] == &"radiation")
 	assert(GameStats.get_tower_evolutions(&"irradiator").has(&"reactor"))
+	assert(GameStats.get_tower_evolutions(&"irradiator").has(&"decay_suppressor"))
 	var reactor: Dictionary = data["paths"]["a"]
 	assert(reactor["behavior_flags"]["irradiator_reactor"])
 	assert(reactor["level_20"]["behavior_values"]["reactor_radius"] > reactor["behavior_values"]["reactor_radius"])
@@ -56,17 +58,17 @@ func assert_radiation_decay_curve() -> void:
 	var starting_health: int = mob.health
 	mob.apply_radiation(8, 2, context, 1.0)
 	assert(mob.health == starting_health, "Applying Radiation must deal no direct damage.")
-	assert(mob.get_radiation_stacks() == 8)
+	assert(mob.get_radiation_stacks() == 16)
 	mob._process_radiation(1.0)
 	assert(mob.health == starting_health - 16)
-	assert(mob.get_radiation_stacks() == 4)
+	assert(mob.get_radiation_stacks() == 8)
 	mob._process_radiation(1.0)
 	assert(mob.health == starting_health - 24)
-	assert(mob.get_radiation_stacks() == 2)
+	assert(mob.get_radiation_stacks() == 4)
 	mob.apply_radiation(3, 2, context, 1.0)
-	assert(mob.get_radiation_stacks() == 5, "Reapplication must extend the damage tail.")
+	assert(mob.get_radiation_stacks() == 10, "Reapplication must extend the damage tail.")
 	var debug_state: Dictionary = mob.get_radiation_debug_state()
-	assert(debug_state["stacks"] == 5)
+	assert(debug_state["stacks"] == 10)
 	var event_types: Array[StringName] = []
 	for event in debug_state["events"]:
 		event_types.append(StringName(event["type"]))
@@ -88,7 +90,7 @@ func assert_radiation_decay_curve() -> void:
 	var surviving_by_source := {101: 0, 202: 0}
 	for entry in split_mob.radiation_stack_entries:
 		var entry_context: AttackContext = entry["context"] as AttackContext
-		surviving_by_source[entry_context.root_tower_instance_id] += 1
+		surviving_by_source[entry_context.root_tower_instance_id] += int(entry["damage"])
 	assert(surviving_by_source[101] == 2)
 	assert(surviving_by_source[202] == 1)
 	assert(split_mob.get_radiation_stacks() == 3)
@@ -116,10 +118,10 @@ func assert_isotope_converter() -> void:
 		40, &"ballistic", false, tower.tower_id, context
 	)
 	assert(target.health == starting_health - 20)
-	assert(target.get_radiation_stacks() == 1)
+	assert(target.get_radiation_stacks() == 13)
 	target._process_radiation(1.0)
 	assert(target.health == starting_health - 33)
-	assert(target.get_radiation_stacks() == 0)
+	assert(target.get_radiation_stacks() == 6)
 
 	var proc_target := _create_mob(Vector2(340.0, 300.0))
 	proc_target.armor = 0.0
@@ -132,7 +134,7 @@ func assert_isotope_converter() -> void:
 		40, &"ballistic", false, tower.tower_id, proc_context
 	)
 	assert(proc_target.health == proc_health - 20)
-	assert(proc_target.get_radiation_stacks() == 1)
+	assert(proc_target.get_radiation_stacks() == 13)
 	proc_target._process_radiation(1.0)
 	assert(proc_target.health == proc_health - 33)
 
@@ -149,6 +151,7 @@ func assert_isotope_converter() -> void:
 	electric_target._process_radiation(1.0)
 	assert(electric_target.electric_hit_count == 1)
 	assert(electric_target.electric_proc_damage == 6.0)
+	var radiation_before_lightning: int = electric_target.get_radiation_stacks()
 
 	var lightning_context := electric_context.derive(
 		electric_target, &"enemy", &"electric_lightning_proc", true,
@@ -159,7 +162,7 @@ func assert_isotope_converter() -> void:
 		40, &"electric", true, false, lightning_context
 	)
 	assert(electric_target.health == health_before_lightning - 40)
-	assert(electric_target.get_radiation_stacks() == 0)
+	assert(electric_target.get_radiation_stacks() == radiation_before_lightning)
 	assert(electric_target.electric_hit_count == 1)
 
 	var irradiator := _create_tower(fake_main, Vector2(400.0, 300.0))
@@ -186,8 +189,8 @@ func assert_attack_modes() -> void:
 	var cone_component := cone_tower.attack_component as IrradiatorAttackComponent
 	cone_component.process_attack(0.0)
 	assert(first.health == first_health and second.health == second_health)
-	assert(first.get_radiation_stacks() == 1)
-	assert(second.get_radiation_stacks() == 1)
+	assert(first.get_radiation_stacks() == cone_tower.damage * 4)
+	assert(second.get_radiation_stacks() == cone_tower.damage * 4)
 
 	var reactor := _create_tower(fake_main, Vector2(900.0, 500.0), &"a", 3)
 	var inside := _create_mob(Vector2(950.0, 500.0))
@@ -195,9 +198,31 @@ func assert_attack_modes() -> void:
 	var reactor_component := reactor.attack_component as IrradiatorAttackComponent
 	assert(reactor_component.reactor_enabled)
 	reactor_component.process_attack(0.0)
-	assert(inside.get_radiation_stacks() == 1)
+	assert(inside.get_radiation_stacks() == reactor.damage * 3)
 	assert(outside.get_radiation_stacks() == 0)
 	assert(reactor_component.total_reactor_applications >= 1)
+
+
+func assert_decay_suppressor() -> void:
+	var fake_main := FakeMain.new()
+	add_child(fake_main)
+	var tower := _create_tower(fake_main, Vector2(500.0, 700.0), &"b", 3)
+	var target := _create_mob(Vector2(550.0, 700.0))
+	tower.target = target
+	var component := tower.attack_component as IrradiatorAttackComponent
+	assert(component.decay_suppressor_enabled)
+	assert(not component.reactor_enabled)
+	var outside_context := AttackContext.legacy(&"invader", &"external_radiation")
+	target.apply_radiation(1, 100, outside_context, 1.0)
+	var starting_health: int = target.health
+	target._process_radiation(1.0)
+	assert(target.health == starting_health - 100)
+	assert(target.get_radiation_stacks() == 75)
+	target.global_position = Vector2(900.0, 700.0)
+	starting_health = target.health
+	target._process_radiation(1.0)
+	assert(target.health == starting_health - 75)
+	assert(target.get_radiation_stacks() == 37)
 
 
 func _create_tower(

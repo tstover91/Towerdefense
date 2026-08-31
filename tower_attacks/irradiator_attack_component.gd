@@ -11,6 +11,7 @@ var application_remaining := 0.0
 var reactor_enabled := false
 var reactor_radius_pixels := 0.0
 var reactor_application_interval := 0.75
+var decay_suppressor_enabled := false
 var last_application_count := 0
 var total_reactor_applications := 0
 
@@ -32,11 +33,14 @@ func load_level_stats(stats: Dictionary) -> void:
 
 func reset_path_behaviors() -> void:
 	reactor_enabled = false
+	decay_suppressor_enabled = false
 	reactor_radius_pixels = 0.0
 	reactor_application_interval = 0.75
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
+	if bool(flags.get("irradiator_decay_suppressor", false)):
+		decay_suppressor_enabled = true
 	if not bool(flags.get("irradiator_reactor", false)):
 		return
 	reactor_enabled = true
@@ -160,3 +164,22 @@ func _get_cone_targets() -> Array[Node2D]:
 		if aim_direction.dot(offset.normalized()) >= minimum_dot:
 			targets.append(candidate as Node2D)
 	return targets
+
+
+func suppresses_radiation_decay_for(candidate: Node2D) -> bool:
+	if (
+		not decay_suppressor_enabled
+		or not tower.is_placed
+		or not tower.is_combat_active()
+		or not tower.is_valid_area_target(candidate)
+		or not tower.is_valid_target(tower.target)
+	):
+		return false
+	var offset := candidate.global_position - tower.global_position
+	if offset.is_zero_approx() or offset.length() > tower.range_radius_pixels:
+		return false
+	var aim_direction := tower.global_position.direction_to(
+		tower.target.global_position
+	)
+	var minimum_dot := cos(deg_to_rad(cone_degrees) * 0.5)
+	return aim_direction.dot(offset.normalized()) >= minimum_dot

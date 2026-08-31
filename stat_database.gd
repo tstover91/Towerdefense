@@ -37,8 +37,8 @@ const CRIPPLING_CURRENT_DURATION := 3.0
 const AFTERSHOCK_DAMAGE_MULTIPLIER := 0.40
 const AFTERSHOCK_RADIUS := BUILD_CELL_SIZE * 1.50
 const ISOTOPE_CONVERTER_DIRECT_DAMAGE_RATIO := 0.50
-const ISOTOPE_CONVERTER_RADIATION_DAMAGE_RATIO := 0.33
-const ISOTOPE_CONVERTER_NATIVE_RADIATION_MULTIPLIER := 1.33
+const ISOTOPE_CONVERTER_RADIATION_DAMAGE_RATIO := 1.0 / 3.0
+const ISOTOPE_CONVERTER_NATIVE_RADIATION_MULTIPLIER := 4.0 / 3.0
 
 # Shared Normal-mode progression data. General-family enemies keep fixed beats;
 # three other families and two upgrades are selected separately for each run.
@@ -287,7 +287,7 @@ const MAXIMUM_PAYLOAD_RADIUS_MULTIPLIER := 1.50
 const MAXIMUM_PAYLOAD_DAMAGE_MULTIPLIER := 1.50
 const MAXIMUM_PAYLOAD_INTERVAL_MULTIPLIER := 1.75
 
-const LUCKY_SHOT_CHANCE_PER_STACK := 0.20
+const LUCKY_SHOT_CHANCE_PER_STACK := 0.10
 const PROBABILITY_TRANSMITTER_RADIUS := BUILD_CELL_SIZE * 5.0
 const GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS := 1.0
 const GLASS_CANNON_NONCRITICAL_MULTIPLIER := 0.80
@@ -330,8 +330,8 @@ const FRENZY_MAXIMUM_ENEMY_COUNT := 10
 const FRENZY_ACTIVE_DURATION := 4.0
 const FRENZY_COOLDOWN_DURATION := 6.0
 
-const DUELIST_ONE_ENEMY_DAMAGE_PER_STACK := 0.45
-const DUELIST_TWO_ENEMY_DAMAGE_PER_STACK := 0.25
+const DUELIST_ONE_ENEMY_DAMAGE_PER_STACK := 0.30
+const DUELIST_TWO_ENEMY_DAMAGE_PER_STACK := 0.15
 
 const STRENGTH_IN_NUMBERS_DAMAGE_PER_NEIGHBOR := 0.20
 const STRENGTH_IN_NUMBERS_MAXIMUM_NEIGHBORS := 4
@@ -473,12 +473,12 @@ const LEGACY_ITEM_TEMPLATES := {
 	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce once to another enemy within 3 tiles.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
 	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit, but their base critical multiplier is 1.5x before other relic modifiers.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"frenzy": {"display_name": "Frenzy", "description": "For 4 seconds, attacks become 6% faster per enemy in range per stack, counting up to 10 enemies. Then enters a 6-second cooldown at normal speed.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"duelist"]},
-	"duelist": {"display_name": "Duelist", "description": "Melee damage gains 45% per stack with one enemy in range or 25% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"frenzy"]},
+	"duelist": {"display_name": "Duelist", "description": "Damage gains 30% per stack with one enemy in range or 15% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"frenzy"]},
 	"relentless": {"display_name": "Relentless", "description": "Gain 15% Melee attack speed after each attack against the same primary target, up to five stacks. Changing targets resets it.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"giant_killer": {"display_name": "Giant Killer", "description": "Melee attacks deal 35% more damage to elites and bosses, but 15% less to normal enemies.", "rarity": &"common", "category": &"melee", "stackable": true},
 	"strength_in_numbers": {"display_name": "Strength in Numbers", "description": "Gain 20% Melee damage per nearby Melee tower, counting up to four.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"lone_wolf": {"display_name": "Lone Wolf", "description": "A Melee tower gains 50% damage, 35% attack speed, and 25% range while it is the only copy of that specific tower built. Mech Bay counts per bay, not per active mech.", "rarity": &"legendary", "category": &"melee", "stackable": false},
-	"high_yield": {"display_name": "High Yield", "description": "Explosions are 50% larger per stack, but attacks are 15% slower per stack.", "rarity": &"common", "category": &"explosive", "stackable": true, "exclusive_with": [&"concentrated_charge"]},
+	"high_yield": {"display_name": "High Yield", "description": "Explosions are 50% larger, but attacks are 15% slower.", "rarity": &"common", "category": &"explosive", "stackable": false, "exclusive_with": [&"concentrated_charge"]},
 	"concentrated_charge": {"display_name": "Concentrated Charge", "description": "Explosion radius is reduced by 20% per stack, but damage increases by 40% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true, "exclusive_with": [&"high_yield"]},
 	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosions gain 12% damage per enemy caught, up to 150% bonus damage.", "rarity": &"rare", "category": &"explosive", "stackable": false, "exclusive_with": [&"direct_hit"]},
 	"direct_hit": {"display_name": "Direct Hit", "description": "Explosions gain 60% damage against one target, 30% against two, or 15% against three.", "rarity": &"rare", "category": &"explosive", "stackable": false, "exclusive_with": [&"crowd_pleaser"]},
@@ -489,7 +489,7 @@ const LEGACY_ITEM_TEMPLATES := {
 	"overcharged_capacitor": {"display_name": "Overcharged Capacitor", "description": "Lightning procs take 1.5x as many hits to activate per stack, but deal 3x damage per stack.", "rarity": &"common", "category": &"electric", "stackable": true},
 	"static_discharge": {"display_name": "Static Discharge", "description": "Lightning procs deal only 50% damage to the primary target, but deal 35% of the full strike to enemies in a small radius.", "rarity": &"rare", "category": &"electric", "stackable": false},
 	"chain_lightning": {"display_name": "Chain Lightning", "description": "Lightning procs jump to the closest other enemy for full damage.", "rarity": &"rare", "category": &"electric", "stackable": false},
-	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 20 percentage points per stack.", "rarity": &"common", "category": &"critical", "stackable": true},
+	"lucky_shot": {"display_name": "Lucky Shot", "description": "Critical-hit chance increases by 10 percentage points per stack.", "rarity": &"common", "category": &"critical", "stackable": true},
 	"glass_cannon": {"display_name": "Glass Cannon", "description": "Adds +2x critical damage, but non-critical attacks deal 30% less damage.", "rarity": &"rare", "category": &"critical", "stackable": false},
 	"pressure_point": {"display_name": "Pressure Point", "description": "Critical hits ignore armor.", "rarity": &"rare", "category": &"critical", "stackable": false, "enabled": false},
 	"deadeye": {"display_name": "Deadeye", "description": "Adds +2x to the critical-hit multiplier, but every attack has a 20% chance to miss.", "rarity": &"rare", "category": &"critical", "stackable": false},
@@ -1348,12 +1348,12 @@ const ADAPTED_TOWER_ITEMS := {
 	&"suppressive_fire": {"rarity": &"uncommon", "price": 625, "max_copies_per_tower": 1, "description": "Damaging attacks Slow enemies for at least 1 second."},
 	&"experimental_munitions": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 1, "description": "Grants Critical to this Ballistic tower with a base 1.5x critical multiplier.", "shop_enabled": false},
 	&"frenzy": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "For 4 seconds, attacks become 6% faster per enemy in range per copy, counting up to 10 enemies. Then enters a 6-second cooldown at normal speed."},
-	&"duelist": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "Per copy: +45% damage with one enemy in range or +25% with two."},
+	&"duelist": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "Per copy: +30% damage with one enemy in range or +15% with two."},
 	&"relentless": {"rarity": &"rare", "price": 900, "max_copies_per_tower": 1, "description": "Deal 20% less damage. Consecutive attacks against the same primary target gain 15% attack speed, up to five stacks; changing targets resets all stacks."},
 	&"giant_killer": {"rarity": &"common", "price": 425, "max_copies_per_tower": 4, "description": "Per copy: +35% damage to elites and bosses, but 15% less damage to normal enemies."},
 	&"strength_in_numbers": {"rarity": &"common", "price": 425, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "+20% Melee damage per nearby Melee tower per copy, counting up to four neighbors.", "shop_enabled": false},
 	&"lone_wolf": {"rarity": &"uncommon", "price": 700, "shop_enabled": false, "description": "+50% damage, +35% attack speed, and +25% range while this is the only built copy of its tower family."},
-	&"high_yield": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"], "max_copies_per_tower": 4, "description": "Per copy: explosions are 50% larger, but attacks are 15% slower."},
+	&"high_yield": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1, "description": "Explosions are 50% larger, but attacks are 15% slower."},
 	&"concentrated_charge": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"], "max_copies_per_tower": 4},
 	&"crowd_pleaser": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1},
 	&"direct_hit": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1},
@@ -1363,7 +1363,7 @@ const ADAPTED_TOWER_ITEMS := {
 	&"overcharged_capacitor": {"rarity": &"uncommon", "price": 625, "required_all_tags": [&"electric"], "max_copies_per_tower": 1, "description": "Lightning activates after 8 Electric hits instead of 5, but deals double damage."},
 	&"static_discharge": {"rarity": &"rare", "price": 875, "required_all_tags": [&"electric"], "max_copies_per_tower": 1},
 	&"chain_lightning": {"rarity": &"uncommon", "price": 675, "required_all_tags": [&"electric"], "max_copies_per_tower": 4, "description": "Lightning gains one jump per copy. The first jump deals 75% damage, and each later jump deals 75% of the previous jump."},
-	&"lucky_shot": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4},
+	&"lucky_shot": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "+10 percentage points of critical-hit chance per copy."},
 	&"glass_cannon": {"rarity": &"common", "price": 450, "max_copies_per_tower": 4, "description": "Per copy: +1x critical damage, but non-critical damage is multiplied by 0.8."},
 	&"pressure_point": {"rarity": &"uncommon", "price": 675, "max_copies_per_tower": 1},
 	&"deadeye": {"rarity": &"common", "price": 450, "max_copies_per_tower": 4, "description": "Per copy: +2x critical damage, but adds a compounding 20% miss chance.", "shop_enabled": false},
@@ -1416,6 +1416,7 @@ const TOWER_EVOLUTIONS := {
 	},
 	&"irradiator": {
 		&"reactor": {"legacy_path_id": &"a"},
+		&"decay_suppressor": {"legacy_path_id": &"b"},
 	},
 	&"slinger": {
 		&"explosive_ricochet": {"legacy_path_id": &"a"},
@@ -1486,7 +1487,7 @@ const TOWERS := {
 		"b": {
 			"display_name": "Laser Cannon",
 			"description": "Charges a fixed one-second Beam that damages every 0.25 seconds and pierces up to five enemies. At Level 20, the Beam gains infinite Pierce.",
-			"cost": 3500,
+			"cost": 3150,
 			"delivery_type": DELIVERY_HITSCAN,
 			"remove_damage_tags": [&"ballistic"],
 			"add_damage_tags": [&"beam"],
@@ -1511,7 +1512,7 @@ const TOWERS := {
 		"c": {
 			"display_name": "Gauss Gunner",
 			"description": "A rapid projectile weapon that tightens its aim during sustained fire. At Level 20, sustained fire also overclocks its attack speed.",
-			"cost": 3500,
+			"cost": 3150,
 			"delivery_type": DELIVERY_PROJECTILE,
 			"impact_mode": IMPACT_FIRST_CONTACT,
 			"remove_damage_tags": [&"ballistic"],
@@ -1599,7 +1600,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Trapper Fisherman",
 				"description": "Periodically lays Explosive mines on nearby path cells, then reels enemies back through the trapped lane.",
-				"cost": 3500,
+				"cost": 3150,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
 				"behavior_flags": {"fisherman_mines": true},
@@ -1777,7 +1778,7 @@ const TOWERS := {
 	"brainiac": {
 		"display_name": "Psion",
 		"description": "A focused psionic beam tower that can evolve into a single-target Brainiac or a Time Bubble-controlling Temporal Eye.",
-		"placement_cost": 2000,
+		"placement_cost": 1750,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"beam"],
@@ -1789,7 +1790,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Brainiac",
 				"description": "The focused beam starts at 75% damage and gains 25% every 0.5 seconds on one target, up to 200%. Level 20 unlocks Psionic Link and raises the cap to 250%.",
-				"cost": 6500,
+				"cost": 5525,
 				"unlock_level": 3,
 				"behavior_flags": {"brainiac_ramping_beam": true},
 				"behavior_values": {
@@ -1818,7 +1819,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Temporal Eye",
 				"description": "Replaces the focused beam with a stationary Time Bubble. Four orbiting eyes fire inward, sweeping Beam damage through Slowed and Revealed enemies.",
-				"cost": 6500,
+				"cost": 5525,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"reveal"],
 				"stat_overrides": {"firerate": 5.0},
@@ -2093,7 +2094,7 @@ const TOWERS := {
 	},
 	"longshot": {
 		"display_name": "Longshot",
-		"placement_cost": 1675,
+		"placement_cost": 1475,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"ballistic"],
@@ -2103,7 +2104,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Anti-Materiel",
 				"description": "Fires massively amplified shots with a 3x critical multiplier, but reloads 25% slower. At Level 20, critical damage increases to 4x.",
-				"cost": 4500,
+				"cost": 4050,
 				"unlock_level": 3,
 				"stat_multipliers": {
 					"damage": 2.07,
@@ -2121,7 +2122,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Kill Chain",
 				"description": "Kills reduce Longshot's remaining reload by 50%. Critical kills reduce it by 90%. At Level 20, kills reduce it by 65% and critical kills complete the reload.",
-				"cost": 4500,
+				"cost": 4050,
 				"unlock_level": 3,
 				"behavior_flags": {"longshot_kill_chain": true},
 				"behavior_values": {
@@ -2187,7 +2188,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Explosive Ricochet",
 				"description": "Increases impact damage by 10%. The initial hit and every bounced impact create an Explosive blast dealing 35% damage in a 2.5-tile radius. At Level 20, blasts deal 50% damage in a 3.25-tile radius.",
-				"cost": 3750,
+				"cost": 3375,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
 				"stat_multipliers": {
@@ -2213,7 +2214,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Razor Disc",
 				"description": "Increases impact damage by 60%. The disc pierces every enemy in its line until maximum range. At Level 20, it no longer loses damage after each enemy.",
-				"cost": 3750,
+				"cost": 3375,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"pierce"],
 				"pierce_count_add": 1,
@@ -2285,7 +2286,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Orb Barrage",
 				"description": "Fires a simultaneous five-orb fan at a slower rate. At Level 20, the barrage expands to seven orbs.",
-				"cost": 5000,
+				"cost": 4500,
 				"unlock_level": 3,
 				"stat_multipliers": {
 					"damage": 0.80,
@@ -2307,7 +2308,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Singularity",
 				"description": "Creates a wide Singularity that pulls enemies together for one second before exploding. At Level 20, it recharges faster, pulls harder, and deals 4x damage.",
-				"cost": 4500,
+				"cost": 4050,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"psionic"],
 				"behavior_flags": {"void_singularity": true},
@@ -2394,7 +2395,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Solar Lance",
 				"description": "Replaces the Explosive stunning strike with a 1.5-second, two-tile-wide Beam that intensifies as it repeatedly damages and slows every enemy inside. At Level 20, it lasts two seconds and deals more damage per tick.",
-				"cost": 5000,
+				"cost": 4500,
 				"unlock_level": 3,
 				"stat_multipliers": {"firerate": 1.40},
 				"remove_damage_tags": [&"explosive"],
@@ -2433,7 +2434,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Bombardment",
 				"description": "Replaces each strike with five smaller staggered strikes around the selected location. At Level 20, each bombardment fires seven strikes.",
-				"cost": 5500,
+				"cost": 4675,
 				"unlock_level": 3,
 				"behavior_flags": {"orbital_bombardment": true},
 				"behavior_values": {
@@ -2457,7 +2458,7 @@ const TOWERS := {
 			"c": {
 				"display_name": "Atomic Strike",
 				"description": "Fires extremely slowly, but creates an enormous initial explosion. Survivors receive heavy Radiation and the blast site remains contaminated by Fallout. At Level 20, the blast and Fallout grow while exposure is applied faster.",
-				"cost": 6500,
+				"cost": 5525,
 				"unlock_level": 3,
 				"stat_multipliers": {"firerate": 4.0},
 				"add_damage_tags": [&"radiation"],
@@ -2624,7 +2625,7 @@ const TOWERS := {
 	},
 	"saucer": {
 		"display_name": "Saucer",
-		"placement_cost": 1675,
+		"placement_cost": 1475,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"electric"],
@@ -2636,7 +2637,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Gunship",
 				"description": "Abandons abduction for a faster Electric gun and twin homing rockets with a 3-tile blast radius.",
-				"cost": 3500,
+				"cost": 3150,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
 				"stat_multipliers": {"firerate": 0.80},
@@ -2824,7 +2825,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Drone Depot",
 				"description": "Replaces Sentry Turrets with mobile ranged Drones. Each Drone is destroyed when it spends its damage budget. At Level 20, depleted Drones explode before being rebuilt.",
-				"cost": 4000,
+				"cost": 3600,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"reveal"],
 				"stat_overrides": {
@@ -2858,7 +2859,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Mech Bay",
 				"description": "Replaces Sentry Turrets with one heavy guard Mech. It hunts within the Factory's range and delivers slow, powerful knockback attacks. At Level 20, it periodically performs an area Ground Slam.",
-				"cost": 4800,
+				"cost": 4300,
 				"unlock_level": 3,
 				"remove_damage_tags": [&"ballistic"],
 				"add_damage_tags": [&"melee"],
@@ -3009,7 +3010,7 @@ const TOWERS := {
 	"irradiator": {
 		"display_name": "Irradiator",
 		"description": "An atomic-age alien isotope projector. Its cone deals no immediate damage; every enemy caught gains decaying Radiation stacks that deal damage each second.",
-		"placement_cost": 550,
+		"placement_cost": 425,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"radiation"],
@@ -3027,15 +3028,24 @@ const TOWERS := {
 				"behavior_values": {
 					"reactor_radius": 4.5,
 					"reactor_application_interval": 0.75,
-					"reactor_stacks_per_application": 1,
+					"reactor_stacks_per_application": 3,
 				},
 				"level_20": {
 					"behavior_flags": {"irradiator_reactor": true},
 					"behavior_values": {
 						"reactor_radius": 6.0,
 						"reactor_application_interval": 0.50,
-						"reactor_stacks_per_application": 1,
+						"reactor_stacks_per_application": 4,
 					},
+				},
+			},
+			"b": {
+				"display_name": "Decay Suppressor",
+				"description": "Keeps the directional cone. While an enemy remains inside it, all Radiation on that enemy loses only 25% per tick instead of 50%.",
+				"cost": 3200,
+				"unlock_level": 3,
+				"behavior_flags": {
+					"irradiator_decay_suppressor": true,
 				},
 			},
 		},
@@ -3046,7 +3056,7 @@ const TOWERS := {
 				"firerate": 0.65,
 				"range": 6.5,
 				"radiation_cone_degrees": 55.0,
-				"radiation_stacks_per_application": 1,
+				"radiation_stacks_per_application": 4,
 			},
 			{
 				"upgrade_cost": 375,
@@ -3054,7 +3064,7 @@ const TOWERS := {
 				"firerate": 0.60,
 				"range": 7.0,
 				"radiation_cone_degrees": 60.0,
-				"radiation_stacks_per_application": 1,
+				"radiation_stacks_per_application": 4,
 			},
 			{
 				"upgrade_cost": 825,
@@ -3062,7 +3072,7 @@ const TOWERS := {
 				"firerate": 0.55,
 				"range": 7.5,
 				"radiation_cone_degrees": 65.0,
-				"radiation_stacks_per_application": 1,
+				"radiation_stacks_per_application": 5,
 			},
 			{
 				"upgrade_cost": 1650,
@@ -3070,7 +3080,7 @@ const TOWERS := {
 				"firerate": 0.50,
 				"range": 8.0,
 				"radiation_cone_degrees": 70.0,
-				"radiation_stacks_per_application": 1,
+				"radiation_stacks_per_application": 8,
 			},
 		],
 	},

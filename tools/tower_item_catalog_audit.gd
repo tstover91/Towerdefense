@@ -40,7 +40,7 @@ const RECOGNIZED_ITEM_EFFECTS: Array[StringName] = [
 	&"lingering_thoughts", &"quick_thinking", &"perfect_intelligence",
 	&"follow_through", &"big_game_control", &"emergency_brake",
 	&"youre_not_special", &"trade_agreement",
-	&"radiation_conversion",
+	&"radiation_conversion", &"probability_transmitter",
 ]
 
 

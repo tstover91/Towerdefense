@@ -174,7 +174,9 @@ func run_test() -> void:
 	assert(invader.get_effect_stack_count(&"heavy_rounds") == 2)
 	assert(untouched_invader.get_effect_stack_count(&"heavy_rounds") == 0)
 	assert(not invader.has_bonus_tag(&"critical"))
-	assert(is_equal_approx(invader.critical_chance, 0.20))
+	assert(is_equal_approx(
+		invader.critical_chance, GameStats.LUCKY_SHOT_CHANCE_PER_STACK
+	))
 	assert(is_equal_approx(
 		invader.critical_multiplier, GameStats.DEFAULT_CRITICAL_MULTIPLIER
 	))

@@ -113,11 +113,25 @@ func run_test() -> void:
 	component.has_target_position = true
 	component.execute_manual_attack()
 	assert(mob.health < 100_000, "Atomic Strike must deal a large initial explosion.")
-	assert(mob.get_radiation_stacks() == 10, "Atomic Strike survivors must receive heavy Radiation.")
+	var radiation_per_application: int = maxi(roundi(
+		float(tower.damage) * component.atomic_radiation_damage_multiplier
+	), 1)
+	var expected_atomic_radiation: int = (
+		component.atomic_radiation_stacks * radiation_per_application
+	)
+	assert(
+		mob.get_radiation_stacks() == expected_atomic_radiation,
+		"Atomic Strike survivors must receive heavy Radiation."
+	)
 	assert(component.active_fallout_zones.size() == 1)
 	var fallout = component.active_fallout_zones[0]
 	fallout.apply_fallout()
-	assert(mob.get_radiation_stacks() == 11, "Fallout must repeatedly add Radiation inside the blast area.")
+	assert(
+		mob.get_radiation_stacks()
+		== expected_atomic_radiation
+			+ component.fallout_stacks_per_application * radiation_per_application,
+		"Fallout must repeatedly add Radiation inside the blast area."
+	)
 	component.clear_fallout_zones()
 	assert(component.active_fallout_zones.is_empty())
 
