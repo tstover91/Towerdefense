@@ -36,6 +36,9 @@ const CRIPPLING_CURRENT_ARMOR_REDUCTION := 2.0
 const CRIPPLING_CURRENT_DURATION := 3.0
 const AFTERSHOCK_DAMAGE_MULTIPLIER := 0.40
 const AFTERSHOCK_RADIUS := BUILD_CELL_SIZE * 1.50
+const ISOTOPE_CONVERTER_DIRECT_DAMAGE_RATIO := 0.50
+const ISOTOPE_CONVERTER_RADIATION_DAMAGE_RATIO := 0.33
+const ISOTOPE_CONVERTER_NATIVE_RADIATION_MULTIPLIER := 1.33
 
 # Shared Normal-mode progression data. General-family enemies keep fixed beats;
 # three other families and two upgrades are selected separately for each run.
@@ -1286,7 +1289,7 @@ const TOWER_ITEMS := {
 	},
 	&"isotope_converter": {
 		"display_name": "Isotope Converter",
-		"description": "Direct and secondary attack damage becomes Radiation at 50% power. Radiation attacks instead gain 50% Radiation damage.",
+		"description": "Hits retain 50% damage in their original type and apply Radiation at 33% power. Native Radiation attacks gain 33% Radiation damage.",
 		"rarity": &"rare",
 		"category": &"radiation",
 		"price": 900,

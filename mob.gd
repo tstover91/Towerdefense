@@ -398,7 +398,10 @@ func apply_radiation(
 			"radiation_conversion_applied", false
 		))
 	):
-		damage_per_stack = maxi(roundi(float(damage_per_stack) * 1.5), 1)
+		damage_per_stack = maxi(roundi(
+			float(damage_per_stack)
+			* GameStats.ISOTOPE_CONVERTER_NATIVE_RADIATION_MULTIPLIER
+		), 1)
 	var was_empty := radiation_stack_entries.is_empty()
 	radiation_tick_interval = maxf(tick_interval, 0.05)
 	for _stack in stack_count:
@@ -969,10 +972,6 @@ func apply_damage(
 		and bool(attack_context.metadata.get("shot_missed", false))
 	):
 		return 0
-	if _convert_attack_damage_to_radiation(
-		amount, damage_type, attack_context
-	):
-		return 0
 	var effective_armor := maxf(armor - temporary_armor_reduction, 0.0)
 	var thermite_affects_armor := (
 		amount > 0
@@ -998,7 +997,16 @@ func apply_damage(
 		and int(attack_context.metadata.get("charred_clothes", 0)) > 0
 	):
 		remove_hidden_trait(attack_context)
-	if not is_electric_proc:
+	if (
+		not is_electric_proc
+		and not (
+			damage_type == &"radiation"
+			and attack_context != null
+			and bool(attack_context.metadata.get(
+				"radiation_conversion_applied", false
+			))
+		)
+	):
 		amount = apply_attack_effect_damage_modifiers(
 			amount, damage_type, attack_context
 		)
@@ -1006,6 +1014,7 @@ func apply_damage(
 		amount = maxi(roundi(
 			float(amount) * GameStats.THERMITE_BOMBS_ARMORED_DAMAGE_MULTIPLIER
 		), 1)
+	amount = _apply_radiation_hybrid(amount, damage_type, attack_context)
 	var beholder_mark_multiplier := 1.0
 	if beholder_mark_remaining > 0.0 and beholder_mark_stacks > 0:
 		beholder_mark_multiplier = get_beholder_mark_damage_multiplier()
@@ -1098,7 +1107,15 @@ func apply_damage(
 		register_electric_hit(received_damage, attack_context)
 	if health <= 0:
 		if (
-			damage_type == &"beam"
+			(
+				damage_type == &"beam"
+				or (
+					attack_context != null
+					and StringName(attack_context.metadata.get(
+						"radiation_original_damage_type", &""
+					)) == &"beam"
+				)
+			)
 			and attack_context != null
 			and int(attack_context.metadata.get("microwave", 0)) > 0
 		):
@@ -1114,11 +1131,11 @@ func apply_damage(
 	return received_damage
 
 
-func _convert_attack_damage_to_radiation(
+func _apply_radiation_hybrid(
 	amount: int,
 	damage_type: StringName,
 	attack_context: AttackContext
-) -> bool:
+) -> int:
 	if (
 		amount <= 0
 		or damage_type == &"radiation"
@@ -1134,31 +1151,28 @@ func _convert_attack_damage_to_radiation(
 			&"tower", &"projectile", &"spawned_unit", &"item_proc"
 		]
 	):
-		return false
-	var radiation_damage := maxi(roundi(float(amount) * 0.5), 1)
+		return amount
+	var radiation_damage := maxi(roundi(
+		float(amount) * GameStats.ISOTOPE_CONVERTER_RADIATION_DAMAGE_RATIO
+	), 1)
+	attack_context.metadata["radiation_hybrid_hit"] = true
 	var radiation_context := attack_context.derive(
 		self,
 		&"status",
 		&"converted_radiation",
 		true,
-		{"radiation_conversion_applied": true}
+		{
+			"radiation_conversion_applied": true,
+			"radiation_original_damage_type": damage_type,
+			"radiation_original_source_kind": (
+				attack_context.immediate_source_kind
+			),
+		}
 	)
-	var root_tower := attack_context.get_root_tower()
-	if (
-		not attack_context.is_item_proc()
-		and is_instance_valid(root_tower)
-		and root_tower.has_method("notify_attack_converted")
-	):
-		root_tower.notify_attack_converted(
-			self, amount, attack_context, damage_type
-		)
-	# Native Electric attacks normally register after dealing direct damage.
-	# Conversion returns before that point, so register the original hit here.
-	# Live Wire is handled by notify_attack_converted above instead.
-	if damage_type == &"electric" and not attack_context.is_item_proc():
-		register_electric_hit(amount, attack_context)
 	apply_radiation(1, radiation_damage, radiation_context, 1.0)
-	return true
+	return maxi(roundi(
+		float(amount) * GameStats.ISOTOPE_CONVERTER_DIRECT_DAMAGE_RATIO
+	), 1)
 
 
 func credit_tower_damage(
@@ -1280,11 +1294,13 @@ func register_electric_hit(
 	)
 	if electric_hit_count < get_electric_proc_hit_requirement(attack_context):
 		return
-	var lightning_damage := maxi(roundi(
+	var lightning_damage := roundi(
 		electric_proc_damage * get_electric_proc_damage_multiplier(attack_context)
-	), 1)
+	)
 	electric_hit_count = 0
 	electric_proc_damage = 0.0
+	if lightning_damage <= 0:
+		return
 	trigger_electric_lightning_proc(lightning_damage, attack_context)
 
 

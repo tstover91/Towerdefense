@@ -333,7 +333,12 @@ func notify_enemy_killed(_enemy: Node, attack_context: AttackContext) -> void:
 		).get("trigger_effects", {})
 		if (
 			int(effects.get("afterimage_projectile_count", 0)) > 0
-			and attack_context.immediate_source_kind == &"projectile"
+			and (
+				attack_context.immediate_source_kind == &"projectile"
+				or StringName(attack_context.metadata.get(
+					"radiation_original_source_kind", &""
+				)) == &"projectile"
+			)
 			and not bool(attack_context.metadata.get("area_damage", false))
 		):
 			var killing_damage := maxi(

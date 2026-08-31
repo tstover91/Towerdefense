@@ -115,10 +115,10 @@ func assert_isotope_converter() -> void:
 	target.apply_damage_from_tower(
 		40, &"ballistic", false, tower.tower_id, context
 	)
-	assert(target.health == starting_health)
+	assert(target.health == starting_health - 20)
 	assert(target.get_radiation_stacks() == 1)
 	target._process_radiation(1.0)
-	assert(target.health == starting_health - 20)
+	assert(target.health == starting_health - 33)
 	assert(target.get_radiation_stacks() == 0)
 
 	var proc_target := _create_mob(Vector2(340.0, 300.0))
@@ -131,10 +131,10 @@ func assert_isotope_converter() -> void:
 	proc_target.apply_damage_from_tower(
 		40, &"ballistic", false, tower.tower_id, proc_context
 	)
-	assert(proc_target.health == proc_health)
+	assert(proc_target.health == proc_health - 20)
 	assert(proc_target.get_radiation_stacks() == 1)
 	proc_target._process_radiation(1.0)
-	assert(proc_target.health == proc_health - 20)
+	assert(proc_target.health == proc_health - 33)
 
 	var electric_target := _create_mob(Vector2(360.0, 300.0))
 	electric_target.armor = 0.0
@@ -143,10 +143,12 @@ func assert_isotope_converter() -> void:
 	electric_target.apply_damage_from_tower(
 		40, &"electric", false, tower.tower_id, electric_context
 	)
-	assert(electric_target.health == electric_health)
+	assert(electric_target.health == electric_health - 20)
 	assert(electric_target.electric_hit_count == 1)
+	assert(electric_target.electric_proc_damage == 6.0)
 	electric_target._process_radiation(1.0)
 	assert(electric_target.electric_hit_count == 1)
+	assert(electric_target.electric_proc_damage == 6.0)
 
 	var lightning_context := electric_context.derive(
 		electric_target, &"enemy", &"electric_lightning_proc", true,
@@ -169,7 +171,7 @@ func assert_isotope_converter() -> void:
 	native_target.apply_radiation(1, 20, native_context, 1.0)
 	var native_health: int = native_target.health
 	native_target._process_radiation(1.0)
-	assert(native_target.health == native_health - 30)
+	assert(native_target.health == native_health - 27)
 
 
 func assert_attack_modes() -> void:
