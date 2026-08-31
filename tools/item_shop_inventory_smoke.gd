@@ -60,7 +60,7 @@ func run_test() -> void:
 		unique_offers[item_id] = true
 	if not _check(unique_offers.size() == 4, "Initial shop rolled duplicate offers."):
 		return
-	if not _check(shop.get_reroll_cost() == 80, "Initial reroll cost was incorrect."):
+	if not _check(shop.get_reroll_cost() == 800, "Initial reroll cost was incorrect."):
 		return
 	shop.toggle_lock(2)
 	if not _check(
@@ -82,7 +82,7 @@ func run_test() -> void:
 		return
 	if not _check(not shop.offers[1].is_empty(), "Reroll did not refill a sold slot."):
 		return
-	if not _check(shop.get_reroll_cost() == 105, "Reroll cost did not escalate."):
+	if not _check(shop.get_reroll_cost() == 1050, "Reroll cost did not escalate."):
 		return
 	if not _check(purchased_id != &"", "Shop purchase fixture was invalid."):
 		return

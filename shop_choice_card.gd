@@ -1,6 +1,8 @@
 class_name ShopChoiceCard
 extends PanelContainer
 
+const GameStats = preload("res://stat_database.gd")
+
 signal chosen(item_id: StringName, quantity: int)
 signal lock_toggled(is_locked: bool)
 
@@ -110,7 +112,7 @@ func display_item(
 	if selected_panel_style != null:
 		choose_button.text = ""
 		if build_cost_label != null:
-			build_cost_label.text = "BUILD\n$%d" % draft_build_cost
+			build_cost_label.text = "BUILD\n$%s" % GameStats.format_money(draft_build_cost)
 	else:
 		choose_button.text = get_choice_button_text(false)
 	lock_button.hide()
@@ -154,7 +156,7 @@ func display_shop_item(
 		"Unlock this offer" if offer_locked else "Keep this offer when rerolling"
 	)
 	choose_button.disabled = not can_afford
-	choose_button.text = "$%d" % item_price
+	choose_button.text = "$%s" % GameStats.format_money(item_price)
 
 
 func display_empty_slot() -> void:
@@ -258,7 +260,7 @@ func set_selected(selected: bool) -> void:
 	if selected_panel_style != null:
 		choose_button.text = ""
 		if build_cost_label != null:
-			build_cost_label.text = "BUILD\n$%d" % draft_build_cost
+			build_cost_label.text = "BUILD\n$%s" % GameStats.format_money(draft_build_cost)
 		add_theme_stylebox_override(
 			"panel",
 			selected_panel_style if selected else default_panel_style

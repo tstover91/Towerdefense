@@ -212,11 +212,13 @@ func get_sell_price() -> int:
 		)
 		for automatic_path_id in tower.purchased_paths:
 			if automatic_path_values is Dictionary:
-				automatic_progression_sell_price += int(
+				automatic_progression_sell_price += GameStats.scale_money(int(
 					automatic_path_values.get(automatic_path_id, 0)
-				)
+				))
 			else:
-				automatic_progression_sell_price += int(automatic_path_values)
+				automatic_progression_sell_price += GameStats.scale_money(
+					int(automatic_path_values)
+				)
 		return automatic_progression_sell_price
 	if tower.tower_level <= 0 and tower.purchased_paths.is_empty():
 		return (
@@ -230,15 +232,17 @@ func get_sell_price() -> int:
 	if level_values.is_empty():
 		return int(GameStats.get_tower(tower.tower_id)["placement_cost"])
 	var level_index := mini(tower.tower_level, level_values.size() - 1)
-	var sell_price := int(level_values[level_index])
+	var sell_price := GameStats.scale_money(int(level_values[level_index]))
 	var path_sell_values: Variant = (
 		GameStats.TOWER_PATH_SELL_VALUE_ADDITIONS.get(tower.tower_id, {})
 	)
 	for path_id in tower.purchased_paths:
 		if path_sell_values is Dictionary:
-			sell_price += int(path_sell_values.get(path_id, 0))
+			sell_price += GameStats.scale_money(
+				int(path_sell_values.get(path_id, 0))
+			)
 		else:
-			sell_price += int(path_sell_values)
+			sell_price += GameStats.scale_money(int(path_sell_values))
 	return sell_price
 
 

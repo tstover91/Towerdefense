@@ -33,7 +33,7 @@ func _ready() -> void:
 
 func run_test() -> void:
 	var tower_data := GameStats.get_tower(&"fisherman")
-	assert(int(tower_data["placement_cost"]) == 167)
+	assert(int(tower_data["placement_cost"]) == 1670)
 	assert(tower_data["levels"].size() == 4)
 	assert(int(tower_data["levels"][0]["damage"]) == 150)
 	assert(float(tower_data["levels"][0]["firerate"]) == 2.0)
@@ -41,8 +41,8 @@ func run_test() -> void:
 	assert(float(tower_data["levels"][3]["firerate"]) == 1.75)
 	assert(float(tower_data["levels"][0]["range"]) == 12.75)
 	assert(float(tower_data["levels"][3]["range"]) == 16.5)
-	assert(int(tower_data["paths"]["a"]["cost"]) == 3000)
-	assert(int(tower_data["paths"]["b"]["cost"]) == 3500)
+	assert(int(tower_data["paths"]["a"]["cost"]) == 30000)
+	assert(int(tower_data["paths"]["b"]["cost"]) == 31500)
 	assert(tower_data["paths"]["a"]["display_name"] == "Angler")
 	assert(tower_data["paths"]["b"]["display_name"] == "Trapper Fisherman")
 	assert(tower_data["paths"]["c"]["display_name"] == "Storm Fisher")

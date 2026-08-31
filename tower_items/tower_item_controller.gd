@@ -954,12 +954,21 @@ func _get_item_conflict(
 
 func get_compatibility_tags() -> Array[StringName]:
 	var tags: Array[StringName] = [&"attack"]
+	var tower_data := GameStats.get_tower(tower.tower_id)
+	var projectile_item_eligible := bool(
+		tower_data.get("projectile_item_eligible", true)
+	)
+	for path_id in tower.purchased_paths:
+		var path := GameStats.get_tower_path(tower.tower_id, path_id)
+		if path.has("projectile_item_eligible"):
+			projectile_item_eligible = bool(path["projectile_item_eligible"])
 	for tag_group in [tower.type_tags, tower.damage_tags, tower.bonus_tags]:
 		for tag in tag_group:
 			if not tags.has(tag):
 				tags.append(tag)
 	if (
 		tower.delivery_type == GameStats.DELIVERY_PROJECTILE
+		and projectile_item_eligible
 		and not tower.damage_tags.has(BaseTower.DAMAGE_BEAM)
 		and not tags.has(&"projectile")
 	):

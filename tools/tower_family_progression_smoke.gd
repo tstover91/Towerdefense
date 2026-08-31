@@ -47,7 +47,7 @@ func run_test() -> void:
 	assert(GameStats.get_canonical_tower_family_id(&"mechbay") == &"dronedepot")
 	assert(GameStats.get_tower(&"brainiac")["display_name"] == "Psion")
 	assert(GameStats.get_tower(&"dronedepot")["display_name"] == "Alien Factory")
-	assert(GameStats.get_tower_evolutions(&"dronedepot").size() == 2)
+	assert(GameStats.get_tower_evolutions(&"dronedepot").size() == 3)
 
 	var invader_data := GameStats.get_tower(&"invader")
 	assert(invader_data["delivery_type"] == GameStats.DELIVERY_HITSCAN)

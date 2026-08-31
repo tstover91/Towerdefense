@@ -66,7 +66,7 @@ func get_reroll_cost() -> int:
 		REROLL_MINIMUM_COST_STEP,
 		REROLL_COST_STEP_PER_ROUND * current_shop_round
 	)
-	return base_cost + cost_step * reroll_count
+	return GameStats.scale_money(base_cost + cost_step * reroll_count)
 
 
 func has_rerollable_slots() -> bool:

@@ -1,6 +1,8 @@
 class_name ReaverAttackComponent
 extends TowerAttackComponent
 
+const SECONDARY_SWEEP_DAMAGE_MULTIPLIER := 0.75
+
 var melee_arc_degrees := 120.0
 var melee_max_targets := 2
 var assassinate_enabled := false
@@ -8,13 +10,13 @@ var assassinate_attack_interval := 3
 var assassinate_critical_multiplier_bonus := 0.0
 var assassinate_attack_counter := 0
 var champion_enabled := false
-var champion_spin_interval := 3
+var champion_spin_interval := 4
 var champion_spin_damage_multiplier := 1.5
 var champion_spin_radius_multiplier := 1.0
 var champion_spin_max_targets := 8
 var champion_attack_counter := 0
 var enforcer_enabled := false
-var enforcer_slam_interval := 3
+var enforcer_slam_interval := 4
 var enforcer_slam_radius_units := 2.5
 var enforcer_slam_max_targets := 8
 var enforcer_secondary_damage_multiplier := 0.75
@@ -37,12 +39,12 @@ func reset_path_behaviors() -> void:
 	assassinate_attack_interval = 3
 	assassinate_critical_multiplier_bonus = 0.0
 	champion_enabled = false
-	champion_spin_interval = 3
+	champion_spin_interval = 4
 	champion_spin_damage_multiplier = 1.5
 	champion_spin_radius_multiplier = 1.0
 	champion_spin_max_targets = 8
 	enforcer_enabled = false
-	enforcer_slam_interval = 3
+	enforcer_slam_interval = 4
 	enforcer_slam_radius_units = 2.5
 	enforcer_slam_max_targets = 8
 	enforcer_secondary_damage_multiplier = 0.75
@@ -57,13 +59,13 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 		assassinate_critical_multiplier_bonus = maxf(float(values.get("assassinate_critical_multiplier_bonus", 0.0)), 0.0)
 	if flags.get("reaver_champion", false):
 		champion_enabled = true
-		champion_spin_interval = maxi(int(values.get("champion_spin_interval", 3)), 1)
+		champion_spin_interval = maxi(int(values.get("champion_spin_interval", 4)), 1)
 		champion_spin_damage_multiplier = maxf(float(values.get("champion_spin_damage_multiplier", 1.5)), 0.0)
 		champion_spin_radius_multiplier = maxf(float(values.get("champion_spin_radius_multiplier", 1.0)), 0.1)
 		champion_spin_max_targets = maxi(int(values.get("champion_spin_max_targets", 8)), 1)
 	if flags.get("reaver_enforcer", false):
 		enforcer_enabled = true
-		enforcer_slam_interval = maxi(int(values.get("enforcer_slam_interval", 3)), 1)
+		enforcer_slam_interval = maxi(int(values.get("enforcer_slam_interval", 4)), 1)
 		enforcer_slam_radius_units = maxf(float(values.get("enforcer_slam_radius", 2.5)), 0.1)
 		enforcer_slam_max_targets = maxi(int(values.get("enforcer_slam_max_targets", 8)), 1)
 		enforcer_secondary_damage_multiplier = maxf(float(values.get("enforcer_secondary_damage_multiplier", 0.75)), 0.0)
@@ -123,7 +125,13 @@ func _execute_assassin_attack(current_target: Node2D, base_damage: int, attack_d
 func _execute_sweep(current_target: Node2D, base_damage: int, attack_direction: Vector2) -> bool:
 	var targets := _get_arc_targets(current_target, tower.global_position, attack_direction, tower.range_radius_pixels, melee_arc_degrees, melee_max_targets)
 	for target_index in targets.size():
-		_apply_direct_hit(targets[target_index], base_damage, &"reaver_sweep", false, 0.0, target_index > 0)
+		var target_damage := (
+			base_damage if target_index == 0
+			else maxi(roundi(
+				float(base_damage) * SECONDARY_SWEEP_DAMAGE_MULTIPLIER
+			), 1)
+		)
+		_apply_direct_hit(targets[target_index], target_damage, &"reaver_sweep", false, 0.0, target_index > 0)
 	_show_sweep(attack_direction, melee_arc_degrees, tower.range_radius_pixels)
 	return true
 

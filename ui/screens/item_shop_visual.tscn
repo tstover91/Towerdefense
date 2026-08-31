@@ -221,7 +221,7 @@ theme_override_styles/hover = SubResource("StyleDarkHover")
 theme_override_styles/hover_pressed = SubResource("StyleDarkPressed")
 theme_override_styles/disabled = SubResource("StyleDarkDisabled")
 theme_override_styles/focus = SubResource("StyleEmpty")
-text = "RECOVER 20 HEALTH · $150"
+text = "RECOVER 20 HEALTH · $1.5k"
 
 [node name="RerollButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopActions" unique_id=653561189]
 custom_minimum_size = Vector2(192, 66)
@@ -236,7 +236,7 @@ theme_override_styles/hover = SubResource("StyleDarkHover")
 theme_override_styles/hover_pressed = SubResource("StyleDarkPressed")
 theme_override_styles/disabled = SubResource("StyleDarkDisabled")
 theme_override_styles/focus = SubResource("StyleEmpty")
-text = "REROLL   $50"
+text = "REROLL   $500"
 
 [node name="ContinueButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn/ShopActions" unique_id=1937286081]
 custom_minimum_size = Vector2(191, 67)

@@ -278,11 +278,11 @@ func load_stats() -> void:
 		else GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER
 	)
 	speed = float(stats["move_speed"]) * standard_speed_multiplier * speed_multiplier
-	cash_reward = maxi(1, roundi(
+	cash_reward = GameStats.scale_money(maxi(1, ceili(
 		float(stats["cash_reward"])
 		* reward_multiplier
 		* GameStats.KILL_REWARD_MULTIPLIER
-	))
+	)))
 	base_damage = maxi(
 		1,
 		roundi(float(stats.get("base_damage", health)) * damage_multiplier)

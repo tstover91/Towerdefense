@@ -67,8 +67,16 @@ func run_test() -> void:
 	assert(is_equal_approx(component.minimum_range_pixels, 5.0 * BaseTower.RANGE_PIXELS_PER_UNIT))
 	assert(not component.is_valid_manual_target_position(tower.global_position + Vector2(20.0, 0.0)))
 	assert(component.is_valid_manual_target_position(mob.global_position))
-	component.target_position = mob.global_position
+	component.target_position = mob.global_position + Vector2(
+		component.TARGET_ACTIVATION_RADIUS_PIXELS + 1.0,
+		0.0
+	)
 	component.has_target_position = true
+	assert(
+		not component.has_manual_attack_opportunity(),
+		"Orbital attacks must not trigger from the outer explosion radius."
+	)
+	component.target_position = mob.global_position
 	assert(component.has_manual_attack_opportunity())
 	component.execute_manual_attack()
 	assert(component.active_solar_lances.size() == 1)

@@ -1,6 +1,8 @@
 class_name BetweenRoundShop
 extends Control
 
+const GameStats = preload("res://stat_database.gd")
+
 signal draft_confirmed(item_id: StringName, quantity: int)
 signal draft_health_requested
 signal item_purchase_requested(slot_index: int, item_id: StringName)
@@ -171,9 +173,9 @@ func refresh_item_shop(
 			current_money >= int(item.get("price", 0))
 		)
 	update_owned_items_display(inventory)
-	money_label.text = "$%d" % current_money
+	money_label.text = "$%s" % GameStats.format_money(current_money)
 	if reroll_button != null:
-		reroll_button.text = "REROLL   $%d" % reroll_cost
+		reroll_button.text = "REROLL   $%s" % GameStats.format_money(reroll_cost)
 	var has_unlocked_slot := false
 	for slot_index in cards.size():
 		if slot_index >= locked_slots.size() or not locked_slots[slot_index]:
@@ -228,7 +230,7 @@ func update_player_status(
 	current_money: int
 ) -> void:
 	health_label.text = "HEALTH %d/%d" % [current_health, maximum_health]
-	money_label.text = "$%d" % current_money
+	money_label.text = "$%s" % GameStats.format_money(current_money)
 
 
 func update_health_button(
@@ -242,9 +244,9 @@ func update_health_button(
 		health_button.text = "HEALTH FULL"
 		health_button.disabled = true
 		return
-	health_button.text = "RECOVER %d HEALTH · $%d" % [
+	health_button.text = "RECOVER %d HEALTH · $%s" % [
 		health_recovery,
-		health_cost,
+		GameStats.format_money(health_cost),
 	]
 	health_button.disabled = not can_buy_health
 

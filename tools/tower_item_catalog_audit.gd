@@ -121,7 +121,7 @@ func run_test() -> void:
 		if not test_tower.item_controller.is_item_compatible(item_id):
 			_equip_tag_prerequisites(test_tower, item_id, enabled_ids)
 		var maximum := int(item.get(
-			"max_copies_per_tower", GameStats.TOWER_ITEM_SLOT_COUNT
+			"max_copies_per_tower", GameStats.TOWER_ITEM_STACK_LIMIT
 		))
 		for copy_index in maximum:
 			if not _check(
@@ -291,11 +291,11 @@ func _check_catalog_definition(item_id: StringName, item: Dictionary) -> bool:
 		):
 			return false
 	var maximum := int(item.get(
-		"max_copies_per_tower", GameStats.TOWER_ITEM_SLOT_COUNT
+		"max_copies_per_tower", GameStats.TOWER_ITEM_STACK_LIMIT
 	))
 	return _check(
-		maximum == 1 or maximum == GameStats.TOWER_ITEM_SLOT_COUNT,
-		"%s must be single-copy or stack to the four-copy slot limit." % item_id
+		maximum == 1 or maximum == GameStats.TOWER_ITEM_STACK_LIMIT,
+		"%s must be single-copy or stack to the configured stack limit." % item_id
 	)
 
 

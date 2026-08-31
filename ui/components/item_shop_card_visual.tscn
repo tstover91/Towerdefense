@@ -159,4 +159,4 @@ theme_override_styles/hover = SubResource("StyleEmpty")
 theme_override_styles/hover_pressed = SubResource("StyleEmpty")
 theme_override_styles/disabled = SubResource("StyleEmpty")
 theme_override_styles/focus = SubResource("StyleEmpty")
-text = "$120"
+text = "$1.2k"

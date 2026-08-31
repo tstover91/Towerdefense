@@ -70,13 +70,13 @@ func run_test() -> void:
 		)
 		var max_copies := int(catalog_item.get("max_copies_per_tower", 0))
 		assert(
-			max_copies == 1 or max_copies == GameStats.TOWER_ITEM_SLOT_COUNT,
+			max_copies == 1 or max_copies == GameStats.TOWER_ITEM_STACK_LIMIT,
 			"%s must be single-copy or stack to the slot cap." % item_id
 		)
 		rarity_counts[rarity] = int(rarity_counts[rarity]) + 1
-	assert(rarity_counts[&"common"] == 19)
-	assert(rarity_counts[&"uncommon"] == 17)
-	assert(rarity_counts[&"rare"] == 19)
+	assert(rarity_counts[&"common"] == 18)
+	assert(rarity_counts[&"uncommon"] == 18)
+	assert(rarity_counts[&"rare"] == 18)
 	assert(rarity_counts[&"legendary"] == 0)
 	for held_id in [
 		&"network_upgrade",

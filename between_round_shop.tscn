@@ -131,12 +131,12 @@ visible = false
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Reroll · $50"
+text = "Reroll · $500"
 
 [node name="HealthButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
-text = "Recover 20 Health - $150"
+text = "Recover 20 Health - $1.5k"
 
 [node name="ContinueButton" type="Button" parent="InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"]
 custom_minimum_size = Vector2(0, 42)

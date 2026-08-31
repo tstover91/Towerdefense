@@ -64,7 +64,7 @@ func run_test() -> void:
 	if not _check(evolutions.has(&"assassin") and evolutions.has(&"champion") and evolutions.has(&"enforcer"), "Reaver evolution roster is incomplete."):
 		return
 	var levels: Array = GameStats.get_tower(&"reaver")["levels"]
-	if not _check(float(levels[0]["melee_arc_degrees"]) == 120.0 and int(levels[3]["melee_max_targets"]) == 4, "Base Reaver sweep progression is wrong."):
+	if not _check(float(levels[0]["melee_arc_degrees"]) == 120.0 and int(levels[3]["melee_max_targets"]) == 3, "Base Reaver sweep progression is wrong."):
 		return
 	if not _check(is_equal_approx(float(levels[3]["range"]), 7.5), "Base Reaver did not receive its shorter melee range."):
 		return
@@ -74,7 +74,7 @@ func run_test() -> void:
 	component.execute_raw_attack(mob, tower.damage)
 	if not _check(mob.health < starting_health, "Base Reaver sweep did not deal immediate damage."):
 		return
-	if not _check(component.melee_arc_degrees == 120.0 and component.melee_max_targets == 4, "Base sweep geometry was not loaded."):
+	if not _check(component.melee_arc_degrees == 120.0 and component.melee_max_targets == 3, "Base sweep geometry was not loaded."):
 		return
 
 	# Assassin is single-target and makes every third completed attack a guaranteed crit.
@@ -95,23 +95,25 @@ func run_test() -> void:
 	if not _check(component.assassinate_attack_counter == 0, "Assassin cadence did not reset after its third attack."):
 		return
 
-	# Champion keeps normal sweeps and changes every third attack into a 360-degree spin.
+	# Champion keeps normal sweeps and changes every fourth attack into a 360-degree spin.
 	_load_path(tower, &"c")
-	if not _check(component.champion_enabled and component.champion_spin_interval == 3, "Champion behavior was not loaded."):
+	if not _check(component.champion_enabled and component.champion_spin_interval == 4, "Champion behavior was not loaded."):
 		return
 	component.execute_raw_attack(mob, tower.damage)
 	component.execute_raw_attack(mob, tower.damage)
 	component.execute_raw_attack(mob, tower.damage)
-	if not _check(component.champion_attack_counter == 0 and component.sweep_visual_arc_degrees == 360.0, "Champion's third attack was not a spin."):
+	component.execute_raw_attack(mob, tower.damage)
+	if not _check(component.champion_attack_counter == 0 and component.sweep_visual_arc_degrees == 360.0, "Champion's fourth attack was not a spin."):
 		return
 
-	# Enforcer's third attack applies both control effects and walks path progress backward.
+	# Enforcer's fourth attack applies both control effects and walks path progress backward.
 	_load_path(tower, &"a")
 	if not _check(component.enforcer_enabled and component.melee_arc_degrees == 180.0, "Enforcer behavior was not loaded."):
 		return
 	mob.health = mob.max_health
 	mob.stun_remaining = 0.0
 	follow.progress = 500.0
+	component.execute_raw_attack(mob, tower.damage)
 	component.execute_raw_attack(mob, tower.damage)
 	component.execute_raw_attack(mob, tower.damage)
 	var progress_before_slam := follow.progress
@@ -128,7 +130,7 @@ func run_test() -> void:
 	if not _check(is_equal_approx(component.assassinate_critical_multiplier_bonus, 1.0), "Assassin Deathblow capstone was not loaded."):
 		return
 	_load_path(tower, &"c")
-	if not _check(component.champion_spin_interval == 3 and component.champion_spin_max_targets == 10 and is_equal_approx(component.champion_spin_damage_multiplier, 1.65), "Champion capstone was not loaded."):
+	if not _check(component.champion_spin_interval == 4 and component.champion_spin_max_targets == 10 and is_equal_approx(component.champion_spin_damage_multiplier, 1.65), "Champion capstone was not loaded."):
 		return
 	_load_path(tower, &"a")
 	if not _check(component.melee_max_targets == 6 and component.enforcer_slam_max_targets == 10 and is_equal_approx(component.enforcer_secondary_damage_multiplier, 0.75) and is_equal_approx(component.enforcer_stun_duration, 1.0), "Enforcer capstone was not loaded."):

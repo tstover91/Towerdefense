@@ -4,6 +4,7 @@ extends TowerAttackComponent
 const GameStats = preload("res://stat_database.gd")
 const SOLAR_LANCE_SCENE = preload("res://solar_lance.tscn")
 const FALLOUT_ZONE_SCENE = preload("res://fallout_zone.tscn")
+const TARGET_ACTIVATION_RADIUS_PIXELS := 12.0
 
 var minimum_range_pixels := 0.0
 var has_target_position := false
@@ -248,24 +249,13 @@ func is_valid_manual_target_position(world_position: Vector2) -> bool:
 func has_manual_attack_opportunity() -> bool:
 	if not tower.is_combat_active() or not has_target_position:
 		return false
-	var activation_radius := tower.splash_radius_pixels
-	if atomic_strike_enabled:
-		activation_radius *= atomic_blast_radius_multiplier
-	if solar_lance_enabled:
-		activation_radius = BaseTower.BUILD_CELL_SIZE
-	if bombardment_enabled:
-		activation_radius = (
-			bombardment_spread_radius_pixels
-			+ (
-				BaseTower.BUILD_CELL_SIZE
-				if solar_lance_enabled
-				else tower.splash_radius_pixels * bombardment_radius_multiplier
-			)
-		)
 	for mob in tower.get_tree().get_nodes_in_group("mobs"):
 		if not tower.is_valid_target(mob):
 			continue
-		if mob.global_position.distance_to(target_position) <= activation_radius:
+		if (
+			mob.global_position.distance_to(target_position)
+			<= TARGET_ACTIVATION_RADIUS_PIXELS
+		):
 			return true
 	return false
 

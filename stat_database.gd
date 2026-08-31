@@ -6,6 +6,7 @@ extends RefCounted
 
 const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "invader"
+const ECONOMY_SCALE := 10
 const BUILD_CELL_SIZE := 32.0
 const ELECTRIC_HITS_TO_PROC := 5
 const ELECTRIC_PROC_DAMAGE_CONTRIBUTION := 0.30
@@ -159,7 +160,7 @@ const MAXIMUM_ARMOR_DAMAGE_REDUCTION := 0.60
 
 # Enemy bounties remain composition-dependent. This compensates for the smaller
 # spawn budget so expected kill income stays close to the previous pacing.
-const KILL_REWARD_MULTIPLIER := 0.122
+const KILL_REWARD_MULTIPLIER := 0.18
 
 const ROUND_CASH_REWARDS := {
 	1: 200,
@@ -202,10 +203,10 @@ const ROUND_PROFILES := {
 	4: {"duration": 35.0, "threat_budget": 56, "standard_health_multiplier": 3.00, "boss_health_multiplier": 1.3475},
 	5: {"duration": 40.0, "threat_budget": 75.0, "standard_health_multiplier": 3.50, "boss_health_multiplier": 1.3750},
 	6: {"duration": 45.0, "threat_budget": 90.0, "standard_health_multiplier": 4.00, "boss_health_multiplier": 1.4025},
-	7: {"duration": 50.0, "threat_budget": 120.0, "standard_health_multiplier": 4.50, "boss_health_multiplier": 1.4300},
-	8: {"duration": 55.0, "threat_budget": 160.0, "standard_health_multiplier": 5.00, "boss_health_multiplier": 1.4575},
-	9: {"duration": 60.0, "threat_budget": 210.0, "standard_health_multiplier": 5.50, "boss_health_multiplier": 1.4850},
-	10: {"duration": 60.0, "threat_budget": 260.4000, "standard_health_multiplier": 6.00, "boss_health_multiplier": 1.5125},
+	7: {"duration": 50.0, "threat_budget": 112.0, "standard_health_multiplier": 4.50, "boss_health_multiplier": 1.4300},
+	8: {"duration": 55.0, "threat_budget": 140.0, "standard_health_multiplier": 5.00, "boss_health_multiplier": 1.4575},
+	9: {"duration": 60.0, "threat_budget": 170.0, "standard_health_multiplier": 5.50, "boss_health_multiplier": 1.4850},
+	10: {"duration": 60.0, "threat_budget": 205.0, "standard_health_multiplier": 6.00, "boss_health_multiplier": 1.5125},
 	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 6.50, "boss_health_multiplier": 1.5400},
 	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 7.00, "boss_health_multiplier": 1.5675},
 	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 7.40, "boss_health_multiplier": 1.5950},
@@ -260,7 +261,7 @@ const PAYDAY_ENEMY_HEALTH_MULTIPLIER := 0.50
 # Shared item-effect tuning values. Keeping these centralized lets item balance
 # change without editing combat code.
 const DIVIDENDS_INTEREST_RATE := 0.05
-const DIVIDENDS_INTEREST_CAP := 500
+const DIVIDENDS_INTEREST_CAP := 5000
 
 const FOCUSED_LENS_DAMAGE_PER_STACK := 0.30
 const FOCUSED_LENS_RANGE_MULTIPLIER := 0.90
@@ -450,7 +451,7 @@ const REINFORCEMENT_OPTIONS := {
 # Temporary source metadata for items converted from the retired global relic
 # system. Runtime ownership and effects use tower items exclusively.
 const LEGACY_ITEM_TEMPLATES := {
-	"dividends": {"display_name": "Dividends", "description": "Gain 5% interest at the end of each round, up to $500.", "rarity": &"rare", "category": &"global", "stackable": false},
+	"dividends": {"display_name": "Dividends", "description": "Gain 5% interest at the end of each round, up to $5.0k.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"holiday_sale": {"display_name": "Holiday Sale", "description": "Each round, one tower's build price is reduced by 35%; all others increase by 15%.", "rarity": &"rare", "category": &"global", "stackable": false},
 	"contraband_blueprint": {"display_name": "Contraband Blueprint", "description": "Adds one random tower outside your five-tower roster beneath the normal tower slots. It costs $0 to build and is removed after placement.", "rarity": &"legendary", "category": &"global", "stackable": false},
 	"network_upgrade": {"display_name": "Network Upgrade", "description": "Technology towers gain 12% attack speed per stack for each other Technology tower within one tile of their footprint.", "rarity": &"common", "category": &"technology", "stackable": true},
@@ -472,7 +473,7 @@ const LEGACY_ITEM_TEMPLATES := {
 	"suppressive_fire": {"display_name": "Suppressive Fire", "description": "Ballistic attacks slow enemies for at least 1 second.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce once to another enemy within 3 tiles.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
 	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit, but their base critical multiplier is 1.5x before other relic modifiers.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
-	"frenzy": {"display_name": "Frenzy", "description": "For 4 seconds, attacks become 6% faster per enemy in range per stack, counting up to 10 enemies. Then enters a 6-second cooldown at normal speed.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"duelist"]},
+	"frenzy": {"display_name": "Frenzy", "description": "For 4 seconds, attacks become 6% faster per enemy in range, counting up to 10 enemies. Then enters a 6-second cooldown at normal speed.", "rarity": &"uncommon", "category": &"melee", "stackable": false, "exclusive_with": [&"duelist"]},
 	"duelist": {"display_name": "Duelist", "description": "Damage gains 30% per stack with one enemy in range or 15% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"frenzy"]},
 	"relentless": {"display_name": "Relentless", "description": "Gain 15% Melee attack speed after each attack against the same primary target, up to five stacks. Changing targets resets it.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"giant_killer": {"display_name": "Giant Killer", "description": "Melee attacks deal 35% more damage to elites and bosses, but 15% less to normal enemies.", "rarity": &"common", "category": &"melee", "stackable": true},
@@ -568,7 +569,7 @@ const TOWER_PATH_SELL_VALUE_ADDITIONS := {
 	&"energycore": {&"a": 1666, &"b": 1833},
 	&"saucer": {&"a": 2800, &"b": 2560, &"c": 2720},
 	&"hivemother": {&"a": 2662, &"b": 2662},
-	&"dronedepot": {&"a": 2946, &"b": 3360},
+	&"dronedepot": {&"a": 2946, &"b": 3360, &"c": 3040},
 	&"mechbay": {&"a": 4480, &"b": 4480},
 	&"irradiator": {&"a": 2500},
 }
@@ -1006,6 +1007,7 @@ const TOWER_XP_ROUND_BONUS_LEVEL_PENALTY := 2.0
 const TOWER_XP_ROUND_BONUS_MINIMUM := 3.0
 const TOWER_XP_ROUND_BONUS_MAXIMUM := 30.0
 const TOWER_ITEM_SLOT_COUNT := 4
+const TOWER_ITEM_STACK_LIMIT := 3
 const TOWER_ITEMS := {
 	&"ricochet_module": {
 		"display_name": "Ricochet Module",
@@ -1339,7 +1341,7 @@ const ADAPTED_TOWER_ITEMS := {
 	&"wide_lens": {"rarity": &"common", "price": 425, "shop_enabled": false, "description": "+30% range and -10% damage per copy."},
 	&"interference_beam": {"rarity": &"common", "price": 450, "max_copies_per_tower": 1, "description": "Deal 40% more damage to slowed or stunned enemies."},
 	&"microwave": {"rarity": &"rare", "price": 950, "max_copies_per_tower": 1, "description": "Kills explode for 200% of the killing hit in a 2.5-tile radius. Triggers at most once every 1.5 seconds per tower."},
-	&"death_ray": {"rarity": &"rare", "price": 950, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "description": "Every 6 seconds, this tower overcharges for 2 seconds: +75% Beam damage and width with infinite Pierce."},
+	&"death_ray": {"rarity": &"rare", "price": 950, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "shop_enabled": false, "description": "Every 6 seconds, this tower overcharges for 2 seconds: +75% Beam damage and width with infinite Pierce."},
 	&"hollow_point": {"rarity": &"common", "price": 375, "max_copies_per_tower": 4, "description": "+25% damage per copy against enemies above 75% health."},
 	&"heavy_rounds": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "+35% damage and 15% longer attack cooldown per copy."},
 	&"lightweight_ammo": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "25% shorter attack cooldown and 10% less damage per copy."},
@@ -1347,7 +1349,7 @@ const ADAPTED_TOWER_ITEMS := {
 	&"point_blank": {"rarity": &"common", "price": 375, "shop_enabled": false, "description": "Gain up to 25% damage per copy at close range."},
 	&"suppressive_fire": {"rarity": &"uncommon", "price": 625, "max_copies_per_tower": 1, "description": "Damaging attacks Slow enemies for at least 1 second."},
 	&"experimental_munitions": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 1, "description": "Grants Critical to this Ballistic tower with a base 1.5x critical multiplier.", "shop_enabled": false},
-	&"frenzy": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "For 4 seconds, attacks become 6% faster per enemy in range per copy, counting up to 10 enemies. Then enters a 6-second cooldown at normal speed."},
+	&"frenzy": {"rarity": &"uncommon", "price": 625, "max_copies_per_tower": 1, "description": "For 4 seconds, attacks become 6% faster per enemy in range, counting up to 10 enemies. Then enters a 6-second cooldown at normal speed."},
 	&"duelist": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "Per copy: +30% damage with one enemy in range or +15% with two."},
 	&"relentless": {"rarity": &"rare", "price": 900, "max_copies_per_tower": 1, "description": "Deal 20% less damage. Consecutive attacks against the same primary target gain 15% attack speed, up to five stacks; changing targets resets all stacks."},
 	&"giant_killer": {"rarity": &"common", "price": 425, "max_copies_per_tower": 4, "description": "Per copy: +35% damage to elites and bosses, but 15% less damage to normal enemies."},
@@ -1413,6 +1415,7 @@ const TOWER_EVOLUTIONS := {
 	&"dronedepot": {
 		&"drone_depot": {"legacy_path_id": &"a"},
 		&"mech_bay": {"legacy_path_id": &"b"},
+		&"sentry_array": {"legacy_path_id": &"c"},
 	},
 	&"irradiator": {
 		&"reactor": {"legacy_path_id": &"a"},
@@ -1885,7 +1888,7 @@ const TOWERS := {
 	},
 	"reaver": {
 		"display_name": "Reaver",
-		"placement_cost": 175,
+		"placement_cost": 275,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"melee"],
@@ -1895,7 +1898,7 @@ const TOWERS := {
 		"paths": {
 			"a": {
 				"display_name": "Enforcer",
-				"description": "Widens the sweep to 180 degrees. Every third attack slams the ground, damaging, stunning, and driving back a group around its target.",
+				"description": "Widens the sweep to 180 degrees. Every fourth attack slams the ground, damaging, stunning, and driving back a group around its target.",
 				"cost": 2500,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"stun"],
@@ -1907,7 +1910,7 @@ const TOWERS := {
 					"reaver_enforcer": true,
 				},
 				"behavior_values": {
-					"enforcer_slam_interval": 3,
+					"enforcer_slam_interval": 4,
 					"enforcer_slam_radius": 2.5,
 					"enforcer_slam_max_targets": 8,
 					"enforcer_secondary_damage_multiplier": 0.75,
@@ -1918,7 +1921,7 @@ const TOWERS := {
 				"stat_overrides": {"melee_max_targets": 6},
 				"behavior_flags": {"reaver_enforcer": true},
 				"behavior_values": {
-					"enforcer_slam_interval": 3,
+					"enforcer_slam_interval": 4,
 					"enforcer_slam_radius": 3.5,
 					"enforcer_slam_max_targets": 10,
 					"enforcer_secondary_damage_multiplier": 0.75,
@@ -1957,13 +1960,12 @@ const TOWERS := {
 			},
 			"c": {
 				"display_name": "Champion",
-				"description": "Keeps Reaver's sweep. Every third attack becomes a powerful 360-degree spin that strikes a much larger crowd.",
+				"description": "Keeps Reaver's sweep. Every fourth attack becomes a powerful 360-degree spin that strikes a much larger crowd.",
 				"cost": 2500,
 				"unlock_level": 3,
-				"stat_multipliers": {"damage": 1.10},
 				"behavior_flags": {"reaver_champion": true},
 				"behavior_values": {
-					"champion_spin_interval": 3,
+					"champion_spin_interval": 4,
 					"champion_spin_damage_multiplier": 1.50,
 					"champion_spin_radius_multiplier": 1.0,
 					"champion_spin_max_targets": 8,
@@ -1971,7 +1973,7 @@ const TOWERS := {
 			"level_20": {
 				"behavior_flags": {"reaver_champion": true},
 				"behavior_values": {
-					"champion_spin_interval": 3,
+					"champion_spin_interval": 4,
 					"champion_spin_damage_multiplier": 1.65,
 					"champion_spin_radius_multiplier": 1.15,
 					"champion_spin_max_targets": 10,
@@ -1983,7 +1985,7 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 70,
+				"damage": 45,
 				"firerate": 1.15,
 				"range": 6.0,
 				"melee_arc_degrees": 120.0,
@@ -1991,15 +1993,15 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 125,
-				"damage": 90,
+				"damage": 70,
 				"firerate": .85,
 				"range": 6.5,
 				"melee_arc_degrees": 120.0,
-				"melee_max_targets": 3,
+				"melee_max_targets": 2,
 			},
 			{
 				"upgrade_cost": 700,
-				"damage": 220,
+				"damage": 150,
 				"firerate": 0.65,
 				"range": 7.0,
 				"melee_arc_degrees": 120.0,
@@ -2007,11 +2009,11 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1450,
-				"damage": 400,
+				"damage": 280,
 				"firerate": 0.50,
 				"range": 7.5,
 				"melee_arc_degrees": 120.0,
-				"melee_max_targets": 4,
+				"melee_max_targets": 3,
 			},
 		],
 	},
@@ -2280,6 +2282,7 @@ const TOWERS := {
 		"type_tags": [&"biological"],
 		"damage_tags": [&"explosive"],
 		"delivery_type": DELIVERY_PROJECTILE,
+		"projectile_item_eligible": false,
 		"impact_mode": IMPACT_FIRST_CONTACT,
 		"bonus_tags": [],
 		"paths": {
@@ -2388,6 +2391,7 @@ const TOWERS := {
 		"type_tags": [&"technology"],
 		"damage_tags": [&"explosive"],
 		"delivery_type": DELIVERY_PROJECTILE,
+		"projectile_item_eligible": false,
 		"impact_mode": IMPACT_PRIMARY,
 		"bonus_tags": [],
 		"minimum_range": 5.0,
@@ -2827,6 +2831,7 @@ const TOWERS := {
 				"description": "Replaces Sentry Turrets with mobile ranged Drones. Each Drone is destroyed when it spends its damage budget. At Level 20, depleted Drones explode before being rebuilt.",
 				"cost": 3600,
 				"unlock_level": 3,
+				"projectile_item_eligible": false,
 				"add_bonus_tags": [&"reveal"],
 				"stat_overrides": {
 					"spawned_unit_id": &"drone",
@@ -2865,6 +2870,7 @@ const TOWERS := {
 				"add_damage_tags": [&"melee"],
 				"primary_damage_type": &"melee",
 				"delivery_type": DELIVERY_HITSCAN,
+				"projectile_item_eligible": false,
 				"impact_mode": IMPACT_PRIMARY,
 				"stat_overrides": {
 					"spawned_unit_id": &"mech",
@@ -2895,6 +2901,29 @@ const TOWERS := {
 						"ground_slam_radius": 3.5,
 						"ground_slam_damage_multiplier": 1.5,
 						"ground_slam_knockback_distance": 1.75,
+					},
+				},
+			},
+			"c": {
+				"display_name": "Sentry Array",
+				"description": "Expands the production line to support five ballistic Sentry Turrets. Each turret fires slowly and deals reduced damage, trading individual strength for broad coverage. At Level 20, refined assembly improves their damage and firing speed.",
+				"cost": 3800,
+				"unlock_level": 3,
+				"projectile_item_eligible": true,
+				"stat_overrides": {
+					"spawned_unit_id": &"sentry_turret",
+					"spawn_limit": 5,
+					"spawn_interval": 3.5,
+					"deployment_radius": 10.0,
+				},
+				"unit_stat_multipliers": {
+					"damage": 0.55,
+					"attack_interval": 1.75,
+				},
+				"level_20": {
+					"unit_stat_multipliers": {
+						"damage": 1.20,
+						"attack_interval": 0.90,
 					},
 				},
 			},
@@ -3447,6 +3476,12 @@ static func get_armor_damage_multiplier(
 static func get_tower(tower_id: StringName) -> Dictionary:
 	assert(TOWERS.has(tower_id), "Unknown tower ID: %s" % tower_id)
 	var tower: Dictionary = TOWERS[tower_id].duplicate(true)
+	tower["placement_cost"] = scale_money(int(tower.get("placement_cost", 0)))
+	for path_key in Dictionary(tower.get("paths", {})):
+		var path: Dictionary = tower["paths"][path_key]
+		path["cost"] = scale_money(int(path.get("cost", 0)))
+	for level in Array(tower.get("levels", [])):
+		level["upgrade_cost"] = scale_money(int(level.get("upgrade_cost", 0)))
 	tower["texture"] = TOWER_TEXTURES.get(tower_id)
 	return tower
 
@@ -3691,12 +3726,17 @@ static func get_tower_item(item_id: StringName) -> Dictionary:
 		item["item_effects"] = {item_id: 1}
 		if not item.has("max_copies_per_tower"):
 			item["max_copies_per_tower"] = (
-				TOWER_ITEM_SLOT_COUNT
+				TOWER_ITEM_STACK_LIMIT
 				if bool(LEGACY_ITEM_TEMPLATES[item_id].get("stackable", false))
 				else 1
 			)
 		item.erase("enabled")
 		item.erase("stackable")
+	item["max_copies_per_tower"] = mini(
+		int(item.get("max_copies_per_tower", TOWER_ITEM_STACK_LIMIT)),
+		TOWER_ITEM_STACK_LIMIT
+	)
+	item["price"] = scale_money(int(item.get("price", 0)))
 	item["id"] = item_id
 	var icon_path := "res://assets/ui/item_icons/glyphs/%s.svg" % item_id
 	if ResourceLoader.exists(icon_path):
@@ -3794,8 +3834,8 @@ static func get_tower_draft_entry(tower_id: StringName) -> Dictionary:
 		special_names.append(String(bonus_tag).capitalize())
 	var description := String(tower.get("description", ""))
 	if description.is_empty():
-		description = "$%d build cost. %s %s attack with %s impact." % [
-			int(tower["placement_cost"]),
+		description = "$%s build cost. %s %s attack with %s impact." % [
+			format_money(int(tower["placement_cost"])),
 			damage_name,
 			delivery_name,
 			impact_name,
@@ -3816,7 +3856,9 @@ static func get_tower_draft_entry(tower_id: StringName) -> Dictionary:
 
 static func get_mode(mode_id: StringName) -> Dictionary:
 	assert(MODES.has(mode_id), "Unknown mode ID: %s" % mode_id)
-	return MODES[mode_id].duplicate(true)
+	var mode: Dictionary = MODES[mode_id].duplicate(true)
+	mode["starting_cash"] = scale_money(int(mode.get("starting_cash", 0)))
+	return mode
 
 
 static func get_legacy_item_template(item_id: StringName) -> Dictionary:
@@ -3836,7 +3878,17 @@ static func get_legacy_item_template(item_id: StringName) -> Dictionary:
 	return item
 
 static func get_round_cash_reward(round_number: int) -> int:
-	return int(ROUND_CASH_REWARDS.get(round_number, 0))
+	return scale_money(int(ROUND_CASH_REWARDS.get(round_number, 0)))
+
+
+static func scale_money(amount: int) -> int:
+	return amount * ECONOMY_SCALE
+
+
+static func format_money(amount: int) -> String:
+	if absi(amount) >= 1000:
+		return "%.1fk" % (float(amount) / 1000.0)
+	return str(amount)
 
 
 static func get_elite_enemy_health_multiplier(round_number: int) -> float:

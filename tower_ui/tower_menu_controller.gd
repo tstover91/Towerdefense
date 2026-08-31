@@ -133,9 +133,9 @@ func refresh_attack_controls() -> void:
 func _update_sell_button() -> void:
 	var sell_price := tower.get_sell_price()
 	if tower.pending_action == BaseTower.MenuAction.SELL:
-		sell_button.text = "Confirm\n$%d" % sell_price
+		sell_button.text = "Confirm\n$%s" % GameStats.format_money(sell_price)
 	else:
-		sell_button.text = "Sell\n$%d" % sell_price
+		sell_button.text = "Sell\n$%s" % GameStats.format_money(sell_price)
 
 
 func _update_upgrade_button() -> void:
@@ -155,9 +155,9 @@ func _update_upgrade_button() -> void:
 		return
 	var upgrade_cost: int = levels[next_level]["upgrade_cost"]
 	if tower.pending_action == BaseTower.MenuAction.UPGRADE:
-		upgrade_button.text = "Confirm\n$%d" % upgrade_cost
+		upgrade_button.text = "Confirm\n$%s" % GameStats.format_money(upgrade_cost)
 	else:
-		upgrade_button.text = "Upgrade\n$%d" % upgrade_cost
+		upgrade_button.text = "Upgrade\n$%s" % GameStats.format_money(upgrade_cost)
 	upgrade_button.disabled = tower.main == null or tower.main.money < upgrade_cost
 
 
@@ -188,7 +188,7 @@ func update_path_menu() -> void:
 			button.text = "%s\nLOCKED" % path_name
 			button.disabled = true
 		else:
-			button.text = "%s\n$%d" % [path_name, path_cost]
+			button.text = "%s\n$%s" % [path_name, GameStats.format_money(path_cost)]
 			button.disabled = not tower.can_purchase_path(path_id)
 		button.button_pressed = tower.pending_path_choice == path_id
 	path_confirm_button.disabled = tower.pending_path_choice.is_empty()

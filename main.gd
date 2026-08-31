@@ -45,7 +45,7 @@ const ELITE_EVENT_RESERVED_SLOTS := 12
 const GAUNTLET_EVENT_RESERVED_SLOTS := 20
 const DRAFT_HEALTH_RECOVERY := 20
 const DRAFT_HEALTH_COST_RATIO := 0.30
-const DRAFT_HEALTH_PRICE_INCREMENT := 25
+const DRAFT_HEALTH_PRICE_INCREMENT := 250
 const TOWER_DRAFT_ROUNDS: Array[int] = [3, 8, 12]
 const REINFORCEMENT_DRAFT_ROUNDS: Array[int] = []
 const TOWER_SCENE = preload("res://base_tower.tscn")
@@ -594,12 +594,12 @@ func populate_tower_list() -> void:
 			var tower_data := GameStats.get_tower(tower_id)
 			tower_list.add_item(
 				(
-					"%s\n$%d" % [
+					"%s\n$%s" % [
 						tower_data["display_name"],
-						get_tower_build_cost(tower_id),
+						GameStats.format_money(get_tower_build_cost(tower_id)),
 					]
 					if sandbox_mode
-					else "$%d" % get_tower_build_cost(tower_id)
+					else "$%s" % GameStats.format_money(get_tower_build_cost(tower_id))
 				),
 				tower_data.get("texture", DEFAULT_TOWER_ICON)
 			)
@@ -865,8 +865,8 @@ func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
 		levels.size(),
 	]
 	tower_upgrade_button.text = (
-		"Tap Again · $%d" if awaiting_confirmation else "Upgrade · $%d"
-	) % upgrade_cost
+		"Tap Again · $%s" if awaiting_confirmation else "Upgrade · $%s"
+	) % GameStats.format_money(upgrade_cost)
 	tower_upgrade_button.tooltip_text = (
 		"Tap twice to upgrade. Tapping anywhere else cancels confirmation."
 	)
@@ -1035,6 +1035,7 @@ func update_tower_path_controls(tower: Node) -> void:
 	tower_path_section.visible = show_paths
 	if not show_paths:
 		return
+	tower_path_confirm_button.show()
 	var path_buttons: Array[Button] = [
 		tower_path_a_button,
 		tower_path_b_button,
@@ -1060,7 +1061,7 @@ func update_tower_path_controls(tower: Node) -> void:
 			button.text = "%s · LOCKED" % path_name
 			button.disabled = true
 		else:
-			button.text = "%s · $%d" % [path_name, path_cost]
+			button.text = "%s · $%s" % [path_name, GameStats.format_money(path_cost)]
 			button.disabled = not tower.can_purchase_path(path_id)
 		button.button_pressed = tower.pending_path_choice == path_id
 	tower_path_confirm_button.disabled = tower.pending_path_choice.is_empty()
@@ -1100,6 +1101,7 @@ func update_tower_evolution_controls(tower: Node) -> void:
 		else "Show evolution choices"
 	)
 	tower_path_section.visible = evolution_available and tower_evolution_panel_open
+	tower_path_confirm_button.hide()
 	if evolutions.is_empty():
 		return
 	if not tower_path_section.visible:
@@ -1135,19 +1137,16 @@ func update_tower_evolution_controls(tower: Node) -> void:
 			button.text = (
 				"%s · READY" % evolution_name
 				if evolution_cost <= 0
-				else "%s · $%d" % [evolution_name, evolution_cost]
+				else "%s · $%s" % [evolution_name, GameStats.format_money(evolution_cost)]
 			)
 			button.disabled = not tower.can_purchase_evolution(evolution_id)
 		button.button_pressed = tower.pending_evolution_choice == evolution_id
 	var has_pending_choice: bool = not StringName(
 		tower.pending_evolution_choice
 	).is_empty()
-	tower_path_confirm_button.disabled = not has_pending_choice
 	if not owned_evolution_id.is_empty():
-		tower_path_confirm_button.text = "Evolution Complete"
 		tower_path_description.text = "This tower's evolution is permanent."
 	elif not has_pending_choice:
-		tower_path_confirm_button.text = "Select an Evolution"
 		var first_evolution: Dictionary = evolutions[evolution_ids[0]]
 		var required_level := int(first_evolution.get(
 			"required_level",
@@ -1159,7 +1158,6 @@ func update_tower_evolution_controls(tower: Node) -> void:
 			else "Choose a permanent evolution for this tower."
 		)
 	else:
-		tower_path_confirm_button.text = "Confirm Evolution"
 		tower_path_description.text = String(
 			evolutions[tower.pending_evolution_choice].get("description", "")
 		)
@@ -1253,8 +1251,8 @@ func update_tower_sell_control(tower: Node) -> void:
 	)
 	tower_sell_button.text = ""
 	tower_sell_label.text = (
-		"CONFIRM · $%d" if awaiting_confirmation else "SELL · $%d"
-	) % sell_price
+		"CONFIRM · $%s" if awaiting_confirmation else "SELL · $%s"
+	) % GameStats.format_money(sell_price)
 	tower_sell_button.tooltip_text = (
 		"Tap twice to sell. Tapping anywhere else cancels confirmation."
 	)
@@ -1276,9 +1274,11 @@ func _on_sidebar_path_slot_pressed(slot_index: int) -> void:
 			displayed_tower.tower_id
 		).keys()
 		if slot_index < evolution_ids.size():
-			displayed_tower.select_evolution_choice(
-				StringName(evolution_ids[slot_index])
-			)
+			var evolution_id := StringName(evolution_ids[slot_index])
+			if displayed_tower.pending_evolution_choice == evolution_id:
+				displayed_tower.purchase_selected_evolution()
+			else:
+				displayed_tower.select_evolution_choice(evolution_id)
 		return
 	var path_ids: Array[StringName] = [&"a", &"b"]
 	if slot_index < path_ids.size():
@@ -1861,7 +1861,9 @@ func update_lives() -> void:
 	lives_display.text = "HEALTH  %d / %d" % [lives, max_lives]
 
 func update_money() -> void:
-	money_display.text = "Unlimited" if sandbox_mode else "$%d" % money
+	money_display.text = (
+		"Unlimited" if sandbox_mode else "$%s" % GameStats.format_money(money)
+	)
 	update_tower_affordability()
 	money_changed.emit(money)
 	refresh_tower_details()

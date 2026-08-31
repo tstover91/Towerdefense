@@ -1,6 +1,8 @@
 class_name TowerBuildButtonVisual
 extends Button
 
+const GameStats = preload("res://stat_database.gd")
+
 @onready var tower_icon: TextureRect = find_child("TowerIcon", true, false) as TextureRect
 @onready var price_label: Label = find_child("PriceLabel", true, false) as Label
 
@@ -24,7 +26,10 @@ func configure(
 	configured_display_name = display_name
 	configured_cost = cost
 	has_configuration = true
-	tooltip_text = "Drag %s onto the map · $%d" % [display_name, cost]
+	tooltip_text = "Drag %s onto the map · $%s" % [
+		display_name,
+		GameStats.format_money(cost),
+	]
 	set_meta("slot_index", slot_index)
 	if is_node_ready():
 		_apply_configuration()
@@ -37,7 +42,7 @@ func _apply_configuration() -> void:
 		push_error("TowerBuildButtonVisual requires descendants named TowerIcon and PriceLabel.")
 		return
 	tower_icon.texture = configured_texture
-	price_label.text = "$%d" % configured_cost
+	price_label.text = "$%s" % GameStats.format_money(configured_cost)
 
 
 func set_selected(is_selected: bool) -> void:

@@ -47,9 +47,9 @@ func run_test() -> void:
 	var nearby_mob: Node2D = nearby_data["mob"]
 
 	var evolutions := GameStats.get_tower_evolutions(&"dronedepot")
-	if not _check(evolutions.size() == 2, "Alien Factory should expose exactly two evolutions."):
+	if not _check(evolutions.size() == 3, "Alien Factory should expose exactly three evolutions."):
 		return
-	if not _check(evolutions.has(&"drone_depot") and evolutions.has(&"mech_bay"), "Alien Factory evolution roster is incomplete."):
+	if not _check(evolutions.has(&"drone_depot") and evolutions.has(&"mech_bay") and evolutions.has(&"sentry_array"), "Alien Factory evolution roster is incomplete."):
 		return
 
 	var tower := TOWER_SCENE.instantiate() as BaseTower
