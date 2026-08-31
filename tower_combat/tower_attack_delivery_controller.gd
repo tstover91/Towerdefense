@@ -25,6 +25,7 @@ const ATTACK_EFFECT_METADATA_IDS: Array[StringName] = [
 	&"pressure_point",
 	&"big_game_control",
 	&"emergency_brake",
+	&"radiation_conversion",
 ]
 
 var tower: BaseTower

@@ -778,7 +778,7 @@ func simulate_radiation_tail(
 		elif next_tick <= active_duration:
 			elapsed = next_tick
 			total += float(stacks) * damage_per_stack
-			stacks = maxi(stacks - 1, 0)
+			stacks = floori(float(stacks) * 0.5)
 			next_tick += 1.0
 		else:
 			break

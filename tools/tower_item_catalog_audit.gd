@@ -8,6 +8,7 @@ const VALID_DEFINITION_KEYS: Array[StringName] = [
 	&"id", &"display_name", &"description", &"rarity", &"category", &"price",
 	&"shop_enabled", &"max_copies_per_tower", &"allowed_tower_ids",
 	&"required_all_tags", &"required_any_tags", &"forbidden_tags",
+	&"exclusive_with",
 	&"stat_defaults", &"stat_multipliers", &"stat_additions",
 	&"stat_minimums", &"stat_overrides", &"unit_stat_defaults",
 	&"unit_stat_multipliers", &"unit_stat_additions", &"unit_stat_minimums",
@@ -38,6 +39,7 @@ const RECOGNIZED_ITEM_EFFECTS: Array[StringName] = [
 	&"lingering_thoughts", &"quick_thinking", &"perfect_intelligence",
 	&"follow_through", &"big_game_control", &"emergency_brake",
 	&"youre_not_special", &"trade_agreement",
+	&"radiation_conversion",
 ]
 
 

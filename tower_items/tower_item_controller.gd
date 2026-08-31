@@ -89,7 +89,7 @@ func can_equip_or_swap_item(item_id: StringName, slot_index: int) -> bool:
 		or not GameStats.has_tower_item(item_id)
 		or slot_index < 0
 		or slot_index >= get_slot_count()
-		or not is_item_compatible(item_id)
+		or not is_item_compatible(item_id, slot_index)
 	):
 		return false
 	var item := GameStats.get_tower_item(item_id)
@@ -256,6 +256,7 @@ func notify_damage_dealt(
 		)
 		if (
 			damage_type != &"electric"
+			and not bool(attack_context.metadata.get("radiation_tick", false))
 			and int(effects.get("contributes_electric_hits", 0)) > 0
 			and enemy.has_method("register_electric_hit")
 		):
@@ -863,7 +864,7 @@ func _spawn_explosion_visual(center: Vector2, radius: float) -> void:
 		current_scene.spawn_explosion_visual(center, radius)
 
 
-func is_item_compatible(item_id: StringName, _ignored_slot_index := -1) -> bool:
+func is_item_compatible(item_id: StringName, ignored_slot_index := -1) -> bool:
 	if not GameStats.has_tower_item(item_id):
 		return false
 	var available_tags := get_compatibility_tags()
@@ -886,6 +887,8 @@ func is_item_compatible(item_id: StringName, _ignored_slot_index := -1) -> bool:
 	for forbidden_tag in item.get("forbidden_tags", []):
 		if available_tags.has(StringName(forbidden_tag)):
 			return false
+	if not _get_item_conflict(item_id, ignored_slot_index).is_empty():
+		return false
 	return true
 
 
@@ -917,7 +920,34 @@ func get_incompatibility_reason(
 	for forbidden_tag in item.get("forbidden_tags", []):
 		if available_tags.has(StringName(forbidden_tag)):
 			return "Incompatible with %s" % String(forbidden_tag).capitalize()
+	var conflict_id := _get_item_conflict(item_id, _ignored_slot_index)
+	if not conflict_id.is_empty():
+		return "Incompatible with %s" % GameStats.get_tower_item(
+			conflict_id
+		).get("display_name", String(conflict_id).capitalize())
 	return ""
+
+
+func _get_item_conflict(
+	item_id: StringName,
+	ignored_slot_index := -1
+) -> StringName:
+	var item := GameStats.get_tower_item(item_id)
+	var item_exclusions: Array = item.get("exclusive_with", [])
+	var equipped_ids := get_equipped_item_ids()
+	for slot_index in equipped_ids.size():
+		if slot_index == ignored_slot_index:
+			continue
+		var equipped_id := StringName(equipped_ids[slot_index])
+		if equipped_id.is_empty() or equipped_id == item_id:
+			continue
+		var equipped_item := GameStats.get_tower_item(equipped_id)
+		if (
+			item_exclusions.has(equipped_id)
+			or Array(equipped_item.get("exclusive_with", [])).has(item_id)
+		):
+			return equipped_id
+	return &""
 
 
 func get_compatibility_tags() -> Array[StringName]:

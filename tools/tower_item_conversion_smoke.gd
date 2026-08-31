@@ -76,7 +76,7 @@ func run_test() -> void:
 		rarity_counts[rarity] = int(rarity_counts[rarity]) + 1
 	assert(rarity_counts[&"common"] == 20)
 	assert(rarity_counts[&"uncommon"] == 18)
-	assert(rarity_counts[&"rare"] == 18)
+	assert(rarity_counts[&"rare"] == 19)
 	assert(rarity_counts[&"legendary"] == 0)
 	for held_id in [
 		&"network_upgrade",

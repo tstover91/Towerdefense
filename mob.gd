@@ -391,6 +391,14 @@ func apply_radiation(
 ) -> void:
 	if finished or stack_count <= 0 or damage_per_stack <= 0:
 		return
+	if (
+		attack_context != null
+		and int(attack_context.metadata.get("radiation_conversion", 0)) > 0
+		and not bool(attack_context.metadata.get(
+			"radiation_conversion_applied", false
+		))
+	):
+		damage_per_stack = maxi(roundi(float(damage_per_stack) * 1.5), 1)
 	var was_empty := radiation_stack_entries.is_empty()
 	radiation_tick_interval = maxf(tick_interval, 0.05)
 	for _stack in stack_count:
@@ -457,15 +465,38 @@ func _trigger_radiation_tick() -> void:
 		total_tick_damage += apply_damage(
 			requested_damage, &"radiation", false, false, tick_context
 		)
-	if not radiation_stack_entries.is_empty():
-		radiation_stack_entries.pop_front()
+	# Decay each source independently so a newer tower cannot push an older
+	# tower's stacks out of the shared Radiation pool. Within each source, keep
+	# the newest half of its stacks.
+	var stacks_to_keep_by_source: Dictionary = {}
+	for source_key in damage_by_source:
+		stacks_to_keep_by_source[source_key] = floori(
+			float(int(damage_by_source[source_key]["stack_count"])) * 0.5
+		)
+	var surviving_entries: Array[Dictionary] = []
+	for entry_index in range(radiation_stack_entries.size() - 1, -1, -1):
+		var entry: Dictionary = radiation_stack_entries[entry_index]
+		var entry_context: AttackContext = entry.get("context") as AttackContext
+		var entry_source_key := (
+			entry_context.root_tower_instance_id
+			if entry_context != null else 0
+		)
+		var remaining_to_keep := int(
+			stacks_to_keep_by_source.get(entry_source_key, 0)
+		)
+		if remaining_to_keep <= 0:
+			continue
+		surviving_entries.push_front(entry)
+		stacks_to_keep_by_source[entry_source_key] = remaining_to_keep - 1
+	var removed_stacks := stacks_before - surviving_entries.size()
+	radiation_stack_entries = surviving_entries
 	_record_radiation_debug_event(&"tick", {
 		"stacks_before": stacks_before,
 		"damage": total_tick_damage,
 		"stacks_after": radiation_stack_entries.size(),
 	})
 	_record_radiation_debug_event(&"decay", {
-		"removed_stacks": 1,
+		"removed_stacks": removed_stacks,
 		"stacks_after": radiation_stack_entries.size(),
 	})
 	queue_redraw()
@@ -938,6 +969,10 @@ func apply_damage(
 		and bool(attack_context.metadata.get("shot_missed", false))
 	):
 		return 0
+	if _convert_attack_damage_to_radiation(
+		amount, damage_type, attack_context
+	):
+		return 0
 	var effective_armor := maxf(armor - temporary_armor_reduction, 0.0)
 	var thermite_affects_armor := (
 		amount > 0
@@ -1077,6 +1112,53 @@ func apply_damage(
 			attack_context
 		)
 	return received_damage
+
+
+func _convert_attack_damage_to_radiation(
+	amount: int,
+	damage_type: StringName,
+	attack_context: AttackContext
+) -> bool:
+	if (
+		amount <= 0
+		or damage_type == &"radiation"
+		or attack_context == null
+		or int(attack_context.metadata.get("radiation_conversion", 0)) <= 0
+		or bool(attack_context.metadata.get(
+			"radiation_conversion_applied", false
+		))
+		# Lightning is a terminal proc. It keeps its original Electric damage
+		# and cannot be converted or used to build another Lightning proc.
+		or bool(attack_context.metadata.get("electric_proc", false))
+		or attack_context.immediate_source_kind not in [
+			&"tower", &"projectile", &"spawned_unit", &"item_proc"
+		]
+	):
+		return false
+	var radiation_damage := maxi(roundi(float(amount) * 0.5), 1)
+	var radiation_context := attack_context.derive(
+		self,
+		&"status",
+		&"converted_radiation",
+		true,
+		{"radiation_conversion_applied": true}
+	)
+	var root_tower := attack_context.get_root_tower()
+	if (
+		not attack_context.is_item_proc()
+		and is_instance_valid(root_tower)
+		and root_tower.has_method("notify_attack_converted")
+	):
+		root_tower.notify_attack_converted(
+			self, amount, attack_context, damage_type
+		)
+	# Native Electric attacks normally register after dealing direct damage.
+	# Conversion returns before that point, so register the original hit here.
+	# Live Wire is handled by notify_attack_converted above instead.
+	if damage_type == &"electric" and not attack_context.is_item_proc():
+		register_electric_hit(amount, attack_context)
+	apply_radiation(1, radiation_damage, radiation_context, 1.0)
+	return true
 
 
 func credit_tower_damage(

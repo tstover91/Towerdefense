@@ -930,6 +930,21 @@ func notify_damage_dealt(
 		)
 
 
+func notify_attack_converted(
+	enemy: Node,
+	original_damage: int,
+	attack_context: AttackContext,
+	damage_type: StringName = &""
+) -> void:
+	# A converted hit still activates on-hit items, but XP is credited only
+	# when the resulting Radiation actually damages the enemy.
+	if original_damage <= 0 or item_controller == null:
+		return
+	item_controller.notify_damage_dealt(
+		enemy, original_damage, attack_context, damage_type
+	)
+
+
 func notify_enemy_abducted(
 	enemy: Node,
 	removed_health: int,

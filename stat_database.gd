@@ -1284,6 +1284,16 @@ const TOWER_ITEMS := {
 		"required_all_tags": [&"projectile"],
 		"trigger_effects": {"sticky_charge": 1},
 	},
+	&"isotope_converter": {
+		"display_name": "Isotope Converter",
+		"description": "Direct and secondary attack damage becomes Radiation at 50% power. Radiation attacks instead gain 50% Radiation damage.",
+		"rarity": &"rare",
+		"category": &"radiation",
+		"price": 900,
+		"max_copies_per_tower": 1,
+		"required_all_tags": [&"attack"],
+		"item_effects": {&"radiation_conversion": 1},
+	},
 	&"experimental_blueprint": {
 		"display_name": "Experimental Blueprint",
 		"description": "Each spawned unit receives a random modification: Reinforced, Overclocked, Heavy, Mobile, Volatile, or the rarer Defective outcome.",

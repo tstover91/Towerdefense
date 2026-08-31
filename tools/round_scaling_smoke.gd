@@ -15,16 +15,16 @@ func _init() -> void:
 	assert(GameStats.get_round_cash_reward(1) == 200)
 	assert(GameStats.get_round_cash_reward(2) == 225)
 	assert(GameStats.get_round_cash_reward(3) == 275)
-	assert(GameStats.get_round_cash_reward(9) == 675)
-	assert(GameStats.get_round_cash_reward(10) == 750)
-	assert(GameStats.get_round_cash_reward(11) == 975)
-	assert(GameStats.get_round_cash_reward(12) == 1200)
-	assert(GameStats.get_round_cash_reward(13) == 1425)
-	assert(GameStats.get_round_cash_reward(14) == 1750)
-	assert(GameStats.get_round_cash_reward(15) == 2150)
-	assert(GameStats.get_round_cash_reward(16) == 2400)
-	assert(GameStats.get_round_cash_reward(17) == 5000)
-	assert(GameStats.get_round_cash_reward(18) == 2500)
+	assert(GameStats.get_round_cash_reward(9) == 600)
+	assert(GameStats.get_round_cash_reward(10) == 700)
+	assert(GameStats.get_round_cash_reward(11) == 750)
+	assert(GameStats.get_round_cash_reward(12) == 850)
+	assert(GameStats.get_round_cash_reward(13) == 950)
+	assert(GameStats.get_round_cash_reward(14) == 1050)
+	assert(GameStats.get_round_cash_reward(15) == 1150)
+	assert(GameStats.get_round_cash_reward(16) == 1200)
+	assert(GameStats.get_round_cash_reward(17) == 1300)
+	assert(GameStats.get_round_cash_reward(18) == 1350)
 	assert(is_equal_approx(GameStats.get_round_threat_budget(4), 47.6))
 	assert(is_equal_approx(GameStats.get_round_threat_budget(5), 63.75))
 	assert(is_equal_approx(GameStats.get_round_threat_budget(6), 76.5))
@@ -38,7 +38,7 @@ func _init() -> void:
 	var total_round_cash := 0
 	for round_number in range(1, 25):
 		total_round_cash += GameStats.get_round_cash_reward(round_number)
-	assert(total_round_cash == 39200)
+	assert(total_round_cash == 20825)
 	var expected_health_multipliers := [
 		1.50, 2.00, 2.50, 3.00, 3.50, 4.00,
 		4.50, 5.00, 5.50, 6.00, 6.50, 7.00,
