@@ -75,7 +75,7 @@ func run_test() -> void:
 		)
 		rarity_counts[rarity] = int(rarity_counts[rarity]) + 1
 	assert(rarity_counts[&"common"] == 20)
-	assert(rarity_counts[&"uncommon"] == 18)
+	assert(rarity_counts[&"uncommon"] == 17)
 	assert(rarity_counts[&"rare"] == 19)
 	assert(rarity_counts[&"legendary"] == 0)
 	for held_id in [
@@ -99,6 +99,7 @@ func run_test() -> void:
 		&"quick_thinking",
 		&"heavy_payload",
 		&"strength_in_numbers",
+		&"experimental_munitions",
 	]:
 		assert(not item_ids.has(held_id), "%s leaked into the item pool." % held_id)
 	for adapted_item_id in GameStats.ADAPTED_TOWER_ITEMS:
@@ -166,14 +167,17 @@ func run_test() -> void:
 	assert(invader.item_controller.is_item_compatible(&"lightweight_ammo"))
 	assert(invader.equip_item(&"lightweight_ammo"))
 	assert(invader.equip_item(&"heavy_rounds"))
-	assert(invader.equip_item(&"experimental_munitions"))
+	assert(invader.equip_item(&"lucky_shot"))
 	assert(invader.get_equipped_item_ids().count(&"heavy_rounds") == 1)
 	assert(invader.get_equipped_item_count(0) == 2)
 	assert(invader.get_equipped_item_ids().count(&"lightweight_ammo") == 1)
 	assert(invader.get_effect_stack_count(&"heavy_rounds") == 2)
 	assert(untouched_invader.get_effect_stack_count(&"heavy_rounds") == 0)
-	assert(invader.has_bonus_tag(BaseTower.BONUS_CRITICAL))
-	assert(is_equal_approx(invader.critical_multiplier, 1.5))
+	assert(not invader.has_bonus_tag(&"critical"))
+	assert(is_equal_approx(invader.critical_chance, 0.20))
+	assert(is_equal_approx(
+		invader.critical_multiplier, GameStats.DEFAULT_CRITICAL_MULTIPLIER
+	))
 	assert(
 		invader.damage
 		== roundi(

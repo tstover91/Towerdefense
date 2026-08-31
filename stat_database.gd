@@ -146,7 +146,7 @@ const DELIVERY_HITSCAN: StringName = &"hitscan"
 const IMPACT_PRIMARY: StringName = &"primary"
 const IMPACT_FIRST_CONTACT: StringName = &"first_contact"
 const IMPACT_DESTINATION: StringName = &"destination"
-const DEFAULT_CRITICAL_CHANCE := 0.10
+const DEFAULT_CRITICAL_CHANCE := 0.0
 const DEFAULT_CRITICAL_MULTIPLIER := 2.0
 const SLOW_SPEED_MULTIPLIER := 0.65
 const PIERCE_DAMAGE_LOSS_PER_ENEMY := 0.30
@@ -1028,21 +1028,20 @@ const TOWER_ITEMS := {
 		"category": &"critical",
 		"price": 425,
 		"shop_enabled": false,
-		"required_all_tags": [&"critical"],
 		"stat_defaults": {"critical_chance": DEFAULT_CRITICAL_CHANCE},
 		"stat_additions": {"critical_chance": 0.12},
 	},
 	&"overclocked_actuator": {
 		"display_name": "Overclocked Actuator",
-		"description": "Attack cooldown is 22% shorter, but damage is reduced by 18%.",
+		"description": "Attack cooldown is 22% shorter, but damage is reduced by 9%.",
 		"rarity": &"common",
 		"category": &"offense",
 		"price": 450,
 		"max_copies_per_tower": 4,
-		"stat_multipliers": {"firerate": 0.78, "damage": 0.82},
+		"stat_multipliers": {"firerate": 0.78, "damage": 0.91},
 		"unit_stat_multipliers": {
 			"attack_interval": 0.78,
-			"damage": 0.82,
+			"damage": 0.91,
 		},
 	},
 	&"heavy_payload": {
@@ -1184,7 +1183,7 @@ const TOWER_ITEMS := {
 		"category": &"critical",
 		"price": 900,
 		"max_copies_per_tower": 1,
-		"required_all_tags": [&"projectile", &"critical"],
+		"required_all_tags": [&"projectile"],
 		"trigger_effects": {"critical_fragment_count": 2},
 	},
 	&"afterimage_round": {
@@ -1229,12 +1228,11 @@ const TOWER_ITEMS := {
 	},
 	&"patient_hunter": {
 		"display_name": "Patient Hunter",
-		"description": "Every second spent without attacking charges the next attack for +20% damage, up to +100%. Charge resets each wave.",
+		"description": "Every second spent without attacking charges the next attack for +20% damage, up to +100%. Each spawned unit builds and spends its own charge.",
 		"rarity": &"rare",
 		"category": &"offense",
 		"price": 875,
 		"max_copies_per_tower": 1,
-		"forbidden_tags": [&"spawner"],
 		"trigger_effects": {"patient_hunter": 1},
 	},
 	&"replication_matrix": {
@@ -1323,7 +1321,7 @@ const ADAPTED_TOWER_ITEMS := {
 	&"long_barrel": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"], "shop_enabled": false},
 	&"point_blank": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"], "shop_enabled": false},
 	&"suppressive_fire": {"rarity": &"uncommon", "price": 625, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 1},
-	&"experimental_munitions": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 1, "description": "Grants Critical to this Ballistic tower with a base 1.5x critical multiplier."},
+	&"experimental_munitions": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 1, "description": "Grants Critical to this Ballistic tower with a base 1.5x critical multiplier.", "shop_enabled": false},
 	&"frenzy": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"], "max_copies_per_tower": 4},
 	&"duelist": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"], "max_copies_per_tower": 4},
 	&"relentless": {"rarity": &"rare", "price": 900, "required_all_tags": [&"melee"], "max_copies_per_tower": 1, "description": "Deal 20% less damage. Consecutive attacks against the same primary target gain 15% attack speed, up to five stacks; changing targets resets all stacks."},
@@ -1340,10 +1338,10 @@ const ADAPTED_TOWER_ITEMS := {
 	&"overcharged_capacitor": {"rarity": &"uncommon", "price": 625, "required_all_tags": [&"electric"], "max_copies_per_tower": 1, "description": "Lightning activates after 8 Electric hits instead of 5, but deals double damage."},
 	&"static_discharge": {"rarity": &"rare", "price": 875, "required_all_tags": [&"electric"], "max_copies_per_tower": 1},
 	&"chain_lightning": {"rarity": &"uncommon", "price": 675, "required_all_tags": [&"electric"], "max_copies_per_tower": 4, "description": "Lightning gains one jump per copy. The first jump deals 75% damage, and each later jump deals 75% of the previous jump."},
-	&"lucky_shot": {"rarity": &"common", "price": 400, "required_all_tags": [&"critical"], "max_copies_per_tower": 4},
-	&"glass_cannon": {"rarity": &"common", "price": 450, "required_all_tags": [&"critical"], "max_copies_per_tower": 4, "description": "Per copy: +1x critical damage, but non-critical damage is multiplied by 0.8."},
-	&"pressure_point": {"rarity": &"uncommon", "price": 675, "required_all_tags": [&"critical"], "max_copies_per_tower": 1},
-	&"deadeye": {"rarity": &"common", "price": 450, "required_all_tags": [&"critical"], "max_copies_per_tower": 4, "description": "Per copy: +2x critical damage, but adds a compounding 20% miss chance.", "shop_enabled": false},
+	&"lucky_shot": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4},
+	&"glass_cannon": {"rarity": &"common", "price": 450, "max_copies_per_tower": 4, "description": "Per copy: +1x critical damage, but non-critical damage is multiplied by 0.8."},
+	&"pressure_point": {"rarity": &"uncommon", "price": 675, "max_copies_per_tower": 1},
+	&"deadeye": {"rarity": &"common", "price": 450, "max_copies_per_tower": 4, "description": "Per copy: +2x critical damage, but adds a compounding 20% miss chance.", "shop_enabled": false},
 	&"lingering_thoughts": {"rarity": &"common", "price": 400, "required_all_tags": [&"psionic"], "shop_enabled": false},
 	&"quick_thinking": {"rarity": &"common", "price": 400, "required_all_tags": [&"psionic"], "shop_enabled": false},
 	&"perfect_intelligence": {"rarity": &"rare", "price": 850, "required_all_tags": [&"reveal"], "max_copies_per_tower": 1, "description": "Hidden enemies permanently lose Hidden when they enter this tower's Reveal range."},
@@ -1451,10 +1449,10 @@ const TOWERS := {
 			"display_name": "Gunslinger",
 			"description": "Dual pistols deliver extremely fast hitscan fire and excel at Critical and on-hit builds.",
 			"cost": 2700,
-			"add_bonus_tags": [&"critical"],
 			"stat_multipliers": {
 				"firerate": 0.42,
 			},
+			"stat_overrides": {"critical_chance": 0.10},
 			"level_20": {
 				"stat_overrides": {"critical_chance": 0.20},
 			},
@@ -1908,7 +1906,6 @@ const TOWERS := {
 				"description": "Abandons the sweep for fast, focused strikes. Every third attack is an Assassinate that is guaranteed to critically hit.",
 				"cost": 2100,
 				"unlock_level": 3,
-				"add_bonus_tags": [&"critical"],
 				"stat_multipliers": {
 					"damage": 1.25,
 					"firerate": 0.75,
@@ -2077,7 +2074,6 @@ const TOWERS := {
 		"damage_tags": [&"ballistic"],
 		"delivery_type": DELIVERY_HITSCAN,
 		"impact_mode": IMPACT_PRIMARY,
-		"bonus_tags": [&"critical"],
 		"paths": {
 			"a": {
 				"display_name": "Anti-Materiel",
@@ -2123,6 +2119,7 @@ const TOWERS := {
 				"damage": 500,
 				"firerate": 2.20,
 				"range": 23.0,
+				"critical_chance": 0.10,
 				"critical_multiplier": 2.0,
 			},
 			{
@@ -2130,6 +2127,7 @@ const TOWERS := {
 				"damage": 625,
 				"firerate": 2.10,
 				"range": 23.0,
+				"critical_chance": 0.10,
 				"critical_multiplier": 2.0,
 			},
 			{
@@ -2137,6 +2135,7 @@ const TOWERS := {
 				"damage": 1050,
 				"firerate": 1.95,
 				"range": 23,
+				"critical_chance": 0.10,
 				"critical_multiplier": 2.0,
 			},
 			{
@@ -2144,6 +2143,7 @@ const TOWERS := {
 				"damage": 2325,
 				"firerate": 1.65,
 				"range": 23.0,
+				"critical_chance": 0.10,
 				"critical_multiplier": 2.0,
 			},
 		],
@@ -2932,7 +2932,6 @@ const TOWERS := {
 				"description": "Deploys faster mechs that pursue targets in either direction, prioritizing bosses and elites with increased critical chance.",
 				"cost": 4800,
 				"unlock_level": 3,
-				"add_bonus_tags": [&"critical"],
 				"unit_stat_multipliers": {
 					"attack_interval": 0.75,
 					"move_speed": 1.60,

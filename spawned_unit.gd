@@ -95,6 +95,8 @@ var hunter_critical_chance := 0.30
 var visual_scale := 1.0
 var blueprint_variant: StringName = &""
 var replicated_unit := false
+var patient_hunter_charge_seconds := 0.0
+var pending_patient_hunter_multiplier := 1.0
 
 
 func setup(
@@ -341,6 +343,7 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(parent_tower) or parent_tower.is_queued_for_deletion():
 		queue_free()
 		return
+	process_patient_hunter_charge(delta)
 	if lifetime > 0.0:
 		age += delta
 		if age >= lifetime:
@@ -756,7 +759,9 @@ func try_attack_target() -> void:
 			> attack_radius * attack_radius
 	):
 		return
+	begin_patient_hunter_attack()
 	perform_attack(target)
+	finish_patient_hunter_attack(true)
 	register_relentless_primary_attack(target)
 	attack_cooldown = get_current_attack_interval()
 
@@ -806,13 +811,55 @@ func process_periodic_ground_slam(delta: float) -> void:
 	ground_slam_remaining = maxf(ground_slam_remaining - delta, 0.0)
 	if ground_slam_remaining > 0.0:
 		return
-	if perform_ground_slam(
+	begin_patient_hunter_attack()
+	var slam_performed := perform_ground_slam(
 		ground_slam_radius_pixels,
 		ground_slam_damage_multiplier,
 		ground_slam_knockback_distance_pixels,
 		&"periodic_ground_slam"
-	):
+	)
+	finish_patient_hunter_attack(slam_performed)
+	if slam_performed:
 		ground_slam_remaining = ground_slam_interval
+
+
+func process_patient_hunter_charge(delta: float) -> void:
+	if delta <= 0.0 or not is_instance_valid(parent_tower):
+		return
+	var controller: Variant = parent_tower.get("item_controller")
+	var item_is_active: bool = (
+		controller != null
+		and controller.get_trigger_total(&"patient_hunter") > 0.0
+	)
+	if not item_is_active:
+		patient_hunter_charge_seconds = 0.0
+		pending_patient_hunter_multiplier = 1.0
+		return
+	if parent_tower.is_combat_active():
+		patient_hunter_charge_seconds += delta
+
+
+func begin_patient_hunter_attack() -> void:
+	pending_patient_hunter_multiplier = 1.0
+	if not is_instance_valid(parent_tower):
+		return
+	var controller: Variant = parent_tower.get("item_controller")
+	if (
+		controller == null
+		or controller.get_trigger_total(&"patient_hunter") <= 0.0
+	):
+		return
+	pending_patient_hunter_multiplier += minf(
+		patient_hunter_charge_seconds
+			* GameStats.PATIENT_HUNTER_DAMAGE_PER_SECOND,
+		GameStats.PATIENT_HUNTER_MAXIMUM_DAMAGE_BONUS
+	)
+
+
+func finish_patient_hunter_attack(consumed: bool) -> void:
+	if consumed:
+		patient_hunter_charge_seconds = 0.0
+	pending_patient_hunter_multiplier = 1.0
 
 
 func get_effective_attack_radius() -> float:
@@ -1466,17 +1513,19 @@ func roll_attack_damage(current_target: Node2D = null) -> int:
 			current_critical_chance,
 			hunter_critical_chance
 		)
-	if has_bonus_tag(&"critical") and randf() < current_critical_chance:
+	if randf() < current_critical_chance:
 		last_attack_roll_was_critical = true
 		return maxi(roundi(
 			float(damage)
 			* critical_multiplier
 			* get_death_ray_damage_multiplier()
+			* pending_patient_hunter_multiplier
 		), 1)
 	return maxi(roundi(
 		float(damage)
 		* noncritical_damage_multiplier
 		* get_death_ray_damage_multiplier()
+		* pending_patient_hunter_multiplier
 	), 1)
 
 

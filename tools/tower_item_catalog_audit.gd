@@ -6,6 +6,7 @@ const TOWER_SCENE = preload("res://base_tower.tscn")
 const VALID_RARITIES: Array[StringName] = [&"common", &"uncommon", &"rare"]
 const VALID_DEFINITION_KEYS: Array[StringName] = [
 	&"id", &"display_name", &"description", &"rarity", &"category", &"price",
+	&"texture",
 	&"shop_enabled", &"max_copies_per_tower", &"allowed_tower_ids",
 	&"required_all_tags", &"required_any_tags", &"forbidden_tags",
 	&"exclusive_with",
@@ -250,8 +251,6 @@ func _get_granted_tags(
 			var normalized := StringName(tag)
 			if not result.has(normalized):
 				result.append(normalized)
-	if item_id == &"experimental_munitions" and not result.has(&"critical"):
-		result.append(&"critical")
 	return result
 
 

@@ -59,7 +59,7 @@ func run_test() -> void:
 	var gunslinger := await _create_evolved_tower(fake_main, &"gunslinger")
 	assert(gunslinger.delivery_type == GameStats.DELIVERY_HITSCAN)
 	assert(gunslinger.attack_component == null)
-	assert(gunslinger.has_bonus_tag(&"critical"))
+	assert(not gunslinger.has_bonus_tag(&"critical"))
 	assert(is_equal_approx(gunslinger.critical_chance, 0.10))
 	_level_to(gunslinger, GameStats.TOWER_XP_MAX_LEVEL)
 	assert(is_equal_approx(gunslinger.critical_chance, 0.20))

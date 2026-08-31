@@ -97,18 +97,17 @@ func run_test() -> void:
 			* invader.get_main_multiplier(&"tower_range")
 	))
 
-	# Experimental Munitions grants a 1.5x Critical baseline. Glass Cannon then
-	# raises critical damage while reducing non-critical damage for this instance.
-	assert(ballistic_invader.equip_item(&"experimental_munitions"))
-	assert(ballistic_invader.has_bonus_tag(&"critical"))
+	# Every tower can build Critical chance without needing a Critical tag.
+	assert(is_zero_approx(ballistic_invader.critical_chance))
+	assert(ballistic_invader.equip_item(&"lucky_shot"))
 	assert(is_equal_approx(
-		ballistic_invader.critical_multiplier,
-		GameStats.EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER
+		ballistic_invader.critical_chance,
+		GameStats.LUCKY_SHOT_CHANCE_PER_STACK
 	))
 	assert(ballistic_invader.equip_item(&"glass_cannon"))
 	assert(is_equal_approx(
 		ballistic_invader.critical_multiplier,
-		GameStats.EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER
+		GameStats.DEFAULT_CRITICAL_MULTIPLIER
 			+ GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS
 	))
 	assert(is_equal_approx(

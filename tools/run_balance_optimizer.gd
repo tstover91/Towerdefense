@@ -2475,16 +2475,21 @@ func get_relic_combat_multiplier(
 				* GameStats.ELECTRIC_PROC_DAMAGE_CONTRIBUTION,
 			0.1
 		)
-	var base_has_critical := bonus_tags.has(&"critical")
-	var has_critical := base_has_critical or int(relics.get(&"experimental_munitions", 0)) > 0
-	if has_critical:
-		var chance := clampf(GameStats.DEFAULT_CRITICAL_CHANCE + GameStats.LUCKY_SHOT_CHANCE_PER_STACK * float(relics.get(&"lucky_shot", 0)), 0.0, 1.0)
-		var crit_multiplier := (
-			GameStats.EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER
-			if int(relics.get(&"experimental_munitions", 0)) > 0
-			and damage_tags.has(&"ballistic")
-			else GameStats.DEFAULT_CRITICAL_MULTIPLIER
-		)
+	var base_critical_chance := float(stats.get(
+		"critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE
+	))
+	var base_critical_multiplier := float(stats.get(
+		"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
+	))
+	var has_critical_items := (
+		int(relics.get(&"lucky_shot", 0)) > 0
+		or int(relics.get(&"glass_cannon", 0)) > 0
+		or int(relics.get(&"deadeye", 0)) > 0
+		or int(relics.get(&"pressure_point", 0)) > 0
+	)
+	if base_critical_chance > 0.0 or has_critical_items:
+		var chance := clampf(base_critical_chance + GameStats.LUCKY_SHOT_CHANCE_PER_STACK * float(relics.get(&"lucky_shot", 0)), 0.0, 1.0)
+		var crit_multiplier := base_critical_multiplier
 		crit_multiplier += GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"glass_cannon", 0)) + GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS * float(relics.get(&"deadeye", 0))
 		var noncrit := pow(
 			GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER,
@@ -2492,10 +2497,8 @@ func get_relic_combat_multiplier(
 		)
 		var modified_critical_average := chance * crit_multiplier + (1.0 - chance) * noncrit
 		var baseline_critical_average := (
-			GameStats.DEFAULT_CRITICAL_CHANCE * GameStats.DEFAULT_CRITICAL_MULTIPLIER
-			+ (1.0 - GameStats.DEFAULT_CRITICAL_CHANCE)
-			if base_has_critical
-			else 1.0
+			base_critical_chance * base_critical_multiplier
+			+ (1.0 - base_critical_chance)
 		)
 		multiplier *= modified_critical_average / baseline_critical_average
 		if int(relics.get(&"deadeye", 0)) > 0:

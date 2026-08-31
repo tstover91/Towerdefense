@@ -59,6 +59,10 @@ func run_test() -> void:
 	tower.position = Vector2(430.0, 40.0)
 	add_child(tower)
 	tower.confirm_placement()
+	if not _check(tower.can_equip_item(&"patient_hunter"), "Spawner rejected Patient Hunter."):
+		return
+	if not _check(tower.equip_item(&"patient_hunter"), "Spawner could not equip Patient Hunter."):
+		return
 	var component := tower.attack_component as SpawnerAttackComponent
 	if not _check(component != null, "Spawner attack component was not created."):
 		return
@@ -73,6 +77,14 @@ func run_test() -> void:
 	component.spawn_unit()
 	var sentry := component.active_units[0] as SpawnedUnit
 	if not _check(sentry.movement_type == GameStats.MOVEMENT_STATIONARY and sentry.type_tags.has(&"technology"), "Factory Sentry is not a stationary technological unit."):
+		return
+	sentry.critical_chance = 0.0
+	sentry.patient_hunter_charge_seconds = 5.0
+	sentry.begin_patient_hunter_attack()
+	if not _check(sentry.roll_attack_damage() == sentry.damage * 2, "Spawned unit did not use its own full Patient Hunter charge."):
+		return
+	sentry.finish_patient_hunter_attack(true)
+	if not _check(is_zero_approx(sentry.patient_hunter_charge_seconds), "Spawned unit did not consume Patient Hunter charge."):
 		return
 
 	# Drone Depot safely replaces Sentries with expendable mobile Drones.

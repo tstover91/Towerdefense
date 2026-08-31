@@ -97,7 +97,9 @@ func run_test() -> void:
 	):
 		return
 	if not _check(
-		equipped_slinger.damage == 15
+		equipped_slinger.damage == maxi(roundi(
+			float(untouched_slinger.damage) * 0.91
+		), 1)
 		and is_equal_approx(equipped_slinger.loaded_attack_interval, 0.78),
 		"Overclocked Actuator did not apply its damage/attack-speed tradeoff."
 	):
@@ -114,7 +116,7 @@ func run_test() -> void:
 	if not _check(
 		removed_item == &"live_wire"
 		and equipped_slinger.get_equipped_item_ids()[2].is_empty()
-		and is_equal_approx(equipped_slinger.critical_chance, 0.10),
+		and is_zero_approx(equipped_slinger.critical_chance),
 		"Unequipping did not clear the slot and recalculate the tower."
 	):
 		return
@@ -139,7 +141,7 @@ func run_test() -> void:
 	)
 	if not _check(
 		int(modified_unit_stats["damage"])
-		== roundi(float(base_unit_stats["damage"]) * 0.82)
+		== roundi(float(base_unit_stats["damage"]) * 0.91)
 		and is_equal_approx(
 			float(modified_unit_stats["attack_interval"]),
 			float(base_unit_stats["attack_interval"]) * 0.78

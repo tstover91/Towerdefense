@@ -44,7 +44,6 @@ const DAMAGE_MELEE: StringName = &"melee"
 const DAMAGE_ELECTRIC: StringName = &"electric"
 const DAMAGE_RADIATION: StringName = &"radiation"
 
-const BONUS_CRITICAL: StringName = &"critical"
 const BONUS_PSIONIC: StringName = &"psionic"
 const BONUS_REVEAL: StringName = &"reveal"
 const BONUS_PIERCE: StringName = &"pierce"

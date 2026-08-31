@@ -236,10 +236,7 @@ func roll_critical_damage(base_damage: int, _current_target: Node2D = null) -> i
 		tower.last_attack_roll_missed = true
 		return 0
 	var rolled_damage := base_damage
-	if (
-		tower.has_bonus_tag(BaseTower.BONUS_CRITICAL)
-		and tower.spawn_rng.randf() < tower.critical_chance
-	):
+	if tower.spawn_rng.randf() < tower.critical_chance:
 		tower.last_attack_roll_was_critical = true
 		rolled_damage = roundi(float(base_damage) * tower.critical_multiplier)
 	else:

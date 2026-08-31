@@ -518,7 +518,7 @@ func _trigger_hit_explosion(
 		attack_context, slot_index, item_id, &"item_hit_explosion"
 	)
 	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
-		if candidate == enemy or not tower.is_valid_target(candidate):
+		if not tower.is_valid_target(candidate):
 			continue
 		var distance := center.distance_to(candidate.global_position)
 		if distance > radius:
@@ -978,6 +978,7 @@ func process_combat_time(delta: float) -> void:
 		and tower != null
 		and tower.is_placed
 		and tower.is_combat_active()
+		and not tower.uses_standard_spawner_system()
 		and get_trigger_total(&"patient_hunter") > 0.0
 	):
 		patient_hunter_charge_seconds += delta

@@ -277,45 +277,35 @@ func apply_effect_combat_stat_modifiers(
 			float(stats.get("budget_explosion_damage_multiplier", 1.0))
 			* get_explosion_damage_multiplier()
 		)
-	if tower.has_bonus_tag(BaseTower.BONUS_CRITICAL):
-		var glass_cannon_count := get_effect_stack_count(&"glass_cannon")
-		var deadeye_count := get_effect_stack_count(&"deadeye")
-		var base_critical_multiplier := float(stats.get(
-			"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
-		))
-		if (
-			tower.has_damage_tag(BaseTower.DAMAGE_BALLISTIC)
-			and get_effect_stack_count(&"experimental_munitions") > 0
-		):
-			base_critical_multiplier = (
-				GameStats.EXPERIMENTAL_MUNITIONS_CRITICAL_MULTIPLIER
-			)
-		stats["critical_chance"] = clampf(
-			float(stats.get("critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE))
-			+ GameStats.LUCKY_SHOT_CHANCE_PER_STACK
-				* get_effect_stack_count(&"lucky_shot"),
-			0.0,
-			1.0
+	var glass_cannon_count := get_effect_stack_count(&"glass_cannon")
+	var deadeye_count := get_effect_stack_count(&"deadeye")
+	var base_critical_multiplier := float(stats.get(
+		"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
+	))
+	stats["critical_chance"] = clampf(
+		float(stats.get("critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE))
+		+ GameStats.LUCKY_SHOT_CHANCE_PER_STACK
+			* get_effect_stack_count(&"lucky_shot"),
+		0.0,
+		1.0
+	)
+	stats["critical_multiplier"] = maxf(
+		base_critical_multiplier
+		+ GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS
+			* float(glass_cannon_count)
+		+ GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS
+			* float(deadeye_count),
+		1.0
+	)
+	if glass_cannon_count > 0:
+		stats["noncritical_damage_multiplier"] = pow(
+			GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER,
+			glass_cannon_count
 		)
-		stats["critical_multiplier"] = maxf(
-			base_critical_multiplier
-			+ GameStats.GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS
-				* float(glass_cannon_count)
-			+ GameStats.DEADEYE_CRITICAL_MULTIPLIER_BONUS
-				* float(deadeye_count),
-			1.0
+	if deadeye_count > 0:
+		stats["miss_chance"] = 1.0 - pow(
+			1.0 - GameStats.DEADEYE_MISS_CHANCE, deadeye_count
 		)
-		if glass_cannon_count > 0:
-			stats["noncritical_damage_multiplier"] = (
-				pow(
-					GameStats.GLASS_CANNON_NONCRITICAL_MULTIPLIER,
-					glass_cannon_count
-				)
-			)
-		if deadeye_count > 0:
-			stats["miss_chance"] = 1.0 - pow(
-				1.0 - GameStats.DEADEYE_MISS_CHANCE, deadeye_count
-			)
 	if tower.has_bonus_tag(BaseTower.BONUS_PIERCE):
 		stats["pierce_count"] = tower.pierce_count
 		stats["pierce_loses_no_power"] = (
@@ -332,7 +322,6 @@ func apply_effect_combat_stat_modifiers(
 			"additional_bonus_tags", []
 		).duplicate()
 		for inherited_tag in [
-			BaseTower.BONUS_CRITICAL,
 			BaseTower.BONUS_PIERCE,
 			BaseTower.BONUS_STUN,
 			BaseTower.BONUS_REVEAL,
@@ -607,11 +596,6 @@ func load_base_tags() -> void:
 	if tower.item_controller != null:
 		loaded_pierce_count += tower.item_controller.apply_tag_changes()
 	set_pierce_count(loaded_pierce_count)
-	if tower.has_damage_tag(BaseTower.DAMAGE_BALLISTIC):
-		if get_effect_stack_count(&"experimental_munitions") > 0:
-			add_bonus_tag(BaseTower.BONUS_CRITICAL)
-
-
 func _apply_tag_changes(definition: Dictionary) -> void:
 	for tag in definition.get("add_type_tags", []):
 		add_type_tag(tag)

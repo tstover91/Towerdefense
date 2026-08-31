@@ -370,11 +370,9 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 	var values: Dictionary = traits["values"]
 	var primary_type: StringName = traits["primary_type"]
 	if flags.get("longshot_kill_chain", false):
-		var critical_chance := (
-			GameStats.DEFAULT_CRITICAL_CHANCE
-			if traits["bonus_tags"].has(&"critical")
-			else 0.0
-		)
+		var critical_chance := float(stats.get(
+			"critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE
+		))
 		var critical_multiplier := float(stats.get(
 			"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
 		))
@@ -421,9 +419,13 @@ func simulate_trial(tower_id: StringName, stats: Dictionary, traits: Dictionary,
 			)
 			attack_damage = float(reaver_result["damage"])
 			reaver_target_multiplier = float(reaver_result["targets"])
-		elif traits["bonus_tags"].has(&"critical"):
+		elif float(stats.get(
+			"critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE
+		)) > 0.0:
 			var guaranteed_finisher := false
-			if guaranteed_finisher or rng.randf() < GameStats.DEFAULT_CRITICAL_CHANCE:
+			if guaranteed_finisher or rng.randf() < float(stats.get(
+				"critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE
+			)):
 				attack_damage *= float(stats.get(
 					"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
 				))
@@ -798,7 +800,9 @@ func get_reaver_attack_profile(
 	if flags.get("reaver_assassinate", false):
 		var interval := maxi(int(values.get("assassinate_attack_interval", 3)), 1)
 		var guaranteed := (attack_index + 1) % interval == 0
-		if guaranteed or rng.randf() < GameStats.DEFAULT_CRITICAL_CHANCE:
+		if guaranteed or rng.randf() < float(stats.get(
+			"critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE
+		)):
 			damage *= GameStats.DEFAULT_CRITICAL_MULTIPLIER
 		return {"damage": damage, "targets": 1.0}
 	if flags.get("reaver_champion", false):

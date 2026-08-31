@@ -110,6 +110,14 @@ func run_test() -> void:
 		primary.global_position.distance_to(nearby.global_position),
 		payload_radius
 	)
+	var primary_payload_damage := GameStats.get_explosion_damage(
+		roundi(100.0 * float(
+			payload_effects["primary_hit_explosion_damage_multiplier"]
+		)),
+		0.0,
+		payload_radius
+	)
+	assert(primary.health == 1000 - primary_payload_damage)
 	assert(nearby.health == 1000 - payload_damage)
 	assert(nearby.received_contexts.size() == 1)
 	assert(nearby.received_contexts[0].is_item_proc())
