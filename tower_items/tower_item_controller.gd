@@ -64,8 +64,6 @@ func get_first_empty_slot() -> int:
 func can_equip_item(item_id: StringName, slot_index := -1) -> bool:
 	if tower.instance_progression == null or not GameStats.has_tower_item(item_id):
 		return false
-	if not is_item_compatible(item_id):
-		return false
 	var item := GameStats.get_tower_item(item_id)
 	var maximum_copies := int(item.get("max_copies_per_tower", get_slot_count()))
 	if get_total_equipped_item_count(item_id) >= maximum_copies:
@@ -89,7 +87,6 @@ func can_equip_or_swap_item(item_id: StringName, slot_index: int) -> bool:
 		or not GameStats.has_tower_item(item_id)
 		or slot_index < 0
 		or slot_index >= get_slot_count()
-		or not is_item_compatible(item_id, slot_index)
 	):
 		return false
 	var item := GameStats.get_tower_item(item_id)
@@ -1158,5 +1155,8 @@ func _refresh_tower_after_item_change() -> void:
 	# the newly equipped loadout. Runtime state is reset at the next round.
 	tower.load_base_tags()
 	tower.load_level_stats()
+	for candidate in tower.get_tree().get_nodes_in_group("towers"):
+		if candidate != tower and is_instance_valid(candidate) and bool(candidate.get("is_placed")):
+			candidate.load_level_stats()
 	if tower.selected and tower.main != null and tower.main.has_method("show_tower_details"):
 		tower.main.show_tower_details(tower)

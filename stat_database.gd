@@ -278,7 +278,8 @@ const LIGHTWEIGHT_AMMO_INTERVAL_MULTIPLIER := 0.75
 const SUPPRESSIVE_FIRE_DURATION := 1.00
 
 const HIGH_YIELD_RADIUS_MULTIPLIER := 1.50
-const HIGH_YIELD_DAMAGE_MULTIPLIER := 0.88
+const HIGH_YIELD_DAMAGE_MULTIPLIER := 1.0
+const HIGH_YIELD_INTERVAL_MULTIPLIER := 1.15
 const CONCENTRATED_CHARGE_RADIUS_MULTIPLIER := 0.80
 const CONCENTRATED_CHARGE_DAMAGE_MULTIPLIER := 1.40
 
@@ -287,6 +288,7 @@ const MAXIMUM_PAYLOAD_DAMAGE_MULTIPLIER := 1.50
 const MAXIMUM_PAYLOAD_INTERVAL_MULTIPLIER := 1.75
 
 const LUCKY_SHOT_CHANCE_PER_STACK := 0.20
+const PROBABILITY_TRANSMITTER_RADIUS := BUILD_CELL_SIZE * 5.0
 const GLASS_CANNON_CRITICAL_MULTIPLIER_BONUS := 1.0
 const GLASS_CANNON_NONCRITICAL_MULTIPLIER := 0.80
 const DEADEYE_CRITICAL_MULTIPLIER_BONUS := 2.0
@@ -305,7 +307,7 @@ const INTERFERENCE_BEAM_DAMAGE_MULTIPLIER := 1.40
 
 const HOLLOW_POINT_DAMAGE_PER_STACK := 0.25
 const LONG_BARREL_MAX_DAMAGE_PER_STACK := 0.40
-const POINT_BLANK_MAX_DAMAGE_PER_STACK := 0.40
+const POINT_BLANK_MAX_DAMAGE_PER_STACK := 0.25
 
 const GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER := 1.35
 const GIANT_KILLER_NORMAL_DAMAGE_MULTIPLIER := 0.85
@@ -325,6 +327,8 @@ const NETWORK_UPGRADE_SPEED_PER_NEIGHBOR_PER_STACK := 0.12
 
 const FRENZY_SPEED_PER_ENEMY_PER_STACK := 0.06
 const FRENZY_MAXIMUM_ENEMY_COUNT := 10
+const FRENZY_ACTIVE_DURATION := 4.0
+const FRENZY_COOLDOWN_DURATION := 6.0
 
 const DUELIST_ONE_ENEMY_DAMAGE_PER_STACK := 0.45
 const DUELIST_TWO_ENEMY_DAMAGE_PER_STACK := 0.25
@@ -454,8 +458,8 @@ const LEGACY_ITEM_TEMPLATES := {
 	"pack_hunter": {"display_name": "Pack Hunter", "description": "Biological attacks deal 25% more damage per stack when another Biological tower is targeting that enemy.", "rarity": &"common", "category": &"biological", "stackable": true},
 	"predatory_instinct": {"display_name": "Predatory Instinct", "description": "Biological attacks deal 50% more damage per stack to enemies at or below 25% health.", "rarity": &"common", "category": &"biological", "stackable": true},
 	"perfect_mutation": {"display_name": "Perfect Mutation", "description": "Choose one already-built Biological tower. That tower can purchase both final paths.", "rarity": &"legendary", "category": &"biological", "stackable": false},
-	"focused_lens": {"display_name": "Focused Lens", "description": "Beam damage increases by 30% per stack, but range is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true, "exclusive_with": [&"wide_lens"]},
-	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases by 30% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true, "exclusive_with": [&"focused_lens"]},
+	"focused_lens": {"display_name": "Focused Lens", "description": "Beam damage increases by 30% per stack, but range is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true, "exclusive_with": [&"wide_lens"], "shop_enabled": false},
+	"wide_lens": {"display_name": "Wide Lens", "description": "Beam range increases by 30% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"beam", "stackable": true, "exclusive_with": [&"focused_lens"], "shop_enabled": false},
 	"interference_beam": {"display_name": "Interference Beam", "description": "Beams deal 60% more damage to slowed or stunned enemies.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"microwave": {"display_name": "Microwave", "description": "An enemy killed by Beam damage explodes for 30% of its maximum health, capped at five times the killing damage. The source tower pauses briefly after each explosion.", "rarity": &"rare", "category": &"beam", "stackable": false},
 	"death_ray": {"display_name": "Death Ray", "description": "Every 6 seconds, Beam towers overcharge for 2 seconds. Their beams deal 75% more damage, become 75% wider, and gain infinite Pierce.", "rarity": &"rare", "category": &"beam", "stackable": false},
@@ -463,18 +467,18 @@ const LEGACY_ITEM_TEMPLATES := {
 	"heavy_rounds": {"display_name": "Heavy Rounds", "description": "Ballistic damage increases by 35% per stack, but attacks take 15% longer per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"lightweight_ammo"]},
 	"lightweight_ammo": {"display_name": "Lightweight Ammo", "description": "Ballistic attacks are 25% faster per stack, but deal 10% less damage per stack.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"heavy_rounds"]},
 	"long_barrel": {"display_name": "Long Barrel", "description": "Ballistic damage gains up to 40% per stack based on distance from its source.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"point_blank"]},
-	"point_blank": {"display_name": "Point Blank", "description": "Ballistic damage gains up to 40% per stack at close range.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"long_barrel"]},
+	"point_blank": {"display_name": "Point Blank", "description": "Damage gains up to 25% per stack at close range.", "rarity": &"common", "category": &"ballistic", "stackable": true, "exclusive_with": [&"long_barrel"]},
 	"armor_piercing": {"display_name": "Armor Piercing", "description": "Ballistic attacks gain Pierce 1.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"suppressive_fire": {"display_name": "Suppressive Fire", "description": "Ballistic attacks slow enemies for at least 1 second.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
 	"rubber_bullets": {"display_name": "Rubber Bullets", "description": "Ballistic attacks bounce once to another enemy within 3 tiles.", "rarity": &"legendary", "category": &"ballistic", "stackable": false},
 	"experimental_munitions": {"display_name": "Experimental Munitions", "description": "All Ballistic weapons can critically hit, but their base critical multiplier is 1.5x before other relic modifiers.", "rarity": &"rare", "category": &"ballistic", "stackable": false},
-	"frenzy": {"display_name": "Frenzy", "description": "Melee attacks become 6% faster per enemy in range per stack, counting up to 10 enemies.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"duelist"]},
+	"frenzy": {"display_name": "Frenzy", "description": "For 4 seconds, attacks become 6% faster per enemy in range per stack, counting up to 10 enemies. Then enters a 6-second cooldown at normal speed.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"duelist"]},
 	"duelist": {"display_name": "Duelist", "description": "Melee damage gains 45% per stack with one enemy in range or 25% per stack with two.", "rarity": &"common", "category": &"melee", "stackable": true, "exclusive_with": [&"frenzy"]},
 	"relentless": {"display_name": "Relentless", "description": "Gain 15% Melee attack speed after each attack against the same primary target, up to five stacks. Changing targets resets it.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"giant_killer": {"display_name": "Giant Killer", "description": "Melee attacks deal 35% more damage to elites and bosses, but 15% less to normal enemies.", "rarity": &"common", "category": &"melee", "stackable": true},
 	"strength_in_numbers": {"display_name": "Strength in Numbers", "description": "Gain 20% Melee damage per nearby Melee tower, counting up to four.", "rarity": &"rare", "category": &"melee", "stackable": false},
 	"lone_wolf": {"display_name": "Lone Wolf", "description": "A Melee tower gains 50% damage, 35% attack speed, and 25% range while it is the only copy of that specific tower built. Mech Bay counts per bay, not per active mech.", "rarity": &"legendary", "category": &"melee", "stackable": false},
-	"high_yield": {"display_name": "High Yield", "description": "Explosion radius increases by 35% per stack, but damage is reduced by 10% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true, "exclusive_with": [&"concentrated_charge"]},
+	"high_yield": {"display_name": "High Yield", "description": "Explosions are 50% larger per stack, but attacks are 15% slower per stack.", "rarity": &"common", "category": &"explosive", "stackable": true, "exclusive_with": [&"concentrated_charge"]},
 	"concentrated_charge": {"display_name": "Concentrated Charge", "description": "Explosion radius is reduced by 20% per stack, but damage increases by 40% per stack.", "rarity": &"common", "category": &"explosive", "stackable": true, "exclusive_with": [&"high_yield"]},
 	"crowd_pleaser": {"display_name": "Crowd Pleaser", "description": "Explosions gain 12% damage per enemy caught, up to 150% bonus damage.", "rarity": &"rare", "category": &"explosive", "stackable": false, "exclusive_with": [&"direct_hit"]},
 	"direct_hit": {"display_name": "Direct Hit", "description": "Explosions gain 60% damage against one target, 30% against two, or 15% against three.", "rarity": &"rare", "category": &"explosive", "stackable": false, "exclusive_with": [&"crowd_pleaser"]},
@@ -1036,6 +1040,15 @@ const TOWER_ITEMS := {
 		"stat_defaults": {"critical_chance": DEFAULT_CRITICAL_CHANCE},
 		"stat_additions": {"critical_chance": 0.12},
 	},
+	&"probability_transmitter": {
+		"display_name": "Probability Transmitter",
+		"description": "This tower cannot critically hit. Its own critical chance is added to every other tower within 5 tiles. Received critical chance is not retransmitted.",
+		"rarity": &"rare",
+		"category": &"critical",
+		"price": 900,
+		"max_copies_per_tower": 1,
+		"item_effects": {&"probability_transmitter": 1},
+	},
 	&"overclocked_actuator": {
 		"display_name": "Overclocked Actuator",
 		"description": "Attack cooldown is 22% shorter, but damage is reduced by 9%.",
@@ -1188,6 +1201,7 @@ const TOWER_ITEMS := {
 		"rarity": &"rare",
 		"category": &"critical",
 		"price": 900,
+		"shop_enabled": false,
 		"max_copies_per_tower": 1,
 		"required_all_tags": [&"projectile"],
 		"trigger_effects": {"critical_fragment_count": 2},
@@ -1316,25 +1330,25 @@ const TOWER_ITEMS := {
 ## Tower-local items carried forward from the earlier global-effect prototype.
 ## Their mechanics are now sourced exclusively from equipped tower items.
 const ADAPTED_TOWER_ITEMS := {
-	&"focused_lens": {"rarity": &"common", "price": 425, "required_all_tags": [&"beam"], "max_copies_per_tower": 4},
-	&"wide_lens": {"rarity": &"common", "price": 425, "required_all_tags": [&"beam"], "shop_enabled": false},
-	&"interference_beam": {"rarity": &"common", "price": 450, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "description": "Beams deal 40% more damage to slowed or stunned enemies."},
-	&"microwave": {"rarity": &"rare", "price": 950, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "description": "Beam kills explode for 200% of the killing hit in a 2.5-tile radius. Triggers at most once every 1.5 seconds per tower."},
+	&"focused_lens": {"rarity": &"common", "price": 425, "max_copies_per_tower": 4, "shop_enabled": false, "description": "+30% damage and -10% range per copy."},
+	&"wide_lens": {"rarity": &"common", "price": 425, "shop_enabled": false, "description": "+30% range and -10% damage per copy."},
+	&"interference_beam": {"rarity": &"common", "price": 450, "max_copies_per_tower": 1, "description": "Deal 40% more damage to slowed or stunned enemies."},
+	&"microwave": {"rarity": &"rare", "price": 950, "max_copies_per_tower": 1, "description": "Kills explode for 200% of the killing hit in a 2.5-tile radius. Triggers at most once every 1.5 seconds per tower."},
 	&"death_ray": {"rarity": &"rare", "price": 950, "required_all_tags": [&"beam"], "max_copies_per_tower": 1, "description": "Every 6 seconds, this tower overcharges for 2 seconds: +75% Beam damage and width with infinite Pierce."},
-	&"hollow_point": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 4},
-	&"heavy_rounds": {"rarity": &"common", "price": 400, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 4},
-	&"lightweight_ammo": {"rarity": &"common", "price": 400, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 4},
-	&"long_barrel": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"], "shop_enabled": false},
-	&"point_blank": {"rarity": &"common", "price": 375, "required_all_tags": [&"ballistic"], "shop_enabled": false},
-	&"suppressive_fire": {"rarity": &"uncommon", "price": 625, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 1},
+	&"hollow_point": {"rarity": &"common", "price": 375, "max_copies_per_tower": 4, "description": "+25% damage per copy against enemies above 75% health."},
+	&"heavy_rounds": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "+35% damage and 15% longer attack cooldown per copy."},
+	&"lightweight_ammo": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "25% shorter attack cooldown and 10% less damage per copy."},
+	&"long_barrel": {"rarity": &"common", "price": 375, "shop_enabled": false, "description": "Gain up to 40% damage per copy based on distance from the attack source."},
+	&"point_blank": {"rarity": &"common", "price": 375, "shop_enabled": false, "description": "Gain up to 25% damage per copy at close range."},
+	&"suppressive_fire": {"rarity": &"uncommon", "price": 625, "max_copies_per_tower": 1, "description": "Damaging attacks Slow enemies for at least 1 second."},
 	&"experimental_munitions": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"ballistic"], "max_copies_per_tower": 1, "description": "Grants Critical to this Ballistic tower with a base 1.5x critical multiplier.", "shop_enabled": false},
-	&"frenzy": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"], "max_copies_per_tower": 4},
-	&"duelist": {"rarity": &"common", "price": 400, "required_all_tags": [&"melee"], "max_copies_per_tower": 4},
-	&"relentless": {"rarity": &"rare", "price": 900, "required_all_tags": [&"melee"], "max_copies_per_tower": 1, "description": "Deal 20% less damage. Consecutive attacks against the same primary target gain 15% attack speed, up to five stacks; changing targets resets all stacks."},
-	&"giant_killer": {"rarity": &"common", "price": 425, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "Per copy: +35% Melee damage to elites and bosses, but 15% less damage to normal enemies."},
+	&"frenzy": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "For 4 seconds, attacks become 6% faster per enemy in range per copy, counting up to 10 enemies. Then enters a 6-second cooldown at normal speed."},
+	&"duelist": {"rarity": &"common", "price": 400, "max_copies_per_tower": 4, "description": "Per copy: +45% damage with one enemy in range or +25% with two."},
+	&"relentless": {"rarity": &"rare", "price": 900, "max_copies_per_tower": 1, "description": "Deal 20% less damage. Consecutive attacks against the same primary target gain 15% attack speed, up to five stacks; changing targets resets all stacks."},
+	&"giant_killer": {"rarity": &"common", "price": 425, "max_copies_per_tower": 4, "description": "Per copy: +35% damage to elites and bosses, but 15% less damage to normal enemies."},
 	&"strength_in_numbers": {"rarity": &"common", "price": 425, "required_all_tags": [&"melee"], "max_copies_per_tower": 4, "description": "+20% Melee damage per nearby Melee tower per copy, counting up to four neighbors.", "shop_enabled": false},
-	&"lone_wolf": {"rarity": &"uncommon", "price": 700, "required_all_tags": [&"melee"], "shop_enabled": false},
-	&"high_yield": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"], "max_copies_per_tower": 4, "description": "Per copy: explosions are 50% larger, but deal 12% less damage."},
+	&"lone_wolf": {"rarity": &"uncommon", "price": 700, "shop_enabled": false, "description": "+50% damage, +35% attack speed, and +25% range while this is the only built copy of its tower family."},
+	&"high_yield": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"], "max_copies_per_tower": 4, "description": "Per copy: explosions are 50% larger, but attacks are 15% slower."},
 	&"concentrated_charge": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"], "max_copies_per_tower": 4},
 	&"crowd_pleaser": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1},
 	&"direct_hit": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1},
@@ -2381,6 +2395,8 @@ const TOWERS := {
 				"remove_damage_tags": [&"explosive"],
 				"add_damage_tags": [&"beam"],
 				"primary_damage_type": &"beam",
+				"delivery_type": DELIVERY_HITSCAN,
+				"impact_mode": IMPACT_PRIMARY,
 				"remove_bonus_tags": [&"stun"],
 				"add_bonus_tags": [&"pierce"],
 				"stat_overrides": {"stun_duration": 0.0},
@@ -2440,6 +2456,8 @@ const TOWERS := {
 				"unlock_level": 3,
 				"stat_multipliers": {"firerate": 4.0},
 				"add_damage_tags": [&"radiation"],
+				"delivery_type": DELIVERY_HITSCAN,
+				"impact_mode": IMPACT_PRIMARY,
 				"behavior_flags": {"orbital_atomic_strike": true},
 				"behavior_values": {
 					"atomic_damage_multiplier": 4.0,
@@ -2840,6 +2858,8 @@ const TOWERS := {
 				"remove_damage_tags": [&"ballistic"],
 				"add_damage_tags": [&"melee"],
 				"primary_damage_type": &"melee",
+				"delivery_type": DELIVERY_HITSCAN,
+				"impact_mode": IMPACT_PRIMARY,
 				"stat_overrides": {
 					"spawned_unit_id": &"mech",
 					"spawn_limit": 1,

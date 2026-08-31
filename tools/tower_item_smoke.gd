@@ -60,8 +60,9 @@ func run_test() -> void:
 			return
 
 	if not _check(
-		not equipped_slinger.can_equip_item(&"beam_optics"),
-		"A projectile tower accepted a Beam-only item."
+		equipped_slinger.can_equip_item(&"beam_optics")
+		and not equipped_slinger.item_controller.is_item_compatible(&"beam_optics"),
+		"A specialized item could not be equipped while remaining inactive."
 	):
 		return
 	if not _check(equipped_slinger.equip_item(&"ricochet_module"), "Ricochet Module could not be equipped."):

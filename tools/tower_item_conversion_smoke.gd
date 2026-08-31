@@ -74,7 +74,7 @@ func run_test() -> void:
 			"%s must be single-copy or stack to the slot cap." % item_id
 		)
 		rarity_counts[rarity] = int(rarity_counts[rarity]) + 1
-	assert(rarity_counts[&"common"] == 20)
+	assert(rarity_counts[&"common"] == 19)
 	assert(rarity_counts[&"uncommon"] == 17)
 	assert(rarity_counts[&"rare"] == 19)
 	assert(rarity_counts[&"legendary"] == 0)
@@ -135,7 +135,6 @@ func run_test() -> void:
 		&"calibrated_gears",
 		&"rangefinder",
 		&"kinetic_rebound",
-		&"critical_fragmentation",
 		&"afterimage_round",
 		&"secondary_detonator",
 		&"crippling_current",
@@ -149,6 +148,7 @@ func run_test() -> void:
 		&"experimental_blueprint",
 	]:
 		assert(item_ids.has(approved_item_id), "%s missing from shop." % approved_item_id)
+	assert(not item_ids.has(&"critical_fragmentation"))
 
 	var shop_manager := ItemShopManagerScript.new()
 	for phase in [&"early", &"middle", &"late"]:

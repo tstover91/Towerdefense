@@ -138,7 +138,8 @@ func run_test() -> void:
 		projectile.queue_free()
 
 	var wire_tower := await _create_tower(fake_main, &"invader")
-	assert(not wire_tower.can_equip_item(&"split_chamber"))
+	assert(wire_tower.can_equip_item(&"split_chamber"))
+	assert(not wire_tower.item_controller.is_item_compatible(&"split_chamber"))
 	var other_projectile_tower := await _create_tower(fake_main, &"voidcaller")
 	assert(other_projectile_tower.can_equip_item(&"split_chamber"))
 	assert(wire_tower.equip_item(&"live_wire"))

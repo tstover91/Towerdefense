@@ -4,6 +4,9 @@ extends Node
 const GameStats = preload("res://stat_database.gd")
 
 var tower: BaseTower
+var frenzy_active_until_msec := 0
+var frenzy_cooldown_until_msec := 0
+var transmittable_critical_chance := 0.0
 
 
 func setup(owner_tower: BaseTower) -> void:
@@ -194,16 +197,12 @@ func apply_effect_combat_stat_modifiers(
 					float(stats[budget_key])
 					* GameStats.TRADE_AGREEMENT_UNIT_BUDGET_MULTIPLIER
 				)
-	if (
-		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
-		and get_effect_stack_count(&"relentless") > 0
-	):
+	if get_effect_stack_count(&"relentless") > 0:
 		stats[damage_key] = maxi(roundi(
 			float(stats[damage_key]) * GameStats.RELENTLESS_DAMAGE_MULTIPLIER
 		), 1)
 	if (
-		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
-		and get_effect_stack_count(&"lone_wolf") > 0
+		get_effect_stack_count(&"lone_wolf") > 0
 		and not has_other_placed_tower_with_same_id()
 	):
 		stats[damage_key] = maxi(roundi(
@@ -219,42 +218,41 @@ func apply_effect_combat_stat_modifiers(
 				float(stats[range_key]) * GameStats.LONE_WOLF_RANGE_MULTIPLIER,
 				0.1
 			)
-	if primary_type == BaseTower.DAMAGE_BEAM:
-		var focused_count := get_effect_stack_count(&"focused_lens")
-		var wide_count := get_effect_stack_count(&"wide_lens")
-		stats[damage_key] = maxi(roundi(
-			float(stats[damage_key])
-			* (1.0 + GameStats.FOCUSED_LENS_DAMAGE_PER_STACK * focused_count)
-			* pow(GameStats.WIDE_LENS_DAMAGE_MULTIPLIER, wide_count)
-		), 1)
-		if stats.has(range_key):
-			stats[range_key] = maxf(
-				float(stats[range_key])
+	var focused_count := get_effect_stack_count(&"focused_lens")
+	var wide_count := get_effect_stack_count(&"wide_lens")
+	stats[damage_key] = maxi(roundi(
+		float(stats[damage_key])
+		* (1.0 + GameStats.FOCUSED_LENS_DAMAGE_PER_STACK * focused_count)
+		* pow(GameStats.WIDE_LENS_DAMAGE_MULTIPLIER, wide_count)
+	), 1)
+	if stats.has(range_key):
+		stats[range_key] = maxf(
+			float(stats[range_key])
 				* pow(GameStats.FOCUSED_LENS_RANGE_MULTIPLIER, focused_count)
 				* (1.0 + GameStats.WIDE_LENS_RANGE_PER_STACK * wide_count),
-				0.1
-			)
+			0.1
+		)
+	if primary_type == BaseTower.DAMAGE_BEAM:
 		if get_effect_stack_count(&"death_ray") > 0:
 			stats["death_ray_overcharge"] = true
-	if primary_type == BaseTower.DAMAGE_BALLISTIC:
-		var heavy_count := get_effect_stack_count(&"heavy_rounds")
-		var lightweight_count := get_effect_stack_count(&"lightweight_ammo")
-		stats[damage_key] = maxi(roundi(
-			float(stats[damage_key])
-			* pow(GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER, heavy_count)
-			* pow(GameStats.LIGHTWEIGHT_AMMO_DAMAGE_MULTIPLIER, lightweight_count)
-		), 1)
-		stats[interval_key] = maxf(
-			float(stats[interval_key])
-			* pow(GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER, heavy_count)
-			* pow(GameStats.LIGHTWEIGHT_AMMO_INTERVAL_MULTIPLIER, lightweight_count),
-			0.01
+	var heavy_count := get_effect_stack_count(&"heavy_rounds")
+	var lightweight_count := get_effect_stack_count(&"lightweight_ammo")
+	stats[damage_key] = maxi(roundi(
+		float(stats[damage_key])
+		* pow(GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER, heavy_count)
+		* pow(GameStats.LIGHTWEIGHT_AMMO_DAMAGE_MULTIPLIER, lightweight_count)
+	), 1)
+	stats[interval_key] = maxf(
+		float(stats[interval_key])
+		* pow(GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER, heavy_count)
+		* pow(GameStats.LIGHTWEIGHT_AMMO_INTERVAL_MULTIPLIER, lightweight_count),
+		0.01
+	)
+	if get_effect_stack_count(&"suppressive_fire") > 0:
+		stats["slow_duration"] = maxf(
+			float(stats.get("slow_duration", 0.0)),
+			GameStats.SUPPRESSIVE_FIRE_DURATION
 		)
-		if get_effect_stack_count(&"suppressive_fire") > 0:
-			stats["slow_duration"] = maxf(
-				float(stats.get("slow_duration", 0.0)),
-				GameStats.SUPPRESSIVE_FIRE_DURATION
-			)
 	if primary_type == BaseTower.DAMAGE_EXPLOSIVE:
 		stats[damage_key] = maxi(roundi(
 			float(stats[damage_key]) * get_explosion_damage_multiplier()
@@ -282,10 +280,17 @@ func apply_effect_combat_stat_modifiers(
 	var base_critical_multiplier := float(stats.get(
 		"critical_multiplier", GameStats.DEFAULT_CRITICAL_MULTIPLIER
 	))
-	stats["critical_chance"] = clampf(
+	var own_critical_chance := clampf(
 		float(stats.get("critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE))
 		+ GameStats.LUCKY_SHOT_CHANCE_PER_STACK
 			* get_effect_stack_count(&"lucky_shot"),
+		0.0,
+		1.0
+	)
+	var has_transmitter := get_effect_stack_count(&"probability_transmitter") > 0
+	transmittable_critical_chance = own_critical_chance if has_transmitter else 0.0
+	stats["critical_chance"] = 0.0 if has_transmitter else clampf(
+		own_critical_chance + get_nearby_transmitted_critical_chance(),
 		0.0,
 		1.0
 	)
@@ -472,23 +477,38 @@ func get_current_attack_interval() -> float:
 	var interval := tower.loaded_attack_interval
 	if tower.attack_component != null:
 		interval = tower.attack_component.modify_attack_interval(interval)
+	interval *= pow(
+		GameStats.HIGH_YIELD_INTERVAL_MULTIPLIER,
+		get_effect_stack_count(&"high_yield")
+	)
 	var frenzy_stacks := get_effect_stack_count(&"frenzy")
-	if tower.has_damage_tag(BaseTower.DAMAGE_MELEE) and frenzy_stacks > 0:
+	if frenzy_stacks > 0:
 		var enemy_count := mini(
 			tower.count_valid_enemies_near(
 				tower.global_position, tower.range_radius_pixels
 			),
 			GameStats.FRENZY_MAXIMUM_ENEMY_COUNT
 		)
-		var speed_bonus := (
-			GameStats.FRENZY_SPEED_PER_ENEMY_PER_STACK
-			* float(enemy_count)
-			* float(frenzy_stacks)
-		)
-		interval /= 1.0 + speed_bonus
+		var now_msec := Time.get_ticks_msec()
+		if now_msec >= frenzy_cooldown_until_msec and enemy_count > 0:
+			frenzy_active_until_msec = now_msec + int(
+				GameStats.FRENZY_ACTIVE_DURATION * 1000.0
+			)
+			frenzy_cooldown_until_msec = frenzy_active_until_msec + int(
+				GameStats.FRENZY_COOLDOWN_DURATION * 1000.0
+			)
+		if now_msec < frenzy_active_until_msec:
+			var speed_bonus := (
+				GameStats.FRENZY_SPEED_PER_ENEMY_PER_STACK
+				* float(enemy_count)
+				* float(frenzy_stacks)
+			)
+			interval /= 1.0 + speed_bonus
+	else:
+		frenzy_active_until_msec = 0
+		frenzy_cooldown_until_msec = 0
 	if (
-		tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
-		and get_effect_stack_count(&"relentless") > 0
+		get_effect_stack_count(&"relentless") > 0
 		and tower.relentless_stacks > 0
 	):
 		interval /= 1.0 + GameStats.RELENTLESS_SPEED_PER_STACK * float(tower.relentless_stacks)
@@ -678,6 +698,19 @@ func has_nearby_other_tower(radius: float) -> bool:
 		):
 			return true
 	return false
+
+
+func get_nearby_transmitted_critical_chance() -> float:
+	var total := 0.0
+	for candidate in tower.get_tree().get_nodes_in_group("towers"):
+		if not is_valid_neighbor_tower(candidate):
+			continue
+		if tower.global_position.distance_to(candidate.global_position) > GameStats.PROBABILITY_TRANSMITTER_RADIUS:
+			continue
+		var candidate_stats := candidate.get("stats_controller") as TowerStatsController
+		if candidate_stats != null:
+			total += candidate_stats.transmittable_critical_chance
+	return total
 
 
 func has_other_placed_tower_with_same_id() -> bool:

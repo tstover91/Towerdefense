@@ -67,6 +67,25 @@ func run_test() -> void:
 	assert(invader.has_bonus_tag(&"pierce"))
 	assert(invader.pierce_count == 4)
 	assert(invader.damage_type == &"beam")
+	for generalized_item_id in [
+		&"focused_lens", &"wide_lens", &"interference_beam", &"microwave",
+		&"hollow_point", &"heavy_rounds", &"lightweight_ammo", &"long_barrel",
+		&"point_blank", &"suppressive_fire", &"frenzy", &"duelist",
+		&"relentless", &"giant_killer", &"lone_wolf",
+	]:
+		assert(invader.item_controller.is_item_compatible(generalized_item_id))
+	var beam_stats_before_heavy := invader.get_effective_stats_for_level(3)
+	assert(invader.equip_item(&"heavy_rounds"))
+	var beam_stats_after_heavy := invader.get_effective_stats_for_level(3)
+	assert(int(beam_stats_after_heavy["damage"]) == roundi(
+		float(beam_stats_before_heavy["damage"])
+			* GameStats.HEAVY_ROUNDS_DAMAGE_MULTIPLIER
+	))
+	assert(is_equal_approx(
+		float(beam_stats_after_heavy["firerate"]),
+		float(beam_stats_before_heavy["firerate"])
+			* GameStats.HEAVY_ROUNDS_INTERVAL_MULTIPLIER
+	))
 
 	var ballistic_invader := create_tower(&"invader", fake_main, 3)
 	assert(ballistic_invader.equip_item(&"heavy_rounds"))

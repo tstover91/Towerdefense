@@ -136,9 +136,10 @@ func run_test() -> void:
 		return
 	run_state.add_tower_item(&"beam_optics")
 	if not _check(
-		not service.equip_item(tower, &"beam_optics", 0)
-		and run_state.get_tower_item_count(&"beam_optics") == 1,
-		"Incompatible equip did not fail without consuming the item."
+		service.equip_item(tower, &"beam_optics", 0)
+		and run_state.get_tower_item_count(&"beam_optics") == 0
+		and not tower.item_controller.is_item_active_in_slot(0),
+		"A specialized item could not be equipped as an inactive item."
 	):
 		return
 	if not _check(

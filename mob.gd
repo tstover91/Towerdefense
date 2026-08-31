@@ -1107,16 +1107,7 @@ func apply_damage(
 		register_electric_hit(received_damage, attack_context)
 	if health <= 0:
 		if (
-			(
-				damage_type == &"beam"
-				or (
-					attack_context != null
-					and StringName(attack_context.metadata.get(
-						"radiation_original_damage_type", &""
-					)) == &"beam"
-				)
-			)
-			and attack_context != null
+			attack_context != null
 			and int(attack_context.metadata.get("microwave", 0)) > 0
 		):
 			trigger_microwave_explosion(final_damage, attack_context)
@@ -1584,43 +1575,40 @@ func apply_attack_effect_damage_modifiers(
 		)
 
 	if (
-		damage_type == &"beam"
-		and int(metadata.get("interference_beam", 0)) > 0
+		int(metadata.get("interference_beam", 0)) > 0
 		and (slow_remaining > 0.0 or stun_remaining > 0.0)
 	):
 		multiplier *= GameStats.INTERFERENCE_BEAM_DAMAGE_MULTIPLIER
 
-	if damage_type == &"ballistic":
-		var hollow_point_count := int(metadata.get("hollow_point", 0))
-		if hollow_point_count > 0 and float(health) > float(max_health) * 0.75:
-			multiplier *= (
-				1.0 + GameStats.HOLLOW_POINT_DAMAGE_PER_STACK * hollow_point_count
-			)
-		var source_range := float(metadata.get("source_range", 0.0))
-		var source_position: Variant = metadata.get("source_position", null)
-		if source_range > 0.0 and source_position is Vector2:
-			var distance_ratio := clampf(
-				(source_position as Vector2).distance_to(global_position) / source_range,
-				0.0,
-				1.0
-			)
-			multiplier *= (
-				1.0
+	var hollow_point_count := int(metadata.get("hollow_point", 0))
+	if hollow_point_count > 0 and float(health) > float(max_health) * 0.75:
+		multiplier *= (
+			1.0 + GameStats.HOLLOW_POINT_DAMAGE_PER_STACK * hollow_point_count
+		)
+	var source_range := float(metadata.get("source_range", 0.0))
+	var source_position: Variant = metadata.get("source_position", null)
+	if source_range > 0.0 and source_position is Vector2:
+		var distance_ratio := clampf(
+			(source_position as Vector2).distance_to(global_position) / source_range,
+			0.0,
+			1.0
+		)
+		multiplier *= (
+			1.0
 				+ GameStats.LONG_BARREL_MAX_DAMAGE_PER_STACK
 					* int(metadata.get("long_barrel", 0))
 					* distance_ratio
-			)
-			multiplier *= (
-				1.0
+		)
+		multiplier *= (
+			1.0
 				+ GameStats.POINT_BLANK_MAX_DAMAGE_PER_STACK
 					* int(metadata.get("point_blank", 0))
 					* (1.0 - distance_ratio)
-			)
+		)
 
-	if damage_type == &"melee":
-		var giant_killer_count := int(metadata.get("giant_killer", 0))
-		if giant_killer_count > 0:
-			multiplier *= (
+	var giant_killer_count := int(metadata.get("giant_killer", 0))
+	if giant_killer_count > 0:
+		multiplier *= (
 				1.0 + (
 					GameStats.GIANT_KILLER_SPECIAL_DAMAGE_MULTIPLIER - 1.0
 				) * float(giant_killer_count)
@@ -1630,22 +1618,22 @@ func apply_attack_effect_damage_modifiers(
 					giant_killer_count
 				)
 			)
-	if damage_type == &"melee":
-		var enemy_count := int(metadata.get("enemies_in_range", 0))
-		var duelist_count := int(metadata.get("duelist", 0))
-		if duelist_count > 0:
-			if enemy_count == 1:
-				multiplier *= (
+	var enemy_count := int(metadata.get("enemies_in_range", 0))
+	var duelist_count := int(metadata.get("duelist", 0))
+	if duelist_count > 0:
+		if enemy_count == 1:
+			multiplier *= (
 					1.0
 					+ GameStats.DUELIST_ONE_ENEMY_DAMAGE_PER_STACK
 						* float(duelist_count)
 				)
-			elif enemy_count == 2:
-				multiplier *= (
+		elif enemy_count == 2:
+			multiplier *= (
 					1.0
 					+ GameStats.DUELIST_TWO_ENEMY_DAMAGE_PER_STACK
 						* float(duelist_count)
 				)
+	if damage_type == &"melee":
 		var strength_count := int(metadata.get("strength_in_numbers", 0))
 		if strength_count > 0:
 			multiplier *= (

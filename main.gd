@@ -894,15 +894,11 @@ func update_tower_item_controls(tower: Node) -> void:
 			if item_counts[slot_index] > 1
 			else ""
 		)
-		var is_active: bool = tower.item_controller.is_item_active_in_slot(
-			slot_index
-		)
 		item_lines.append(
-			"%d. %s%s%s" % [
+			"%d. %s%s" % [
 				slot_index + 1,
 				item_name,
 				quantity_text,
-				"" if is_active else " · INACTIVE",
 			]
 		)
 		var tooltip := "%s%s: %s" % [
@@ -910,10 +906,6 @@ func update_tower_item_controls(tower: Node) -> void:
 			quantity_text,
 			item.get("description", ""),
 		]
-		if not is_active:
-			tooltip += "\nInactive: %s" % tower.item_controller.get_incompatibility_reason(
-				item_id
-			)
 		tooltip_lines.append(tooltip)
 	tower_items_label.text = "\n".join(item_lines)
 	tower_items_label.tooltip_text = "\n\n".join(tooltip_lines)
@@ -932,9 +924,7 @@ func update_tower_item_controls(tower: Node) -> void:
 		if item_id.is_empty():
 			slot_button.icon = null
 			_set_item_slot_text(slot_button, "%d\nEMPTY" % (slot_index + 1))
-			slot_button.tooltip_text = (
-				"Choose a compatible item for slot %d" % (slot_index + 1)
-			)
+			slot_button.tooltip_text = "Choose an item for slot %d" % (slot_index + 1)
 			continue
 		var item := GameStats.get_tower_item(item_id)
 		var count := item_counts[slot_index]
@@ -998,12 +988,7 @@ func _on_tower_item_slot_pressed(slot_index: int) -> void:
 				)
 				update_tower_item_controls(displayed_tower)
 		else:
-			var reason: String = displayed_tower.item_controller.get_incompatibility_reason(
-				item_id, slot_index
-			)
-			tower_item_inventory_panel.set_status(
-				reason if not reason.is_empty() else "That item cannot use this slot."
-			)
+			tower_item_inventory_panel.set_status("That item cannot use this slot.")
 		return
 	var equipped_ids: Array[StringName] = displayed_tower.get_equipped_item_ids()
 	var equipped_item_id := equipped_ids[slot_index]
@@ -2343,14 +2328,7 @@ func refresh_item_shop_view() -> void:
 
 
 func get_preferred_shop_item_ids() -> Array[StringName]:
-	var preferred: Array[StringName] = []
-	var placed_towers := get_placed_towers_for_item_management()
-	for item_id in GameStats.get_tower_item_ids():
-		for tower in placed_towers:
-			if tower.item_controller.is_item_compatible(item_id):
-				preferred.append(item_id)
-				break
-	return preferred
+	return GameStats.get_tower_item_ids()
 
 
 func _on_item_purchase_requested(slot_index: int, item_id: StringName) -> void:
@@ -2644,7 +2622,6 @@ func _on_inventory_item_selected(item_id: StringName) -> void:
 			tower.set_item_compatibility_highlight(
 				not item_id.is_empty(),
 				not item_id.is_empty()
-					and tower.item_controller.is_item_compatible(item_id)
 			)
 	if is_instance_valid(displayed_tower):
 		update_tower_item_controls(displayed_tower)
@@ -2693,9 +2670,6 @@ func try_equip_selected_inventory_item_to_tower(tower: Node) -> bool:
 		or not is_instance_valid(tower)
 	):
 		return false
-	if not tower.item_controller.is_item_compatible(selected_inventory_item_id):
-		tower_item_inventory_panel.set_status("That item is not compatible with this tower.")
-		return true
 	var slot_index: int = tower.item_controller.find_equipped_item_slot(
 		selected_inventory_item_id
 	)
@@ -2738,7 +2712,6 @@ func equip_inventory_item_to_tower(
 		or not GameStats.has_tower_item(item_id)
 		or slot_index < 0
 		or slot_index >= GameStats.TOWER_ITEM_SLOT_COUNT
-		or not tower.item_controller.is_item_compatible(item_id)
 	):
 		return false
 	ensure_run_state()

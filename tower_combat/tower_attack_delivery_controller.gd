@@ -152,8 +152,7 @@ func create_attack_context(
 
 func register_relentless_primary_attack(current_target: Node2D) -> void:
 	if (
-		not tower.has_damage_tag(BaseTower.DAMAGE_MELEE)
-		or tower.get_effect_stack_count(&"relentless") <= 0
+		tower.get_effect_stack_count(&"relentless") <= 0
 		or not tower.is_valid_target(current_target)
 	):
 		reset_relentless()
@@ -188,7 +187,7 @@ func get_attack_effect_metadata(
 	metadata["enemies_in_range"] = 0
 	metadata["nearby_melee_towers"] = 0
 	var deals_melee_damage := source_damage_tags.has(BaseTower.DAMAGE_MELEE)
-	if deals_melee_damage and int(metadata.get("duelist", 0)) > 0:
+	if int(metadata.get("duelist", 0)) > 0:
 		metadata["enemies_in_range"] = count_valid_enemies_near(
 			source_position, source_range
 		)

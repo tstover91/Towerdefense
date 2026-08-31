@@ -877,8 +877,7 @@ func get_effective_attack_radius() -> float:
 func get_current_attack_interval() -> float:
 	var interval := attack_interval
 	if (
-		has_damage_tag(&"melee")
-		and is_instance_valid(parent_tower)
+		is_instance_valid(parent_tower)
 		and parent_tower.has_method("get_effect_stack_count")
 	):
 		var frenzy_stacks := int(parent_tower.get_effect_stack_count(&"frenzy"))
@@ -904,8 +903,7 @@ func get_current_attack_interval() -> float:
 					* float(frenzy_stacks)
 			)
 	if (
-		has_damage_tag(&"melee")
-		and is_instance_valid(parent_tower)
+		is_instance_valid(parent_tower)
 		and parent_tower.has_method("get_effect_stack_count")
 		and int(parent_tower.get_effect_stack_count(&"relentless")) > 0
 		and relentless_stacks > 0
@@ -918,8 +916,7 @@ func get_current_attack_interval() -> float:
 
 func register_relentless_primary_attack(current_target: Node2D) -> void:
 	if (
-		not has_damage_tag(&"melee")
-		or not is_instance_valid(parent_tower)
+		not is_instance_valid(parent_tower)
 		or not parent_tower.has_method("get_effect_stack_count")
 		or int(parent_tower.get_effect_stack_count(&"relentless")) <= 0
 		or not is_valid_target(current_target)
