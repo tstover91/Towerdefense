@@ -853,9 +853,19 @@ func _on_round_started(_round_number: int) -> void:
 		damage_timer.start()
 
 
-func _on_round_ended(_round_number: int) -> void:
+func _on_round_ended(round_number: int) -> void:
 	death_ray_cycle_elapsed = 0.0
 	refresh_death_ray_overcharge_state()
+	if is_placed and instance_progression != null:
+		var round_xp_bonus := clampf(
+			GameStats.TOWER_XP_ROUND_BONUS_BASE
+			+ GameStats.TOWER_XP_ROUND_BONUS_PER_ROUND * float(round_number)
+			- GameStats.TOWER_XP_ROUND_BONUS_LEVEL_PENALTY
+				* float(maxi(instance_progression.level - 1, 0)),
+			GameStats.TOWER_XP_ROUND_BONUS_MINIMUM,
+			GameStats.TOWER_XP_ROUND_BONUS_MAXIMUM
+		)
+		instance_progression.grant_xp(round_xp_bonus)
 	update_menu_buttons()
 	if attack_component != null:
 		attack_component.on_round_ended()
