@@ -424,7 +424,9 @@ func _ready() -> void:
 	Engine.time_scale = 1.0
 	game_speed = 1.0
 	sandbox_mode = SessionState.sandbox_mode
+	SessionState.set_startup_status("5 · Loading selected map")
 	load_selected_map()
+	SessionState.set_startup_status("6 · Configuring gameplay HUD")
 	_configure_minimal_hud()
 	update_speed_button()
 	enemy_rng.randomize()
@@ -432,9 +434,11 @@ func _ready() -> void:
 	wave_director = WaveDirectorScript.new(enemy_rng, get_active_enemy_count)
 	draft_manager = DraftManagerScript.new(shop_rng)
 	item_shop_manager = ItemShopManagerScript.new(shop_rng)
+	SessionState.set_startup_status("7 · Creating controllers")
 	ensure_build_controller()
 	round_controller = RoundControllerScript.new(enemy_rng)
 	ensure_reinforcement_controller()
+	SessionState.set_startup_status("8 · Generating run")
 	generate_run_director_plan()
 	roll_challenge_round_order()
 	_align_sidebar_to_build_grid()
@@ -451,12 +455,14 @@ func _ready() -> void:
 		run_state.set_tower_roster(GameStats.get_playable_tower_family_ids())
 	else:
 		roll_random_starting_towers(2)
+	SessionState.set_startup_status("9 · Populating gameplay HUD")
 	populate_tower_list()
 	clear_tower_details()
 	update_money()
 	update_lives()
 	update_round_count()
 	refresh_enemy_hud(true)
+	SessionState.set_startup_status("10 · Connecting gameplay UI")
 	enemy_toggle_button.pressed.connect(_on_enemy_strip_toggled)
 	spawntimer.timeout.connect(_spawn_mob)
 	reinforcement_button.pressed.connect(_on_reinforcement_button_pressed)
@@ -479,6 +485,7 @@ func _ready() -> void:
 		sandbox_panel.configure(self)
 	else:
 		sandbox_panel.hide()
+	SessionState.set_startup_status("11 · Match ready")
 
 
 func _configure_between_round_screen(screen: BetweenRoundShop) -> void:

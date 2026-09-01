@@ -1,7 +1,7 @@
 extends Control
 
 const MapData = preload("res://map_database.gd")
-const BUILD_LABEL := "v0.1.1 · Android build 2"
+const BUILD_LABEL := "v0.1.2 · Android build 3"
 
 @onready var map_selector: OptionButton = $Content/Card/Content/MapSelector
 @onready var normal_button: Button = $Content/Card/Content/LevelButtons/NormalButton
