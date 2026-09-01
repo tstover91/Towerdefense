@@ -47,10 +47,10 @@ func _ready() -> void:
 func run_test() -> void:
 	var item_ids := GameStats.get_tower_item_ids()
 	var price_bands := {
-		&"common": Vector2i(350, 500),
-		&"uncommon": Vector2i(550, 750),
-		&"rare": Vector2i(800, 1000),
-		&"legendary": Vector2i(1400, 1700),
+		&"common": Vector2i(3500, 5000),
+		&"uncommon": Vector2i(5500, 7500),
+		&"rare": Vector2i(8000, 10000),
+		&"legendary": Vector2i(14000, 17000),
 	}
 	var rarity_counts := {
 		&"common": 0,

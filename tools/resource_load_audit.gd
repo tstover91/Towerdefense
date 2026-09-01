@@ -22,12 +22,14 @@ func run_audit() -> void:
 	resource_paths.sort()
 	for resource_path in resource_paths:
 		audited_count += 1
-		var resource := ResourceLoader.load(
-			resource_path,
-			"",
-			ResourceLoader.CACHE_MODE_IGNORE
-		)
-		if resource == null:
+		var resource := load(resource_path)
+		if (
+			resource == null
+			or (
+				resource is GDScript
+				and not (resource as GDScript).can_instantiate()
+			)
+		):
 			failures.append(resource_path)
 	if not failures.is_empty():
 		push_error(

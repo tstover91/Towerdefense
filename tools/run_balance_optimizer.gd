@@ -2942,7 +2942,7 @@ func resolve_relic_draft(state: Dictionary, policy: Dictionary, round_number: in
 	var offers := roll_relic_offer_set(state, round_number, run_rng)
 	if offers.is_empty():
 		return
-	var choice_quantities := DraftManagerScript.new(run_rng).get_relic_choice_quantities(
+	var choice_quantities: Dictionary = DraftManagerScript.new(run_rng).get_relic_choice_quantities(
 		round_number,
 		offers
 	)

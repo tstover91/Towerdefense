@@ -105,6 +105,8 @@ func update_menu_buttons() -> void:
 		tower.attack_component == null
 		or tower.attack_component.shows_target_mode_control()
 	)
+	if tower.uses_standard_spawner_system() and not tower.uses_drone_targeting():
+		shows_target_control = false
 	target_mode_button.visible = shows_target_control
 	if not shows_target_control:
 		target_mode_button.text = "Target\nFirst"
@@ -112,9 +114,6 @@ func update_menu_buttons() -> void:
 	elif tower.uses_drone_targeting():
 		target_mode_button.text = "Drones\n%s" % _get_drone_target_mode_name()
 		target_mode_button.disabled = false
-	elif tower.uses_standard_spawner_system():
-		target_mode_button.text = "Units\nAuto"
-		target_mode_button.disabled = true
 	elif tower.uses_manual_ground_targeting():
 		target_mode_button.disabled = false
 		target_mode_button.text = "Target\nGround"
