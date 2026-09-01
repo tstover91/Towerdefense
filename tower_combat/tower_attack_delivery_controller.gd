@@ -401,11 +401,14 @@ func launch_projectile_from_position(
 			else 1.0,
 		resolved_context,
 		(
-			tower.item_controller.get_trigger_total(
-				&"bounce_damage_multiplier", 1.0
+			tower.bounce_damage_multiplier
+			* (
+				tower.item_controller.get_trigger_total(
+					&"bounce_damage_multiplier", 1.0
+				)
+				if tower.item_controller != null
+				else 1.0
 			)
-			if tower.item_controller != null
-			else 1.0
 		)
 	)
 	return projectile

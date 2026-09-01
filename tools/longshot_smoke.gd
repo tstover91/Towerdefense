@@ -60,7 +60,7 @@ func run_test() -> void:
 	var component = tower.attack_component
 	assert(component != null)
 	assert(not component.kill_chain_enabled)
-	assert(tower.damage == roundi(2325.0 * 2.07))
+	assert(tower.damage == roundi(2674.0 * 2.40))
 	assert(is_equal_approx(tower.loaded_attack_interval, 1.65 * 1.25))
 	assert(is_equal_approx(tower.critical_multiplier, 3.0))
 

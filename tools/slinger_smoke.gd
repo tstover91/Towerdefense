@@ -97,6 +97,7 @@ func run_test() -> void:
 	tower.load_level_stats()
 	assert(tower.infinite_pierce)
 	assert(tower.pierce_loses_no_power)
+	assert(is_equal_approx(tower.bounce_damage_multiplier, 0.75))
 
 	tower.purchased_paths.assign([&"a"])
 	tower.load_base_tags()

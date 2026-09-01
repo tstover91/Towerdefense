@@ -1462,7 +1462,7 @@ const TOWERS := {
 	"invader": {
 	"display_name": "Invader",
 	"description": "A dependable general-purpose gunner with balanced damage, range, and attack speed.",
-	"placement_cost": 200,
+	"placement_cost": 350,
 	"footprint_cells": Vector2i(2, 2),
 	"type_tags": [&"biological"],
 	"damage_tags": [&"ballistic"],
@@ -1478,7 +1478,7 @@ const TOWERS := {
 		"a": {
 			"display_name": "Gunslinger",
 			"description": "Dual pistols deliver extremely fast hitscan fire and excel at Critical and on-hit builds.",
-			"cost": 2700,
+			"cost": 3143,
 			"stat_multipliers": {
 				"firerate": 0.42,
 			},
@@ -1491,7 +1491,7 @@ const TOWERS := {
 		"b": {
 			"display_name": "Laser Cannon",
 			"description": "Charges a fixed one-second Beam that damages every 0.25 seconds and pierces up to five enemies. At Level 20, the Beam gains infinite Pierce.",
-			"cost": 3150,
+			"cost": 3429,
 			"delivery_type": DELIVERY_HITSCAN,
 			"remove_damage_tags": [&"ballistic"],
 			"add_damage_tags": [&"beam"],
@@ -1516,7 +1516,7 @@ const TOWERS := {
 		"c": {
 			"display_name": "Gauss Gunner",
 			"description": "A rapid projectile weapon that tightens its aim during sustained fire. At Level 20, sustained fire also overclocks its attack speed.",
-			"cost": 3150,
+			"cost": 3429,
 			"delivery_type": DELIVERY_PROJECTILE,
 			"impact_mode": IMPACT_FIRST_CONTACT,
 			"remove_damage_tags": [&"ballistic"],
@@ -1578,7 +1578,7 @@ const TOWERS := {
 	"fisherman": {
 		"display_name": "Alien Fisherman",
 		"description": "Casts into a forward cone, hooking one enemy for four damage ticks while reeling it backward. After release, that enemy cannot be pulled again for 2.5 seconds, but can still take hook damage.",
-		"placement_cost": 167,
+		"placement_cost": 300,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"melee"],
@@ -1590,7 +1590,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Angler",
 				"description": "Casts two hooks through a wider cone. Secondary hooks deal reduced damage but apply the full reel strength.",
-				"cost": 3000,
+				"cost": 2857,
 				"unlock_level": 3,
 				"stat_multipliers": {"range": 1.10, "hook_pull_speed": 1.25},
 				"behavior_flags": {"fisherman_multi_hook": true},
@@ -1604,7 +1604,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Trapper Fisherman",
 				"description": "Periodically lays Explosive mines on nearby path cells, then reels enemies back through the trapped lane.",
-				"cost": 3150,
+				"cost": 3000,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
 				"behavior_flags": {"fisherman_mines": true},
@@ -1624,7 +1624,7 @@ const TOWERS := {
 			"c": {
 				"display_name": "Storm Fisher",
 				"description": "Electrifies the hook. Each damage tick also shocks enemies intersecting the moving line between Fisherman and its catch.",
-				"cost": 3300,
+				"cost": 3286,
 				"unlock_level": 3,
 				"add_damage_tags": [&"electric"],
 				"primary_damage_type": &"electric",
@@ -1782,7 +1782,7 @@ const TOWERS := {
 	"brainiac": {
 		"display_name": "Psion",
 		"description": "A focused psionic beam tower that can evolve into a single-target Brainiac or a Time Bubble-controlling Temporal Eye.",
-		"placement_cost": 1750,
+		"placement_cost": 850,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"beam"],
@@ -1794,7 +1794,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Brainiac",
 				"description": "The focused beam starts at 75% damage and gains 25% every 0.5 seconds on one target, up to 200%. Level 20 unlocks Psionic Link and raises the cap to 250%.",
-				"cost": 5525,
+				"cost": 3857,
 				"unlock_level": 3,
 				"behavior_flags": {"brainiac_ramping_beam": true},
 				"behavior_values": {
@@ -1823,7 +1823,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Temporal Eye",
 				"description": "Replaces the focused beam with a stationary Time Bubble. Four orbiting eyes fire inward, sweeping Beam damage through Slowed and Revealed enemies.",
-				"cost": 5525,
+				"cost": 3571,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"reveal"],
 				"stat_overrides": {"firerate": 5.0},
@@ -1889,7 +1889,7 @@ const TOWERS := {
 	},
 	"reaver": {
 		"display_name": "Reaver",
-		"placement_cost": 275,
+		"placement_cost": 450,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"melee"],
@@ -1900,7 +1900,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Enforcer",
 				"description": "Widens the sweep to 180 degrees. Every fourth attack slams the ground, damaging, stunning, and driving back a group around its target.",
-				"cost": 2500,
+				"cost": 3143,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"stun"],
 				"stat_overrides": {
@@ -1914,7 +1914,7 @@ const TOWERS := {
 					"enforcer_slam_interval": 4,
 					"enforcer_slam_radius": 2.5,
 					"enforcer_slam_max_targets": 8,
-					"enforcer_secondary_damage_multiplier": 0.75,
+					"enforcer_secondary_damage_multiplier": 0.65,
 					"enforcer_stun_duration": 0.50,
 					"enforcer_push_distance": 1.0,
 				},
@@ -1925,7 +1925,7 @@ const TOWERS := {
 					"enforcer_slam_interval": 4,
 					"enforcer_slam_radius": 3.5,
 					"enforcer_slam_max_targets": 10,
-					"enforcer_secondary_damage_multiplier": 0.75,
+					"enforcer_secondary_damage_multiplier": 0.65,
 						"enforcer_stun_duration": 1.0,
 						"enforcer_push_distance": 2.0,
 					},
@@ -1933,8 +1933,8 @@ const TOWERS := {
 			},
 			"b": {
 				"display_name": "Assassin",
-				"description": "Abandons the sweep for fast, focused strikes. Every third attack is an Assassinate that is guaranteed to critically hit.",
-				"cost": 2100,
+				"description": "Abandons the sweep for fast, focused strikes. Every third attack is an Assassinate with a stronger guaranteed critical hit.",
+				"cost": 2857,
 				"unlock_level": 3,
 				"stat_multipliers": {
 					"damage": 1.25,
@@ -1949,25 +1949,25 @@ const TOWERS := {
 				},
 				"behavior_values": {
 					"assassinate_attack_interval": 3,
-					"assassinate_critical_multiplier_bonus": 0.0,
+					"assassinate_critical_multiplier_bonus": 1.0,
 				},
 				"level_20": {
 					"behavior_flags": {"reaver_assassinate": true},
 					"behavior_values": {
 						"assassinate_attack_interval": 3,
-						"assassinate_critical_multiplier_bonus": 1.0,
+						"assassinate_critical_multiplier_bonus": 2.0,
 					},
 				},
 			},
 			"c": {
 				"display_name": "Champion",
 				"description": "Keeps Reaver's sweep. Every fourth attack becomes a powerful 360-degree spin that strikes a much larger crowd.",
-				"cost": 2500,
+				"cost": 3143,
 				"unlock_level": 3,
 				"behavior_flags": {"reaver_champion": true},
 				"behavior_values": {
 					"champion_spin_interval": 4,
-					"champion_spin_damage_multiplier": 1.50,
+					"champion_spin_damage_multiplier": 1.30,
 					"champion_spin_radius_multiplier": 1.0,
 					"champion_spin_max_targets": 8,
 				},
@@ -1975,7 +1975,7 @@ const TOWERS := {
 				"behavior_flags": {"reaver_champion": true},
 				"behavior_values": {
 					"champion_spin_interval": 4,
-					"champion_spin_damage_multiplier": 1.65,
+					"champion_spin_damage_multiplier": 1.45,
 					"champion_spin_radius_multiplier": 1.15,
 					"champion_spin_max_targets": 10,
 					},
@@ -2002,7 +2002,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 700,
-				"damage": 150,
+				"damage": 120,
 				"firerate": 0.65,
 				"range": 7.0,
 				"melee_arc_degrees": 120.0,
@@ -2010,7 +2010,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1450,
-				"damage": 280,
+				"damage": 224,
 				"firerate": 0.50,
 				"range": 7.5,
 				"melee_arc_degrees": 120.0,
@@ -2097,7 +2097,7 @@ const TOWERS := {
 	},
 	"longshot": {
 		"display_name": "Longshot",
-		"placement_cost": 1475,
+		"placement_cost": 750,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"ballistic"],
@@ -2107,10 +2107,10 @@ const TOWERS := {
 			"a": {
 				"display_name": "Anti-Materiel",
 				"description": "Fires massively amplified shots with a 3x critical multiplier, but reloads 25% slower. At Level 20, critical damage increases to 4x.",
-				"cost": 4050,
+				"cost": 3286,
 				"unlock_level": 3,
 				"stat_multipliers": {
-					"damage": 2.07,
+					"damage": 2.40,
 					"firerate": 1.25,
 				},
 				"stat_additions": {
@@ -2125,7 +2125,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Kill Chain",
 				"description": "Kills reduce Longshot's remaining reload by 50%. Critical kills reduce it by 90%. At Level 20, kills reduce it by 65% and critical kills complete the reload.",
-				"cost": 4050,
+				"cost": 3571,
 				"unlock_level": 3,
 				"behavior_flags": {"longshot_kill_chain": true},
 				"behavior_values": {
@@ -2145,7 +2145,7 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 500,
+				"damage": 575,
 				"firerate": 2.20,
 				"range": 23.0,
 				"critical_chance": 0.10,
@@ -2153,7 +2153,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 500,
-				"damage": 625,
+				"damage": 719,
 				"firerate": 2.10,
 				"range": 23.0,
 				"critical_chance": 0.10,
@@ -2161,7 +2161,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1825,
-				"damage": 1050,
+				"damage": 1208,
 				"firerate": 1.95,
 				"range": 23,
 				"critical_chance": 0.10,
@@ -2169,7 +2169,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 3000,
-				"damage": 2325,
+				"damage": 2674,
 				"firerate": 1.65,
 				"range": 23.0,
 				"critical_chance": 0.10,
@@ -2179,7 +2179,7 @@ const TOWERS := {
 	},
 	"slinger": {
 		"display_name": "Slinger",
-		"placement_cost": 225,
+		"placement_cost": 350,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"ballistic"],
@@ -2191,7 +2191,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Explosive Ricochet",
 				"description": "Increases impact damage by 10%. The initial hit and every bounced impact create an Explosive blast dealing 35% damage in a 2.5-tile radius. At Level 20, blasts deal 50% damage in a 3.25-tile radius.",
-				"cost": 3375,
+				"cost": 3143,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
 				"stat_multipliers": {
@@ -2217,7 +2217,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Razor Disc",
 				"description": "Increases impact damage by 60%. The disc pierces every enemy in its line until maximum range. At Level 20, it no longer loses damage after each enemy.",
-				"cost": 3375,
+				"cost": 3286,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"pierce"],
 				"pierce_count_add": 1,
@@ -2273,12 +2273,13 @@ const TOWERS := {
 				"range": 13.0,
 				"bounce_count": 2,
 				"bounce_range": 7.0,
+				"bounce_damage_multiplier": 0.75,
 			},
 		],
 	},
 	"voidcaller": {
 		"display_name": "Void Caller",
-		"placement_cost": 675,
+		"placement_cost": 650,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"biological"],
 		"damage_tags": [&"explosive"],
@@ -2290,7 +2291,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Orb Barrage",
 				"description": "Fires a simultaneous five-orb fan at a slower rate. At Level 20, the barrage expands to seven orbs.",
-				"cost": 4500,
+				"cost": 3571,
 				"unlock_level": 3,
 				"stat_multipliers": {
 					"damage": 0.80,
@@ -2312,7 +2313,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Singularity",
 				"description": "Creates a wide Singularity that pulls enemies together for one second before exploding. At Level 20, it recharges faster, pulls harder, and deals 4x damage.",
-				"cost": 4050,
+				"cost": 3714,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"psionic"],
 				"behavior_flags": {"void_singularity": true},
@@ -2387,7 +2388,7 @@ const TOWERS := {
 	},
 	"orbitalcannon": {
 		"display_name": "Orbital Cannon",
-		"placement_cost": 350,
+		"placement_cost": 500,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"explosive"],
@@ -2400,7 +2401,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Solar Lance",
 				"description": "Replaces the Explosive stunning strike with a 1.5-second, two-tile-wide Beam that intensifies as it repeatedly damages and slows every enemy inside. At Level 20, it lasts two seconds and deals more damage per tick.",
-				"cost": 4500,
+				"cost": 3571,
 				"unlock_level": 3,
 				"stat_multipliers": {"firerate": 1.40},
 				"remove_damage_tags": [&"explosive"],
@@ -2439,7 +2440,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Bombardment",
 				"description": "Replaces each strike with five smaller staggered strikes around the selected location. At Level 20, each bombardment fires seven strikes.",
-				"cost": 4675,
+				"cost": 3714,
 				"unlock_level": 3,
 				"behavior_flags": {"orbital_bombardment": true},
 				"behavior_values": {
@@ -2463,7 +2464,7 @@ const TOWERS := {
 			"c": {
 				"display_name": "Atomic Strike",
 				"description": "Fires extremely slowly, but creates an enormous initial explosion. Survivors receive heavy Radiation and the blast site remains contaminated by Fallout. At Level 20, the blast and Fallout grow while exposure is applied faster.",
-				"cost": 5525,
+				"cost": 4000,
 				"unlock_level": 3,
 				"stat_multipliers": {"firerate": 4.0},
 				"add_damage_tags": [&"radiation"],
@@ -2538,7 +2539,7 @@ const TOWERS := {
 	},
 	"energycore": {
 		"display_name": "Energy Core",
-		"placement_cost": 225,
+		"placement_cost": 400,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"electric"],
@@ -2549,7 +2550,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Containment Core",
 				"description": "Every five seconds, releases an electric pulse that deals 35% damage and stuns every enemy in range for one second. At Level 20, it triggers every 3.5 seconds, deals 50% damage, and stuns for 1.5 seconds.",
-				"cost": 2500,
+				"cost": 2857,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"stun"],
 				"behavior_flags": {"energy_shockwave": true},
@@ -2570,7 +2571,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Tesla Core",
 			"description": "Each primary bolt branches to one nearby enemy for 25% damage and applies Slow. At Level 20, bolts branch to two unique enemies at longer range for 30% damage.",
-				"cost": 3000,
+				"cost": 3143,
 				"unlock_level": 3,
 				"behavior_flags": {"energy_branching_current": true},
 				"behavior_values": {
@@ -2610,7 +2611,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 330,
-				"damage": 30,
+				"damage": 25,
 				"firerate": 0.40,
 				"range": 8.25,
 				"projectile_count": 3,
@@ -2619,7 +2620,7 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1400,
-				"damage": 75,
+				"damage": 62,
 				"firerate": 0.40,
 				"range": 8.25,
 				"projectile_count": 3,
@@ -2630,7 +2631,7 @@ const TOWERS := {
 	},
 	"saucer": {
 		"display_name": "Saucer",
-		"placement_cost": 1475,
+		"placement_cost": 800,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"electric"],
@@ -2642,14 +2643,14 @@ const TOWERS := {
 			"a": {
 				"display_name": "Gunship",
 				"description": "Abandons abduction for a faster Electric gun and twin homing rockets with a 3-tile blast radius.",
-				"cost": 3150,
+				"cost": 3286,
 				"unlock_level": 3,
 				"add_damage_tags": [&"explosive"],
 				"stat_multipliers": {"firerate": 0.80},
 				"stat_overrides": {"abduction_health_threshold": 0.0},
 				"behavior_flags": {"saucer_twin_rockets": true},
 				"behavior_values": {
-					"saucer_rocket_damage_multiplier": 1.5,
+					"saucer_rocket_damage_multiplier": 1.28,
 					"saucer_rocket_interval": 3.0,
 					"saucer_rocket_splash_radius": 3.0,
 					"saucer_rocket_count": 2,
@@ -2657,13 +2658,13 @@ const TOWERS := {
 			"level_20": {
 				"stat_multipliers": {"flyer_move_speed": 1.15, "projectile_speed": 1.20},
 				"behavior_flags": {"saucer_twin_rockets": true},
-				"behavior_values": {"saucer_rocket_damage_multiplier": 1.5, "saucer_rocket_interval": 3.0, "saucer_rocket_splash_radius": 3.0, "saucer_rocket_count": 3},
+				"behavior_values": {"saucer_rocket_damage_multiplier": 1.28, "saucer_rocket_interval": 3.0, "saucer_rocket_splash_radius": 3.0, "saucer_rocket_count": 3},
 				},
 			},
 			"b": {
 				"display_name": "Abductor",
 				"description": "Actively hunts weakened enemies for abduction and deploys each captured specimen as a temporary melee monster.",
-				"cost": 3200,
+				"cost": 3429,
 				"unlock_level": 3,
 				"add_bonus_tags": [&"spawner"],
 				"stat_overrides": {"abduction_cooldown": 8.0, "abduction_radius": 3.0, "abduction_health_threshold": 0.55},
@@ -2677,17 +2678,17 @@ const TOWERS := {
 			},
 			"c": {
 				"display_name": "Mothership",
-				"description": "Abandons abduction and projects a non-stacking field that makes nearby enemies take 15% more damage from every tower.",
-				"cost": 3400,
+				"description": "Abandons abduction and projects a non-stacking field that makes nearby enemies take 20% more damage from every tower.",
+				"cost": 3143,
 				"unlock_level": 3,
 				"stat_multipliers": {"damage": 0.80},
 				"stat_overrides": {"abduction_health_threshold": 0.0},
 				"behavior_flags": {"saucer_vulnerability_field": true},
-				"behavior_values": {"saucer_field_radius": 3.5, "saucer_field_vulnerability": 0.15, "saucer_field_refresh_interval": 0.20},
+				"behavior_values": {"saucer_field_radius": 3.5, "saucer_field_vulnerability": 0.20, "saucer_field_refresh_interval": 0.20},
 				"level_20": {
 					"stat_multipliers": {"damage": 1.25},
 					"behavior_flags": {"saucer_vulnerability_field": true},
-					"behavior_values": {"saucer_field_radius": 5.0, "saucer_field_vulnerability": 0.25, "saucer_field_refresh_interval": 0.20},
+					"behavior_values": {"saucer_field_radius": 5.0, "saucer_field_vulnerability": 0.30, "saucer_field_refresh_interval": 0.20},
 				},
 			},
 		},
@@ -2817,7 +2818,7 @@ const TOWERS := {
 	"dronedepot": {
 		"display_name": "Alien Factory",
 		"description": "A compact technological factory that continually deploys temporary stationary Sentry Turrets within its operating range.",
-		"placement_cost": 500,
+		"placement_cost": 550,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"ballistic"],
@@ -2830,7 +2831,7 @@ const TOWERS := {
 			"a": {
 				"display_name": "Drone Depot",
 				"description": "Replaces Sentry Turrets with mobile ranged Drones. Each Drone is destroyed when it spends its damage budget. At Level 20, depleted Drones explode before being rebuilt.",
-				"cost": 3600,
+				"cost": 3143,
 				"unlock_level": 3,
 				"projectile_item_eligible": false,
 				"add_bonus_tags": [&"reveal"],
@@ -2840,7 +2841,7 @@ const TOWERS := {
 					"deployment_radius": 11.0,
 				},
 				"unit_stat_multipliers": {
-					"damage": 0.90,
+					"damage": 0.765,
 					"attack_interval": 0.65,
 				},
 				"unit_stat_overrides": {
@@ -2865,7 +2866,7 @@ const TOWERS := {
 			"b": {
 				"display_name": "Mech Bay",
 				"description": "Replaces Sentry Turrets with one heavy guard Mech. It hunts within the Factory's range and delivers slow, powerful knockback attacks. At Level 20, it periodically performs an area Ground Slam.",
-				"cost": 4300,
+				"cost": 3571,
 				"unlock_level": 3,
 				"remove_damage_tags": [&"ballistic"],
 				"add_damage_tags": [&"melee"],
@@ -2908,7 +2909,7 @@ const TOWERS := {
 			"c": {
 				"display_name": "Sentry Array",
 				"description": "Expands the production line to support five ballistic Sentry Turrets. Each turret fires slowly and deals reduced damage, trading individual strength for broad coverage. At Level 20, refined assembly improves their damage and firing speed.",
-				"cost": 3800,
+				"cost": 3286,
 				"unlock_level": 3,
 				"projectile_item_eligible": true,
 				"stat_overrides": {
@@ -3040,7 +3041,7 @@ const TOWERS := {
 	"irradiator": {
 		"display_name": "Irradiator",
 		"description": "An atomic-age alien isotope projector. Its cone deals no immediate damage; every enemy caught gains decaying Radiation stacks that deal damage each second.",
-		"placement_cost": 425,
+		"placement_cost": 450,
 		"footprint_cells": Vector2i(2, 2),
 		"type_tags": [&"technology"],
 		"damage_tags": [&"radiation"],
@@ -3052,30 +3053,37 @@ const TOWERS := {
 			"a": {
 				"display_name": "Reactor",
 				"description": "Becomes a persistent contamination field that repeatedly irradiates every enemy inside it. At Level 20, the field is larger and applies Radiation faster.",
-				"cost": 3200,
+				"cost": 2857,
 				"unlock_level": 3,
 				"behavior_flags": {"irradiator_reactor": true},
 				"behavior_values": {
 					"reactor_radius": 4.5,
 					"reactor_application_interval": 0.75,
-					"reactor_stacks_per_application": 3,
+					"reactor_stacks_per_application": 5,
 				},
 				"level_20": {
 					"behavior_flags": {"irradiator_reactor": true},
 					"behavior_values": {
 						"reactor_radius": 6.0,
 						"reactor_application_interval": 0.50,
-						"reactor_stacks_per_application": 4,
+						"reactor_stacks_per_application": 7,
 					},
 				},
 			},
 			"b": {
 				"display_name": "Decay Suppressor",
-				"description": "Keeps the directional cone. While an enemy remains inside it, all Radiation on that enemy loses only 25% per tick instead of 50%.",
-				"cost": 3200,
+				"description": "Keeps the directional cone. While an enemy remains inside it, all Radiation on that enemy loses only 25% per tick instead of 50%. At Level 20, it applies faster through a wider cone.",
+				"cost": 2857,
 				"unlock_level": 3,
 				"behavior_flags": {
 					"irradiator_decay_suppressor": true,
+				},
+				"level_20": {
+					"stat_multipliers": {"firerate": 0.80},
+					"stat_additions": {"radiation_cone_degrees": 10.0},
+					"behavior_flags": {
+						"irradiator_decay_suppressor": true,
+					},
 				},
 			},
 		},
@@ -3086,7 +3094,7 @@ const TOWERS := {
 				"firerate": 0.65,
 				"range": 6.5,
 				"radiation_cone_degrees": 55.0,
-				"radiation_stacks_per_application": 4,
+				"radiation_stacks_per_application": 6,
 			},
 			{
 				"upgrade_cost": 375,
@@ -3094,7 +3102,7 @@ const TOWERS := {
 				"firerate": 0.60,
 				"range": 7.0,
 				"radiation_cone_degrees": 60.0,
-				"radiation_stacks_per_application": 4,
+				"radiation_stacks_per_application": 7,
 			},
 			{
 				"upgrade_cost": 825,
@@ -3102,7 +3110,7 @@ const TOWERS := {
 				"firerate": 0.55,
 				"range": 7.5,
 				"radiation_cone_degrees": 65.0,
-				"radiation_stacks_per_application": 5,
+				"radiation_stacks_per_application": 9,
 			},
 			{
 				"upgrade_cost": 1650,
@@ -3110,7 +3118,7 @@ const TOWERS := {
 				"firerate": 0.50,
 				"range": 8.0,
 				"radiation_cone_degrees": 70.0,
-				"radiation_stacks_per_application": 8,
+				"radiation_stacks_per_application": 12,
 			},
 		],
 	},
@@ -3532,6 +3540,8 @@ static func get_tower_xp_level_stats(
 		stats["unit_stats"] = unit_stats
 	if safe_xp_level >= TOWER_XP_MAX_LEVEL:
 		_apply_xp_mastery(stats, 1.0)
+		if tower_id == &"dronedepot":
+			_apply_drone_depot_mastery_correction(stats)
 	return stats
 
 
@@ -3651,6 +3661,30 @@ static func _apply_xp_mastery(stats: Dictionary, progress: float) -> void:
 		unit_stats,
 		&"projectile_speed",
 		lerpf(1.0, XP_MASTERY_PROJECTILE_SPEED_MULTIPLIER, progress)
+	)
+	stats["unit_stats"] = unit_stats
+
+
+static func _apply_drone_depot_mastery_correction(stats: Dictionary) -> void:
+	# Alien Factory's level-20 mastery targets roughly 22% combined production
+	# growth instead of stacking the full global damage and interval bonuses.
+	_apply_mastery_multiplier(
+		stats,
+		&"spawn_interval",
+		0.95 / XP_MASTERY_INTERVAL_MULTIPLIER
+	)
+	if not stats.get("unit_stats") is Dictionary:
+		return
+	var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
+	_apply_mastery_multiplier(
+		unit_stats,
+		&"damage",
+		1.10 / XP_MASTERY_DAMAGE_MULTIPLIER
+	)
+	_apply_mastery_multiplier(
+		unit_stats,
+		&"attack_interval",
+		0.95 / XP_MASTERY_INTERVAL_MULTIPLIER
 	)
 	stats["unit_stats"] = unit_stats
 

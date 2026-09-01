@@ -81,7 +81,7 @@ func run_test() -> void:
 			== expected_gun_damage[level_index]
 		)
 	assert(component.twin_rockets_enabled)
-	assert(is_equal_approx(component.rocket_damage_multiplier, 1.5))
+	assert(is_equal_approx(component.rocket_damage_multiplier, 1.28))
 	assert(component.rocket_count == 2)
 	assert(is_zero_approx(component.abduction_health_threshold))
 	assert(not component.monster_drop_enabled)
@@ -144,12 +144,12 @@ func run_test() -> void:
 	var field_target := add_mob(path, 500.0, &"bruiser")
 	component.active_flyer.global_position = field_target.global_position
 	component.process_attack(component.vulnerability_field_refresh_interval)
-	assert(is_equal_approx(field_target.external_vulnerability_bonus, 0.15))
+	assert(is_equal_approx(field_target.external_vulnerability_bonus, 0.20))
 	var raw_damage := 100
 	var field_health_before: int = field_target.health
 	var support_xp_before: float = tower.instance_progression.control_credit
 	field_target.apply_damage(raw_damage, &"ballistic", true, true, AttackContext.legacy(&"invader"))
-	assert(field_health_before - field_target.health == 115)
+	assert(field_health_before - field_target.health == 120)
 	assert(tower.instance_progression.control_credit > support_xp_before)
 
 	var level_20_xp: float = tower.instance_progression.get_total_xp_required_for_level(20)
@@ -171,7 +171,7 @@ func run_test() -> void:
 	tower.purchased_paths.assign([&"c"])
 	tower.load_base_tags()
 	tower.load_level_stats()
-	assert(is_equal_approx(component.vulnerability_field_bonus, 0.25))
+	assert(is_equal_approx(component.vulnerability_field_bonus, 0.30))
 	assert(is_equal_approx(component.vulnerability_field_radius_pixels, 5.0 * BaseTower.BUILD_CELL_SIZE))
 	assert(tower.damage == roundi(378.0 * GameStats.XP_MASTERY_DAMAGE_MULTIPLIER))
 	print("Saucer smoke test passed: Gunship, hunting Abductor, Mothership support, abduction XP, and capstones.")

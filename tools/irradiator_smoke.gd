@@ -189,8 +189,8 @@ func assert_attack_modes() -> void:
 	var cone_component := cone_tower.attack_component as IrradiatorAttackComponent
 	cone_component.process_attack(0.0)
 	assert(first.health == first_health and second.health == second_health)
-	assert(first.get_radiation_stacks() == cone_tower.damage * 4)
-	assert(second.get_radiation_stacks() == cone_tower.damage * 4)
+	assert(first.get_radiation_stacks() == cone_tower.damage * 6)
+	assert(second.get_radiation_stacks() == cone_tower.damage * 6)
 
 	var reactor := _create_tower(fake_main, Vector2(900.0, 500.0), &"a", 3)
 	var inside := _create_mob(Vector2(950.0, 500.0))
@@ -198,7 +198,7 @@ func assert_attack_modes() -> void:
 	var reactor_component := reactor.attack_component as IrradiatorAttackComponent
 	assert(reactor_component.reactor_enabled)
 	reactor_component.process_attack(0.0)
-	assert(inside.get_radiation_stacks() == reactor.damage * 3)
+	assert(inside.get_radiation_stacks() == reactor.damage * 5)
 	assert(outside.get_radiation_stacks() == 0)
 	assert(reactor_component.total_reactor_applications >= 1)
 

@@ -62,6 +62,9 @@ func load_level_stats() -> void:
 		maxf(float(stats.get("bounce_range", 0.0)), 0.0)
 		* BaseTower.RANGE_PIXELS_PER_UNIT
 	)
+	tower.bounce_damage_multiplier = maxf(
+		float(stats.get("bounce_damage_multiplier", 1.0)), 0.0
+	)
 	tower.projectile_count = maxi(int(stats.get("projectile_count", 1)), 1)
 	tower.volley_width_pixels = (
 		maxf(float(stats.get("volley_width", 0.0)), 0.0)

@@ -112,6 +112,7 @@ var stun_duration := 0.0
 var stun_affects_bosses := false
 var bounce_count := 0
 var bounce_range_pixels := 0.0
+var bounce_damage_multiplier := 1.0
 var infinite_pierce := false
 var inherent_infinite_pierce := false
 var continuous_beam_enabled := false

@@ -8,6 +8,7 @@ const RANGE_PIXELS_PER_UNIT := 12.9
 const TARGET_HIT_RADIUS := 12.0
 const DEFAULT_REPORT_PATH := "res://balance_reports/tower_monte_carlo.csv"
 const BALANCE_LEVELS: Array[int] = [1, 5, 10, 15, 19, 20]
+const EXHAUSTIVE_ENEMY_COUNTS: Array[int] = [1, 3, 6, 12]
 
 var rng := RandomNumberGenerator.new()
 var iterations := DEFAULT_ITERATIONS
@@ -16,6 +17,9 @@ var seed_value := 730241
 var tower_filter: Array[StringName] = []
 var report_path := DEFAULT_REPORT_PATH
 var scenarios: Array[Dictionary] = []
+var balance_levels: Array[int] = BALANCE_LEVELS.duplicate()
+var enemy_counts: Array[int] = []
+var exhaustive_mode := false
 
 
 func _ready() -> void:
@@ -32,9 +36,10 @@ func run_balance_simulation() -> void:
 		if not tower_filter.is_empty()
 		else GameStats.PLAYABLE_TOWER_FAMILY_IDS.size()
 	)
-	print("Balance simulator: %d towers, %d enemy types, %d iterations, %.1f seconds" % [tower_count, scenarios.size(), iterations, duration])
+	print("Balance simulator: %d towers, %d enemy scenarios, %d iterations, %.1f seconds" % [tower_count, scenarios.size(), iterations, duration])
 	var rows := run_simulation()
 	write_report(rows)
+	write_evaluation_report(rows)
 	print_summary(rows)
 	get_tree().quit()
 
@@ -57,7 +62,7 @@ func validate_tower_progression() -> void:
 func read_arguments() -> void:
 	for argument in OS.get_cmdline_user_args():
 		if argument.begins_with("--iterations="):
-			iterations = maxi(int(argument.get_slice("=", 1)), 50)
+			iterations = maxi(int(argument.get_slice("=", 1)), 10)
 		elif argument.begins_with("--duration="):
 			duration = maxf(float(argument.get_slice("=", 1)), 5.0)
 		elif argument.begins_with("--seed="):
@@ -68,6 +73,32 @@ func read_arguments() -> void:
 				tower_filter.append(StringName(tower_name.strip_edges()))
 		elif argument.begins_with("--report-path="):
 			report_path = argument.get_slice("=", 1)
+		elif argument == "--exhaustive":
+			exhaustive_mode = true
+			balance_levels.clear()
+			for xp_level in range(1, GameStats.TOWER_XP_MAX_LEVEL + 1):
+				balance_levels.append(xp_level)
+			enemy_counts = EXHAUSTIVE_ENEMY_COUNTS.duplicate()
+		elif argument.begins_with("--levels="):
+			balance_levels.clear()
+			for level_text in argument.get_slice("=", 1).split(",", false):
+				balance_levels.append(clampi(
+					int(level_text.strip_edges()),
+					1,
+					GameStats.TOWER_XP_MAX_LEVEL
+				))
+		elif argument.begins_with("--enemy-counts="):
+			enemy_counts.clear()
+			for count_text in argument.get_slice("=", 1).split(",", false):
+				enemy_counts.append(maxi(int(count_text.strip_edges()), 1))
+	if balance_levels.is_empty():
+		balance_levels = BALANCE_LEVELS.duplicate()
+	balance_levels.sort()
+	var unique_levels: Array[int] = []
+	for xp_level in balance_levels:
+		if not unique_levels.has(xp_level):
+			unique_levels.append(xp_level)
+	balance_levels = unique_levels
 
 
 func run_simulation() -> Array[Dictionary]:
@@ -75,7 +106,7 @@ func run_simulation() -> Array[Dictionary]:
 	for tower_id in GameStats.PLAYABLE_TOWER_FAMILY_IDS:
 		if not tower_filter.is_empty() and not tower_filter.has(tower_id):
 			continue
-		for xp_level in BALANCE_LEVELS:
+		for xp_level in balance_levels:
 			rows.append_array(simulate_variant(tower_id, xp_level, &"", "base"))
 			if xp_level < GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL:
 				continue
@@ -91,45 +122,62 @@ func build_enemy_scenarios() -> void:
 	for enemy_key in GameStats.ENEMIES:
 		var enemy_id := StringName(enemy_key)
 		var enemy: Dictionary = GameStats.get_enemy(enemy_id)
-		var enemy_traits: Array = enemy.get("traits", []).duplicate()
-		var enemy_count := get_enemy_pack_size(enemy)
-		var spawned_count := 0
-		var spawned_health_per_primary := 0.0
-		if int(enemy.get("split_count", 0)) > 0:
-			var split_count := int(enemy.get("split_count", 0))
-			var split_enemy := GameStats.get_enemy(
-				StringName(enemy["split_enemy_id"])
-			)
-			spawned_count += enemy_count * split_count
-			spawned_health_per_primary += float(split_count) * (
-				float(split_enemy.get("health", 1.0))
+		var counts: Array[int] = enemy_counts.duplicate()
+		if counts.is_empty():
+			counts.append(get_enemy_pack_size(enemy))
+		for enemy_count in counts:
+			scenarios.append(build_enemy_scenario(
+				enemy_id,
+				enemy,
+				maxi(int(enemy_count), 1)
+			))
+
+
+func build_enemy_scenario(
+	enemy_id: StringName,
+	enemy: Dictionary,
+	enemy_count: int
+) -> Dictionary:
+	var enemy_traits: Array = enemy.get("traits", []).duplicate()
+	var spawned_count := 0
+	var spawned_health_per_primary := 0.0
+	if int(enemy.get("split_count", 0)) > 0:
+		var split_count := int(enemy.get("split_count", 0))
+		var split_enemy := GameStats.get_enemy(
+			StringName(enemy["split_enemy_id"])
+		)
+		spawned_count += enemy_count * split_count
+		spawned_health_per_primary += float(split_count) * (
+			float(split_enemy.get("health", 1.0))
 				+ float(split_enemy.get("health_per_wave", 0.0))
 					* float(maxi(int(enemy.get("earliest_debut_round", 1)) - 1, 0))
-			)
-		if int(enemy.get("summon_limit", 0)) > 0:
-			var summon_count := int(enemy.get("summon_limit", 0))
-			var summon_enemy := GameStats.get_enemy(
-				StringName(enemy["summon_enemy_id"])
-			)
-			spawned_count += enemy_count * summon_count
-			spawned_health_per_primary += float(summon_count) * (
-				float(summon_enemy.get("health", 1.0))
+		)
+	if int(enemy.get("summon_limit", 0)) > 0:
+		var summon_count := int(enemy.get("summon_limit", 0))
+		var summon_enemy := GameStats.get_enemy(
+			StringName(enemy["summon_enemy_id"])
+		)
+		spawned_count += enemy_count * summon_count
+		spawned_health_per_primary += float(summon_count) * (
+			float(summon_enemy.get("health", 1.0))
 				+ float(summon_enemy.get("health_per_wave", 0.0))
 					* float(maxi(int(enemy.get("earliest_debut_round", 1)) - 1, 0))
-			)
-		var debut_round := maxi(int(enemy.get("earliest_debut_round", 1)), 1)
-		var health := (
-			float(enemy.get("health", 1))
-			+ float(enemy.get("health_per_wave", 0.0)) * float(debut_round - 1)
 		)
-		var speed := float(enemy.get("move_speed", 70.0))
-		if enemy_traits.has(&"rushes"):
-			var rush_start := clampf(float(enemy.get("rush_start_ratio", 0.7)), 0.0, 1.0)
-			var rush_multiplier := maxf(float(enemy.get("rush_speed_multiplier", 1.0)), 1.0)
-			speed /= maxf(rush_start + (1.0 - rush_start) / rush_multiplier, 0.01)
-		scenarios.append({
-			"id": String(enemy_id),
+	var debut_round := maxi(int(enemy.get("earliest_debut_round", 1)), 1)
+	var health := (
+		float(enemy.get("health", 1))
+		+ float(enemy.get("health_per_wave", 0.0)) * float(debut_round - 1)
+	)
+	var speed := float(enemy.get("move_speed", 70.0))
+	if enemy_traits.has(&"rushes"):
+		var rush_start := clampf(float(enemy.get("rush_start_ratio", 0.7)), 0.0, 1.0)
+		var rush_multiplier := maxf(float(enemy.get("rush_speed_multiplier", 1.0)), 1.0)
+		speed /= maxf(rush_start + (1.0 - rush_start) / rush_multiplier, 0.01)
+	return {
+			"id": "%s__x%d" % [enemy_id, enemy_count],
+			"enemy_id": String(enemy_id),
 			"enemy_name": String(enemy.get("display_name", enemy_id)),
+			"primary_count": enemy_count,
 			"enemies": enemy_count + spawned_count,
 			"primary_enemies": enemy_count,
 			"spawned_enemies": spawned_count,
@@ -144,7 +192,7 @@ func build_enemy_scenarios() -> void:
 			"traits": enemy_traits,
 			"distance_min": 0.30 if enemy_count >= 6 else 0.45,
 			"distance_max": 0.90,
-		})
+		}
 
 
 func get_enemy_pack_size(enemy: Dictionary) -> int:
@@ -183,8 +231,11 @@ func simulate_variant(
 			"level": xp_level,
 			"variant": variant_name,
 			"scenario": scenario["id"],
+			"enemy_id": scenario["enemy_id"],
 			"enemy_name": scenario["enemy_name"],
+			"primary_enemy_count": scenario["primary_count"],
 			"enemy_count": scenario["enemies"],
+			"hidden_enemy": scenario["hidden"],
 			"cost": cost,
 			"mean_dps": mean,
 			"p10_dps": percentile(samples, 0.10),
@@ -803,7 +854,12 @@ func get_reaver_attack_profile(
 		if guaranteed or rng.randf() < float(stats.get(
 			"critical_chance", GameStats.DEFAULT_CRITICAL_CHANCE
 		)):
-			damage *= GameStats.DEFAULT_CRITICAL_MULTIPLIER
+			damage *= (
+				GameStats.DEFAULT_CRITICAL_MULTIPLIER
+				+ float(values.get(
+					"assassinate_critical_multiplier_bonus", 0.0
+				))
+			)
 		return {"damage": damage, "targets": 1.0}
 	if flags.get("reaver_champion", false):
 		var spin_interval := maxi(int(values.get("champion_spin_interval", 3)), 1)
@@ -887,7 +943,13 @@ func get_attack_total_damage(primary_damage: float, stats: Dictionary, traits: D
 			* float(traits["values"].get("tether_secondary_damage_multiplier", 0.50))
 		)
 	var bounce_count := mini(int(stats.get("bounce_count", 0)), enemy_count - 1)
-	total += primary_damage * float(bounce_count)
+	var bounce_damage := primary_damage
+	var bounce_multiplier := maxf(
+		float(stats.get("bounce_damage_multiplier", 1.0)), 0.0
+	)
+	for _bounce_index in bounce_count:
+		bounce_damage *= bounce_multiplier
+		total += bounce_damage
 	var already_hit := 1 + bounce_count
 	var pierce_count := int(stats.get("pierce_count", 0))
 	if traits["flags"].get("infinite_pierce", false): pierce_count = enemy_count - already_hit
@@ -1334,19 +1396,208 @@ func get_model_note(tower_id: StringName) -> String:
 func write_report(rows: Array[Dictionary]) -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://balance_reports"))
 	var file := FileAccess.open(report_path, FileAccess.WRITE)
-	file.store_line("tower_id,tower_name,level,variant,enemy_id,enemy_name,enemy_count,cost,mean_dps,p10_dps,p90_dps,dps_per_100_cost,control_target_seconds_per_second,model")
+	file.store_line("tower_id,tower_name,level,variant,scenario_id,enemy_id,enemy_name,primary_enemy_count,total_enemy_count,cost,mean_dps,p10_dps,p90_dps,dps_per_100_cost,control_target_seconds_per_second,model")
 	for row in rows:
 		var fields := PackedStringArray([
-			str(row["tower_id"]), str(row["tower_name"]), str(row["level"]), str(row["variant"]), str(row["scenario"]), str(row["enemy_name"]), str(row["enemy_count"]), str(row["cost"]),
+			str(row["tower_id"]), str(row["tower_name"]), str(row["level"]), str(row["variant"]), str(row["scenario"]), str(row["enemy_id"]), str(row["enemy_name"]), str(row["primary_enemy_count"]), str(row["enemy_count"]), str(row["cost"]),
 			"%.3f" % float(row["mean_dps"]), "%.3f" % float(row["p10_dps"]), "%.3f" % float(row["p90_dps"]), "%.3f" % float(row["dps_per_100"]), "%.3f" % float(row["control_value"]), str(row["model"])
 		])
-		file.store_line(",".join(fields))
+		file.store_line(to_csv_line(fields))
 	file.close()
 	print("Monte Carlo report: ", ProjectSettings.globalize_path(report_path))
 
 
+func write_evaluation_report(rows: Array[Dictionary]) -> void:
+	var peer_values := {}
+	for row in rows:
+		if float(row["mean_dps"]) <= 0.0:
+			continue
+		var peer_key := get_peer_key(row)
+		if not peer_values.has(peer_key):
+			peer_values[peer_key] = []
+		peer_values[peer_key].append(float(row["dps_per_100"]))
+	var peer_medians := {}
+	for peer_key in peer_values:
+		var values: Array[float] = []
+		values.assign(peer_values[peer_key])
+		values.sort()
+		peer_medians[peer_key] = percentile(values, 0.50)
+
+	var aggregates := {}
+	for row in rows:
+		var aggregate_key := "%s|%d|%s" % [
+			row["tower_id"], row["level"], row["variant"]
+		]
+		if not aggregates.has(aggregate_key):
+			aggregates[aggregate_key] = {
+				"tower_id": row["tower_id"],
+				"tower_name": row["tower_name"],
+				"level": row["level"],
+				"variant": row["variant"],
+				"cost": row["cost"],
+				"ratio_sum": 0.0,
+				"ratio_count": 0,
+				"control_sum": 0.0,
+				"damage_sum": 0.0,
+				"cost_efficiency_sum": 0.0,
+				"scenario_count": 0,
+				"zero_damage_scenarios": 0,
+				"count_ratios": {},
+				"strongest_ratio": -INF,
+				"strongest_matchup": "",
+				"weakest_ratio": INF,
+				"weakest_matchup": "",
+			}
+		var aggregate: Dictionary = aggregates[aggregate_key]
+		aggregate["scenario_count"] = int(aggregate["scenario_count"]) + 1
+		aggregate["control_sum"] = (
+			float(aggregate["control_sum"]) + float(row["control_value"])
+		)
+		aggregate["damage_sum"] = (
+			float(aggregate["damage_sum"]) + float(row["mean_dps"])
+		)
+		aggregate["cost_efficiency_sum"] = (
+			float(aggregate["cost_efficiency_sum"])
+			+ float(row["dps_per_100"])
+		)
+		if float(row["mean_dps"]) <= 0.0:
+			aggregate["zero_damage_scenarios"] = (
+				int(aggregate["zero_damage_scenarios"]) + 1
+			)
+			continue
+		var median_value := float(peer_medians.get(get_peer_key(row), 0.0))
+		if median_value <= 0.0:
+			continue
+		var ratio := float(row["dps_per_100"]) / median_value
+		aggregate["ratio_sum"] = float(aggregate["ratio_sum"]) + ratio
+		aggregate["ratio_count"] = int(aggregate["ratio_count"]) + 1
+		var primary_count := int(row["primary_enemy_count"])
+		var count_ratios: Dictionary = aggregate["count_ratios"]
+		if not count_ratios.has(primary_count):
+			count_ratios[primary_count] = {"sum": 0.0, "count": 0}
+		var count_entry: Dictionary = count_ratios[primary_count]
+		count_entry["sum"] = float(count_entry["sum"]) + ratio
+		count_entry["count"] = int(count_entry["count"]) + 1
+		var matchup := "%s x%d" % [row["enemy_name"], primary_count]
+		if ratio > float(aggregate["strongest_ratio"]):
+			aggregate["strongest_ratio"] = ratio
+			aggregate["strongest_matchup"] = matchup
+		if ratio < float(aggregate["weakest_ratio"]):
+			aggregate["weakest_ratio"] = ratio
+			aggregate["weakest_matchup"] = matchup
+
+	var evaluation_path := report_path.trim_suffix(".csv") + "_evaluation.csv"
+	var file := FileAccess.open(evaluation_path, FileAccess.WRITE)
+	file.store_line(
+		"tower_id,tower_name,level,variant,cost,relative_efficiency,damage_vs_own_base,cost_efficiency_vs_own_base,solo_efficiency,small_pack_efficiency,medium_pack_efficiency,swarm_efficiency,mean_control,zero_damage_scenarios,total_scenarios,strongest_matchup,strongest_ratio,weakest_matchup,weakest_ratio,flags"
+	)
+	var aggregate_rows: Array[Dictionary] = []
+	for aggregate in aggregates.values():
+		aggregate_rows.append(aggregate)
+	var base_aggregates := {}
+	for aggregate in aggregate_rows:
+		if String(aggregate["variant"]) == "base":
+			base_aggregates["%s|%d" % [
+				aggregate["tower_id"], aggregate["level"]
+			]] = aggregate
+	aggregate_rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if int(a["level"]) != int(b["level"]):
+			return int(a["level"]) < int(b["level"])
+		if String(a["tower_id"]) != String(b["tower_id"]):
+			return String(a["tower_id"]) < String(b["tower_id"])
+		return String(a["variant"]) < String(b["variant"])
+	)
+	for aggregate in aggregate_rows:
+		var ratio_count := maxi(int(aggregate["ratio_count"]), 1)
+		var relative_efficiency := (
+			float(aggregate["ratio_sum"]) / float(ratio_count)
+		)
+		var own_base: Dictionary = base_aggregates.get(
+			"%s|%d" % [aggregate["tower_id"], aggregate["level"]],
+			aggregate
+		)
+		var damage_vs_own_base := (
+			float(aggregate["damage_sum"])
+			/ maxf(float(own_base["damage_sum"]), 0.001)
+		)
+		var cost_efficiency_vs_own_base := (
+			float(aggregate["cost_efficiency_sum"])
+			/ maxf(float(own_base["cost_efficiency_sum"]), 0.001)
+		)
+		var solo_efficiency := get_count_efficiency(aggregate, 1)
+		var small_efficiency := get_count_efficiency(aggregate, 3)
+		var medium_efficiency := get_count_efficiency(aggregate, 6)
+		var swarm_efficiency := get_count_efficiency(aggregate, 12)
+		var flags: Array[String] = []
+		if relative_efficiency >= 1.35:
+			flags.append("high_efficiency")
+		elif relative_efficiency <= 0.70:
+			flags.append("low_efficiency")
+		if swarm_efficiency >= solo_efficiency * 1.40:
+			flags.append("crowd_specialist")
+		elif solo_efficiency >= swarm_efficiency * 1.40:
+			flags.append("single_target_specialist")
+		if int(aggregate["zero_damage_scenarios"]) > 0:
+			flags.append("coverage_gap")
+		var mean_control := (
+			float(aggregate["control_sum"])
+			/ float(maxi(int(aggregate["scenario_count"]), 1))
+		)
+		if mean_control >= 0.50:
+			flags.append("meaningful_control")
+		var fields := PackedStringArray([
+			str(aggregate["tower_id"]), str(aggregate["tower_name"]),
+			str(aggregate["level"]), str(aggregate["variant"]),
+			str(aggregate["cost"]), "%.3f" % relative_efficiency,
+			"%.3f" % damage_vs_own_base,
+			"%.3f" % cost_efficiency_vs_own_base,
+			"%.3f" % solo_efficiency, "%.3f" % small_efficiency,
+			"%.3f" % medium_efficiency, "%.3f" % swarm_efficiency,
+			"%.3f" % mean_control,
+			str(aggregate["zero_damage_scenarios"]),
+			str(aggregate["scenario_count"]),
+			str(aggregate["strongest_matchup"]),
+			"%.3f" % float(aggregate["strongest_ratio"]),
+			str(aggregate["weakest_matchup"]),
+			"%.3f" % float(aggregate["weakest_ratio"]),
+			"|".join(PackedStringArray(flags)),
+		])
+		file.store_line(to_csv_line(fields))
+	file.close()
+	print("Balance evaluation: ", ProjectSettings.globalize_path(evaluation_path))
+
+
+func to_csv_line(fields: PackedStringArray) -> String:
+	var escaped: PackedStringArray = []
+	for field in fields:
+		var value := String(field)
+		if value.contains(",") or value.contains("\"") or value.contains("\n"):
+			value = "\"%s\"" % value.replace("\"", "\"\"")
+		escaped.append(value)
+	return ",".join(escaped)
+
+
+func get_peer_key(row: Dictionary) -> String:
+	var cohort := "base" if String(row["variant"]) == "base" else "evolved"
+	return "%d|%s|%s" % [row["level"], cohort, row["scenario"]]
+
+
+func get_count_efficiency(aggregate: Dictionary, enemy_count: int) -> float:
+	var count_ratios: Dictionary = aggregate["count_ratios"]
+	if not count_ratios.has(enemy_count):
+		return 0.0
+	var entry: Dictionary = count_ratios[enemy_count]
+	return float(entry["sum"]) / float(maxi(int(entry["count"]), 1))
+
+
 func print_summary(rows: Array[Dictionary]) -> void:
 	print("Iterations: ", iterations, " | duration: ", duration, "s | seed: ", seed_value)
+	if exhaustive_mode:
+		print(
+			"Exhaustive evaluation complete: %d rows across %d scenarios."
+			% [rows.size(), scenarios.size()]
+		)
+		return
 	for scenario in scenarios:
 		var candidates: Array[Dictionary] = []
 		for row in rows:

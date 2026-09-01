@@ -20,6 +20,21 @@ Godot.exe --headless --path . res://tools/tower_balance_monte_carlo.tscn -- --it
 
 Optional arguments are `--seed`, `--towers`, and `--report-path`.
 
+Use `--exhaustive` for the individual-tower matchup audit. It evaluates every
+XP level from 1 through 20, every evolution at each level where it is
+available, every enemy definition, and enemy groups of 1, 3, 6, and 12:
+
+```powershell
+Godot.exe --headless --path . res://tools/tower_balance_monte_carlo.tscn -- --exhaustive --iterations=50 --duration=30 --report-path=res://balance_reports/tower_matchup_audit.csv
+```
+
+The raw matchup CSV is accompanied by an `_evaluation.csv` file. The
+evaluation normalizes each result against towers in the same base/evolved
+cohort at the same level and matchup, then flags unusually high or low cost
+efficiency, single-target and crowd specialists, control value, and enemy
+coverage gaps. Use `--levels=1,10,20` or `--enemy-counts=1,6,12` for a smaller
+focused run.
+
 ## Run-level balance optimizer
 
 The run-level optimizer searches complete 20-round build policies. It models
