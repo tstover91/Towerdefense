@@ -121,6 +121,8 @@ func run_test() -> void:
 	assert(GameStats.get_tower_item(&"youre_not_special")["rarity"] == &"rare")
 	assert(GameStats.get_tower_item(&"trade_agreement")["rarity"] == &"rare")
 	assert(GameStats.get_tower_item(&"ricochet_module")["rarity"] == &"uncommon")
+	assert(GameStats.get_tower_item(&"ricochet_module")["required_any_tags"] == [&"ballistic", &"beam"])
+	assert(GameStats.get_tower_item(&"penetrator_rounds")["required_any_tags"] == [&"ballistic", &"beam"])
 	assert(GameStats.get_tower_item(&"split_chamber")["rarity"] == &"uncommon")
 	assert(GameStats.get_tower_item(&"explosive_payload")["rarity"] == &"uncommon")
 	assert(GameStats.get_tower_item(&"live_wire")["rarity"] == &"uncommon")
