@@ -39,7 +39,7 @@ func run_audit() -> void:
 				director, counts, round_number, round_type,
 				run_seed + round_number * 15485863
 			)
-			var income := get_counts_income(counts)
+			var income := get_counts_income(counts, round_number)
 			round_totals[round_number - 1] += income
 			run_total += income
 		totals.append(run_total)
@@ -137,26 +137,33 @@ func add_schedule_counts(counts: Dictionary, schedule: Array[Dictionary]) -> voi
 		counts[key] = float(counts.get(key, 0.0)) + 1.0
 
 
-func get_counts_income(counts: Dictionary) -> float:
+func get_counts_income(counts: Dictionary, round_number: int) -> float:
 	var result := 0.0
 	for count_key in counts:
 		var parts := String(count_key).split("|", false, 1)
 		var enemy_id := StringName(parts[0])
 		var variant := StringName(parts[1]) if parts.size() > 1 else &"normal"
-		result += float(counts[count_key]) * get_composite_reward(enemy_id, variant)
+		result += float(counts[count_key]) * get_composite_reward(
+			enemy_id, variant, round_number
+		)
 	return result
 
 
-func get_composite_reward(enemy_id: StringName, variant: StringName) -> float:
+func get_composite_reward(
+	enemy_id: StringName,
+	variant: StringName,
+	round_number: int
+) -> float:
 	var enemy := GameStats.get_enemy(enemy_id)
-	var reward := get_unit_reward(enemy, variant)
+	var reward := get_unit_reward(enemy, variant, round_number)
 	var child_variant := variant if variant in [&"horde", &"payday"] else &"normal"
 	if int(enemy.get("split_count", 0)) > 0:
 		reward += (
 			float(enemy["split_count"])
 			* get_unit_reward(
 				GameStats.get_enemy(StringName(enemy["split_enemy_id"])),
-				child_variant
+				child_variant,
+				round_number
 			)
 		)
 	if int(enemy.get("summon_limit", 0)) > 0:
@@ -164,13 +171,18 @@ func get_composite_reward(enemy_id: StringName, variant: StringName) -> float:
 			float(enemy["summon_limit"])
 			* get_unit_reward(
 				GameStats.get_enemy(StringName(enemy["summon_enemy_id"])),
-				child_variant
+				child_variant,
+				round_number
 			)
 		)
 	return reward
 
 
-func get_unit_reward(enemy: Dictionary, variant: StringName) -> float:
+func get_unit_reward(
+	enemy: Dictionary,
+	variant: StringName,
+	round_number: int
+) -> float:
 	var variant_multiplier := 1.0
 	match variant:
 		&"horde": variant_multiplier = 0.55
@@ -179,6 +191,7 @@ func get_unit_reward(enemy: Dictionary, variant: StringName) -> float:
 		float(enemy.get("cash_reward", 0.0))
 		* variant_multiplier
 		* audit_reward_multiplier
+		* GameStats.get_late_kill_reward_multiplier(round_number)
 	), 1))
 
 

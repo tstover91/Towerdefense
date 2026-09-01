@@ -11,10 +11,10 @@ func _init() -> void:
 
 func run_checks() -> void:
 	var mode := GameStats.get_mode(&"easy")
-	assert(int(mode["active_enemy_cap"]) == 160)
-	assert(int(mode["horde_active_enemy_cap"]) == 200)
-	assert(int(mode["gauntlet_active_enemy_cap"]) == 220)
-	assert(int(mode["absolute_enemy_cap"]) == 240)
+	assert(int(mode["active_enemy_cap"]) == 110)
+	assert(int(mode["horde_active_enemy_cap"]) == 130)
+	assert(int(mode["gauntlet_active_enemy_cap"]) == 145)
+	assert(int(mode["absolute_enemy_cap"]) == 160)
 
 	var director = MAIN_SCENE.instantiate()
 	get_tree().root.add_child(director)

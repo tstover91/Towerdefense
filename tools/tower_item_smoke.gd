@@ -45,6 +45,11 @@ func _ready() -> void:
 
 
 func run_test() -> void:
+	if not _check(
+		not GameStats.is_tower_item_shop_enabled(&"overclocked_actuator"),
+		"Overclocked Actuator should no longer appear in shops."
+	):
+		return
 	var fake_main := FakeMain.new()
 	add_child(fake_main)
 	var equipped_slinger := await _create_tower(fake_main, &"slinger")

@@ -2,6 +2,7 @@ class_name SolarLance
 extends Node2D
 
 const GameStats = preload("res://stat_database.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const ORBITAL_CANNON_TOWER_ID: StringName = &"orbitalcannon"
 
 signal finished(lance: Node2D)
@@ -103,7 +104,7 @@ func apply_damage_tick() -> void:
 		float(tick_end_damage),
 		ramp_progress
 	)), 1)
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(get_tree(), global_position, radius):
 		if not is_valid_mob(mob):
 			continue
 		var distance_from_center: float = global_position.distance_to(mob.global_position)
@@ -125,12 +126,12 @@ func apply_damage_tick() -> void:
 func update_zone_slow() -> void:
 	var mob_ids_inside: Dictionary = {}
 	var refresh_duration := SLOW_REFRESH_INTERVAL * 1.5
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(get_tree(), global_position, radius):
 		if not is_valid_mob(mob):
 			continue
 		if global_position.distance_to(mob.global_position) > radius:
 			continue
-		var mob_id := mob.get_instance_id()
+		var mob_id: int = mob.get_instance_id()
 		mob_ids_inside[mob_id] = true
 		slowed_mobs[mob_id] = weakref(mob)
 		if mob.has_method("apply_slow"):

@@ -97,7 +97,7 @@ func run_test() -> void:
 	evolving_tower.instance_progression.set_level_for_sandbox(10)
 	assert(
 		int(GameStats.get_tower_evolution(&"saucer", &"gunship")["cost"])
-		== 22_050
+		== 23_002
 	)
 	evolving_tower.select_evolution_choice(&"gunship")
 	evolving_tower.purchase_selected_evolution()

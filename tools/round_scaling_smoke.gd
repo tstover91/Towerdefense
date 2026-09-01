@@ -23,8 +23,9 @@ func _init() -> void:
 	assert(GameStats.get_round_cash_reward(14) == 10500)
 	assert(GameStats.get_round_cash_reward(15) == 11500)
 	assert(GameStats.get_round_cash_reward(16) == 12000)
-	assert(GameStats.get_round_cash_reward(17) == 13000)
-	assert(GameStats.get_round_cash_reward(18) == 13500)
+	assert(GameStats.get_round_cash_reward(17) == 12000)
+	assert(GameStats.get_round_cash_reward(18) == 12500)
+	assert(GameStats.get_round_cash_reward(23) == 14000)
 	assert(GameStats.format_money(999) == "999")
 	assert(GameStats.format_money(1000) == "1.0k")
 	assert(GameStats.format_money(10500) == "10.5k")
@@ -42,7 +43,7 @@ func _init() -> void:
 	var total_round_cash := 0
 	for round_number in range(1, 25):
 		total_round_cash += GameStats.get_round_cash_reward(round_number)
-	assert(total_round_cash == 20825)
+	assert(total_round_cash == 192250)
 	var expected_health_multipliers := [
 		1.50, 2.00, 2.50, 3.00, 3.50, 4.00,
 		4.50, 5.00, 5.50, 6.00, 6.50, 7.00,
@@ -50,10 +51,13 @@ func _init() -> void:
 		9.40, 9.80, 10.20, 10.60, 11.00, 11.00,
 	]
 	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(10), 1.0))
-	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(11), 1.10))
-	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(19), 1.15))
-	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(20), 1.20))
-	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(24), 1.25))
+	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(11), 1.025))
+	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(14), 1.10))
+	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(15), 1.15))
+	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(24), 1.85))
+	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(14), 1.0))
+	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(19), 0.875))
+	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(24), 0.75))
 	var total_duration := 0.0
 	var previous_threat_budget := 0.0
 	for round_number in range(1, 25):
@@ -134,15 +138,15 @@ func _init() -> void:
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"normal")
-	) == 589)
+	) == 843)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"bruiser"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"bruiser")
-	) == 4638)
+	) == 6642)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"brute"]["health"])
 		* GameStats.get_enemy_health_multiplier(24, &"brute")
-	) == 213469)
+	) == 315934)
 	assert(int(GameStats.ENEMIES[&"heavy_enforcer"]["health"]) == 1800)
 	assert(GameStats.ENEMIES[&"striker"]["role"] == &"pressure")
 	assert(int(GameStats.ENEMIES[&"striker"]["director_cost"]) == 8)

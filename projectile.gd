@@ -279,7 +279,9 @@ func begin_next_bounce() -> bool:
 func get_nearest_bounce_target() -> Node2D:
 	var selected_target: Node2D
 	var selected_distance := INF
-	for candidate in get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		get_tree(), global_position, bounce_range
+	):
 		if not is_valid_target(candidate):
 			continue
 		if (
@@ -485,7 +487,9 @@ func resolve_contact_explosion(center: Vector2, explosion_damage: int) -> void:
 		center,
 		contact_explosion_radius
 	)
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(
+		get_tree(), center, contact_explosion_radius
+	):
 		if not AreaDamage.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var target_id: int = mob.get_instance_id()
@@ -522,7 +526,7 @@ func resolve_explosion_with_stats(
 		center,
 		explosion_radius
 	)
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(get_tree(), center, explosion_radius):
 		if not AreaDamage.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_from_center: float = mob.global_position.distance_to(center)

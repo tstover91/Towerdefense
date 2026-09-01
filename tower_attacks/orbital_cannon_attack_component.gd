@@ -2,6 +2,7 @@ class_name OrbitalCannonAttackComponent
 extends TowerAttackComponent
 
 const GameStats = preload("res://stat_database.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const SOLAR_LANCE_SCENE = preload("res://solar_lance.tscn")
 const FALLOUT_ZONE_SCENE = preload("res://fallout_zone.tscn")
 const TARGET_ACTIVATION_RADIUS_PIXELS := 12.0
@@ -249,7 +250,9 @@ func is_valid_manual_target_position(world_position: Vector2) -> bool:
 func has_manual_attack_opportunity() -> bool:
 	if not tower.is_combat_active() or not has_target_position:
 		return false
-	for mob in tower.get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(
+		tower.get_tree(), target_position, TARGET_ACTIVATION_RADIUS_PIXELS
+	):
 		if not tower.is_valid_target(mob):
 			continue
 		if (
@@ -326,7 +329,9 @@ func _resolve_atomic_strike(
 	)
 	blast_context.metadata["area_damage"] = true
 	blast_context.metadata["atomic_strike"] = true
-	for mob in tower.get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(
+		tower.get_tree(), strike_position, blast_radius
+	):
 		if not tower.is_valid_area_target(mob):
 			continue
 		var distance: float = mob.global_position.distance_to(strike_position)

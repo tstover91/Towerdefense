@@ -35,6 +35,44 @@ efficiency, single-target and crowd specialists, control value, and enemy
 coverage gaps. Use `--levels=1,10,20` or `--enemy-counts=1,6,12` for a smaller
 focused run.
 
+## Tower item-combination audit
+
+The item-combination audit tests every currently enabled item multiset from
+one through four total copies. Stacked copies count toward the four-item
+limit. Each loadout is tested on every tower and evolution against the same
+enemy definitions and group sizes of 1, 3, 6, and 12 used by the exhaustive
+tower matchup audit. Items that can be equipped but are inactive on a tower
+are retained and flagged instead of being silently skipped.
+
+There are currently 53 enabled items and 343,611 distinct loadouts. A full
+level-20 run is intentionally an overnight-scale job:
+
+```powershell
+Godot.exe --headless --path . res://tools/tower_item_combination_audit.tscn -- --levels=20 --iterations=1 --outliers-only
+```
+
+The complete CSV is written to
+`res://balance_reports/tower_item_combinations.csv`; flagged results are also
+written to `res://balance_reports/tower_item_combination_outliers.csv`. The
+recommended `--outliers-only` option leaves the first file as a header-only
+placeholder and avoids writing millions of clean rows.
+
+Use shards for a more reliable overnight run or to run several pieces in
+parallel. Give every shard unique report names. For example, this runs the
+first of 16 pieces:
+
+```powershell
+Godot.exe --headless --path . res://tools/tower_item_combination_audit.tscn -- --levels=20 --iterations=1 --outliers-only --shard-index=0 --shard-count=16 --report-path=res://balance_reports/item_combos_00.csv --outlier-path=res://balance_reports/item_combo_outliers_00.csv
+```
+
+Use `--all-levels` only when every XP level is required; it is much larger
+than the already exhaustive level-20 run. Focused checks can use `--towers`,
+`--items`, `--max-items`, `--limit-loadouts`, and `--duration`. Use
+`--list-only` to print the current item and combination counts without running
+combat trials. Conditional, positioning, utility, and progression effects
+that the numerical model cannot reproduce reliably are marked
+`manual_review` in the outlier report.
+
 ## Run-level balance optimizer
 
 The run-level optimizer searches complete 20-round build policies. It models

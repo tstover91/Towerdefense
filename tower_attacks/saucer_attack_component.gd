@@ -2,6 +2,7 @@ class_name SaucerAttackComponent
 extends TowerAttackComponent
 
 const GameStats = preload("res://stat_database.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const SPAWNED_UNIT_SCENE = preload("res://spawned_unit.tscn")
 const SAUCER_FLYER_SCENE = preload("res://saucer_flyer.tscn")
 
@@ -217,7 +218,9 @@ func get_abduction_hunt_target(_saucer_position: Vector2) -> Node2D:
 	var selected_target: Node2D
 	var selected_max_health := -1
 	var selected_progress := -INF
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), tower.global_position, tower.range_radius_pixels
+	):
 		if not can_abduct_target(candidate):
 			continue
 		if tower.global_position.distance_to(candidate.global_position) > tower.range_radius_pixels:
@@ -244,7 +247,9 @@ func get_abduction_target(saucer_position: Vector2) -> Node2D:
 	var selected_target: Node2D
 	var selected_max_health := -1
 	var selected_progress := -INF
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), saucer_position, abduction_radius_pixels
+	):
 		if not can_abduct_target(candidate):
 			continue
 		if saucer_position.distance_to(candidate.global_position) > abduction_radius_pixels:
@@ -272,7 +277,9 @@ func get_rocket_target(saucer_position: Vector2, gun_target: Node2D) -> Node2D:
 	var selected_target: Node2D
 	var selected_health := -1
 	var selected_progress := -INF
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), saucer_position, attack_radius_pixels
+	):
 		if candidate == gun_target or not tower.is_valid_target(candidate):
 			continue
 		if saucer_position.distance_to(candidate.global_position) > attack_radius_pixels:
@@ -470,7 +477,10 @@ func refresh_vulnerability_field() -> void:
 		return
 	var field_context := tower.create_attack_context(&"mothership_vulnerability_field")
 	var current_mobs: Array[Node] = []
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), active_flyer.global_position,
+		vulnerability_field_radius_pixels
+	):
 		if not tower.is_valid_target(candidate):
 			continue
 		if active_flyer.global_position.distance_to(candidate.global_position) > vulnerability_field_radius_pixels:

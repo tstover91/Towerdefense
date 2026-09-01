@@ -2,6 +2,7 @@ class_name TowerItemController
 extends Node
 
 const GameStats = preload("res://stat_database.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 
 signal combat_event(event_id: StringName, payload: Dictionary)
 
@@ -514,7 +515,7 @@ func _trigger_hit_explosion(
 	var proc_context := _make_proc_context(
 		attack_context, slot_index, item_id, &"item_hit_explosion"
 	)
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(tower.get_tree(), center, radius):
 		if not tower.is_valid_target(candidate):
 			continue
 		var distance := center.distance_to(candidate.global_position)
@@ -542,7 +543,10 @@ func _launch_secondary_projectiles(
 	if tower.attack_delivery_controller == null or tower.projectile_scene == null:
 		return
 	var candidates: Array[Node2D] = []
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	var maximum_distance := 5.0 * BaseTower.RANGE_PIXELS_PER_UNIT
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), origin, maximum_distance
+	):
 		if (
 			candidate == excluded_enemy
 			or not candidate is Node2D
@@ -553,7 +557,6 @@ func _launch_secondary_projectiles(
 	candidates.sort_custom(func(a: Node2D, b: Node2D) -> bool:
 		return origin.distance_squared_to(a.global_position) < origin.distance_squared_to(b.global_position)
 	)
-	var maximum_distance := 5.0 * BaseTower.RANGE_PIXELS_PER_UNIT
 	var launched := 0
 	var proc_context := _make_proc_context(
 		parent_context, slot_index, item_id, attack_kind
@@ -736,7 +739,9 @@ func _deal_item_explosion(
 	attack_context.metadata["area_damage"] = true
 	attack_context.metadata["explosion_center"] = center
 	attack_context.metadata["explosion_radius"] = resolved_radius
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), center, resolved_radius
+	):
 		if not tower.is_valid_area_target(candidate):
 			continue
 		var distance := center.distance_to(candidate.global_position)

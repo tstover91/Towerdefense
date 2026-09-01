@@ -3,6 +3,7 @@ extends TowerAttackComponent
 
 const FISHERMAN_HOOK_EFFECT = preload("res://fisherman_hook_effect.gd")
 const FISHERMAN_MINE_SCENE = preload("res://fisherman_mine.tscn")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const DEFAULT_TRACKING_CONE_DEGREES := 60.0
 
 var hook_tick_count := 4
@@ -64,7 +65,9 @@ func is_target_in_tracking_cone(candidate: Variant) -> bool:
 
 func select_directional_target() -> Node2D:
 	var candidates: Array[Node2D] = []
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), tower.global_position, tower.range_radius_pixels
+	):
 		if is_target_in_tracking_cone(candidate):
 			candidates.append(candidate)
 	if candidates.is_empty():
@@ -267,7 +270,9 @@ func _get_hook_targets(primary_target: Node2D) -> Array[Node2D]:
 	if hook_target_count <= 1:
 		return result
 	var candidates: Array[Node2D] = []
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), tower.global_position, tower.range_radius_pixels
+	):
 		if candidate != primary_target and is_target_in_tracking_cone(candidate):
 			candidates.append(candidate)
 	candidates.sort_custom(func(left: Node2D, right: Node2D) -> bool:

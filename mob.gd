@@ -282,6 +282,7 @@ func load_stats() -> void:
 		float(stats["cash_reward"])
 		* reward_multiplier
 		* GameStats.KILL_REWARD_MULTIPLIER
+		* GameStats.get_late_kill_reward_multiplier(wave_number)
 	)))
 	base_damage = maxi(
 		1,
@@ -1403,7 +1404,9 @@ func apply_static_discharge(
 		true,
 		{"electric_proc": true, "area_damage": true}
 	)
-	for candidate in get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		get_tree(), global_position, GameStats.STATIC_DISCHARGE_RADIUS
+	):
 		if not is_valid_electric_proc_secondary_target(candidate):
 			continue
 		if global_position.distance_to(candidate.global_position) > GameStats.STATIC_DISCHARGE_RADIUS:
@@ -1526,7 +1529,9 @@ func trigger_microwave_explosion(
 		get_tree().current_scene.add_child(explosion_zone)
 		explosion_zone.global_position = global_position
 		explosion_zone.setup(GameStats.MICROWAVE_EXPLOSION_RADIUS)
-	for candidate in get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		get_tree(), global_position, GameStats.MICROWAVE_EXPLOSION_RADIUS
+	):
 		if (
 			candidate == self
 			or not AreaDamage.is_valid_explosion_target(
@@ -1741,7 +1746,9 @@ func spread_brainiac_damage(
 		roundi(float(received_damage) * brainiac_link_damage_share),
 		1
 	)
-	for candidate in get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		get_tree(), center, brainiac_link_radius
+	):
 		if (
 			candidate == self
 			or candidate == null

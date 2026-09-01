@@ -1,6 +1,7 @@
 class_name ReaverAttackComponent
 extends TowerAttackComponent
 
+const AreaDamage = preload("res://area_damage_helper.gd")
 const SECONDARY_SWEEP_DAMAGE_MULTIPLIER := 0.75
 
 var melee_arc_degrees := 120.0
@@ -196,7 +197,7 @@ func _get_arc_targets(primary_target: Node2D, origin: Vector2, direction: Vector
 		return [primary_target]
 	var minimum_dot := cos(deg_to_rad(minf(arc_degrees, 360.0) * 0.5))
 	var candidates: Array[Node2D] = []
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(tower.get_tree(), origin, radius):
 		if not tower.is_valid_target(candidate):
 			continue
 		var candidate_node := candidate as Node2D
@@ -211,7 +212,7 @@ func _get_arc_targets(primary_target: Node2D, origin: Vector2, direction: Vector
 
 func _get_radial_targets(primary_target: Node2D, origin: Vector2, radius: float, maximum_targets: int) -> Array[Node2D]:
 	var candidates: Array[Node2D] = []
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(tower.get_tree(), origin, radius):
 		if not tower.is_valid_target(candidate):
 			continue
 		var candidate_node := candidate as Node2D

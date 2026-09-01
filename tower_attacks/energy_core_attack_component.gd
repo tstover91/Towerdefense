@@ -1,6 +1,7 @@
 class_name EnergyCoreAttackComponent
 extends TowerAttackComponent
 
+const AreaDamage = preload("res://area_damage_helper.gd")
 const SHOCKWAVE_VISUAL_DURATION := 0.3
 const BRANCH_VISUAL_DURATION := 0.12
 
@@ -313,7 +314,9 @@ func _get_nearest_branch_target(
 ) -> Node2D:
 	var nearest_target: Node2D
 	var nearest_distance := INF
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), origin, branch_range_pixels
+	):
 		if (
 			not tower.is_valid_target(candidate)
 			or excluded_ids.has(candidate.get_instance_id())

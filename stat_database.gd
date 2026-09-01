@@ -180,13 +180,13 @@ const ROUND_CASH_REWARDS := {
 	14: 1050,
 	15: 1150,
 	16: 1200,
-	17: 1300,
-	18: 1350,
-	19: 1400,
-	20: 1500,
-	21: 1600,
-	22: 1700,
-	23: 1800,
+	17: 1200,
+	18: 1250,
+	19: 1250,
+	20: 1300,
+	21: 1300,
+	22: 1350,
+	23: 1400,
 	24: 0,
 }
 
@@ -212,16 +212,16 @@ const ROUND_PROFILES := {
 	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 7.00, "boss_health_multiplier": 1.5675},
 	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 7.40, "boss_health_multiplier": 1.5950},
 	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 7.70, "boss_health_multiplier": 1.6225},
-	15: {"duration": 60.0, "threat_budget": 405.3000, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.6500},
-	16: {"duration": 60.0, "threat_budget": 438.8160, "standard_health_multiplier": 8.30, "boss_health_multiplier": 1.6775},
-	17: {"duration": 60.0, "threat_budget": 473.8440, "standard_health_multiplier": 8.60, "boss_health_multiplier": 1.7050},
-	18: {"duration": 60.0, "threat_budget": 510.3840, "standard_health_multiplier": 9.00, "boss_health_multiplier": 1.7325},
-	19: {"duration": 60.0, "threat_budget": 548.4360, "standard_health_multiplier": 9.40, "boss_health_multiplier": 1.7600},
-	20: {"duration": 60.0, "threat_budget": 600, "standard_health_multiplier": 9.80, "boss_health_multiplier": 1.7875},
-	21: {"duration": 60.0, "threat_budget": 650, "standard_health_multiplier": 10.20, "boss_health_multiplier": 1.8150},
-	22: {"duration": 60.0, "threat_budget": 705, "standard_health_multiplier": 10.60, "boss_health_multiplier": 1.8425},
-	23: {"duration": 60.0, "threat_budget": 765, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8700},
-	24: {"duration": 90.0, "threat_budget": 1150, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8975},
+	15: {"duration": 60.0, "threat_budget": 380.0, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.6500},
+	16: {"duration": 60.0, "threat_budget": 400.0, "standard_health_multiplier": 8.30, "boss_health_multiplier": 1.6775},
+	17: {"duration": 60.0, "threat_budget": 420.0, "standard_health_multiplier": 8.60, "boss_health_multiplier": 1.7050},
+	18: {"duration": 60.0, "threat_budget": 440.0, "standard_health_multiplier": 9.00, "boss_health_multiplier": 1.7325},
+	19: {"duration": 60.0, "threat_budget": 460.0, "standard_health_multiplier": 9.40, "boss_health_multiplier": 1.7600},
+	20: {"duration": 60.0, "threat_budget": 480.0, "standard_health_multiplier": 9.80, "boss_health_multiplier": 1.7875},
+	21: {"duration": 60.0, "threat_budget": 505.0, "standard_health_multiplier": 10.20, "boss_health_multiplier": 1.8150},
+	22: {"duration": 60.0, "threat_budget": 535.0, "standard_health_multiplier": 10.60, "boss_health_multiplier": 1.8425},
+	23: {"duration": 60.0, "threat_budget": 570.0, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8700},
+	24: {"duration": 90.0, "threat_budget": 820.0, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8975},
 	
 }
 
@@ -1063,6 +1063,7 @@ const TOWER_ITEMS := {
 		"rarity": &"common",
 		"category": &"offense",
 		"price": 450,
+		"shop_enabled": false,
 		"max_copies_per_tower": 4,
 		"stat_multipliers": {"firerate": 0.78, "damage": 0.91},
 		"unit_stat_multipliers": {
@@ -3134,10 +3135,10 @@ const MODES := {
 		"threat_continuous_ratio": 0.7,
 		"threat_chunk_ratio": 0.3,
 		"threat_chunk_interval": 4.0,
-		"active_enemy_cap": 160,
-		"horde_active_enemy_cap": 200,
-		"gauntlet_active_enemy_cap": 220,
-		"absolute_enemy_cap": 240,
+		"active_enemy_cap": 110,
+		"horde_active_enemy_cap": 130,
+		"gauntlet_active_enemy_cap": 145,
+		"absolute_enemy_cap": 160,
 	},
 }
 
@@ -3429,9 +3430,15 @@ static func get_round_threat_budget(round_number: int) -> float:
 static func get_late_difficulty_health_multiplier(round_number: int) -> float:
 	if round_number <= 10:
 		return 1.0
-	if round_number <= 19:
-		return lerpf(1.10, 1.15, float(round_number - 11) / 8.0)
-	return lerpf(1.20, 1.25, float(round_number - 20) / 4.0)
+	if round_number <= 14:
+		return lerpf(1.025, 1.10, float(round_number - 11) / 3.0)
+	return lerpf(1.15, 1.85, float(round_number - 15) / 9.0)
+
+
+static func get_late_kill_reward_multiplier(round_number: int) -> float:
+	if round_number <= 14:
+		return 1.0
+	return lerpf(1.0, 0.75, clampf(float(round_number - 14) / 10.0, 0.0, 1.0))
 
 
 static func get_round_health_multiplier(round_number: int, boss := false) -> float:

@@ -1027,7 +1027,9 @@ func perform_ground_slam(
 	if slam_radius <= 0.0:
 		return false
 	var targets: Array[Node2D] = []
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(
+		get_tree(), global_position, slam_radius
+	):
 		if (
 			is_valid_area_target(mob)
 			and global_position.distance_to(mob.global_position) <= slam_radius
@@ -1113,7 +1115,9 @@ func trigger_budget_explosion() -> void:
 		global_position,
 		resolved_explosion_radius
 	)
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(
+		get_tree(), global_position, resolved_explosion_radius
+	):
 		if not AreaDamage.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_to_blast: float = global_position.distance_to(mob.global_position)
@@ -1251,7 +1255,9 @@ func launch_split_projectile(
 func get_split_projectile_target(primary_target: Node2D) -> Node2D:
 	var closest_target := primary_target
 	var closest_distance_squared := INF
-	for candidate in get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		get_tree(), global_position, get_effective_attack_radius()
+	):
 		if (
 			candidate == primary_target
 			or not candidate is Node2D
@@ -1386,7 +1392,9 @@ func get_nearest_hitscan_bounce_target(
 ) -> Node2D:
 	var selected_target: Node2D
 	var selected_distance := INF
-	for candidate in get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		get_tree(), origin, bounce_range_pixels
+	):
 		if not is_valid_target(candidate):
 			continue
 		if excluded_target_ids.has(candidate.get_instance_id()):

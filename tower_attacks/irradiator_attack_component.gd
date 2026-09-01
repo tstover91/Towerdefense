@@ -1,6 +1,7 @@
 class_name IrradiatorAttackComponent
 extends TowerAttackComponent
 
+const AreaDamage = preload("res://area_damage_helper.gd")
 const RADIATION_TICK_INTERVAL := 1.0
 const FIELD_COLOR := Color(0.64, 0.95, 0.10, 0.13)
 const EDGE_COLOR := Color(0.82, 1.0, 0.18, 0.82)
@@ -141,7 +142,9 @@ func _get_application_interval() -> float:
 
 func _get_reactor_targets() -> Array[Node2D]:
 	var targets: Array[Node2D] = []
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), tower.global_position, reactor_radius_pixels
+	):
 		if not tower.is_valid_area_target(candidate):
 			continue
 		if tower.global_position.distance_to(candidate.global_position) <= reactor_radius_pixels:
@@ -155,7 +158,9 @@ func _get_cone_targets() -> Array[Node2D]:
 		return targets
 	var aim_direction := tower.global_position.direction_to(tower.target.global_position)
 	var minimum_dot := cos(deg_to_rad(cone_degrees) * 0.5)
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), tower.global_position, tower.range_radius_pixels
+	):
 		if not tower.is_valid_area_target(candidate):
 			continue
 		var offset: Vector2 = candidate.global_position - tower.global_position

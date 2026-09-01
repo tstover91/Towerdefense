@@ -66,7 +66,7 @@ func _process(delta: float) -> void:
 	if target_scan_remaining > 0.0:
 		return
 	target_scan_remaining = TARGET_SCAN_INTERVAL
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(get_tree(), global_position, trigger_radius):
 		if not is_valid_mob(mob):
 			continue
 		if global_position.distance_to(mob.global_position) <= trigger_radius:
@@ -85,7 +85,9 @@ func detonate(from_chain_reaction := false) -> void:
 		global_position,
 		explosion_radius
 	)
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(
+		get_tree(), global_position, explosion_radius
+	):
 		if not AreaDamage.is_valid_explosion_target(mob, explosion_context):
 			continue
 		var distance_from_center: float = global_position.distance_to(

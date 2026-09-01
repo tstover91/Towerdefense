@@ -93,7 +93,7 @@ func pull_nearby_mobs(delta: float) -> void:
 
 func refresh_pull_targets() -> void:
 	pull_targets.clear()
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(get_tree(), global_position, pull_radius):
 		if not is_valid_mob(mob):
 			continue
 		if global_position.distance_to(mob.global_position) > pull_radius:
@@ -142,7 +142,9 @@ func explode() -> void:
 		global_position,
 		explosion_radius
 	)
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(
+		get_tree(), global_position, explosion_radius
+	):
 		if not AreaDamage.is_valid_explosion_target(mob, resolved_context):
 			continue
 		var distance_from_center: float = global_position.distance_to(mob.global_position)

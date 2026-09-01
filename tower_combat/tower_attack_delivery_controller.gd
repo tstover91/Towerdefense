@@ -2,6 +2,7 @@ class_name TowerAttackDeliveryController
 extends Node
 
 const GameStats = preload("res://stat_database.gd")
+const AreaDamage = preload("res://area_damage_helper.gd")
 const HITSCAN_EFFECT_SCENE = preload("res://hitscan_effect.tscn")
 const ATTACK_EFFECT_METADATA_IDS: Array[StringName] = [
 	&"pack_hunter",
@@ -327,7 +328,9 @@ func launch_projectile(current_target: Node2D, attack_damage: int) -> void:
 func _get_split_projectile_target(primary_target: Node2D) -> Node2D:
 	var closest_target := primary_target
 	var closest_distance_squared := INF
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), tower.global_position, tower.range_radius_pixels
+	):
 		if (
 			candidate == primary_target
 			or not candidate is Node2D

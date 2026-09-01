@@ -1,6 +1,8 @@
 class_name FalloutZone
 extends Node2D
 
+const AreaDamage = preload("res://area_damage_helper.gd")
+
 signal finished(zone: Node2D)
 
 var source_tower: BaseTower
@@ -58,7 +60,7 @@ func _process(delta: float) -> void:
 func apply_fallout() -> void:
 	if not is_instance_valid(source_tower) or not source_tower.is_combat_active():
 		return
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(get_tree(), global_position, radius):
 		if not source_tower.is_valid_area_target(mob):
 			continue
 		if mob.global_position.distance_to(global_position) > radius:
