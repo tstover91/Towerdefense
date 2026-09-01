@@ -1,7 +1,8 @@
 extends Control
 
 const MapData = preload("res://map_database.gd")
-const BUILD_LABEL := "v0.1.2 · Android build 3"
+const GAMEPLAY_SCENE: PackedScene = preload("res://main.tscn")
+const BUILD_LABEL := "v0.1.3 · Android build 4"
 
 @onready var map_selector: OptionButton = $Content/Card/Content/MapSelector
 @onready var normal_button: Button = $Content/Card/Content/LevelButtons/NormalButton
@@ -27,18 +28,6 @@ func _ready() -> void:
 		_on_sandbox_button_pressed
 	):
 		sandbox_button.button_down.connect(_on_sandbox_button_pressed)
-	if not SessionState.gameplay_transition_failed.is_connected(
-		_on_gameplay_transition_failed
-	):
-		SessionState.gameplay_transition_failed.connect(
-			_on_gameplay_transition_failed
-		)
-	if not SessionState.gameplay_transition_status.is_connected(
-		_on_gameplay_transition_status
-	):
-		SessionState.gameplay_transition_status.connect(
-			_on_gameplay_transition_status
-		)
 	normal_button.grab_focus()
 
 
@@ -64,7 +53,7 @@ func _on_normal_button_pressed() -> void:
 		return
 	start_requested = true
 	_show_starting_state()
-	SessionState.start_normal_game(get_selected_map_id())
+	_start_game(false)
 
 
 func _on_sandbox_button_pressed() -> void:
@@ -72,7 +61,13 @@ func _on_sandbox_button_pressed() -> void:
 		return
 	start_requested = true
 	_show_starting_state()
-	SessionState.start_sandbox_game(get_selected_map_id())
+	_start_game(true)
+
+
+func _start_game(use_sandbox_mode: bool) -> void:
+	SessionState.selected_map_id = get_selected_map_id()
+	SessionState.sandbox_mode = use_sandbox_mode
+	get_tree().change_scene_to_packed.bind(GAMEPLAY_SCENE).call_deferred()
 
 
 func _show_starting_state() -> void:
@@ -80,19 +75,6 @@ func _show_starting_state() -> void:
 	sandbox_button.disabled = true
 	subtitle.text = "Opening match..."
 	footer.text = "Opening match..."
-
-
-func _on_gameplay_transition_failed(message: String) -> void:
-	start_requested = false
-	normal_button.disabled = false
-	sandbox_button.disabled = false
-	subtitle.text = message
-	footer.text = message
-
-
-func _on_gameplay_transition_status(message: String) -> void:
-	subtitle.text = message
-	footer.text = "%s · %s" % [BUILD_LABEL, message]
 
 
 func _on_quit_button_pressed() -> void:

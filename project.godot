@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Tower Defence"
 config/description="A mobile tower-defense game with branching tower upgrades and relic-driven builds."
-config/version="0.1.2"
+config/version="0.1.3"
 run/main_scene="res://ui/screens/main_menu_visual.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="uid://n5wurppyeq5"
