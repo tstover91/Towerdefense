@@ -7,6 +7,7 @@ extends RefCounted
 const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "invader"
 const ECONOMY_SCALE := 10
+const EVOLUTION_COST_MULTIPLIER := 0.70
 const BUILD_CELL_SIZE := 32.0
 const ELECTRIC_HITS_TO_PROC := 5
 const ELECTRIC_PROC_DAMAGE_CONTRIBUTION := 0.30
@@ -3700,6 +3701,9 @@ static func get_tower_evolutions(tower_id: StringName) -> Dictionary:
 		var legacy_path_id := StringName(adapter.get("legacy_path_id", &""))
 		var evolution := get_tower_path(tower_id, legacy_path_id)
 		evolution.merge(adapter, true)
+		evolution["cost"] = roundi(
+			float(evolution.get("cost", 0)) * EVOLUTION_COST_MULTIPLIER
+		)
 		evolution["id"] = evolution_id
 		evolution["family_id"] = tower_id
 		evolution["required_level"] = int(

@@ -151,6 +151,8 @@ func purchase_selected_evolution() -> void:
 	tower.configure_attack_component()
 	tower.load_base_tags()
 	tower.load_level_stats()
+	if tower.attack_component != null and tower.is_placed:
+		tower.attack_component.on_placement_confirmed()
 	tower.update_menu_buttons()
 	tower.show_main_menu()
 	_show_tower_details_if_selected()
@@ -207,6 +209,11 @@ func get_sell_price() -> int:
 			if tower.purchase_price >= 0
 			else int(GameStats.get_tower(tower.tower_id)["placement_cost"])
 		)
+		if not tower.instance_progression.evolution_id.is_empty():
+			return (
+				automatic_progression_sell_price
+				+ tower.instance_progression.evolution_gold_spent
+			)
 		var automatic_path_values: Variant = (
 			GameStats.TOWER_PATH_SELL_VALUE_ADDITIONS.get(tower.tower_id, {})
 		)

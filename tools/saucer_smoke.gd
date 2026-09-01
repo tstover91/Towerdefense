@@ -20,6 +20,17 @@ class FakeMain:
 	func get_relic_count(_relic_id: StringName) -> int:
 		return 0
 
+	func spend_money(amount: int) -> bool:
+		if money < amount:
+			return false
+		money -= amount
+		money_changed.emit(money)
+		return true
+
+	func add_money(amount: int) -> void:
+		money += amount
+		money_changed.emit(money)
+
 
 func add_mob(
 	path: Path2D,
@@ -76,6 +87,26 @@ func run_test() -> void:
 	assert(not component.monster_drop_enabled)
 	assert(is_instance_valid(component.active_flyer))
 	assert(component.active_flyer.saucer_behavior == component)
+
+	var evolving_tower := TOWER_SCENE.instantiate() as BaseTower
+	evolving_tower.tower_id = &"saucer"
+	evolving_tower.main = fake_main
+	evolving_tower.position = Vector2(400.0, 50.0)
+	add_child(evolving_tower)
+	evolving_tower.confirm_placement()
+	evolving_tower.instance_progression.set_level_for_sandbox(10)
+	assert(
+		int(GameStats.get_tower_evolution(&"saucer", &"gunship")["cost"])
+		== 22_050
+	)
+	evolving_tower.select_evolution_choice(&"gunship")
+	evolving_tower.purchase_selected_evolution()
+	assert(evolving_tower.instance_progression.evolution_id == &"gunship")
+	assert(is_instance_valid(evolving_tower.attack_component.active_flyer))
+	assert(
+		evolving_tower.attack_component.active_flyer.saucer_behavior
+		== evolving_tower.attack_component
+	)
 
 	var previous_health: int = gun_target.health
 	component.fire_weapon(tower.global_position, gun_target)
