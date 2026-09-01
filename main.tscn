@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://sandbox_panel.tscn" id="6_sandbox"]
 [ext_resource type="PackedScene" path="res://ui/in_game_hud_visual.tscn" id="15_in_game_hud"]
 [ext_resource type="PackedScene" path="res://ui/screens/tower_draft_visual.tscn" id="16_tower_draft"]
+[ext_resource type="PackedScene" path="res://ui/components/performance_overlay.tscn" id="17_performance"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1bvp3"]
 texture = ExtResource("3_h2yge")
@@ -55,6 +56,8 @@ layout_mode = 3
 
 [node name="PauseMenu" parent="MainUI" unique_id=637602489 instance=ExtResource("5_pause")]
 layout_mode = 3
+
+[node name="PerformanceOverlay" parent="MainUI" instance=ExtResource("17_performance")]
 
 [node name="SandboxPanel" parent="MainUI" unique_id=1464641069 instance=ExtResource("6_sandbox")]
 

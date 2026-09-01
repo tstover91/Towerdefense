@@ -22,6 +22,7 @@ const RARITY_COLORS := {
 @onready var empty_enemies_label: Label = $PausePanel/MarginContainer/PauseLayout/ContentRow/EnemyArea/EmptyEnemiesLabel
 @onready var enemies_scroll: ScrollContainer = $PausePanel/MarginContainer/PauseLayout/ContentRow/EnemyArea/EnemiesScroll
 @onready var enemies_grid: GridContainer = $PausePanel/MarginContainer/PauseLayout/ContentRow/EnemyArea/EnemiesScroll/EnemiesGrid
+@onready var diagnostics_button: Button = $PausePanel/MarginContainer/PauseLayout/MenuButtons/DiagnosticsButton
 
 
 func open_menu(
@@ -33,6 +34,7 @@ func open_menu(
 		return
 	populate_owned_items(owned_items)
 	populate_enemy_pool(enemy_ids, enemy_round)
+	_sync_diagnostics_button()
 	show()
 	get_tree().paused = true
 
@@ -157,3 +159,23 @@ func _on_restart_button_pressed() -> void:
 
 func _on_quit_button_pressed() -> void:
 	SessionState.return_to_main_menu()
+
+
+func _on_diagnostics_button_pressed() -> void:
+	var overlay := get_tree().get_first_node_in_group(&"performance_overlay")
+	if overlay == null:
+		diagnostics_button.button_pressed = false
+		return
+	overlay.set_tracker_visible(diagnostics_button.button_pressed)
+	_sync_diagnostics_button()
+
+
+func _sync_diagnostics_button() -> void:
+	var overlay := get_tree().get_first_node_in_group(&"performance_overlay")
+	var enabled := (
+		overlay != null
+		and overlay.has_method(&"is_tracker_visible")
+		and bool(overlay.is_tracker_visible())
+	)
+	diagnostics_button.set_pressed_no_signal(enabled)
+	diagnostics_button.text = "FPS Tracker: On" if enabled else "FPS Tracker: Off"

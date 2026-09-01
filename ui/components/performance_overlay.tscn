@@ -1,0 +1,45 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/components/performance_overlay.gd" id="1_script"]
+[ext_resource type="Theme" path="res://assets/ui/saturday_invasion_theme.tres" id="2_theme"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxOverlay"]
+bg_color = Color(0.055, 0.043, 0.059, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.486, 0.851, 0.718, 0.95)
+corner_radius_top_left = 4
+corner_radius_top_right = 10
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 10
+
+[node name="PerformanceOverlay" type="PanelContainer" groups=["performance_overlay"]]
+process_mode = 3
+visible = false
+z_index = 500
+z_as_relative = false
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 320.0
+offset_bottom = 76.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_override_styles/panel = SubResource("StyleBoxOverlay")
+script = ExtResource("1_script")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 6
+
+[node name="StatsLabel" type="Label" parent="Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.894, 0.882, 0.839, 1)
+theme_override_font_sizes/font_size = 16
+text = "FPS 0   AVG 0   LOW 0\n0.0 ms   ENEMIES 0   SHOTS 0"

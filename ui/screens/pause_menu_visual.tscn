@@ -97,6 +97,12 @@ custom_minimum_size = Vector2(190, 48)
 layout_mode = 2
 text = "Main Menu"
 
+[node name="DiagnosticsButton" type="Button" parent="PausePanel/MarginContainer/PauseLayout/MenuButtons"]
+custom_minimum_size = Vector2(190, 48)
+layout_mode = 2
+toggle_mode = true
+text = "FPS Tracker: Off"
+
 [node name="ItemsSeparator" type="HSeparator" parent="PausePanel/MarginContainer/PauseLayout"]
 layout_mode = 2
 
@@ -178,5 +184,5 @@ columns = 2
 [connection signal="pressed" from="PausePanel/MarginContainer/PauseLayout/MenuButtons/ResumeButton" to="." method="_on_resume_button_pressed"]
 [connection signal="pressed" from="PausePanel/MarginContainer/PauseLayout/MenuButtons/RestartButton" to="." method="_on_restart_button_pressed"]
 [connection signal="pressed" from="PausePanel/MarginContainer/PauseLayout/MenuButtons/QuitButton" to="." method="_on_quit_button_pressed"]
-
+[connection signal="pressed" from="PausePanel/MarginContainer/PauseLayout/MenuButtons/DiagnosticsButton" to="." method="_on_diagnostics_button_pressed"]
 
