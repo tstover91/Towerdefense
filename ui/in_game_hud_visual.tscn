@@ -694,7 +694,8 @@ theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
 theme_override_font_sizes/font_size = 26
 text = "▶"
 
-[node name="PauseText" type="MarginContainer" parent="EdgeControls/ControlMargin/Buttons/PauseButton" unique_id=1578008166]
+[node name="PauseIcon" type="CenterContainer" parent="EdgeControls/ControlMargin/Buttons/PauseButton" unique_id=1578008166]
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -702,17 +703,23 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 0
-theme_override_constants/margin_right = 4
-theme_override_constants/margin_bottom = 2
 
-[node name="PauseLabel" type="Label" parent="EdgeControls/ControlMargin/Buttons/PauseButton/PauseText" unique_id=1956628946]
+[node name="Bars" type="HBoxContainer" parent="EdgeControls/ControlMargin/Buttons/PauseButton/PauseIcon"]
 layout_mode = 2
-theme_type_variation = &"BoogalooLabel"
-theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
-theme_override_font_sizes/font_size = 26
-text = "Ⅱ"
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="LeftBar" type="ColorRect" parent="EdgeControls/ControlMargin/Buttons/PauseButton/PauseIcon/Bars"]
+custom_minimum_size = Vector2(7, 24)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.945, 0.906, 0.827, 1)
+
+[node name="RightBar" type="ColorRect" parent="EdgeControls/ControlMargin/Buttons/PauseButton/PauseIcon/Bars"]
+custom_minimum_size = Vector2(7, 24)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.945, 0.906, 0.827, 1)
 
 [node name="SpeedButton" type="Button" parent="EdgeControls/ControlMargin/Buttons" unique_id=1595602652]
 custom_minimum_size = Vector2(64, 64)

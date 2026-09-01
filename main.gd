@@ -4146,11 +4146,11 @@ func update_speed_button() -> void:
 
 func _set_visual_button_text(button: Button, value: String) -> void:
 	var play_label := button.find_child("PlayLabel", true, false) as Label
-	var pause_label := button.find_child("PauseLabel", true, false) as Label
-	if play_label != null and pause_label != null:
+	var pause_icon := button.find_child("PauseIcon", true, false) as Control
+	if play_label != null and pause_icon != null:
 		button.text = ""
 		play_label.visible = value == "▶"
-		pause_label.visible = value == "Ⅱ"
+		pause_icon.visible = value == "Ⅱ"
 		return
 	var visual_label := button.find_child("Label", true, false) as Label
 	if visual_label != null:

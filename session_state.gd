@@ -6,6 +6,7 @@ const GAMEPLAY_SCENE := "res://main.tscn"
 
 var sandbox_mode := false
 var selected_map_id: StringName = MapData.DEFAULT_MAP_ID
+var _game_start_pending := false
 
 
 func select_map(map_id: StringName) -> void:
@@ -15,20 +16,40 @@ func select_map(map_id: StringName) -> void:
 
 
 func start_normal_game(map_id: StringName = &"") -> void:
+	if _game_start_pending:
+		return
 	if not map_id.is_empty():
 		select_map(map_id)
 	sandbox_mode = false
-	get_tree().change_scene_to_file(GAMEPLAY_SCENE)
+	_queue_gameplay_scene_change()
 
 
 func start_sandbox_game(map_id: StringName = &"") -> void:
+	if _game_start_pending:
+		return
 	if not map_id.is_empty():
 		select_map(map_id)
 	sandbox_mode = true
-	get_tree().change_scene_to_file(GAMEPLAY_SCENE)
+	_queue_gameplay_scene_change()
+
+
+func _queue_gameplay_scene_change() -> void:
+	_game_start_pending = true
+	_change_to_gameplay_scene.call_deferred()
+
+
+func _change_to_gameplay_scene() -> void:
+	var error := get_tree().change_scene_to_file(GAMEPLAY_SCENE)
+	if error != OK:
+		_game_start_pending = false
+		push_error(
+			"Unable to open gameplay scene '%s': error %d"
+			% [GAMEPLAY_SCENE, error]
+		)
 
 
 func return_to_main_menu() -> void:
+	_game_start_pending = false
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	get_tree().change_scene_to_file(MAIN_MENU_SCENE)
