@@ -1,6 +1,7 @@
 extends Node
 
 const GAMEPLAY_SCENE_PATH := "res://main.tscn"
+const MAIN_MENU_SCENE = preload("res://ui/screens/main_menu_visual.tscn")
 
 
 class TransitionMonitor:
@@ -31,4 +32,9 @@ func _ready() -> void:
 func _run_test() -> void:
 	var monitor := TransitionMonitor.new()
 	get_tree().root.add_child(monitor)
-	SessionState.start_normal_game()
+	var main_menu := MAIN_MENU_SCENE.instantiate()
+	add_child(main_menu)
+	var play_button := main_menu.get_node(
+		"Content/Card/Content/LevelButtons/NormalButton"
+	) as Button
+	play_button.button_down.emit()

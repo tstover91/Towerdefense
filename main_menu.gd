@@ -1,24 +1,43 @@
 extends Control
 
 const MapData = preload("res://map_database.gd")
+const BUILD_LABEL := "v0.1.1 · Android build 2"
 
 @onready var map_selector: OptionButton = $Content/Card/Content/MapSelector
 @onready var normal_button: Button = $Content/Card/Content/LevelButtons/NormalButton
 @onready var sandbox_button: Button = $Content/Card/Content/LevelButtons/SandboxButton
+@onready var subtitle: Label = $Content/Card/Content/Subtitle
 @onready var footer: Label = $Content/Card/Content/Footer
 
 var map_ids: Array[StringName] = []
+var start_requested := false
 
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
 	get_tree().paused = false
 	populate_map_selector()
+	subtitle.text = "Choose a level · %s" % BUILD_LABEL
+	footer.text = "%s · Choose a map, then select a game mode." % BUILD_LABEL
+	if not normal_button.button_down.is_connected(
+		_on_normal_button_pressed
+	):
+		normal_button.button_down.connect(_on_normal_button_pressed)
+	if not sandbox_button.button_down.is_connected(
+		_on_sandbox_button_pressed
+	):
+		sandbox_button.button_down.connect(_on_sandbox_button_pressed)
 	if not SessionState.gameplay_transition_failed.is_connected(
 		_on_gameplay_transition_failed
 	):
 		SessionState.gameplay_transition_failed.connect(
 			_on_gameplay_transition_failed
+		)
+	if not SessionState.gameplay_transition_status.is_connected(
+		_on_gameplay_transition_status
+	):
+		SessionState.gameplay_transition_status.connect(
+			_on_gameplay_transition_status
 		)
 	normal_button.grab_focus()
 
@@ -41,11 +60,17 @@ func get_selected_map_id() -> StringName:
 
 
 func _on_normal_button_pressed() -> void:
+	if start_requested:
+		return
+	start_requested = true
 	_show_starting_state()
 	SessionState.start_normal_game(get_selected_map_id())
 
 
 func _on_sandbox_button_pressed() -> void:
+	if start_requested:
+		return
+	start_requested = true
 	_show_starting_state()
 	SessionState.start_sandbox_game(get_selected_map_id())
 
@@ -53,13 +78,21 @@ func _on_sandbox_button_pressed() -> void:
 func _show_starting_state() -> void:
 	normal_button.disabled = true
 	sandbox_button.disabled = true
+	subtitle.text = "Opening match..."
 	footer.text = "Opening match..."
 
 
 func _on_gameplay_transition_failed(message: String) -> void:
+	start_requested = false
 	normal_button.disabled = false
 	sandbox_button.disabled = false
+	subtitle.text = message
 	footer.text = message
+
+
+func _on_gameplay_transition_status(message: String) -> void:
+	subtitle.text = message
+	footer.text = "%s · %s" % [BUILD_LABEL, message]
 
 
 func _on_quit_button_pressed() -> void:
