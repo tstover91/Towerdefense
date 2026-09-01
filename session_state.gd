@@ -4,7 +4,8 @@ signal gameplay_transition_failed(message: String)
 
 const MapData = preload("res://map_database.gd")
 const MAIN_MENU_SCENE := "res://ui/screens/main_menu_visual.tscn"
-const GAMEPLAY_SCENE := "res://main.tscn"
+const GAMEPLAY_SCENE_PATH := "res://main.tscn"
+const GAMEPLAY_SCENE: PackedScene = preload("res://main.tscn")
 
 var sandbox_mode := false
 var selected_map_id: StringName = MapData.DEFAULT_MAP_ID
@@ -41,11 +42,11 @@ func _queue_gameplay_scene_change() -> void:
 
 
 func _change_to_gameplay_scene() -> void:
-	var error := get_tree().change_scene_to_file(GAMEPLAY_SCENE)
+	var error := get_tree().change_scene_to_packed(GAMEPLAY_SCENE)
 	if error != OK:
 		_game_start_pending = false
 		var message := "Unable to open match (error %d)." % error
-		push_error("%s Scene: %s" % [message, GAMEPLAY_SCENE])
+		push_error("%s Scene: %s" % [message, GAMEPLAY_SCENE_PATH])
 		gameplay_transition_failed.emit(message)
 
 
