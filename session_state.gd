@@ -1,5 +1,7 @@
 extends Node
 
+signal gameplay_transition_failed(message: String)
+
 const MapData = preload("res://map_database.gd")
 const MAIN_MENU_SCENE := "res://ui/screens/main_menu_visual.tscn"
 const GAMEPLAY_SCENE := "res://main.tscn"
@@ -42,10 +44,9 @@ func _change_to_gameplay_scene() -> void:
 	var error := get_tree().change_scene_to_file(GAMEPLAY_SCENE)
 	if error != OK:
 		_game_start_pending = false
-		push_error(
-			"Unable to open gameplay scene '%s': error %d"
-			% [GAMEPLAY_SCENE, error]
-		)
+		var message := "Unable to open match (error %d)." % error
+		push_error("%s Scene: %s" % [message, GAMEPLAY_SCENE])
+		gameplay_transition_failed.emit(message)
 
 
 func return_to_main_menu() -> void:
