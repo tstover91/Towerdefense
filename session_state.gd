@@ -38,7 +38,7 @@ func start_sandbox_game(map_id: StringName = &"") -> void:
 
 func _queue_gameplay_scene_change() -> void:
 	_game_start_pending = true
-	_change_to_gameplay_scene.call_deferred()
+	_change_to_gameplay_scene()
 
 
 func _change_to_gameplay_scene() -> void:
