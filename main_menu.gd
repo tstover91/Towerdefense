@@ -1,8 +1,8 @@
 extends Control
 
 const MapData = preload("res://map_database.gd")
-const GAMEPLAY_SCENE: PackedScene = preload("res://main.tscn")
-const BUILD_LABEL := "v0.1.3 · Android build 4"
+const GAMEPLAY_SCENE_PATH := "res://main.tscn"
+const BUILD_LABEL := "v0.1.4 · Android build 5"
 
 @onready var map_selector: OptionButton = $Content/Card/Content/MapSelector
 @onready var normal_button: Button = $Content/Card/Content/LevelButtons/NormalButton
@@ -67,7 +67,23 @@ func _on_sandbox_button_pressed() -> void:
 func _start_game(use_sandbox_mode: bool) -> void:
 	SessionState.selected_map_id = get_selected_map_id()
 	SessionState.sandbox_mode = use_sandbox_mode
-	get_tree().change_scene_to_packed.bind(GAMEPLAY_SCENE).call_deferred()
+	_change_to_gameplay.call_deferred()
+
+
+func _change_to_gameplay() -> void:
+	var scene_change_error := get_tree().change_scene_to_file(
+		GAMEPLAY_SCENE_PATH
+	)
+	if scene_change_error == OK:
+		return
+	start_requested = false
+	normal_button.disabled = false
+	sandbox_button.disabled = false
+	var message := "Could not open match: %s" % error_string(
+		scene_change_error
+	)
+	subtitle.text = message
+	footer.text = "%s · %s" % [BUILD_LABEL, message]
 
 
 func _show_starting_state() -> void:
