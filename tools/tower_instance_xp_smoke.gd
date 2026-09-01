@@ -153,7 +153,7 @@ func run_test() -> void:
 			TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy)
 		)
 	if not _check(
-		is_equal_approx(round_one_pacing.xp, 14.95)
+		is_equal_approx(round_one_pacing.xp, 20.125)
 		and round_one_pacing.level == 2,
 		"Representative round-one combat progressed beyond the intended early pace."
 	):
@@ -164,7 +164,7 @@ func run_test() -> void:
 	enemy.xp_budget_multiplier = 1.0
 	if not _check(
 		is_equal_approx(
-			TOWER_XP_CREDIT_SERVICE.get_enemy_damage_xp_budget(enemy), 3.9
+			TOWER_XP_CREDIT_SERVICE.get_enemy_damage_xp_budget(enemy), 5.25
 		),
 		"An enemy with descendants did not reserve part of its XP for them."
 	):
@@ -172,7 +172,7 @@ func run_test() -> void:
 	enemy.xp_budget_multiplier = 0.5
 	if not _check(
 		is_equal_approx(
-			TOWER_XP_CREDIT_SERVICE.get_enemy_damage_xp_budget(enemy), 1.95
+			TOWER_XP_CREDIT_SERVICE.get_enemy_damage_xp_budget(enemy), 2.625
 		),
 		"Instance-specific descendant XP scaling was not applied."
 	):

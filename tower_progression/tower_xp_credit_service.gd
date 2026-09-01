@@ -7,7 +7,7 @@ const GameStats = preload("res://stat_database.gd")
 ## XP linearly from it keeps equivalent waves valuable regardless of whether
 ## their threat is concentrated in a few heavies or many cheap enemies, while
 ## remaining independent from late-wave health scaling.
-const DAMAGE_XP_PER_DIRECTOR_THREAT := 1.30
+const DAMAGE_XP_PER_DIRECTOR_THREAT := 1.75
 const ELITE_XP_MULTIPLIER := 2.0
 const HORDE_XP_MULTIPLIER := 0.50
 const PAYDAY_XP_MULTIPLIER := 0.50
