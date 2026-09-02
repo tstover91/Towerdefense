@@ -14,6 +14,7 @@ const RARITY_COLORS := {
 	&"legendary": Color(0.96, 0.95, 0.88),
 }
 const SELECTION_MINT := Color("84d7b0")
+const EQUIPPED_CORAL := Color("ec7354")
 
 @onready var item_grid: GridContainer = $Margin/Content/GridScroll/ItemGrid
 @onready var empty_label: Label = $Margin/Content/EmptyLabel
@@ -24,6 +25,7 @@ const SELECTION_MINT := Color("84d7b0")
 var main_context: Node
 var selected_item_id: StringName = &""
 var item_buttons: Dictionary = {}
+var comparison_tower: Node
 
 
 func setup(owner_main: Node) -> void:
@@ -31,9 +33,10 @@ func setup(owner_main: Node) -> void:
 	refresh()
 
 
-func refresh(_preferred_tower: Node = null) -> void:
+func refresh(preferred_tower: Node = null) -> void:
 	if main_context == null or not is_node_ready():
 		return
+	_update_comparison_tower(preferred_tower)
 	var previous_item_id := selected_item_id
 	for child in item_grid.get_children():
 		item_grid.remove_child(child)
@@ -57,12 +60,12 @@ func refresh(_preferred_tower: Node = null) -> void:
 
 
 func open_global_inventory() -> void:
-	refresh()
+	refresh(_get_selected_displayed_tower())
 	show()
 
 
-func open_for_tower_slot(_tower: Node, _slot_index: int) -> void:
-	refresh()
+func open_for_tower_slot(tower: Node, _slot_index: int) -> void:
+	refresh(tower)
 	show()
 
 
@@ -77,6 +80,12 @@ func set_status(message: String) -> void:
 func _create_item_button(item_id: StringName, quantity: int) -> Button:
 	var item := GameStats.get_tower_item(item_id)
 	var display_name := String(item.get("display_name", item_id))
+	var equipped_count := _get_equipped_count(item_id)
+	var maximum_copies := int(item.get(
+		"max_copies_per_tower", GameStats.TOWER_ITEM_STACK_LIMIT
+	))
+	var is_equipped := equipped_count > 0
+	var is_at_maximum := equipped_count >= maximum_copies
 	var button := Button.new()
 	button.name = "Item_%s" % String(item_id)
 	button.custom_minimum_size = Vector2(62.0, 62.0)
@@ -86,9 +95,16 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 	button.icon = item.get("texture") as Texture2D
 	button.expand_icon = true
 	button.add_theme_constant_override("icon_max_width", 48)
-	button.tooltip_text = "%s\n%s" % [
+	button.tooltip_text = "%s\n%s%s" % [
 		display_name,
 		String(item.get("description", "")),
+		(
+			"\nEquipped: %d/%d%s" % [
+				equipped_count, maximum_copies,
+				" · MAXIMUM" if is_at_maximum else "",
+			]
+			if is_equipped else ""
+		),
 	]
 	var rarity := StringName(item.get("rarity", &"common"))
 	var rarity_color: Color = RARITY_COLORS.get(
@@ -99,7 +115,11 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 		style.bg_color = (
 			Color("100d10") if state == "normal" else Color("2b2028")
 		)
-		style.border_color = SELECTION_MINT if state == "pressed" else rarity_color
+		style.border_color = (
+			SELECTION_MINT
+			if state == "pressed"
+			else EQUIPPED_CORAL if is_equipped else rarity_color
+		)
 		style.set_border_width_all(3 if state == "pressed" else 1)
 		style.corner_radius_top_left = 2
 		style.corner_radius_top_right = 7
@@ -128,6 +148,31 @@ func _create_item_button(item_id: StringName, quantity: int) -> Button:
 	button.add_child(count_label)
 	button.pressed.connect(_on_item_pressed.bind(item_id))
 	return button
+
+
+func _update_comparison_tower(preferred_tower: Node) -> void:
+	if is_instance_valid(preferred_tower):
+		comparison_tower = preferred_tower
+		return
+	comparison_tower = _get_selected_displayed_tower()
+
+
+func _get_selected_displayed_tower() -> Node:
+	if main_context == null:
+		return null
+	var tower = main_context.get("displayed_tower")
+	if not is_instance_valid(tower) or not bool(tower.get("selected")):
+		return null
+	return tower
+
+
+func _get_equipped_count(item_id: StringName) -> int:
+	if (
+		not is_instance_valid(comparison_tower)
+		or comparison_tower.get("item_controller") == null
+	):
+		return 0
+	return comparison_tower.item_controller.get_total_equipped_item_count(item_id)
 
 
 func _on_item_pressed(item_id: StringName) -> void:
