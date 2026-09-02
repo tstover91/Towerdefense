@@ -54,15 +54,24 @@ func _update_display() -> void:
 	var frame_time_ms := 0.0
 	if current_fps > 0.0:
 		frame_time_ms = 1000.0 / current_fps
+	var process_time_ms := float(
+		Performance.get_monitor(Performance.TIME_PROCESS)
+	) * 1000.0
+	var physics_time_ms := float(
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
+	) * 1000.0
 
 	stats_label.text = (
-		"FPS %d   AVG %d   LOW %d\n%.1f ms   ENEMIES %d   SHOTS %d   UNITS %d\nFX %d   RESOLVERS %d   HOOKS %d   SAUCERS %d   NODES %d"
+		"FPS %d   AVG %d   LOW %d\n%.1f ms   SCRIPT %.1f   PHYS %.1f\nENEMIES %d   TOWERS %d   SHOTS %d   UNITS %d\nFX %d   RESOLVERS %d   HOOKS %d   SAUCERS %d   NODES %d"
 		% [
 			roundi(current_fps),
 			roundi(average_fps),
 			roundi(recent_low),
 			frame_time_ms,
+			process_time_ms,
+			physics_time_ms,
 			get_tree().get_node_count_in_group(&"mobs"),
+			get_tree().get_node_count_in_group(&"towers"),
 			get_tree().get_node_count_in_group(&"tower_projectiles"),
 			get_tree().get_node_count_in_group(&"spawned_units"),
 			get_tree().get_node_count_in_group(&"tower_attack_visuals"),
