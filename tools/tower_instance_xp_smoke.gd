@@ -59,9 +59,9 @@ func run_test() -> void:
 	var expected_thresholds := {
 		2: 14.0,
 		5: 88.0,
-		10: 437.0,
-		15: 1667.0,
-		20: 6000.0,
+		10: 415.0,
+		15: 1467.0,
+		20: 5000.0,
 	}
 	for expected_level in expected_thresholds:
 		if not _check(

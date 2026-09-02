@@ -8,10 +8,12 @@ signal level_changed(new_level: int, previous_level: int)
 
 const MAX_LEVEL := GameStats.TOWER_XP_MAX_LEVEL
 const TARGET_XP_AT_MAX_LEVEL := GameStats.TOWER_XP_TARGET_AT_MAX_LEVEL
+const REFERENCE_XP_AT_MAX_LEVEL := 6000.0
 const RUNESCAPE_EXPONENT_LEVEL_SPAN := 2.75
 const RUNESCAPE_EXPONENTIAL_BASE := 300.0
 
 static var _next_instance_sequence := 1
+static var _xp_thresholds: Array[float] = []
 
 var instance_uid: StringName
 var tower_family_id: StringName
@@ -98,7 +100,8 @@ func grant_xp(amount: float) -> void:
 		return
 	xp += safe_amount
 	var previous_level := level
-	level = get_level_for_total_xp(xp)
+	while level < MAX_LEVEL and xp >= get_total_xp_required_for_level(level + 1):
+		level += 1
 	progression_changed.emit()
 	if level != previous_level:
 		level_changed.emit(level, previous_level)
@@ -210,12 +213,16 @@ func get_equipped_item_count(slot_index: int) -> int:
 
 
 func get_level_for_total_xp(total_xp: float) -> int:
-	var resolved_level := 1
-	while resolved_level < MAX_LEVEL:
-		if total_xp < get_total_xp_required_for_level(resolved_level + 1):
-			break
-		resolved_level += 1
-	return resolved_level
+	_ensure_xp_thresholds()
+	var low := 1
+	var high := MAX_LEVEL
+	while low <= high:
+		var middle := floori(float(low + high) / 2.0)
+		if total_xp >= _xp_thresholds[middle]:
+			low = middle + 1
+		else:
+			high = middle - 1
+	return clampi(high, 1, MAX_LEVEL)
 
 
 func get_xp_requirement_for_level(source_level: int = level) -> float:
@@ -233,13 +240,40 @@ func get_xp_at_level_start(source_level: int = level) -> float:
 
 func get_total_xp_required_for_level(source_level: int) -> float:
 	var safe_level := clampi(source_level, 1, MAX_LEVEL)
+	_ensure_xp_thresholds()
+	return _xp_thresholds[safe_level]
+
+
+func _ensure_xp_thresholds() -> void:
+	if _xp_thresholds.size() == MAX_LEVEL + 1:
+		return
+	_xp_thresholds.resize(MAX_LEVEL + 1)
 	var maximum_raw_xp := get_runescape_total_xp(MAX_LEVEL)
 	if maximum_raw_xp <= 0:
-		return 0.0
-	return roundf(
-		float(get_runescape_total_xp(safe_level))
-		/ float(maximum_raw_xp)
-		* TARGET_XP_AT_MAX_LEVEL
+		_xp_thresholds.fill(0.0)
+		return
+	for cached_level in range(1, MAX_LEVEL + 1):
+		_xp_thresholds[cached_level] = roundf(
+			float(get_runescape_total_xp(cached_level))
+			/ float(maximum_raw_xp)
+			* REFERENCE_XP_AT_MAX_LEVEL
+			* _get_pacing_multiplier(cached_level)
+		)
+
+
+func _get_pacing_multiplier(source_level: int) -> float:
+	# Preserve the quick opening, make the evolution approach slightly faster,
+	# then progressively compress the late grind toward the new 5,000 XP cap.
+	if source_level <= 5:
+		return 1.0
+	if source_level <= 10:
+		return lerpf(1.0, 0.95, float(source_level - 5) / 5.0)
+	if source_level <= 15:
+		return lerpf(0.95, 0.88, float(source_level - 10) / 5.0)
+	return lerpf(
+		0.88,
+		TARGET_XP_AT_MAX_LEVEL / REFERENCE_XP_AT_MAX_LEVEL,
+		float(source_level - 15) / float(MAX_LEVEL - 15)
 	)
 
 

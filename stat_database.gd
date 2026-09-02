@@ -1001,7 +1001,7 @@ const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 const XP_ABILITY_MILESTONE_LEVELS: Array[int] = [1, 5, 10, 15]
 const XP_STAT_ANCHOR_LEVELS: Array[int] = [1, 7, 13, 19]
 const TOWER_XP_MAX_LEVEL := 20
-const TOWER_XP_TARGET_AT_MAX_LEVEL := 6000.0
+const TOWER_XP_TARGET_AT_MAX_LEVEL := 5000.0
 const TOWER_XP_ROUND_BONUS_BASE := 7.0
 const TOWER_XP_ROUND_BONUS_PER_ROUND := 1.25
 const TOWER_XP_ROUND_BONUS_LEVEL_PENALTY := 1.5
@@ -1550,14 +1550,14 @@ const TOWERS := {
 	"levels": [
 		{
 			"upgrade_cost": 0,
-			"damage": 30,
+			"damage": 36,
 			"projectile_speed": 900.0,
 			"firerate": 0.50,
 			"range": 9.35,
 		},
 		{
 			"upgrade_cost": 0,
-			"damage": 36,
+			"damage": 44,
 			"projectile_speed": 950.0,
 			"firerate": 0.462,
 			"range": 9.775,
@@ -2939,28 +2939,28 @@ const TOWERS := {
 				"spawn_interval": 7.0,
 				"spawn_limit": 1,
 				"deployment_radius": 6.0,
-				"unit_stats": {"damage": 60, "attack_interval": 0.90, "aim_radius": 8.0, "move_speed": 0.0, "projectile_speed": 480.0, "damage_budget": 1000, "lifetime": 25.0},
+				"unit_stats": {"damage": 60, "attack_interval": 0.90, "aim_radius": 10.5, "move_speed": 0.0, "projectile_speed": 480.0, "damage_budget": 1000, "lifetime": 25.0},
 			},
 			{
 				"upgrade_cost": 450,
 				"spawn_interval": 6.5,
 				"spawn_limit": 2,
 				"deployment_radius": 6.5,
-				"unit_stats": {"damage": 75, "attack_interval": 0.82, "aim_radius": 8.5, "move_speed": 0.0, "projectile_speed": 520.0, "damage_budget": 1400, "lifetime": 25.0},
+				"unit_stats": {"damage": 75, "attack_interval": 0.82, "aim_radius": 11.0, "move_speed": 0.0, "projectile_speed": 520.0, "damage_budget": 1400, "lifetime": 25.0},
 			},
 			{
 				"upgrade_cost": 1100,
 				"spawn_interval": 6.0,
 				"spawn_limit": 3,
 				"deployment_radius": 7.0,
-				"unit_stats": {"damage": 110, "attack_interval": 0.73, "aim_radius": 9.0, "move_speed": 0.0, "projectile_speed": 560.0, "damage_budget": 2200, "lifetime": 25.0},
+				"unit_stats": {"damage": 110, "attack_interval": 0.73, "aim_radius": 12.0, "move_speed": 0.0, "projectile_speed": 560.0, "damage_budget": 2200, "lifetime": 25.0},
 			},
 			{
 				"upgrade_cost": 2500,
 				"spawn_interval": 5.0,
 				"spawn_limit": 3,
 				"deployment_radius": 8.0,
-				"unit_stats": {"damage": 165, "attack_interval": 0.55, "aim_radius": 11.0, "move_speed": 0.0, "projectile_speed": 680.0, "damage_budget": 4200, "lifetime": 25.0},
+				"unit_stats": {"damage": 165, "attack_interval": 0.55, "aim_radius": 14.0, "move_speed": 0.0, "projectile_speed": 680.0, "damage_budget": 4200, "lifetime": 25.0},
 			},
 		],
 	},

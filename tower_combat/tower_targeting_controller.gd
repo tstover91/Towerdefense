@@ -4,20 +4,29 @@ extends Node
 const GameStats = preload("res://stat_database.gd")
 const DIRECTIONAL_LINE_HALF_WIDTH := 3.0
 const DIRECTIONAL_TARGET_SCAN_INTERVAL := 0.10
+const STANDARD_TARGET_SCAN_INTERVAL := 0.10
 const CONTINUOUS_VISUAL_REFRESH_INTERVAL := 1.0 / 30.0
 
 var tower: BaseTower
 var directional_target_scan_remaining := 0.0
+var standard_target_scan_remaining := 0.0
 var continuous_visual_refresh_remaining := 0.0
 
 
 func setup(owner_tower: BaseTower) -> void:
 	tower = owner_tower
+	standard_target_scan_remaining = (
+		float(tower.get_instance_id() % 997) / 997.0
+		* STANDARD_TARGET_SCAN_INTERVAL
+	)
 
 
 func process(delta: float) -> void:
 	directional_target_scan_remaining = maxf(
 		directional_target_scan_remaining - delta, 0.0
+	)
+	standard_target_scan_remaining = maxf(
+		standard_target_scan_remaining - delta, 0.0
 	)
 	if (
 		tower.relentless_target_instance_id > 0
@@ -70,10 +79,18 @@ func process(delta: float) -> void:
 		tower.target = null
 	if not is_valid_target(tower.target):
 		if (
-			not tower.uses_directional_aim()
-			or directional_target_scan_remaining <= 0.0
+			(
+				not tower.uses_directional_aim()
+				and standard_target_scan_remaining <= 0.0
+			)
+			or (
+				tower.uses_directional_aim()
+				and directional_target_scan_remaining <= 0.0
+			)
 		):
 			select_target()
+			if not tower.uses_directional_aim():
+				standard_target_scan_remaining = STANDARD_TARGET_SCAN_INTERVAL
 	request_attack_if_ready()
 	tower.process_continuous_beam_aim(delta)
 	if tower.attack_component != null:
@@ -293,26 +310,29 @@ func select_target() -> void:
 
 func request_target_refresh() -> void:
 	directional_target_scan_remaining = 0.0
+	standard_target_scan_remaining = 0.0
 
 
 func select_standard_target() -> Node2D:
-	tower.mobs_in_range = tower.mobs_in_range.filter(
-		func(mob):
-			return (
-				mob != null
-				and is_instance_valid(mob)
-				and not mob.is_queued_for_deletion()
-				and not mob.finished
-			)
-	)
-	var targetable_mobs := tower.mobs_in_range.filter(
-		func(mob):
-			return is_valid_target(mob)
-	)
-	if targetable_mobs.is_empty():
-		return null
-	var selected_target: Node2D = targetable_mobs[0]
-	for candidate in targetable_mobs:
+	# Compact the overlap list in place and choose in one pass. This avoids two
+	# temporary arrays per acquisition, which became costly with many towers and
+	# enemies refreshing targets at the same time.
+	for index in range(tower.mobs_in_range.size() - 1, -1, -1):
+		var mob = tower.mobs_in_range[index]
+		if (
+			mob == null
+			or not is_instance_valid(mob)
+			or mob.is_queued_for_deletion()
+			or mob.finished
+		):
+			tower.mobs_in_range.remove_at(index)
+	var selected_target: Node2D
+	for candidate in tower.mobs_in_range:
+		if not is_valid_target(candidate):
+			continue
+		if selected_target == null:
+			selected_target = candidate
+			continue
 		match tower.target_mode:
 			BaseTower.TargetMode.FIRST:
 				if candidate.path_follow.progress > selected_target.path_follow.progress:

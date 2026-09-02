@@ -75,6 +75,12 @@ func run_test() -> void:
 	if not _check(tower.equip_item(&"ricochet_module"), "Factory could not equip Ricochet Module."):
 		return
 	var ricochet_stats: Dictionary = tower.get_current_effective_stats()["unit_stats"]
+	var level_1_unit_stats: Dictionary = GameStats.get_tower_xp_level_stats(&"dronedepot", 1)["unit_stats"]
+	var level_20_unit_stats: Dictionary = GameStats.get_tower_xp_level_stats(&"dronedepot", 20)["unit_stats"]
+	if not _check(is_equal_approx(float(level_1_unit_stats.get("aim_radius", 0.0)), 10.5), "Factory Sentry did not receive its intended starting range."):
+		return
+	if not _check(is_equal_approx(float(level_20_unit_stats.get("aim_radius", 0.0)), 14.7), "Factory Sentry range did not reach its intended level-20 coverage."):
+		return
 	if not _check(int(ricochet_stats.get("bounce_count", 0)) == 1, "Ricochet Module did not add a bounce to Factory sentries."):
 		return
 	if not _check(float(ricochet_stats.get("bounce_range", 0.0)) >= 5.0, "Ricochet Module did not give Factory sentries a bounce range."):

@@ -24,7 +24,7 @@ func setup(explosion_radius: float) -> void:
 func _process(delta: float) -> void:
 	remaining_duration = maxf(remaining_duration - delta, 0.0)
 	if remaining_duration <= 0.0:
-		recycle_requested.emit(self)
+		_recycle_or_free()
 		return
 	queue_redraw()
 
@@ -36,6 +36,13 @@ func deactivate_for_pool() -> void:
 
 
 func recycle_now() -> void:
+	_recycle_or_free()
+
+
+func _recycle_or_free() -> void:
+	if recycle_requested.get_connections().is_empty():
+		queue_free()
+		return
 	recycle_requested.emit(self)
 
 

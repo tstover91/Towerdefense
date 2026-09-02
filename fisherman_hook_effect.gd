@@ -30,6 +30,10 @@ var cached_line_end_world := Vector2.ZERO
 var has_cached_line := false
 
 
+func _ready() -> void:
+	add_to_group(&"fisherman_hooks")
+
+
 func setup(
 	attack_source: BaseTower,
 	target: Node2D,

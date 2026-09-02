@@ -36,7 +36,7 @@ func setup(
 func _process(delta: float) -> void:
 	elapsed += delta
 	if elapsed >= lifetime:
-		recycle_requested.emit(self)
+		_recycle_or_free()
 		return
 	queue_redraw()
 
@@ -48,6 +48,13 @@ func deactivate_for_pool() -> void:
 
 
 func recycle_now() -> void:
+	_recycle_or_free()
+
+
+func _recycle_or_free() -> void:
+	if recycle_requested.get_connections().is_empty():
+		queue_free()
+		return
 	recycle_requested.emit(self)
 
 

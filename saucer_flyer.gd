@@ -12,11 +12,13 @@ var rocket_cooldown := 0.0
 var target: Node2D
 var abduction_flash_remaining := 0.0
 var target_refresh_remaining := 0.0
+var abduction_refresh_remaining := 0.0
 
 
 func setup(tower: Node2D, behavior: Node) -> void:
 	parent_tower = tower
 	saucer_behavior = behavior
+	add_to_group(&"saucer_flyers")
 	global_position = tower.global_position
 	abduction_cooldown = float(saucer_behavior.abduction_cooldown)
 	queue_redraw()
@@ -34,13 +36,13 @@ func _physics_process(delta: float) -> void:
 		abduction_cooldown = float(saucer_behavior.abduction_cooldown)
 		rocket_cooldown = 0.0
 		move_toward_position(parent_tower.global_position, delta)
-		queue_redraw()
 		return
 
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
 	abduction_cooldown = maxf(abduction_cooldown - delta, 0.0)
 	rocket_cooldown = maxf(rocket_cooldown - delta, 0.0)
 	target_refresh_remaining = maxf(target_refresh_remaining - delta, 0.0)
+	abduction_refresh_remaining = maxf(abduction_refresh_remaining - delta, 0.0)
 	if target_refresh_remaining <= 0.0 or not is_valid_target(target):
 		target = saucer_behavior.get_navigation_target(
 			global_position, abduction_cooldown <= 0.0
@@ -49,7 +51,8 @@ func _physics_process(delta: float) -> void:
 
 	# Abduction evaluates only enemies already inside its short radius. It never
 	# redirects the Saucer away from the Electric gun's First target.
-	if abduction_cooldown <= 0.0:
+	if abduction_cooldown <= 0.0 and abduction_refresh_remaining <= 0.0:
+		abduction_refresh_remaining = TARGET_REFRESH_INTERVAL
 		var abduction_target = saucer_behavior.get_abduction_target(
 			global_position
 		)
@@ -74,7 +77,6 @@ func _physics_process(delta: float) -> void:
 	if not is_valid_target(target):
 		target = null
 		move_toward_position(parent_tower.global_position, delta)
-		queue_redraw()
 		return
 
 	var hunting_abduction: bool = (
