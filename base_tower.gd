@@ -868,7 +868,27 @@ func _on_round_ended(round_number: int) -> void:
 			GameStats.TOWER_XP_ROUND_BONUS_MINIMUM,
 			GameStats.TOWER_XP_ROUND_BONUS_MAXIMUM
 		)
-		instance_progression.grant_xp(round_xp_bonus)
+		instance_progression.record_round_completion_xp(round_xp_bonus)
+		var xp_breakdown: Dictionary = (
+			instance_progression.consume_round_xp_breakdown()
+		)
+		print("XP_TELEMETRY ", JSON.stringify({
+			"round": round_number,
+			"tower_instance": String(instance_progression.instance_uid),
+			"tower_id": String(tower_id),
+			"tower_name": String(
+				GameStats.get_tower(tower_id).get("display_name", tower_id)
+			),
+			"level": instance_progression.level,
+			"evolution": String(instance_progression.evolution_id),
+			"damage_xp": snappedf(float(xp_breakdown["damage"]), 0.001),
+			"kill_xp": snappedf(float(xp_breakdown["kills"]), 0.001),
+			"support_xp": snappedf(float(xp_breakdown["support"]), 0.001),
+			"completion_xp": snappedf(
+				float(xp_breakdown["completion"]), 0.001
+			),
+			"total_xp": snappedf(float(xp_breakdown["total"]), 0.001),
+		}))
 	update_menu_buttons()
 	if attack_component != null:
 		attack_component.on_round_ended()

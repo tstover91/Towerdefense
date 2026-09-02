@@ -20,6 +20,10 @@ var xp := 0.0
 var kills := 0
 var actual_damage_dealt := 0.0
 var control_credit := 0.0
+var round_damage_xp := 0.0
+var round_kill_xp := 0.0
+var round_support_xp := 0.0
+var round_completion_xp := 0.0
 var evolution_id: StringName = &""
 var evolution_gold_spent := 0
 var equipped_item_ids: Array[StringName] = []
@@ -41,12 +45,16 @@ func record_damage(actual_damage: int, xp_award: float) -> void:
 	if actual_damage <= 0:
 		return
 	actual_damage_dealt += float(actual_damage)
-	grant_xp(xp_award)
+	var safe_award := maxf(xp_award, 0.0)
+	round_damage_xp += safe_award
+	grant_xp(safe_award)
 
 
 func record_kill(xp_award: float) -> void:
 	kills += 1
-	grant_xp(xp_award)
+	var safe_award := maxf(xp_award, 0.0)
+	round_kill_xp += safe_award
+	grant_xp(safe_award)
 
 
 func record_control_credit(xp_award: float) -> void:
@@ -54,7 +62,34 @@ func record_control_credit(xp_award: float) -> void:
 	if safe_award <= 0.0:
 		return
 	control_credit += safe_award
+	round_support_xp += safe_award
 	grant_xp(safe_award)
+
+
+func record_round_completion_xp(xp_award: float) -> void:
+	var safe_award := maxf(xp_award, 0.0)
+	round_completion_xp += safe_award
+	grant_xp(safe_award)
+
+
+func consume_round_xp_breakdown() -> Dictionary:
+	var result := {
+		"damage": round_damage_xp,
+		"kills": round_kill_xp,
+		"support": round_support_xp,
+		"completion": round_completion_xp,
+		"total": (
+			round_damage_xp
+			+ round_kill_xp
+			+ round_support_xp
+			+ round_completion_xp
+		),
+	}
+	round_damage_xp = 0.0
+	round_kill_xp = 0.0
+	round_support_xp = 0.0
+	round_completion_xp = 0.0
+	return result
 
 
 func grant_xp(amount: float) -> void:
