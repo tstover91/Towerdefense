@@ -26,6 +26,14 @@ func run_test() -> void:
 	gameplay.end_round()
 	assert(not gameplay.round_active)
 	assert(gameplay.money > starting_money)
+	assert(gameplay.post_round_transition_pending)
+	assert(not gameplay.shop_open)
+	assert(gameplay.pause_button.disabled)
+	assert(gameplay.round_timer_display.text == "Round complete")
+	await get_tree().create_timer(
+		gameplay.POST_ROUND_REVEAL_DELAY + 0.1
+	).timeout
+	assert(not gameplay.post_round_transition_pending)
 	assert(gameplay.shop_open)
 	assert(gameplay.active_draft_type == &"item")
 	assert(gameplay.round_controller.phase == RoundControllerScript.PHASE_DRAFT)

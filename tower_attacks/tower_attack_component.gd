@@ -160,6 +160,10 @@ func get_manual_target_position() -> Vector2:
 	return Vector2.ZERO
 
 
+func restore_manual_target_position(_world_position: Vector2) -> void:
+	pass
+
+
 func is_valid_manual_target_position(_world_position: Vector2) -> bool:
 	return false
 

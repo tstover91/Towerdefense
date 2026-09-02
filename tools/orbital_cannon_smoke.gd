@@ -86,9 +86,15 @@ func run_test() -> void:
 	component.on_round_ended()
 	assert(component.active_solar_lances.is_empty())
 
+	component.target_position = mob.global_position
+	component.has_target_position = true
 	tower.purchased_paths.assign([&"b"])
+	tower.configure_attack_component()
 	tower.load_base_tags()
 	tower.load_level_stats()
+	component = tower.attack_component
+	assert(component.has_manual_target_position())
+	assert(component.get_manual_target_position() == mob.global_position)
 	assert(not component.solar_lance_enabled)
 	assert(component.bombardment_enabled)
 	component.bombardment_stagger = 0.0

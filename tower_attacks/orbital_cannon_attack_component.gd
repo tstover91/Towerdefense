@@ -233,6 +233,14 @@ func get_manual_target_position() -> Vector2:
 	return target_position
 
 
+func restore_manual_target_position(world_position: Vector2) -> void:
+	if not is_valid_manual_target_position(world_position):
+		return
+	target_position = world_position
+	has_target_position = true
+	tower.queue_redraw()
+
+
 func is_valid_manual_target_position(world_position: Vector2) -> bool:
 	var distance_from_tower := tower.global_position.distance_to(world_position)
 	if (

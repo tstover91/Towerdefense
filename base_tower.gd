@@ -602,7 +602,12 @@ func _ready() -> void:
 
 
 func configure_attack_component() -> void:
+	var preserved_manual_target := Vector2.ZERO
+	var had_manual_target := false
 	if attack_component != null:
+		had_manual_target = attack_component.has_manual_target_position()
+		if had_manual_target:
+			preserved_manual_target = attack_component.get_manual_target_position()
 		remove_child(attack_component)
 		attack_component.queue_free()
 		attack_component = null
@@ -622,6 +627,8 @@ func configure_attack_component() -> void:
 	attack_component.name = "AttackComponent"
 	add_child(attack_component)
 	attack_component.setup(self)
+	if had_manual_target:
+		attack_component.restore_manual_target_position(preserved_manual_target)
 	if menu_controller != null:
 		menu_controller.refresh_attack_controls()
 

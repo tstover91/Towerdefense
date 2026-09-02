@@ -13,6 +13,7 @@ class FakeMain:
 	var sandbox_mode := true
 	var money := 1_000_000_000
 	var targeting_tower: Node
+	var tower_card_cleared := false
 
 	func get_run_bonus(_effect: StringName) -> float:
 		return 0.0
@@ -24,10 +25,11 @@ class FakeMain:
 		pass
 
 	func clear_tower_details(_tower: Node) -> void:
-		pass
+		tower_card_cleared = true
 
 	func begin_manual_tower_targeting(tower: Node) -> void:
 		targeting_tower = tower
+		clear_tower_details(tower)
 
 	func spend_money(amount: int) -> bool:
 		if amount > money:
@@ -83,8 +85,10 @@ func run_test() -> void:
 
 	var orbital := create_tower(&"orbitalcannon", fake_main)
 	orbital.set_selected(true)
+	fake_main.tower_card_cleared = false
 	orbital._on_targetmode_pressed()
 	assert(fake_main.targeting_tower == orbital)
+	assert(fake_main.tower_card_cleared)
 	assert(not orbital.get_node("HBoxContainer").visible)
 	assert(orbital.range_preview_visible)
 

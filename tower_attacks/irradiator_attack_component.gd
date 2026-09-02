@@ -11,6 +11,7 @@ var stacks_per_application := 1
 var application_remaining := 0.0
 var reactor_enabled := false
 var reactor_radius_pixels := 0.0
+var loaded_range_pixels := 0.0
 var reactor_application_interval := 0.75
 var decay_suppressor_enabled := false
 var last_application_count := 0
@@ -26,6 +27,10 @@ func shows_target_mode_control() -> bool:
 
 
 func load_level_stats(stats: Dictionary) -> void:
+	loaded_range_pixels = (
+		maxf(float(stats.get("range", 0.0)), 0.0)
+		* BaseTower.RANGE_PIXELS_PER_UNIT
+	)
 	cone_degrees = maxf(float(stats.get("radiation_cone_degrees", 60.0)), 1.0)
 	stacks_per_application = maxi(
 		int(stats.get("radiation_stacks_per_application", 1)), 1
@@ -45,10 +50,7 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 	if not bool(flags.get("irradiator_reactor", false)):
 		return
 	reactor_enabled = true
-	reactor_radius_pixels = (
-		maxf(float(values.get("reactor_radius", 4.5)), 0.1)
-		* BaseTower.RANGE_PIXELS_PER_UNIT
-	)
+	reactor_radius_pixels = loaded_range_pixels
 	reactor_application_interval = maxf(
 		float(values.get("reactor_application_interval", 0.75)), 0.05
 	)

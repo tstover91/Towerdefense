@@ -45,7 +45,8 @@ func assert_family_registration() -> void:
 	assert(GameStats.get_tower_evolutions(&"irradiator").has(&"decay_suppressor"))
 	var reactor: Dictionary = data["paths"]["a"]
 	assert(reactor["behavior_flags"]["irradiator_reactor"])
-	assert(reactor["level_20"]["behavior_values"]["reactor_radius"] > reactor["behavior_values"]["reactor_radius"])
+	assert(not reactor["behavior_values"].has("reactor_radius"))
+	assert(not reactor["level_20"]["behavior_values"].has("reactor_radius"))
 	assert(reactor["level_20"]["behavior_values"]["reactor_application_interval"] < reactor["behavior_values"]["reactor_application_interval"])
 
 
@@ -201,6 +202,10 @@ func assert_attack_modes() -> void:
 	var outside := _create_mob(Vector2(1200.0, 500.0))
 	var reactor_component := reactor.attack_component as IrradiatorAttackComponent
 	assert(reactor_component.reactor_enabled)
+	assert(is_equal_approx(
+		reactor_component.reactor_radius_pixels,
+		reactor.range_radius_pixels
+	))
 	reactor_component.process_attack(0.0)
 	assert(inside.get_radiation_stacks() == reactor.damage * 5)
 	assert(outside.get_radiation_stacks() == 0)

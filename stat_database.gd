@@ -7,7 +7,7 @@ extends RefCounted
 const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "invader"
 const ECONOMY_SCALE := 10
-const EVOLUTION_COST_MULTIPLIER := 0.70
+const EVOLUTION_COST_MULTIPLIER := 0.50
 const BUILD_CELL_SIZE := 32.0
 const ELECTRIC_HITS_TO_PROC := 5
 const ELECTRIC_PROC_DAMAGE_CONTRIBUTION := 0.30
@@ -3060,14 +3060,12 @@ const TOWERS := {
 				"unlock_level": 3,
 				"behavior_flags": {"irradiator_reactor": true},
 				"behavior_values": {
-					"reactor_radius": 4.5,
 					"reactor_application_interval": 0.75,
 					"reactor_stacks_per_application": 5,
 				},
 				"level_20": {
 					"behavior_flags": {"irradiator_reactor": true},
 					"behavior_values": {
-						"reactor_radius": 6.0,
 						"reactor_application_interval": 0.50,
 						"reactor_stacks_per_application": 7,
 					},

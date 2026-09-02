@@ -48,6 +48,7 @@ const DRAFT_HEALTH_COST_RATIO := 0.30
 const DRAFT_HEALTH_PRICE_INCREMENT := 250
 const TOWER_DRAFT_ROUNDS: Array[int] = [3, 8, 12]
 const REINFORCEMENT_DRAFT_ROUNDS: Array[int] = []
+const POST_ROUND_REVEAL_DELAY := 1.35
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
 const PTI_GAME_SPEED = preload("res://assets/ui/pti_hud/game_speed.png")
@@ -377,6 +378,7 @@ var active_draft_type: StringName = &""
 var active_draft_offers: Array[StringName] = []
 var active_draft_choice_quantities: Dictionary = {}
 var draft_health_purchased := false
+var post_round_transition_pending := false
 var pending_enemy_spawns: Array[Dictionary] = []
 var displayed_tower: Node = null
 var sidebar_confirmation_tower_id := 0
@@ -1940,11 +1942,14 @@ func begin_manual_tower_targeting(tower: Node2D) -> void:
 	var previous_tower: Node2D = build_controller.begin_manual_targeting(tower)
 	if is_instance_valid(previous_tower) and previous_tower != tower:
 		previous_tower.cancel_manual_targeting()
+	clear_tower_details(tower)
 
 
 func finish_manual_tower_targeting(tower: Node2D) -> void:
 	ensure_build_controller()
 	build_controller.finish_manual_targeting(tower)
+	if is_instance_valid(tower) and bool(tower.get("selected")):
+		show_tower_details(tower)
 
 
 func cancel_manual_tower_targeting() -> void:
@@ -2024,7 +2029,9 @@ func get_round_type(wave: int) -> StringName:
 
 func start_round() -> void:
 	ensure_round_controller()
-	var blocked_by_gameplay := shop_open or build_mode
+	var blocked_by_gameplay := (
+		shop_open or build_mode or post_round_transition_pending
+	)
 	if not round_controller.can_start_round(blocked_by_gameplay):
 		return
 	close_all_tower_menus()
@@ -2118,6 +2125,8 @@ func update_round_count() -> void:
 			round_timer_display.text = "Clear remaining enemies"
 		else:
 			round_timer_display.text = "%s: Clear remaining enemies" % round_type_name
+	elif post_round_transition_pending:
+		round_timer_display.text = "Round complete"
 	elif shop_open:
 		round_timer_display.text = (
 			"Item Shop" if active_draft_type == DRAFT_ITEM else "Draft"
@@ -2128,6 +2137,7 @@ func update_round_count() -> void:
 		current_round_type != ROUND_STANDARD
 		or not round_active
 		or shop_open
+		or post_round_transition_pending
 	)
 
 
@@ -2149,7 +2159,26 @@ func end_round() -> void:
 	spawntimer.stop()
 	round_ended.emit(round_number)
 	add_money(calculate_end_round_reward())
+	post_round_transition_pending = true
 	update_round_count()
+	update_play_pause_button()
+	complete_post_round_transition(round_number)
+
+
+func complete_post_round_transition(completed_round: int) -> void:
+	await get_tree().create_timer(
+		POST_ROUND_REVEAL_DELAY,
+		true,
+		false,
+		true
+	).timeout
+	if (
+		not post_round_transition_pending
+		or game_ended
+		or round_number != completed_round
+	):
+		return
+	post_round_transition_pending = false
 
 	match round_controller.get_post_round_action(
 		TOWER_DRAFT_ROUNDS,
@@ -4212,4 +4241,6 @@ func update_play_pause_button() -> void:
 			round_number + 1,
 			max_rounds
 		)
-		pause_button.disabled = shop_open or build_mode
+		pause_button.disabled = (
+			shop_open or build_mode or post_round_transition_pending
+		)
