@@ -1012,7 +1012,7 @@ const TOWER_ITEM_STACK_LIMIT := 3
 const TOWER_ITEMS := {
 	&"ricochet_module": {
 		"display_name": "Ricochet Module",
-		"description": "Ballistic or Beam attacks gain +1 bounce. Towers without innate ricochet gain a 5-tile bounce search range.",
+		"description": "Ballistic or Beam attacks gain +1 bounce. Successive ricochets deal 70% of the previous hit's damage. Towers without innate ricochet gain a 5-tile bounce search range.",
 		"rarity": &"uncommon",
 		"category": &"projectile",
 		"price": 600,
@@ -1021,9 +1021,11 @@ const TOWER_ITEMS := {
 		"stat_defaults": {"bounce_count": 0},
 		"stat_additions": {"bounce_count": 1},
 		"stat_minimums": {"bounce_range": 5.0},
+		"stat_overrides": {"bounce_damage_multiplier": 0.70},
 		"unit_stat_defaults": {"bounce_count": 0},
 		"unit_stat_additions": {"bounce_count": 1},
 		"unit_stat_minimums": {"bounce_range": 5.0},
+		"unit_stat_overrides": {"bounce_damage_multiplier": 0.70},
 	},
 	&"penetrator_rounds": {
 		"display_name": "Penetrator Rounds",
@@ -1359,7 +1361,7 @@ const ADAPTED_TOWER_ITEMS := {
 	&"lone_wolf": {"rarity": &"uncommon", "price": 700, "shop_enabled": false, "description": "+50% damage, +35% attack speed, and +25% range while this is the only built copy of its tower family."},
 	&"high_yield": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1, "description": "Explosions are 50% larger, but attacks are 15% slower."},
 	&"concentrated_charge": {"rarity": &"common", "price": 425, "required_all_tags": [&"explosive"], "max_copies_per_tower": 4},
-	&"crowd_pleaser": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1},
+	&"crowd_pleaser": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1, "description": "Each explosion gains 12% damage per enemy caught, up to +150%. It does not increase the triggering non-Explosive hit."},
 	&"direct_hit": {"rarity": &"rare", "price": 875, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1},
 	&"thermite_bombs": {"rarity": &"rare", "price": 925, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1, "description": "Against Armor, deal 75% damage and permanently remove 3 Armor. Against ablative shields, remove two shield points instead of one."},
 	&"charred_clothes": {"rarity": &"uncommon", "price": 650, "required_all_tags": [&"explosive"], "max_copies_per_tower": 1},

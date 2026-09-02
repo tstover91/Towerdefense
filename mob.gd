@@ -1666,7 +1666,8 @@ func apply_attack_effect_damage_modifiers(
 	if damage_type == &"explosive":
 		var explosion_target_count := int(metadata.get("explosion_target_count", 0))
 		if (
-			explosion_target_count > 0
+			bool(metadata.get("area_damage", false))
+			and explosion_target_count > 0
 			and int(metadata.get("crowd_pleaser", 0)) > 0
 		):
 			multiplier *= (

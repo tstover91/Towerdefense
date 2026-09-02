@@ -79,6 +79,8 @@ func run_test() -> void:
 		return
 	if not _check(float(ricochet_stats.get("bounce_range", 0.0)) >= 5.0, "Ricochet Module did not give Factory sentries a bounce range."):
 		return
+	if not _check(is_equal_approx(float(ricochet_stats.get("bounce_damage_multiplier", 0.0)), 0.70), "Ricochet Module did not give Factory sentries bounce damage falloff."):
+		return
 	if not _check(not tower.has_bonus_tag(&"reveal") and not component.uses_drone_targeting(), "Base Factory inherited Drone-only behavior."):
 		return
 	component.spawn_unit()

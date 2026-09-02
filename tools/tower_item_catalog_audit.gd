@@ -13,6 +13,7 @@ const VALID_DEFINITION_KEYS: Array[StringName] = [
 	&"stat_defaults", &"stat_multipliers", &"stat_additions",
 	&"stat_minimums", &"stat_overrides", &"unit_stat_defaults",
 	&"unit_stat_multipliers", &"unit_stat_additions", &"unit_stat_minimums",
+	&"unit_stat_overrides",
 	&"add_type_tags", &"add_damage_tags", &"add_bonus_tags",
 	&"pierce_count_add", &"item_effects", &"trigger_effects",
 ]

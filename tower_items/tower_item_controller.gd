@@ -1062,6 +1062,8 @@ func apply_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 				_apply_numeric_minimums(
 					unit_stats, item.get("unit_stat_minimums", {})
 				)
+				for key in item.get("unit_stat_overrides", {}):
+					unit_stats[key] = item["unit_stat_overrides"][key]
 				stats["unit_stats"] = unit_stats
 	return stats
 

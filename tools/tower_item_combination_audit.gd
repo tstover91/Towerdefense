@@ -2,10 +2,13 @@ extends "res://tools/tower_balance_monte_carlo.gd"
 
 const DEFAULT_ITEM_REPORT := "res://balance_reports/tower_item_combinations.csv"
 const DEFAULT_OUTLIER_REPORT := "res://balance_reports/tower_item_combination_outliers.csv"
-const DEFAULT_ITEM_LEVELS: Array[int] = [20]
+const DEFAULT_ITEM_LEVELS: Array[int] = [10]
 const ITEM_AUDIT_ENEMY_COUNTS: Array[int] = [1, 3, 6, 12]
+const CHECKPOINT_VERSION := 4
+const THEORETICAL_DUMMY_HEALTH := 1.0e15
 
 var maximum_items := GameStats.TOWER_ITEM_SLOT_COUNT
+var minimum_items := 1
 var item_filter: Array[StringName] = []
 var shard_index := 0
 var shard_count := 1
@@ -21,6 +24,12 @@ var generated_loadout_count := 0
 var outliers_only := false
 var maximum_report_bytes := 0
 var report_was_truncated := false
+var maximum_outlier_bytes := 0
+var outlier_report_was_truncated := false
+var checkpoint_path := ""
+var resume_requested := false
+var checkpoint_generation := 0
+var item_audit_round := 10
 
 
 func _ready() -> void:
@@ -32,40 +41,91 @@ func run_item_combination_audit() -> void:
 	rng.seed = seed_value
 	enemy_counts = ITEM_AUDIT_ENEMY_COUNTS.duplicate()
 	build_enemy_scenarios()
+	apply_item_audit_enemy_health()
+	append_theoretical_dps_scenarios()
 	validate_tower_progression()
 	var item_ids := get_audited_item_ids()
 	var catalog_loadout_count := count_loadouts(item_ids)
 	if list_only:
-		print("Item combination audit catalog: %d active items, %d loadouts of 1-%d total copies." % [
-			item_ids.size(), catalog_loadout_count, maximum_items,
+		print("Item combination audit catalog: %d active items, %d loadouts of %d-%d total copies." % [
+			item_ids.size(), catalog_loadout_count, minimum_items, maximum_items,
 		])
 		get_tree().quit(0)
 		return
 	var loadouts := generate_loadouts(item_ids)
-	var report := FileAccess.open(item_report_path, FileAccess.WRITE)
-	var outliers := FileAccess.open(outlier_report_path, FileAccess.WRITE)
+	var variants := get_audit_variants()
+	var configuration := get_checkpoint_configuration(item_ids, variants.size())
+	var checkpoint := load_checkpoint(configuration) if resume_requested else {}
+	if (
+		resume_requested
+		and checkpoint.is_empty()
+		and checkpoint_files_exist()
+	):
+		push_error("Checkpoint settings do not match this audit. Resume was cancelled to protect the existing reports.")
+		get_tree().quit(1)
+		return
+	if bool(checkpoint.get("complete", false)):
+		print("Shard %d/%d was already complete; nothing to resume." % [
+			shard_index + 1, shard_count,
+		])
+		get_tree().quit(0)
+		return
+	var start_variant := int(checkpoint.get("next_variant", 0))
+	if not checkpoint.is_empty():
+		evaluated_loadouts = int(checkpoint.get("evaluated_loadouts", 0))
+		simulated_loadouts = int(checkpoint.get("simulated_loadouts", 0))
+		flagged_loadouts = int(checkpoint.get("flagged_loadouts", 0))
+		report_was_truncated = bool(checkpoint.get("report_was_truncated", false))
+		outlier_report_was_truncated = bool(checkpoint.get(
+			"outlier_report_was_truncated", false
+		))
+		checkpoint_generation = int(checkpoint.get("generation", 0))
+	var report := open_resumable_report(
+		item_report_path, int(checkpoint.get("report_position", 0)),
+		checkpoint.is_empty()
+	)
+	var outliers := open_resumable_report(
+		outlier_report_path, int(checkpoint.get("outlier_position", 0)),
+		checkpoint.is_empty()
+	)
 	assert(report != null, "Could not create %s" % item_report_path)
 	assert(outliers != null, "Could not create %s" % outlier_report_path)
-	var header := "tower_id,tower_name,level,variant,item_count,loadout,item_cost,mean_power_ratio,worst_ratio,best_ratio,solo_ratio,small_pack_ratio,medium_pack_ratio,swarm_ratio,power_per_1000,performance_load,flags,model_notes"
-	report.store_line(header)
-	outliers.store_line(header)
+	var header := "tower_id,tower_name,level,variant,item_count,loadout,item_cost,practical_power_ratio,theoretical_power_ratio,worst_ratio,best_ratio,coverage_unlock_count,solo_ratio,small_pack_ratio,medium_pack_ratio,swarm_ratio,power_per_1000,performance_load,flags,model_notes"
+	if checkpoint.is_empty():
+		report.store_line(header)
+		outliers.store_line(header)
 	print("Item combination audit: %d items, %d total loadouts (%d in this shard), %d scenarios, shard %d/%d" % [
 		item_ids.size(), catalog_loadout_count, loadouts.size(), scenarios.size(),
 		shard_index + 1, shard_count,
 	])
-	for tower_id in GameStats.PLAYABLE_TOWER_FAMILY_IDS:
-		if not tower_filter.is_empty() and not tower_filter.has(tower_id):
-			continue
-		for xp_level in balance_levels:
-			audit_variant(report, outliers, tower_id, xp_level, &"", "base", loadouts)
-			if xp_level < GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL:
-				continue
-			for evolution_key in GameStats.get_tower_evolutions(tower_id):
-				var evolution_id := StringName(evolution_key)
-				audit_variant(
-					report, outliers, tower_id, xp_level, evolution_id,
-					String(evolution_id), loadouts
-				)
+	print_item_audit_health_summary()
+	if not checkpoint.is_empty():
+		print("Resuming shard at tower/path block %d of %d." % [
+			start_variant + 1, variants.size(),
+		])
+	for variant_index in range(start_variant, variants.size()):
+		var variant: Dictionary = variants[variant_index]
+		audit_variant(
+			report, outliers, StringName(variant["tower_id"]),
+			int(variant["level"]), StringName(variant["evolution_id"]),
+			String(variant["variant_name"]), loadouts
+		)
+		report.flush()
+		outliers.flush()
+		save_checkpoint(
+			configuration, variant_index + 1, false,
+			report.get_position(), outliers.get_position()
+		)
+		if not checkpoint_path.is_empty():
+			print("  Checkpoint saved: block %d/%d." % [
+				variant_index + 1, variants.size(),
+			])
+	report.flush()
+	outliers.flush()
+	save_checkpoint(
+		configuration, variants.size(), true,
+		report.get_position(), outliers.get_position()
+	)
 	report.close()
 	outliers.close()
 	print("Item combination audit complete: %d examined, %d simulated, %d flagged." % [
@@ -73,6 +133,8 @@ func run_item_combination_audit() -> void:
 	])
 	if report_was_truncated:
 		print("Detailed report reached its size limit; outlier recording continued.")
+	if outlier_report_was_truncated:
+		print("Outlier report reached its size limit; counting continued.")
 	print("Reports: %s and %s" % [item_report_path, outlier_report_path])
 	get_tree().quit(0)
 
@@ -104,6 +166,11 @@ func read_item_arguments() -> void:
 				int(argument.get_slice("=", 1)), 1,
 				GameStats.TOWER_ITEM_SLOT_COUNT
 			)
+		elif argument.begins_with("--min-items="):
+			minimum_items = clampi(
+				int(argument.get_slice("=", 1)), 1,
+				GameStats.TOWER_ITEM_SLOT_COUNT
+			)
 		elif argument.begins_with("--iterations="):
 			raw_item_iterations = maxi(int(argument.get_slice("=", 1)), 1)
 		elif argument.begins_with("--duration="):
@@ -124,17 +191,246 @@ func read_item_arguments() -> void:
 			maximum_report_bytes = maxi(
 				int(float(argument.get_slice("=", 1)) * 1024.0 * 1024.0), 0
 			)
+		elif argument.begins_with("--max-outlier-mb="):
+			maximum_outlier_bytes = maxi(
+				int(float(argument.get_slice("=", 1)) * 1024.0 * 1024.0), 0
+			)
+		elif argument.begins_with("--checkpoint-path="):
+			checkpoint_path = argument.get_slice("=", 1)
+		elif argument == "--resume":
+			resume_requested = true
+		elif argument.begins_with("--enemy-round="):
+			item_audit_round = clampi(
+				int(argument.get_slice("=", 1)), 1,
+				24
+			)
 		elif argument.begins_with("--report-path="):
 			item_report_path = argument.get_slice("=", 1)
 		elif argument.begins_with("--outlier-path="):
 			outlier_report_path = argument.get_slice("=", 1)
 	shard_index = mini(shard_index, shard_count - 1)
+	minimum_items = mini(minimum_items, maximum_items)
 	balance_levels.sort()
 	var unique_levels: Array[int] = []
 	for xp_level in balance_levels:
 		if not unique_levels.has(xp_level):
 			unique_levels.append(xp_level)
 	balance_levels = unique_levels
+
+
+func apply_item_audit_enemy_health() -> void:
+	for scenario in scenarios:
+		var enemy_id := StringName(scenario["enemy_id"])
+		var enemy := GameStats.get_enemy(enemy_id)
+		var scenario_round := maxi(
+			item_audit_round, int(enemy.get("earliest_debut_round", 1))
+		)
+		var multiplier := GameStats.get_enemy_health_multiplier(
+			scenario_round, enemy_id
+		)
+		var base_health := (
+			float(enemy.get("health", 1.0))
+			+ float(enemy.get("health_per_wave", 0.0))
+				* float(scenario_round - 1)
+		)
+		scenario["health"] = maxf(base_health * multiplier, 1.0)
+		scenario["spawned_health_per_primary"] = (
+			float(scenario.get("spawned_health_per_primary", 0.0)) * multiplier
+		)
+		scenario["audit_round"] = scenario_round
+
+
+func append_theoretical_dps_scenarios() -> void:
+	for armor_profile in [
+		{"id": "neutral", "name": "Infinite DPS Dummy", "armor": 0.0, "traits": []},
+		{"id": "armored", "name": "Armored Infinite DPS Dummy", "armor": 25.0, "traits": [&"armored"]},
+	]:
+		for enemy_count in ITEM_AUDIT_ENEMY_COUNTS:
+			scenarios.append({
+				"id": "%s_dps_dummy__x%d" % [armor_profile["id"], enemy_count],
+				"enemy_id": "%s_dps_dummy" % armor_profile["id"],
+				"enemy_name": armor_profile["name"],
+				"primary_count": enemy_count,
+				"enemies": enemy_count,
+				"primary_enemies": enemy_count,
+				"spawned_enemies": 0,
+				"spawned_health_per_primary": 0.0,
+				"armor": armor_profile["armor"],
+				"health": THEORETICAL_DUMMY_HEALTH,
+				"speed": 70.0,
+				"regeneration": 0.0,
+				"ablative_shield_points": 0,
+				"boss": false,
+				"hidden": false,
+				"traits": Array(armor_profile["traits"]).duplicate(),
+				"distance_min": 0.30 if enemy_count >= 6 else 0.45,
+				"distance_max": 0.90,
+				"theoretical": true,
+			})
+
+
+func print_item_audit_health_summary() -> void:
+	var minimum_health := INF
+	var maximum_health := 0.0
+	var minimum_enemy := ""
+	var maximum_enemy := ""
+	for scenario in scenarios:
+		if bool(scenario.get("theoretical", false)):
+			continue
+		var health := float(scenario["health"])
+		if health < minimum_health:
+			minimum_health = health
+			minimum_enemy = String(scenario["enemy_name"])
+		if health > maximum_health:
+			maximum_health = health
+			maximum_enemy = String(scenario["enemy_name"])
+	print("Enemy health: round %d scaling (or later debut round), %.0f (%s) to %.0f (%s); individual hits are capped at target health." % [
+		item_audit_round, minimum_health, minimum_enemy,
+		maximum_health, maximum_enemy,
+	])
+	print("Theoretical DPS also uses neutral and 25-Armor infinite-health dummies in groups of 1, 3, 6, and 12.")
+
+
+func get_audit_variants() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for tower_id in GameStats.PLAYABLE_TOWER_FAMILY_IDS:
+		if not tower_filter.is_empty() and not tower_filter.has(tower_id):
+			continue
+		for xp_level in balance_levels:
+			result.append({
+				"tower_id": tower_id, "level": xp_level,
+				"evolution_id": &"", "variant_name": "base",
+			})
+			if xp_level < GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL:
+				continue
+			for evolution_key in GameStats.get_tower_evolutions(tower_id):
+				result.append({
+					"tower_id": tower_id, "level": xp_level,
+					"evolution_id": StringName(evolution_key),
+					"variant_name": String(evolution_key),
+				})
+	return result
+
+
+func get_checkpoint_configuration(
+	item_ids: Array[StringName],
+	variant_count: int
+) -> String:
+	var serialized_items: Array[String] = []
+	for item_id in item_ids:
+		serialized_items.append(String(item_id))
+	var serialized_towers: Array[String] = []
+	for tower_id in tower_filter:
+		serialized_towers.append(String(tower_id))
+	return JSON.stringify({
+		"version": CHECKPOINT_VERSION,
+		"items": serialized_items,
+		"towers": serialized_towers,
+		"levels": balance_levels,
+		"variant_count": variant_count,
+		"maximum_items": maximum_items,
+		"minimum_items": minimum_items,
+		"shard_index": shard_index,
+		"shard_count": shard_count,
+		"iterations": raw_item_iterations,
+		"duration": duration,
+		"seed": seed_value,
+		"enemy_round": item_audit_round,
+		"outliers_only": outliers_only,
+		"maximum_report_bytes": maximum_report_bytes,
+		"maximum_outlier_bytes": maximum_outlier_bytes,
+	})
+
+
+func open_resumable_report(
+	path: String,
+	position: int,
+	create_new: bool
+) -> FileAccess:
+	if create_new:
+		return FileAccess.open(path, FileAccess.WRITE)
+	if not FileAccess.file_exists(path):
+		push_error("Cannot resume because report is missing: %s" % path)
+		return null
+	var file := FileAccess.open(path, FileAccess.READ_WRITE)
+	if file == null:
+		return null
+	var safe_position := clampi(position, 0, file.get_length())
+	if file.resize(safe_position) != OK:
+		push_error("Could not truncate partial report for resume: %s" % path)
+		file.close()
+		return null
+	file.seek(safe_position)
+	return file
+
+
+func checkpoint_files_exist() -> bool:
+	return (
+		not checkpoint_path.is_empty()
+		and (
+			FileAccess.file_exists(checkpoint_path + ".a")
+			or FileAccess.file_exists(checkpoint_path + ".b")
+		)
+	)
+
+
+func load_checkpoint(configuration: String) -> Dictionary:
+	if checkpoint_path.is_empty():
+		return {}
+	var best: Dictionary = {}
+	for suffix in [".a", ".b"]:
+		var candidate_path: String = checkpoint_path + String(suffix)
+		if not FileAccess.file_exists(candidate_path):
+			continue
+		var file := FileAccess.open(candidate_path, FileAccess.READ)
+		if file == null:
+			continue
+		var parsed = JSON.parse_string(file.get_as_text())
+		file.close()
+		if not parsed is Dictionary:
+			continue
+		var candidate: Dictionary = parsed
+		if String(candidate.get("configuration", "")) != configuration:
+			continue
+		if (
+			best.is_empty()
+			or int(candidate.get("generation", 0))
+				> int(best.get("generation", 0))
+		):
+			best = candidate
+	return best
+
+
+func save_checkpoint(
+	configuration: String,
+	next_variant: int,
+	complete: bool,
+	report_position: int,
+	outlier_position: int
+) -> void:
+	if checkpoint_path.is_empty():
+		return
+	checkpoint_generation += 1
+	var checkpoint := {
+		"configuration": configuration,
+		"generation": checkpoint_generation,
+		"next_variant": next_variant,
+		"complete": complete,
+		"report_position": report_position,
+		"outlier_position": outlier_position,
+		"evaluated_loadouts": evaluated_loadouts,
+		"simulated_loadouts": simulated_loadouts,
+		"flagged_loadouts": flagged_loadouts,
+		"report_was_truncated": report_was_truncated,
+		"outlier_report_was_truncated": outlier_report_was_truncated,
+		"saved_at_unix": Time.get_unix_time_from_system(),
+	}
+	var suffix := ".a" if checkpoint_generation % 2 == 0 else ".b"
+	var file := FileAccess.open(checkpoint_path + suffix, FileAccess.WRITE)
+	assert(file != null, "Could not write checkpoint %s" % checkpoint_path)
+	file.store_string(JSON.stringify(checkpoint))
+	file.flush()
+	file.close()
 
 
 func get_audited_item_ids() -> Array[StringName]:
@@ -168,7 +464,7 @@ func count_loadouts(item_ids: Array[StringName]) -> int:
 					next_counts[used + copies] += counts[used]
 		counts = next_counts
 	var total := 0
-	for used in range(1, maximum_items + 1):
+	for used in range(minimum_items, maximum_items + 1):
 		total += counts[used]
 	return total
 
@@ -179,7 +475,7 @@ func append_loadouts(
 	current: Array[StringName],
 	result: Array[int]
 ) -> void:
-	if not current.is_empty():
+	if current.size() >= minimum_items:
 		if generated_loadout_count % shard_count == shard_index:
 			result.append(encode_loadout(item_ids, current))
 		generated_loadout_count += 1
@@ -261,39 +557,53 @@ func audit_variant(
 			))
 		var means := get_scenario_means(tower_id, item_stats, item_traits)
 		var ratios: Array[float] = []
+		var practical_ratios: Array[float] = []
+		var theoretical_ratios: Array[float] = []
 		var count_ratios := {1: [], 3: [], 6: [], 12: []}
+		var coverage_unlock_count := 0
 		for scenario_index in scenarios.size():
 			var baseline_multiplier := get_contextual_item_multiplier(
 				baseline_model, base_stats, base_traits,
 				scenarios[scenario_index]
 			)
-			var baseline := maxf(
-				float(baseline_by_scenario[scenario_index]) * baseline_multiplier,
-				0.001
+			var baseline := (
+				float(baseline_by_scenario[scenario_index]) * baseline_multiplier
 			)
 			var post_multiplier := get_contextual_item_multiplier(
 				model, item_stats, item_traits, scenarios[scenario_index]
 			)
-			var ratio := float(means[scenario_index]) * post_multiplier / baseline
-			if baseline_by_scenario[scenario_index] <= 0.001 and means[scenario_index] <= 0.001:
-				ratio = 1.0
+			var post_value := float(means[scenario_index]) * post_multiplier
+			var ratio := 1.0
+			if baseline <= 0.01:
+				if post_value > 0.01:
+					coverage_unlock_count += 1
+			else:
+				ratio = post_value / baseline
 			ratios.append(ratio)
-			var count := int(scenarios[scenario_index]["primary_count"])
-			if count_ratios.has(count):
-				count_ratios[count].append(ratio)
-		var mean_ratio := mean_float_array(ratios)
+			if bool(scenarios[scenario_index].get("theoretical", false)):
+				theoretical_ratios.append(ratio)
+			else:
+				practical_ratios.append(ratio)
+				var count := int(scenarios[scenario_index]["primary_count"])
+				if count_ratios.has(count):
+					count_ratios[count].append(ratio)
+		var mean_ratio := mean_float_array(practical_ratios)
+		var theoretical_ratio := mean_float_array(theoretical_ratios)
 		var item_cost := get_loadout_cost(loadout)
 		var performance_load := get_performance_load(model, item_stats)
 		var flags := get_loadout_flags(
-			mean_ratio, ratios.min(), ratios.max(), performance_load,
-			Array(model["unmodeled"]), Array(model["inactive_items"])
+			mean_ratio, theoretical_ratio, ratios.min(), ratios.max(), performance_load,
+			coverage_unlock_count, Array(model["unmodeled"]),
+			Array(model["inactive_items"])
 		)
 		var row := PackedStringArray([
 			String(tower_id), String(tower["display_name"]), str(xp_level),
 			variant_name, str(loadout.size()),
 			format_loadout(loadout), str(item_cost),
-			"%.4f" % mean_ratio, "%.4f" % ratios.min(),
+			"%.4f" % mean_ratio, "%.4f" % theoretical_ratio,
+			"%.4f" % ratios.min(),
 			"%.4f" % ratios.max(),
+			str(coverage_unlock_count),
 			"%.4f" % mean_float_array(count_ratios[1]),
 			"%.4f" % mean_float_array(count_ratios[3]),
 			"%.4f" % mean_float_array(count_ratios[6]),
@@ -315,7 +625,16 @@ func audit_variant(
 				report.store_line(csv_line)
 		if not flags.is_empty():
 			flagged_loadouts += 1
-			outliers.store_line(csv_line)
+			if not outlier_report_was_truncated:
+				var next_outlier_bytes := csv_line.to_utf8_buffer().size() + 1
+				if (
+					maximum_outlier_bytes > 0
+					and outliers.get_position() + next_outlier_bytes
+						> maximum_outlier_bytes
+				):
+					outlier_report_was_truncated = true
+				else:
+					outliers.store_line(csv_line)
 		if evaluated_loadouts % 10000 == 0:
 			print("  Examined %d loadouts; %d flagged..." % [
 				evaluated_loadouts, flagged_loadouts,
@@ -514,6 +833,8 @@ func apply_item_definition(stats: Dictionary, item: Dictionary) -> void:
 		apply_numeric_modifiers(unit_stats, item.get("unit_stat_multipliers", {}), true)
 		apply_numeric_modifiers(unit_stats, item.get("unit_stat_additions", {}), false)
 		apply_minimums(unit_stats, item.get("unit_stat_minimums", {}))
+		for key in item.get("unit_stat_overrides", {}):
+			unit_stats[key] = item["unit_stat_overrides"][key]
 		stats["unit_stats"] = unit_stats
 	if item.has("pierce_count_add"):
 		stats["pierce_count"] = int(stats.get("pierce_count", 0)) + int(item["pierce_count_add"])
@@ -705,9 +1026,11 @@ func get_performance_load(model: Dictionary, stats: Dictionary) -> float:
 
 func get_loadout_flags(
 	mean_ratio: float,
+	theoretical_ratio: float,
 	worst_ratio: float,
 	best_ratio: float,
 	performance_load: float,
+	coverage_unlock_count: int,
 	unmodeled: Array,
 	inactive_items: Array
 ) -> Array[String]:
@@ -716,9 +1039,15 @@ func get_loadout_flags(
 		flags.append("extreme_power")
 	elif mean_ratio >= 1.75:
 		flags.append("high_power")
+	if theoretical_ratio >= 2.50:
+		flags.append("theoretical_power")
 	if best_ratio >= 4.0:
 		flags.append("matchup_spike")
-	if mean_ratio <= 1.01 and worst_ratio >= 0.99:
+	if coverage_unlock_count > 0:
+		flags.append("coverage_unlock")
+	if mean_ratio <= 1.01 and theoretical_ratio > 1.05:
+		flags.append("overkill_limited")
+	elif mean_ratio <= 1.01 and worst_ratio >= 0.99:
 		flags.append("no_effect")
 	if worst_ratio < 0.80:
 		flags.append("large_penalty")

@@ -92,6 +92,11 @@ func run_test() -> void:
 	):
 		return
 	if not _check(
+		is_equal_approx(equipped_slinger.bounce_damage_multiplier, 0.70),
+		"Ricochet Module did not apply its successive-bounce damage falloff."
+	):
+		return
+	if not _check(
 		equipped_slinger.pierce_count == 1
 		and equipped_slinger.has_bonus_tag(BaseTower.BONUS_PIERCE),
 		"Penetrator Rounds did not add Pierce behavior and its tag."

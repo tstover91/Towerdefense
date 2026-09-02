@@ -45,10 +45,11 @@ tower matchup audit. Items that can be equipped but are inactive on a tower
 are retained and flagged instead of being silently skipped.
 
 There are currently 53 enabled items and 343,611 distinct loadouts. A full
-level-20 run is intentionally an overnight-scale job:
+level-10 run is intentionally an overnight-scale job and includes every
+evolution because paths unlock at level 10:
 
 ```powershell
-Godot.exe --headless --path . res://tools/tower_item_combination_audit.tscn -- --levels=20 --iterations=1 --outliers-only
+Godot.exe --headless --path . res://tools/tower_item_combination_audit.tscn -- --levels=10 --iterations=1 --outliers-only --enemy-round=10
 ```
 
 The complete CSV is written to
@@ -62,16 +63,52 @@ parallel. Give every shard unique report names. For example, this runs the
 first of 16 pieces:
 
 ```powershell
-Godot.exe --headless --path . res://tools/tower_item_combination_audit.tscn -- --levels=20 --iterations=1 --outliers-only --shard-index=0 --shard-count=16 --report-path=res://balance_reports/item_combos_00.csv --outlier-path=res://balance_reports/item_combo_outliers_00.csv
+Godot.exe --headless --path . res://tools/tower_item_combination_audit.tscn -- --levels=10 --iterations=1 --outliers-only --enemy-round=10 --shard-index=0 --shard-count=16 --report-path=res://balance_reports/item_combos_00.csv --outlier-path=res://balance_reports/item_combo_outliers_00.csv
 ```
 
 Use `--all-levels` only when every XP level is required; it is much larger
-than the already exhaustive level-20 run. Focused checks can use `--towers`,
+than the already exhaustive level-10 run. Focused checks can use `--towers`,
 `--items`, `--max-items`, `--limit-loadouts`, and `--duration`. Use
 `--list-only` to print the current item and combination counts without running
 combat trials. Conditional, positioning, utility, and progression effects
 that the numerical model cannot reproduce reliably are marked
 `manual_review` in the outlier report.
+
+For an overnight run that automatically uses about 75% of the PC's logical
+CPU cores, run the launcher from the project folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_tower_item_combination_audit.ps1
+```
+
+The launcher defaults to a level-10 audit and limits detailed results and
+outliers to approximately 4 GB each across all workers. Use `-Workers 4` to
+reduce CPU use, `-MaxTotalReportMB 2048` to change the detailed-results cap,
+`-MaxTotalOutlierMB 2048` to change the outlier cap, or `-OutliersOnly` to skip
+clean detailed rows. A limit of `0` means unlimited. Each run gets its own
+timestamped folder under `balance_reports/item_combinations_overnight`.
+
+Each worker checkpoints after every tower/path block. Stop the latest run and
+resume it later with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_tower_item_combination_audit.ps1 -Stop
+powershell -ExecutionPolicy Bypass -File .\tools\run_tower_item_combination_audit.ps1 -Resume
+```
+
+Resume truncates any unfinished block back to its last recorded file positions,
+so it neither trusts a partial CSV tail nor skips unfinished combinations. Two
+alternating checkpoint files are retained per worker in case a crash happens
+while one checkpoint is being written.
+
+The item audit uses actual round-10 enemy health scaling, or an enemy's later
+debut round when applicable. Damage from each individual hit is capped at the
+target's health, preventing excess one-shot damage from being counted as real
+DPS. It also includes neutral and 25-Armor infinite-health dummies in groups
+of 1, 3, 6, and 12. The CSV reports practical and theoretical power ratios
+separately, and flags upgrades whose theoretical benefit is mostly lost to
+overkill. Use `--enemy-round=24` on the scene directly for a final-round
+health stress test.
 
 ## Run-level balance optimizer
 
