@@ -30,6 +30,7 @@ const TOWER_XP_CREDIT_SERVICE = preload(
 const TOWER_ITEM_CONTROLLER = preload(
 	"res://tower_items/tower_item_controller.gd"
 )
+const PROGRESSION_UI_REFRESH_INTERVAL := 0.20
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const BEAM_HIT_HALF_WIDTH := 2.5
@@ -163,6 +164,7 @@ var progression_controller: Node
 var item_controller: Node
 var instance_progression: RefCounted
 var progression_ui_refresh_pending := false
+var progression_ui_refresh_remaining := 0.0
 
 
 func _draw() -> void:
@@ -1014,10 +1016,9 @@ func _modify_xp_award(amount: float) -> float:
 
 
 func _on_instance_progression_changed() -> void:
-	if not selected or progression_ui_refresh_pending:
+	if not selected:
 		return
 	progression_ui_refresh_pending = true
-	call_deferred("_refresh_progression_ui")
 
 
 func _on_xp_level_changed(new_level: int, previous_level: int) -> void:
@@ -1028,10 +1029,24 @@ func _on_xp_level_changed(new_level: int, previous_level: int) -> void:
 	tower_level = GameStats.get_stat_rank_for_xp_level(new_level)
 	load_base_tags()
 	load_level_stats()
+	if selected:
+		progression_ui_refresh_pending = false
+		progression_ui_refresh_remaining = PROGRESSION_UI_REFRESH_INTERVAL
+		call_deferred("_refresh_progression_level_ui")
 
 
 func _refresh_progression_ui() -> void:
 	progression_ui_refresh_pending = false
+	progression_ui_refresh_remaining = PROGRESSION_UI_REFRESH_INTERVAL
+	if (
+		selected
+		and main != null
+		and main.has_method("refresh_tower_xp_display")
+	):
+		main.refresh_tower_xp_display(self)
+
+
+func _refresh_progression_level_ui() -> void:
 	if (
 		selected
 		and main != null
@@ -1292,6 +1307,15 @@ func _process(delta: float) -> void:
 	update_menu_layout()
 	if targeting_controller != null:
 		targeting_controller.process(delta)
+	if progression_ui_refresh_pending:
+		if not selected:
+			progression_ui_refresh_pending = false
+		else:
+			progression_ui_refresh_remaining = maxf(
+				progression_ui_refresh_remaining - delta, 0.0
+			)
+			if progression_ui_refresh_remaining <= 0.0:
+				_refresh_progression_ui()
 
 
 func is_combat_active() -> bool:

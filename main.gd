@@ -739,29 +739,7 @@ func show_tower_details(tower: Node) -> void:
 	tower_inspector.show()
 	tower_selection_area.hide()
 	tower_name_label.text = stats["display_name"]
-	var xp_level := int(stats.get("xp_level", 1))
-	tower_level_label.text = "LV %02d" % xp_level
-	var xp_into_level := float(stats.get("xp_into_level", 0.0))
-	var xp_to_next_level := float(stats.get("xp_to_next_level", 0.0))
-	tower_xp_label.hide()
-	if xp_to_next_level <= 0.0:
-		tower_xp_label.text = "MAX LEVEL"
-		tower_xp_bar.min_value = 0.0
-		tower_xp_bar.max_value = 1.0
-		tower_xp_bar.value = 1.0
-		tower_xp_bar.tooltip_text = "Maximum level reached"
-	else:
-		tower_xp_label.text = "%.1f / %.1f XP" % [
-			xp_into_level,
-			xp_to_next_level,
-		]
-		tower_xp_bar.min_value = 0.0
-		tower_xp_bar.max_value = xp_to_next_level
-		tower_xp_bar.value = xp_into_level
-		tower_xp_bar.tooltip_text = "%.1f / %.1f XP" % [
-			xp_into_level,
-			xp_to_next_level,
-		]
+	refresh_tower_xp_display(tower)
 	var tower_data := GameStats.get_tower(StringName(tower.get("tower_id")))
 	tower_portrait_button.icon = tower_data.get("texture", DEFAULT_TOWER_ICON)
 	tower_portrait_button.tooltip_text = "Show %s information" % stats["display_name"]
@@ -781,6 +759,40 @@ func show_tower_details(tower: Node) -> void:
 	update_tower_target_controls(tower)
 	update_tower_sell_control(tower)
 	update_tower_inspector_panel_visibility()
+
+
+func refresh_tower_xp_display(tower: Node) -> void:
+	if (
+		not is_instance_valid(tower)
+		or displayed_tower != tower
+		or not tower_inspector.visible
+		or tower.get("instance_progression") == null
+	):
+		return
+	var progression: RefCounted = tower.get("instance_progression")
+	var xp_level := int(progression.get("level"))
+	tower_level_label.text = "LV %02d" % xp_level
+	var xp_into_level := float(progression.call("get_xp_into_current_level"))
+	var xp_to_next_level := float(progression.call("get_xp_to_next_level"))
+	tower_xp_label.hide()
+	if xp_to_next_level <= 0.0:
+		tower_xp_label.text = "MAX LEVEL"
+		tower_xp_bar.min_value = 0.0
+		tower_xp_bar.max_value = 1.0
+		tower_xp_bar.value = 1.0
+		tower_xp_bar.tooltip_text = "Maximum level reached"
+		return
+	tower_xp_label.text = "%.1f / %.1f XP" % [
+		xp_into_level,
+		xp_to_next_level,
+	]
+	tower_xp_bar.min_value = 0.0
+	tower_xp_bar.max_value = xp_to_next_level
+	tower_xp_bar.value = xp_into_level
+	tower_xp_bar.tooltip_text = "%.1f / %.1f XP" % [
+		xp_into_level,
+		xp_to_next_level,
+	]
 
 
 func connect_tower_inspector_signals() -> void:
