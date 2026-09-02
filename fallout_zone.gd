@@ -51,7 +51,9 @@ func _process(delta: float) -> void:
 	while application_remaining <= 0.0 and remaining > 0.0:
 		application_remaining += application_interval
 		apply_fallout()
-	queue_redraw()
+	# The zone is visually static between its initial flash and final fade.
+	if elapsed <= 0.45 or remaining <= 1.5:
+		queue_redraw()
 	if remaining <= 0.0:
 		finished.emit(self)
 		queue_free()

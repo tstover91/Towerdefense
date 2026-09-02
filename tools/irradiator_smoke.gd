@@ -67,6 +67,10 @@ func assert_radiation_decay_curve() -> void:
 	assert(mob.get_radiation_stacks() == 4)
 	mob.apply_radiation(3, 2, context, 1.0)
 	assert(mob.get_radiation_stacks() == 10, "Reapplication must extend the damage tail.")
+	assert(
+		mob.radiation_stack_entries.size() == 1,
+		"Repeated Radiation from one source must share one bounded entry."
+	)
 	var debug_state: Dictionary = mob.get_radiation_debug_state()
 	assert(debug_state["stacks"] == 10)
 	var event_types: Array[StringName] = []

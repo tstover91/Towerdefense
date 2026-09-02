@@ -6,6 +6,7 @@ const AreaDamage = preload("res://area_damage_helper.gd")
 const EXPLOSION_ZONE_SCENE = preload("res://explosion_zone.tscn")
 const VOID_CALLER_TOWER_ID: StringName = &"voidcaller"
 const TARGET_REFRESH_INTERVAL := 0.10
+const VISUAL_REFRESH_INTERVAL := 1.0 / 30.0
 
 signal finished(singularity: Node2D)
 
@@ -21,6 +22,7 @@ var resolving := false
 var attack_context: AttackContext
 var pull_targets: Array[Node2D] = []
 var target_refresh_remaining := 0.0
+var visual_refresh_remaining := 0.0
 
 
 func setup(
@@ -73,7 +75,10 @@ func _process(delta: float) -> void:
 		refresh_pull_targets()
 		target_refresh_remaining = TARGET_REFRESH_INTERVAL
 	pull_nearby_mobs(delta)
-	queue_redraw()
+	visual_refresh_remaining -= delta
+	if visual_refresh_remaining <= 0.0:
+		visual_refresh_remaining = VISUAL_REFRESH_INTERVAL
+		queue_redraw()
 	if elapsed >= pull_duration:
 		explode()
 

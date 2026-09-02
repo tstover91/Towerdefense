@@ -1,7 +1,9 @@
 class_name TemporalEyeBubble
 extends Node2D
 
+const AreaDamage = preload("res://area_damage_helper.gd")
 const BEAM_COUNT := 4
+const VISUAL_REFRESH_INTERVAL := 1.0 / 30.0
 
 var tower_ref: WeakRef
 var attack_damage := 1
@@ -17,6 +19,7 @@ var elapsed := 0.0
 var tick_remaining := 0.0
 var resolving := false
 var revealed_mobs: Array[Node] = []
+var visual_refresh_remaining := 0.0
 
 
 func _ready() -> void:
@@ -65,7 +68,10 @@ func _process(delta: float) -> void:
 	while tick_remaining <= 0.0 and elapsed < duration:
 		_apply_tick()
 		tick_remaining += tick_interval
-	queue_redraw()
+	visual_refresh_remaining -= delta
+	if visual_refresh_remaining <= 0.0:
+		visual_refresh_remaining = VISUAL_REFRESH_INTERVAL
+		queue_redraw()
 	if elapsed >= duration:
 		finish(true)
 
@@ -113,7 +119,9 @@ func _apply_tick() -> void:
 
 func _get_enemies_in_bubble(tower: BaseTower) -> Array[Node2D]:
 	var result: Array[Node2D] = []
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), global_position, radius
+	):
 		if not tower.is_valid_target(candidate):
 			continue
 		if global_position.distance_to(candidate.global_position) <= radius:

@@ -4,9 +4,11 @@ extends Node
 const GameStats = preload("res://stat_database.gd")
 const DIRECTIONAL_LINE_HALF_WIDTH := 3.0
 const DIRECTIONAL_TARGET_SCAN_INTERVAL := 0.10
+const CONTINUOUS_VISUAL_REFRESH_INTERVAL := 1.0 / 30.0
 
 var tower: BaseTower
 var directional_target_scan_remaining := 0.0
+var continuous_visual_refresh_remaining := 0.0
 
 
 func setup(owner_tower: BaseTower) -> void:
@@ -28,7 +30,11 @@ func process(delta: float) -> void:
 		tower.reset_relentless()
 	if tower.attack_component != null:
 		tower.attack_component.process_pre_targeting(delta)
-	if tower.uses_continuous_beam():
+	continuous_visual_refresh_remaining = maxf(
+		continuous_visual_refresh_remaining - delta, 0.0
+	)
+	if tower.uses_continuous_beam() and continuous_visual_refresh_remaining <= 0.0:
+		continuous_visual_refresh_remaining = CONTINUOUS_VISUAL_REFRESH_INTERVAL
 		tower.queue_redraw()
 	if not tower.is_placed:
 		if tower.uses_directional_aim():

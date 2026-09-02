@@ -406,10 +406,24 @@ func apply_radiation(
 	var was_empty := radiation_stack_entries.is_empty()
 	radiation_tick_interval = maxf(tick_interval, 0.05)
 	var added_radiation := stack_count * damage_per_stack
-	radiation_stack_entries.append({
-		"damage": added_radiation,
-		"context": attack_context,
-	})
+	var source_key := attack_context.root_tower_instance_id if attack_context != null else 0
+	var merged_with_source := false
+	for entry in radiation_stack_entries:
+		var entry_context: AttackContext = entry.get("context") as AttackContext
+		var entry_source_key := (
+			entry_context.root_tower_instance_id if entry_context != null else 0
+		)
+		if entry_source_key != source_key:
+			continue
+		entry["damage"] = int(entry.get("damage", 0)) + added_radiation
+		entry["context"] = attack_context
+		merged_with_source = true
+		break
+	if not merged_with_source:
+		radiation_stack_entries.append({
+			"damage": added_radiation,
+			"context": attack_context,
+		})
 	if was_empty:
 		radiation_tick_remaining = radiation_tick_interval
 	_record_radiation_debug_event(&"apply", {

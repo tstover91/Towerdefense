@@ -7,7 +7,7 @@ const ORBITAL_CANNON_TOWER_ID: StringName = &"orbitalcannon"
 
 signal finished(lance: Node2D)
 
-const SLOW_REFRESH_INTERVAL := 0.05
+const SLOW_REFRESH_INTERVAL := 0.10
 
 var main: Node
 var radius := 40.0

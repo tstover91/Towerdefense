@@ -216,7 +216,7 @@ func invalidate_effect_metadata_cache() -> void:
 func count_valid_enemies_near(origin: Vector2, radius: float) -> int:
 	var count := 0
 	var radius_squared := radius * radius
-	for mob in tower.get_tree().get_nodes_in_group("mobs"):
+	for mob in AreaDamage.get_targets_near(tower.get_tree(), origin, radius):
 		if (
 			tower.is_valid_target(mob)
 			and origin.distance_squared_to(mob.global_position) <= radius_squared
@@ -537,7 +537,9 @@ func get_nearest_bounce_target(
 ) -> Node2D:
 	var selected_target: Node2D
 	var selected_distance := INF
-	for candidate in tower.get_tree().get_nodes_in_group("mobs"):
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), origin, tower.bounce_range_pixels
+	):
 		if not tower.is_valid_target(candidate):
 			continue
 		if excluded_target_ids.has(candidate.get_instance_id()):
@@ -745,7 +747,11 @@ func get_targets_along_line(
 	if segment_length <= 0.0:
 		return []
 	var direction := segment / segment_length
-	for mob in tower.get_tree().get_nodes_in_group("mobs"):
+	var segment_center := (origin + end) * 0.5
+	var search_radius := segment_length * 0.5 + line_half_width
+	for mob in AreaDamage.get_targets_near(
+		tower.get_tree(), segment_center, search_radius
+	):
 		if mob == excluded_target or not tower.is_valid_target(mob):
 			continue
 		var distance_along_line: float = (mob.global_position - origin).dot(

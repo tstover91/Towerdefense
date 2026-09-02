@@ -1,6 +1,8 @@
 class_name FishermanHookEffect
 extends Node2D
 
+const AreaDamage = preload("res://area_damage_helper.gd")
+
 const MINIMUM_VISUAL_DURATION := 0.15
 
 var source_tower: BaseTower
@@ -193,7 +195,11 @@ func _apply_tether_damage(
 		roundi(float(primary_tick_damage) * damage_multiplier), 1
 	)
 	var candidates: Array[Node2D] = []
-	for candidate in source_tower.get_tree().get_nodes_in_group("mobs"):
+	var segment_center := (start + finish) * 0.5
+	var search_radius := start.distance_to(finish) * 0.5 + tether_half_width
+	for candidate in AreaDamage.get_targets_near(
+		source_tower.get_tree(), segment_center, search_radius
+	):
 		if candidate == hooked_target or not source_tower.is_valid_target(candidate):
 			continue
 		if _distance_to_segment(candidate.global_position, start, finish) <= tether_half_width:

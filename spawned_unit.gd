@@ -590,23 +590,8 @@ func process_guard(delta: float) -> void:
 
 
 func select_guard_target() -> Node2D:
-	var candidates: Array[Node2D] = []
 	var guard_radius := get_guard_acquisition_radius()
 	var acquisition_radius_squared := guard_radius * guard_radius
-	for candidate in get_tree().get_nodes_in_group("mobs"):
-		if (
-			is_valid_target(candidate)
-			and home_position.distance_squared_to(candidate.global_position)
-				<= acquisition_radius_squared
-		):
-			candidates.append(candidate)
-	candidates.sort_custom(
-		func(a: Node2D, b: Node2D) -> bool:
-			return get_target_progress(a) > get_target_progress(b)
-	)
-	if candidates.is_empty():
-		return null
-
 	var claimed_targets: Dictionary = {}
 	if unit_id == &"reinforcement_alien" and is_instance_valid(parent_tower):
 		for sibling in get_tree().get_nodes_in_group("spawned_units"):
@@ -618,10 +603,28 @@ func select_guard_target() -> Node2D:
 			):
 				continue
 			claimed_targets[sibling.target.get_instance_id()] = true
-		for candidate in candidates:
-			if not claimed_targets.has(candidate.get_instance_id()):
-				return candidate
-	return candidates[0]
+	var selected_target: Node2D
+	var selected_progress := -INF
+	var selected_unclaimed_target: Node2D
+	var selected_unclaimed_progress := -INF
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if (
+			not is_valid_target(candidate)
+			or home_position.distance_squared_to(candidate.global_position)
+				> acquisition_radius_squared
+		):
+			continue
+		var progress := get_target_progress(candidate)
+		if progress > selected_progress:
+			selected_progress = progress
+			selected_target = candidate
+		if (
+			not claimed_targets.has(candidate.get_instance_id())
+			and progress > selected_unclaimed_progress
+		):
+			selected_unclaimed_progress = progress
+			selected_unclaimed_target = candidate
+	return selected_unclaimed_target if selected_unclaimed_target != null else selected_target
 
 
 func get_guard_acquisition_radius() -> float:

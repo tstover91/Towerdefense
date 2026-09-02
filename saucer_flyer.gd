@@ -2,6 +2,7 @@ class_name SaucerFlyer
 extends Node2D
 
 const RETURN_DISTANCE := 3.0
+const TARGET_REFRESH_INTERVAL := 0.10
 
 var parent_tower
 var saucer_behavior
@@ -10,6 +11,7 @@ var abduction_cooldown := 0.0
 var rocket_cooldown := 0.0
 var target: Node2D
 var abduction_flash_remaining := 0.0
+var target_refresh_remaining := 0.0
 
 
 func setup(tower: Node2D, behavior: Node) -> void:
@@ -38,9 +40,12 @@ func _physics_process(delta: float) -> void:
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
 	abduction_cooldown = maxf(abduction_cooldown - delta, 0.0)
 	rocket_cooldown = maxf(rocket_cooldown - delta, 0.0)
-	target = saucer_behavior.get_navigation_target(
-		global_position, abduction_cooldown <= 0.0
-	)
+	target_refresh_remaining = maxf(target_refresh_remaining - delta, 0.0)
+	if target_refresh_remaining <= 0.0 or not is_valid_target(target):
+		target = saucer_behavior.get_navigation_target(
+			global_position, abduction_cooldown <= 0.0
+		)
+		target_refresh_remaining = TARGET_REFRESH_INTERVAL
 
 	# Abduction evaluates only enemies already inside its short radius. It never
 	# redirects the Saucer away from the Electric gun's First target.
@@ -93,7 +98,8 @@ func _physics_process(delta: float) -> void:
 	):
 		saucer_behavior.fire_weapon(global_position, target)
 		attack_cooldown = float(parent_tower.damage_timer.wait_time)
-	queue_redraw()
+	if abduction_flash_remaining > 0.0:
+		queue_redraw()
 
 
 func move_toward_position(destination: Vector2, delta: float) -> void:
