@@ -61,5 +61,22 @@ func run_test() -> void:
 	assert(fake_main.lightweight_refreshes == refreshes_before_hidden_xp)
 	assert(fake_main.full_refreshes == 0)
 
-	print("Progression UI refresh smoke test passed: selected XP is throttled, hidden cards do no UI work, and hidden towers still level.")
+	tower.is_placed = true
+	var notification_level: int = (
+		11 if tower.instance_progression.level == 10 else 10
+	)
+	tower.instance_progression.set_level_for_sandbox(notification_level)
+	assert(tower.level_up_notification.visible)
+	assert(tower.level_up_notification.text == "LEVEL %d!" % notification_level)
+	assert(tower.upgrade_ready_indicator.visible)
+	fake_main.money = 0
+	fake_main.money_changed.emit(fake_main.money)
+	assert(not tower.upgrade_ready_indicator.visible)
+	fake_main.money = 1_000_000
+	fake_main.money_changed.emit(fake_main.money)
+	assert(tower.upgrade_ready_indicator.visible)
+	await get_tree().create_timer(1.6).timeout
+	assert(not tower.level_up_notification.visible)
+
+	print("Progression UI refresh smoke test passed: selected XP is throttled, hidden cards do no UI work, level-up notices expire, and affordable evolutions are marked in-world.")
 	get_tree().quit(0)

@@ -31,6 +31,7 @@ const TOWER_ITEM_CONTROLLER = preload(
 	"res://tower_items/tower_item_controller.gd"
 )
 const PROGRESSION_UI_REFRESH_INTERVAL := 0.20
+const LEVEL_UP_NOTIFICATION_DURATION := 1.15
 const RANGE_PIXELS_PER_UNIT := 12.9
 const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const BEAM_HIT_HALF_WIDTH := 2.5
@@ -93,6 +94,8 @@ var drone_target_mode: DroneTargetMode:
 @onready var rotator: Node2D = $Rotator
 @onready var muzzle: Marker2D = $Rotator/Muzzle
 @onready var damage_timer: Timer = $Timer
+@onready var upgrade_ready_indicator: Label = $UpgradeReadyIndicator
+@onready var level_up_notification: Label = $LevelUpNotification
 var loaded_attack_interval := 1.0
 var tower_level := 0
 var purchase_price := -1
@@ -165,6 +168,7 @@ var item_controller: Node
 var instance_progression: RefCounted
 var progression_ui_refresh_pending := false
 var progression_ui_refresh_remaining := 0.0
+var level_up_notification_tween: Tween
 
 
 func _draw() -> void:
@@ -586,6 +590,7 @@ func _ready() -> void:
 		main.money_changed.connect(_on_main_money_changed)
 		main.round_started.connect(_on_round_started)
 		main.round_ended.connect(_on_round_ended)
+	refresh_upgrade_ready_indicator()
 	tower_area.body_entered.connect(_on_body_entered)
 	tower_area.body_exited.connect(_on_body_exited)
 	if uses_standard_spawner_system():
@@ -723,6 +728,7 @@ func uses_continuous_beam() -> bool:
 
 func _on_main_money_changed(_new_amount: int) -> void:
 	update_menu_buttons()
+	refresh_upgrade_ready_indicator()
 
 
 func begin_placement() -> void:
@@ -749,6 +755,7 @@ func await_build_confirmation() -> void:
 
 func confirm_placement() -> void:
 	is_placed = true
+	refresh_upgrade_ready_indicator()
 	refresh_range_monitoring_state()
 	$clickarea.monitoring = true
 	$clickarea.input_pickable = true
@@ -1042,6 +1049,8 @@ func _on_instance_progression_changed() -> void:
 
 
 func _on_xp_level_changed(new_level: int, previous_level: int) -> void:
+	show_level_up_notification(new_level)
+	refresh_upgrade_ready_indicator()
 	# A few compatibility tests and legacy tools intentionally set the old stat
 	# rank directly. Do not overwrite that explicit override when XP is recorded.
 	if tower_level != GameStats.get_stat_rank_for_xp_level(previous_level):
@@ -1053,6 +1062,51 @@ func _on_xp_level_changed(new_level: int, previous_level: int) -> void:
 		progression_ui_refresh_pending = false
 		progression_ui_refresh_remaining = PROGRESSION_UI_REFRESH_INTERVAL
 		call_deferred("_refresh_progression_level_ui")
+
+
+func show_level_up_notification(new_level: int) -> void:
+	if not is_placed or level_up_notification == null:
+		return
+	if level_up_notification_tween != null:
+		level_up_notification_tween.kill()
+	level_up_notification.text = "LEVEL %d!" % new_level
+	level_up_notification.position = Vector2(-52.0, -78.0)
+	level_up_notification.modulate = Color.WHITE
+	level_up_notification.show()
+	level_up_notification_tween = create_tween()
+	level_up_notification_tween.set_parallel(true)
+	level_up_notification_tween.tween_property(
+		level_up_notification,
+		"position:y",
+		-100.0,
+		LEVEL_UP_NOTIFICATION_DURATION
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	level_up_notification_tween.tween_property(
+		level_up_notification,
+		"modulate:a",
+		0.0,
+		LEVEL_UP_NOTIFICATION_DURATION
+	).set_delay(0.35)
+	level_up_notification_tween.chain().tween_callback(
+		level_up_notification.hide
+	)
+
+
+func refresh_upgrade_ready_indicator() -> void:
+	if upgrade_ready_indicator == null:
+		return
+	var upgrade_ready := false
+	if is_placed and progression_controller != null:
+		if progression_controller.has_evolution_options():
+			for evolution_key in GameStats.get_tower_evolutions(tower_id):
+				if progression_controller.can_purchase_evolution(
+					StringName(evolution_key)
+				):
+					upgrade_ready = true
+					break
+		else:
+			upgrade_ready = progression_controller.has_available_path_purchase()
+	upgrade_ready_indicator.visible = upgrade_ready
 
 
 func _refresh_progression_ui() -> void:

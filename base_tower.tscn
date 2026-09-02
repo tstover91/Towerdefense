@@ -27,6 +27,38 @@ texture = ExtResource("1_k1sas")
 [node name="Muzzle" type="Marker2D" parent="Rotator"]
 position = Vector2(42, 0)
 
+[node name="UpgradeReadyIndicator" type="Label" parent="."]
+visible = false
+z_index = 90
+z_as_relative = false
+offset_left = -38.0
+offset_top = -54.0
+offset_right = 38.0
+offset_bottom = -32.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.82, 0.2, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.02, 0.95)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 13
+text = "UPGRADE"
+horizontal_alignment = 1
+
+[node name="LevelUpNotification" type="Label" parent="."]
+visible = false
+z_index = 91
+z_as_relative = false
+offset_left = -52.0
+offset_top = -78.0
+offset_right = 52.0
+offset_bottom = -52.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.45, 1, 0.72, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.08, 0.05, 0.95)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 16
+text = "LEVEL UP!"
+horizontal_alignment = 1
+
 [node name="Timer" type="Timer" parent="." unique_id=1713124659]
 
 [node name="clickarea" type="Area2D" parent="." unique_id=172749921]

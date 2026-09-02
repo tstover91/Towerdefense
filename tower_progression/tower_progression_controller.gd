@@ -76,6 +76,7 @@ func purchase_selected_path() -> void:
 	tower.load_base_tags()
 	tower.load_level_stats()
 	tower.update_menu_buttons()
+	tower.refresh_upgrade_ready_indicator()
 	tower.show_main_menu()
 	_show_tower_details_if_selected()
 
@@ -154,6 +155,7 @@ func purchase_selected_evolution() -> void:
 	if tower.attack_component != null and tower.is_placed:
 		tower.attack_component.on_placement_confirmed()
 	tower.update_menu_buttons()
+	tower.refresh_upgrade_ready_indicator()
 	tower.show_main_menu()
 	_show_tower_details_if_selected()
 
