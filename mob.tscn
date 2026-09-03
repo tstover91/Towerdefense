@@ -20,6 +20,7 @@ bg_color = Color(0.82, 0.055, 0.035, 1)
 bg_color = Color(0.08, 0.82, 0.12, 1)
 
 [node name="Mob" type="CharacterBody2D" unique_id=1467063432 groups=["mobs"]]
+collision_mask = 0
 script = ExtResource("1_dy6sc")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1000266203]

@@ -122,6 +122,21 @@ func run_test() -> void:
 	assert(nearby.received_contexts.size() == 1)
 	assert(nearby.received_contexts[0].is_item_proc())
 	assert(nearby.received_contexts[0].generation == 1)
+
+	var longshot := await _create_tower(fake_main, &"longshot")
+	assert(longshot.delivery_type == GameStats.DELIVERY_HITSCAN)
+	assert(longshot.equip_item(&"explosive_payload"))
+	assert(longshot.item_controller.is_item_compatible(&"explosive_payload"))
+	var longshot_primary := _create_enemy(Vector2(50.0, 100.0))
+	var longshot_nearby := _create_enemy(Vector2(56.0, 100.0))
+	var longshot_context := AttackContext.from_tower(
+		longshot, longshot, &"tower", &"hitscan"
+	)
+	longshot.notify_damage_dealt(
+		longshot_primary, 100, longshot_context, &"ballistic"
+	)
+	assert(longshot_primary.health == 1000 - primary_payload_damage)
+	assert(longshot_nearby.health == 1000 - payload_damage)
 	for event_id in [
 		&"attack_started",
 		&"status_applied",

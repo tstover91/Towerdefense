@@ -60,9 +60,15 @@ func _update_display() -> void:
 	var physics_time_ms := float(
 		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
 	) * 1000.0
+	var physics_active_objects := roundi(Performance.get_monitor(
+		Performance.PHYSICS_2D_ACTIVE_OBJECTS
+	))
+	var physics_collision_pairs := roundi(Performance.get_monitor(
+		Performance.PHYSICS_2D_COLLISION_PAIRS
+	))
 
 	stats_label.text = (
-		"FPS %d   AVG %d   LOW %d\n%.1f ms   SCRIPT %.1f   PHYS %.1f\nENEMIES %d   TOWERS %d   SHOTS %d   UNITS %d\nFX %d   RESOLVERS %d   HOOKS %d   SAUCERS %d   NODES %d"
+		"FPS %d   AVG %d   LOW %d\n%.1f ms   SCRIPT %.1f   PHYS %.1f\nENEMIES %d   TOWERS %d   SHOTS %d   UNITS %d\nFX %d   RESOLVERS %d   HOOKS %d   SAUCERS %d   NODES %d\nPHYS OBJECTS %d   PAIRS %d"
 		% [
 			roundi(current_fps),
 			roundi(average_fps),
@@ -79,5 +85,7 @@ func _update_display() -> void:
 			get_tree().get_node_count_in_group(&"fisherman_hooks"),
 			get_tree().get_node_count_in_group(&"saucer_flyers"),
 			get_tree().get_node_count(),
+			physics_active_objects,
+			physics_collision_pairs,
 		]
 	)

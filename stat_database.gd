@@ -1113,12 +1113,12 @@ const TOWER_ITEMS := {
 	},
 	&"explosive_payload": {
 		"display_name": "Explosive Payload",
-		"description": "Grants Explosive. Primary projectile hits explode for 25% damage in a 1.75-tile radius. Item explosions cannot trigger items.",
+		"description": "Grants Explosive. Primary ballistic or projectile hits explode for 25% damage in a 1.75-tile radius. Item explosions cannot trigger items.",
 		"rarity": &"uncommon",
 		"category": &"projectile",
 		"price": 750,
 		"max_copies_per_tower": 1,
-		"required_all_tags": [&"projectile"],
+		"required_any_tags": [&"ballistic", &"projectile"],
 		"add_bonus_tags": [&"explosive"],
 		"trigger_effects": {
 			"primary_hit_explosion_damage_multiplier": 0.25,
@@ -2939,14 +2939,14 @@ const TOWERS := {
 				"spawn_interval": 7.0,
 				"spawn_limit": 1,
 				"deployment_radius": 6.0,
-				"unit_stats": {"damage": 60, "attack_interval": 0.90, "aim_radius": 10.5, "move_speed": 0.0, "projectile_speed": 480.0, "damage_budget": 1000, "lifetime": 25.0},
+				"unit_stats": {"damage": 80, "attack_interval": 0.90, "aim_radius": 10.5, "move_speed": 0.0, "projectile_speed": 480.0, "damage_budget": 1000, "lifetime": 25.0},
 			},
 			{
 				"upgrade_cost": 450,
 				"spawn_interval": 6.5,
 				"spawn_limit": 2,
 				"deployment_radius": 6.5,
-				"unit_stats": {"damage": 75, "attack_interval": 0.82, "aim_radius": 11.0, "move_speed": 0.0, "projectile_speed": 520.0, "damage_budget": 1400, "lifetime": 25.0},
+				"unit_stats": {"damage": 90, "attack_interval": 0.82, "aim_radius": 11.0, "move_speed": 0.0, "projectile_speed": 520.0, "damage_budget": 1400, "lifetime": 25.0},
 			},
 			{
 				"upgrade_cost": 1100,

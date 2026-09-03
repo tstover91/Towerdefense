@@ -22,6 +22,8 @@ func run_checks() -> void:
 	var normal = MOB_SCENE.instantiate()
 	normal.enemy_id = &"normal"
 	director.add_child(normal)
+	assert(normal.collision_layer == 1)
+	assert(normal.collision_mask == 0)
 	assert(not normal.health_bar_anchor.visible)
 	normal.apply_damage(1, &"ballistic")
 	assert(normal.health_bar_anchor.visible)
