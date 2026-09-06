@@ -4,9 +4,10 @@ extends Node2D
 @export var map_id: StringName = &""
 @export var display_name := "Map"
 @export var native_build_bounds := Rect2(0.0, 0.0, 960.0, 648.0)
-@export var path_no_build_radius := 30.0
+@export var path_no_build_radius := 24.0
 
 @onready var paths_root: Node = $Paths
+@onready var build_mask: TileMapLayer = get_node_or_null("BuildMask")
 
 var runtime_build_bounds := Rect2()
 
@@ -18,6 +19,8 @@ func _ready() -> void:
 		assert(path.curve != null, "Map path %s requires a Curve2D" % path.name)
 	if runtime_build_bounds.size.is_zero_approx():
 		runtime_build_bounds = native_build_bounds
+	if build_mask != null:
+		build_mask.hide()
 
 
 func configure_runtime_build_bounds(available_bounds: Rect2) -> void:
@@ -75,6 +78,13 @@ func get_distance_to_nearest_path(world_position: Vector2) -> float:
 
 func is_point_blocked_by_path(world_position: Vector2) -> bool:
 	return get_distance_to_nearest_path(world_position) <= path_no_build_radius
+
+
+func is_point_blocked_by_build_mask(world_position: Vector2) -> bool:
+	if build_mask == null or build_mask.tile_set == null:
+		return false
+	var mask_cell := build_mask.local_to_map(build_mask.to_local(world_position))
+	return build_mask.get_cell_source_id(mask_cell) >= 0
 
 
 func contains_world_position(world_position: Vector2) -> bool:

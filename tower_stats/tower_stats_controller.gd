@@ -21,10 +21,7 @@ func load_level_stats() -> void:
 	) as Texture2D
 	if tower_texture != null:
 		tower.visual_sprite.texture = tower_texture
-	tower.footprint_size_pixels = (
-		Vector2(tower_data.get("footprint_cells", Vector2i.ONE))
-		* BaseTower.BUILD_CELL_SIZE
-	)
+	tower.footprint_size_pixels = GameStats.TOWER_FOOTPRINT_SIZE
 	var click_shape := tower.get_node(
 		"clickarea/CollisionShape2D"
 	).shape.duplicate() as RectangleShape2D

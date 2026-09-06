@@ -139,7 +139,7 @@ var delivery_type: StringName = GameStats.DELIVERY_HITSCAN
 var impact_mode: StringName = GameStats.IMPACT_PRIMARY
 var projectile_speed := 600.0
 var splash_radius_pixels := 0.0
-var footprint_size_pixels := Vector2(BUILD_CELL_SIZE, BUILD_CELL_SIZE)
+var footprint_size_pixels := GameStats.TOWER_FOOTPRINT_SIZE
 var target: Node2D = null
 var mobs_in_range: Array = []
 var attack_on_cooldown := false
@@ -1546,10 +1546,8 @@ func get_max_distance_in_direction(direction: Vector2, origin: Vector2) -> float
 
 func _on_clickarea_input_event(_viewport, event, _shape_idx) -> void:
 	if (
-		event is InputEventMouseButton
-		and event.button_index == MOUSE_BUTTON_LEFT
-		and event.pressed
-		and main != null
+		main != null
+		and main.is_pointer_press_event(event)
 		and main.can_select_tower()
 	):
 		if (

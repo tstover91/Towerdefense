@@ -1,7 +1,8 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://tower_defense_map.gd" id="1_map"]
 [ext_resource type="Texture2D" path="res://assets/maps/farm_gauntlet.png" id="2_background"]
+[ext_resource type="TileSet" path="res://assets/editor/build_mask_tileset.tres" id="3_build_mask"]
 
 [sub_resource type="Curve2D" id="Curve2D_farm_gauntlet"]
 _data = {
@@ -42,6 +43,11 @@ centered = false
 
 [node name="primary" type="Path2D" parent="Paths"]
 curve = SubResource("Curve2D_farm_gauntlet")
+
+[node name="BuildMask" type="TileMapLayer" parent="."]
+z_index = 100
+self_modulate = Color(1, 0.2, 0.2, 0.68)
+tile_set = ExtResource("3_build_mask")
 
 [node name="SceneryBlockers" type="StaticBody2D" parent="."]
 collision_layer = 4

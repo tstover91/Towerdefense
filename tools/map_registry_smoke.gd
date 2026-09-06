@@ -19,12 +19,22 @@ func run_checks() -> void:
 		assert(map.map_id == map_id, "Map scene ID must match its registry key")
 		assert(not map.display_name.is_empty(), "Map requires a display name")
 		assert(map.get_build_bounds().has_area(), "Map requires build bounds")
+		assert(map.build_mask != null, "Map requires a paintable BuildMask layer")
+		assert(not map.build_mask.visible, "BuildMask must be hidden during play")
 		var paths := map.get_enemy_paths()
 		assert(not paths.is_empty(), "Map requires an enemy path")
 		for path in paths:
 			assert(path.curve != null and path.curve.point_count >= 2)
 			assert(not map.get_path_id(path).is_empty())
 		map.queue_free()
+
+	var mask_map := MapData.instantiate_map(MapData.DEFAULT_MAP_ID)
+	add_child(mask_map)
+	assert(mask_map.native_build_bounds == Rect2(0.0, 0.0, 1152.0, 640.0))
+	mask_map.build_mask.set_cell(Vector2i(4, 5), 0, Vector2i.ZERO, 0)
+	assert(mask_map.is_point_blocked_by_build_mask(Vector2(72.0, 88.0)))
+	assert(not mask_map.is_point_blocked_by_build_mask(Vector2(88.0, 88.0)))
+	mask_map.queue_free()
 
 	SessionState.select_map(MapData.DEFAULT_MAP_ID)
 	var gameplay = MAIN_SCENE.instantiate()

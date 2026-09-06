@@ -3505,6 +3505,8 @@ func mob_finished() -> void:
 
 
 func is_pointer_press_event(event: InputEvent) -> bool:
+	if event is InputEventMouse and event.device == InputEvent.DEVICE_ID_EMULATION:
+		return false
 	return (
 		(
 			event is InputEventMouseButton
@@ -3583,8 +3585,9 @@ func pointer_event_matches_drag(event: InputEvent) -> bool:
 
 
 func screen_to_placement_world_position(screen_position: Vector2) -> Vector2:
+	var offset := PLACEMENT_DRAG_PREVIEW_OFFSET if placement_drag_pointer_index >= 0 else Vector2.ZERO
 	return get_canvas_transform().affine_inverse() * (
-		screen_position + PLACEMENT_DRAG_PREVIEW_OFFSET
+		screen_position + offset
 	)
 
 
@@ -3659,6 +3662,13 @@ func finish_active_placement_drag(screen_position: Vector2) -> void:
 
 
 func handle_placement_drag_input(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch and event.canceled and pointer_event_matches_drag(event):
+		if active_placement_drag_kind == DRAG_KIND_TOWER:
+			cancel_pending_tower_placement()
+		elif active_placement_drag_kind == DRAG_KIND_REINFORCEMENT:
+			cancel_reinforcement_targeting()
+		clear_placement_drag_state()
+		return true
 	if (
 		not active_placement_drag_kind.is_empty()
 		and pointer_event_matches_drag(event)
@@ -3692,15 +3702,21 @@ func handle_placement_drag_input(event: InputEvent) -> bool:
 
 
 func _input(event: InputEvent) -> void:
+	# GUI controls still receive the emulated event; gameplay handles native touch.
+	if event is InputEventMouse and event.device == InputEvent.DEVICE_ID_EMULATION:
+		return
 	cancel_sidebar_confirmation_on_other_press(event)
 	close_inventory_on_outside_press(event)
 	if handle_placement_drag_input(event):
 		get_viewport().set_input_as_handled()
 		return
+
+
+func handle_manual_targeting_input(event: InputEvent) -> bool:
 	ensure_build_controller()
 	if not is_instance_valid(build_controller.manual_targeting_tower):
 		build_controller.clear_invalid_manual_target()
-		return
+		return false
 	if (
 		event.is_action_pressed("ui_cancel")
 		or (
@@ -3711,16 +3727,15 @@ func _input(event: InputEvent) -> void:
 	):
 		get_viewport().set_input_as_handled()
 		cancel_manual_tower_targeting()
-		return
-	if (
-		event is InputEventMouseButton
-		and event.button_index == MOUSE_BUTTON_LEFT
-		and event.pressed
-	):
+		return true
+	if is_pointer_press_event(event):
 		get_viewport().set_input_as_handled()
 		var targeting_tower: Node2D = build_controller.manual_targeting_tower
-		if targeting_tower.confirm_manual_target_position(get_global_mouse_position()):
+		var world_position := get_canvas_transform().affine_inverse() * get_pointer_screen_position(event)
+		if targeting_tower.confirm_manual_target_position(world_position):
 			finish_manual_tower_targeting(targeting_tower)
+		return true
+	return false
 
 
 func close_inventory_on_outside_press(event: InputEvent) -> void:
@@ -3798,6 +3813,10 @@ func cancel_sidebar_confirmation_on_other_press(event: InputEvent) -> void:
 	cancel_sidebar_confirmation()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouse and event.device == InputEvent.DEVICE_ID_EMULATION:
+		return
+	if handle_manual_targeting_input(event):
+		return
 	if enemy_strip_expanded:
 		if event.is_action_pressed("ui_cancel"):
 			set_enemy_intel_expanded(false)
@@ -3831,13 +3850,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			cancel_reinforcement_targeting()
 			return
-		if (
-			event is InputEventMouseButton
-			and event.button_index == MOUSE_BUTTON_LEFT
-			and event.pressed
-		):
+		if is_pointer_press_event(event):
 			get_viewport().set_input_as_handled()
-			deploy_reinforcements(get_global_mouse_position())
+			deploy_reinforcements(get_canvas_transform().affine_inverse() * get_pointer_screen_position(event))
 			return
 
 	if (
@@ -3880,7 +3895,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	if event is InputEventMouseButton and event.pressed and not build_mode:
+	if is_pointer_press_event(event) and not build_mode:
 		close_all_tower_menus()
 		set_build_drawer_open(false)
 
@@ -4045,7 +4060,10 @@ func is_build_cell_blocked_by_path(cell: Vector2i) -> bool:
 	if active_map == null:
 		return false
 	var cell_center := get_build_cell_center(cell)
-	return active_map.is_point_blocked_by_path(cell_center)
+	return (
+		active_map.is_point_blocked_by_path(cell_center)
+		or active_map.is_point_blocked_by_build_mask(cell_center)
+	)
 
 
 func get_path_cell_positions_near(

@@ -1,0 +1,10 @@
+[gd_resource type="TileSet" format=3 uid="uid://dnskabq3rin0l"]
+
+[ext_resource type="Texture2D" uid="uid://ca8vye0bq861u" path="res://assets/editor/build_blocked_tile.png" id="1_blocked"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_blocked"]
+texture = ExtResource("1_blocked")
+0:0/0 = 0
+
+[resource]
+sources/0 = SubResource("TileSetAtlasSource_blocked")

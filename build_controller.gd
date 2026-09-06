@@ -3,7 +3,6 @@ extends RefCounted
 
 const GameStats = preload("res://stat_database.gd")
 
-const BUILD_CELL_SIZE := GameStats.BUILD_CELL_SIZE
 const PLACEMENT_SNAP_SIZE := 16.0
 
 var place_mode := false
@@ -86,7 +85,7 @@ func get_tower_footprint(tower_id: StringName) -> Vector2i:
 
 
 func get_tower_build_position(world_position: Vector2, tower_id: StringName) -> Vector2:
-	var footprint_size := Vector2(get_tower_footprint(tower_id)) * BUILD_CELL_SIZE
+	var footprint_size := get_tower_footprint_size(tower_id)
 	var snap_step := Vector2.ONE * PLACEMENT_SNAP_SIZE
 	var snapped_origin := (world_position - footprint_size * 0.5).snapped(snap_step)
 	return snapped_origin + footprint_size * 0.5
@@ -96,7 +95,7 @@ func get_tower_build_cells(
 	tower_position: Vector2,
 	tower_id: StringName
 ) -> Array[Vector2i]:
-	var footprint_size := Vector2(get_tower_footprint(tower_id)) * BUILD_CELL_SIZE
+	var footprint_size := get_tower_footprint_size(tower_id)
 	var footprint_cells := Vector2i(
 		roundi(footprint_size.x / PLACEMENT_SNAP_SIZE),
 		roundi(footprint_size.y / PLACEMENT_SNAP_SIZE)
@@ -108,6 +107,10 @@ func get_tower_build_cells(
 		for x_offset in footprint_cells.x:
 			cells.append(origin_cell + Vector2i(x_offset, y_offset))
 	return cells
+
+
+func get_tower_footprint_size(_tower_id: StringName) -> Vector2:
+	return GameStats.TOWER_FOOTPRINT_SIZE
 
 
 func get_build_cell_center(cell: Vector2i) -> Vector2:

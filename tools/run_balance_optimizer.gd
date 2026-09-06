@@ -732,16 +732,7 @@ func prepare_map_geometry() -> void:
 		map_combat_samples.append(map_path_samples[-1])
 	map_combat_segment_length = map_path_length / maxf(float(map_combat_samples.size() - 1), 1.0)
 	map_placements.clear()
-	var footprint_definition: Vector2i = GameStats.get_tower(
-		get_test_tower_ids()[0]
-	).get("footprint_cells", Vector2i.ONE)
-	for tower_id in get_test_tower_ids():
-		assert(
-			GameStats.get_tower(tower_id).get("footprint_cells", Vector2i.ONE)
-				== footprint_definition,
-			"Shared placement lookup requires equal tower footprints"
-		)
-	var footprint_size := Vector2(footprint_definition) * GameStats.BUILD_CELL_SIZE
+	var footprint_size := GameStats.TOWER_FOOTPRINT_SIZE
 	var placement_cell_size := Vector2i(
 		roundi(footprint_size.x / MAP_PLACEMENT_SNAP),
 		roundi(footprint_size.y / MAP_PLACEMENT_SNAP)
@@ -3174,12 +3165,7 @@ func count_towers_within_footprint_gap(
 	if placement_index < 0 or placement_index >= map_placements.size():
 		return 0
 	var origin: Vector2 = map_placements[placement_index]["position"]
-	var footprint_cells: Vector2i = GameStats.get_tower(
-		get_test_tower_ids()[0]
-	).get("footprint_cells", Vector2i.ONE)
-	var combined_half_extents := (
-		Vector2(footprint_cells) * GameStats.BUILD_CELL_SIZE
-	)
+	var combined_half_extents := GameStats.TOWER_FOOTPRINT_SIZE
 	var count := 0
 	for instance in state["build"]:
 		var other_index := int(instance.get("placement_index", -1))
