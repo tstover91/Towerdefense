@@ -907,29 +907,48 @@ offset_bottom = 1136.0
 [node name="BuildToggleButton" type="Button" parent="." unique_id=1587658736]
 visible = false
 z_index = 30
-custom_minimum_size = Vector2(76, 76)
+custom_minimum_size = Vector2(96, 96)
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = -92.0
-offset_right = 92.0
+offset_top = -112.0
+offset_right = 112.0
 offset_bottom = -16.0
 grow_horizontal = 0
 grow_vertical = 0
+pivot_offset = Vector2(48, 48)
 tooltip_text = "Build towers"
+theme_type_variation = &"BoogalooButton"
 theme_override_colors/icon_normal_color = Color(0.898, 0.898, 0.863, 0.94)
 theme_override_colors/icon_pressed_color = Color(0.898, 0.898, 0.863, 1)
 theme_override_colors/icon_hover_color = Color(0.898, 0.898, 0.863, 1)
-theme_override_styles/normal = ExtResource("13_a5wlq")
-theme_override_styles/pressed = ExtResource("14_njjxc")
-theme_override_styles/hover = ExtResource("15_xbxso")
-theme_override_styles/hover_pressed = ExtResource("14_njjxc")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_status")
+theme_override_styles/normal = SubResource("StyleBoxTexture_3xcw3")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_oiket")
+theme_override_styles/hover = SubResource("StyleBoxTexture_lovc5")
+theme_override_styles/hover_pressed = SubResource("StyleBoxTexture_144mn")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_yf7uc")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_rgnyg")
 toggle_mode = true
 icon = ExtResource("16_3ru6y")
 expand_icon = true
+
+[node name="CancelLabel" type="Label" parent="BuildToggleButton"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"BoogalooLabel"
+theme_override_colors/font_color = Color(0.94509804, 0.90588236, 0.827451, 1)
+theme_override_font_sizes/font_size = 44
+text = "X"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="Sidebar" type="PanelContainer" parent="." unique_id=1348787309]
 clip_contents = true

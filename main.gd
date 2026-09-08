@@ -51,6 +51,7 @@ const REINFORCEMENT_DRAFT_ROUNDS: Array[int] = []
 const POST_ROUND_REVEAL_DELAY := 1.35
 const TOWER_SCENE = preload("res://base_tower.tscn")
 const DEFAULT_TOWER_ICON = preload("res://icon.svg")
+const BUILD_TOWERS_ICON = preload("res://assets/ui/build_towers.svg")
 const PTI_GAME_SPEED = preload("res://assets/ui/pti_hud/game_speed.png")
 const TOWER_BUILD_BUTTON_SCENE = preload(
 	"res://ui/components/tower_build_button_visual.tscn"
@@ -102,6 +103,7 @@ signal round_ended(round_number: int)
 @onready var tower_selection_area: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/TowerSelectionArea
 @onready var tower_fan: Control = $MainUI/HUDRoot/TowerFan
 @onready var build_toggle_button: Button = $MainUI/HUDRoot/BuildToggleButton
+@onready var build_cancel_label: Label = $MainUI/HUDRoot/BuildToggleButton/CancelLabel
 @onready var reinforcement_button: Button = $MainUI/HUDRoot/ThumbControls/ReinforcementButton
 @onready var reinforcement_cooldown_label: Label = get_node("MainUI/HUDRoot/ThumbControls/ReinforcementButton").find_child("CooldownLabel", true, false) as Label
 @onready var reinforcement_action_label: Label = get_node("MainUI/HUDRoot/ThumbControls/ReinforcementButton").find_child("ActionLabel", true, false) as Label
@@ -398,6 +400,7 @@ var placement_drag_pointer_index := -1
 var placement_drag_start_screen_position := Vector2.ZERO
 var placement_drag_world_position := Vector2.ZERO
 var active_placement_drag_kind: StringName = &""
+var placement_drag_over_cancel := false
 var selected_enemy_hud_id: StringName = &""
 var enemy_hud_round := -1
 var playable_map_width := 0.0
@@ -472,7 +475,7 @@ func _ready() -> void:
 	tower_item_inventory_panel.selected_item_confirmed.connect(
 		_on_inventory_item_confirmed
 	)
-	set_build_drawer_open(true)
+	set_build_drawer_open(false)
 	update_play_pause_button()
 	if sandbox_mode:
 		pause_button.hide()
@@ -515,7 +518,6 @@ func _configure_minimal_hud() -> void:
 	inventory_button.pressed.connect(_on_inventory_button_pressed)
 	tower_item_inventory_panel.hide()
 	tower_detail_popup.hide()
-	build_toggle_button.hide()
 	tower_card_open_top = sidebar.offset_top
 	tower_card_open_bottom = sidebar.offset_bottom
 
@@ -723,6 +725,7 @@ func show_tower_details(tower: Node) -> void:
 		clear_tower_details()
 		return
 	clear_enemy_hud_selection()
+	set_build_drawer_open(false)
 
 	var selection_changed := displayed_tower != tower
 	if selection_changed:
@@ -1346,7 +1349,7 @@ func _on_sidebar_back_pressed() -> void:
 		displayed_tower.set_selected(false)
 	else:
 		clear_tower_details()
-	set_build_drawer_open(true)
+	set_build_drawer_open(false)
 
 
 func prepare_sidebar_double_tap(action: BaseTower.MenuAction) -> bool:
@@ -1548,6 +1551,8 @@ func _on_enemy_strip_toggled() -> void:
 
 func set_enemy_intel_expanded(is_expanded: bool) -> void:
 	enemy_strip_expanded = is_expanded and not enemy_hud_buttons.is_empty()
+	if enemy_strip_expanded:
+		set_build_drawer_open(false)
 	enemy_strip.visible = enemy_strip_expanded
 	enemy_toggle_button.button_pressed = enemy_strip_expanded
 	enemy_toggle_button.tooltip_text = (
@@ -1609,22 +1614,64 @@ func clear_tower_details(tower: Node = null) -> void:
 
 
 func _on_build_toggle_pressed() -> void:
+	if build_mode:
+		cancel_pending_tower_placement()
+		return
 	if tower_inspector.visible:
 		clear_tower_details()
 	set_build_drawer_open(not tower_fan_open)
 
 
 func set_build_drawer_open(is_open: bool) -> void:
-	# The minimal HUD keeps unlocked families directly available at all times.
-	tower_fan_open = true
+	var resolved_open := is_open and not build_mode and not game_ended and not shop_open
+	if tower_fan_open == resolved_open:
+		if resolved_open:
+			tower_fan.show()
+		else:
+			tower_fan.hide()
+		update_build_toggle_button()
+		return
+	tower_fan_open = resolved_open
 	tower_selection_area.hide()
-	build_toggle_button.hide()
-	tower_fan.show()
-	for button in tower_fan_buttons:
-		button.modulate.a = 1.0
-		button.scale = Vector2.ONE
-	layout_tower_fan_buttons()
+	animate_tower_fan(tower_fan_open)
+	update_build_toggle_button()
 	update_context_dock_layout()
+
+
+func update_build_toggle_button() -> void:
+	if not is_instance_valid(build_toggle_button):
+		return
+	var can_show := not game_ended and not shop_open and not tower_inspector.visible
+	build_toggle_button.visible = can_show
+	if not can_show:
+		return
+	var is_cancel := build_mode
+	build_toggle_button.button_pressed = is_cancel or tower_fan_open
+	build_toggle_button.icon = null if is_cancel else BUILD_TOWERS_ICON
+	build_cancel_label.visible = is_cancel
+	build_toggle_button.tooltip_text = (
+		"Cancel tower placement" if is_cancel else "Build towers"
+	)
+	if not is_cancel:
+		placement_drag_over_cancel = false
+		build_toggle_button.scale = Vector2.ONE
+
+
+func is_screen_position_over_build_cancel(screen_position: Vector2) -> bool:
+	return (
+		build_mode
+		and is_instance_valid(build_toggle_button)
+		and build_toggle_button.visible
+		and build_toggle_button.get_global_rect().has_point(screen_position)
+	)
+
+
+func set_placement_drag_over_cancel(is_over: bool) -> void:
+	if placement_drag_over_cancel == is_over:
+		return
+	placement_drag_over_cancel = is_over
+	if is_instance_valid(build_toggle_button):
+		build_toggle_button.scale = Vector2.ONE * (1.08 if is_over else 1.0)
 
 
 func animate_tower_fan(is_open: bool) -> void:
@@ -1657,13 +1704,8 @@ func animate_tower_fan(is_open: bool) -> void:
 
 	if not tower_fan.visible:
 		return
-	tower_fan_tween = create_tween().set_parallel(true)
-	tower_fan_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	for button in tower_fan_buttons:
-		tower_fan_tween.tween_property(button, "position", closed_position, 0.11)
-		tower_fan_tween.tween_property(button, "scale", Vector2.ONE * 0.72, 0.11)
-		tower_fan_tween.tween_property(button, "modulate:a", 0.0, 0.08)
-	tower_fan_tween.chain().tween_callback(Callable(tower_fan, "hide"))
+	# Hide immediately so a chosen card cannot keep blocking the active drag.
+	tower_fan.hide()
 
 
 func update_context_dock_layout() -> void:
@@ -1676,7 +1718,7 @@ func update_context_dock_layout() -> void:
 			context_dock_tween.kill()
 		sidebar.modulate.a = 1.0
 		sidebar.hide()
-		build_toggle_button.hide()
+		update_build_toggle_button()
 
 
 func show_context_dock(target_top: float, target_bottom: float) -> void:
@@ -1832,7 +1874,7 @@ func update_reinforcement_button() -> void:
 	reinforcement_action_label.show()
 	if reinforcement_targeting:
 		reinforcement_button.tooltip_text = (
-			"Release to deploy %s; tap again to cancel" % display_name
+			"Tap the map to deploy %s; tap again to cancel" % display_name
 		)
 		reinforcement_button.disabled = false
 	elif reinforcement_cooldown_remaining > 0.0:
@@ -1844,7 +1886,7 @@ func update_reinforcement_button() -> void:
 		reinforcement_button.tooltip_text = "%s are recovering" % display_name
 		reinforcement_button.disabled = true
 	else:
-		reinforcement_button.tooltip_text = "Drag onto the map · %s" % String(
+		reinforcement_button.tooltip_text = "Tap, then tap the map · %s" % String(
 			option.get("description", "")
 		)
 		reinforcement_button.disabled = not can_begin_reinforcement_targeting()
@@ -2183,6 +2225,7 @@ func open_reinforcement_draft_placeholder() -> void:
 func enter_build_phase() -> void:
 	ensure_round_controller()
 	round_controller.enter_build_phase()
+	update_build_toggle_button()
 	update_round_count()
 	update_play_pause_button()
 
@@ -2302,7 +2345,9 @@ func open_item_shop() -> void:
 	between_round_shop = item_shop_screen
 	cancel_pending_tower_placement()
 	close_all_tower_menus()
+	set_build_drawer_open(false)
 	shop_open = true
+	update_build_toggle_button()
 	ensure_round_controller()
 	round_controller.enter_draft_phase()
 	active_draft_type = DRAFT_ITEM
@@ -2437,7 +2482,9 @@ func open_between_round_draft(
 	between_round_shop = tower_draft_screen
 	cancel_pending_tower_placement()
 	close_all_tower_menus()
+	set_build_drawer_open(false)
 	shop_open = true
+	update_build_toggle_button()
 	ensure_round_controller()
 	round_controller.enter_draft_phase()
 	active_draft_type = draft_type
@@ -2626,6 +2673,7 @@ func sandbox_set_selected_tower_level(new_level: int) -> bool:
 
 func _on_inventory_button_pressed() -> void:
 	if inventory_button.button_pressed:
+		set_build_drawer_open(false)
 		tower_item_inventory_panel.open_global_inventory()
 		_on_inventory_item_selected(
 			tower_item_inventory_panel.get_selected_inventory_item_id()
@@ -2802,6 +2850,7 @@ func cancel_pending_tower_placement() -> void:
 		clear_placement_drag_state()
 	tower_list.deselect_all()
 	update_tower_fan_selection()
+	update_build_toggle_button()
 	update_play_pause_button()
 	
 func _spawn_mob():
@@ -3556,6 +3605,7 @@ func clear_placement_drag_state() -> void:
 	placement_drag_candidate_slot = -1
 	placement_drag_pointer_index = -1
 	active_placement_drag_kind = &""
+	set_placement_drag_over_cancel(false)
 
 
 func pointer_event_matches_drag(event: InputEvent) -> bool:
@@ -3611,6 +3661,7 @@ func update_active_placement_drag_preview() -> void:
 
 
 func finish_active_placement_drag(screen_position: Vector2) -> void:
+	var dropped_on_cancel := is_screen_position_over_build_cancel(screen_position)
 	placement_drag_world_position = screen_to_placement_world_position(
 		screen_position
 	)
@@ -3619,7 +3670,9 @@ func finish_active_placement_drag(screen_position: Vector2) -> void:
 	active_placement_drag_kind = &""
 
 	if completed_kind == DRAG_KIND_TOWER:
-		if (
+		if dropped_on_cancel:
+			cancel_pending_tower_placement()
+		elif (
 			is_instance_valid(tower_to_place)
 			and can_place_tower(tower_to_place.position)
 		):
@@ -3642,6 +3695,9 @@ func handle_placement_drag_input(event: InputEvent) -> bool:
 		and pointer_event_matches_drag(event)
 	):
 		if is_pointer_drag_event(event):
+			set_placement_drag_over_cancel(is_screen_position_over_build_cancel(
+				get_pointer_screen_position(event)
+			))
 			placement_drag_world_position = screen_to_placement_world_position(
 				get_pointer_screen_position(event)
 			)
@@ -3844,6 +3900,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if shop_open:
+		return
+	if tower_fan_open and is_pointer_press_event(event):
+		set_build_drawer_open(false)
+		get_viewport().set_input_as_handled()
 		return
 
 	if (
@@ -4099,6 +4159,7 @@ func _on_tower_cancelled(tower: Node2D) -> void:
 	ensure_build_controller()
 	build_controller.clear_pending_placement()
 	update_tower_fan_selection()
+	update_build_toggle_button()
 	update_play_pause_button()
 
 
@@ -4214,6 +4275,7 @@ func _on_pause_button_pressed() -> void:
 
 
 func open_pause_menu() -> void:
+	set_build_drawer_open(false)
 	ensure_round_controller()
 	ensure_wave_director()
 	var enemy_round := clampi(

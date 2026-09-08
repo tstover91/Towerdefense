@@ -57,6 +57,29 @@ func run_checks() -> void:
 	assert(not is_instance_valid(director.tower_to_place))
 	assert(director.money == money_after_build)
 
+	# Releasing a tower drag over the lower-left X explicitly cancels it.
+	director.set_build_drawer_open(true)
+	director._on_tower_fan_button_gui_input(
+		make_touch(7, Vector2(92.0, 500.0), true), 0
+	)
+	var cancel_drag := InputEventScreenDrag.new()
+	cancel_drag.index = 7
+	cancel_drag.position = Vector2(300.0, 400.0)
+	assert(director.handle_placement_drag_input(cancel_drag))
+	assert(director.build_mode)
+	assert(director.build_cancel_label.visible)
+	assert(not director.tower_fan.visible)
+	var cancel_center: Vector2 = director.build_toggle_button.get_global_rect().get_center()
+	cancel_drag.position = cancel_center
+	assert(director.handle_placement_drag_input(cancel_drag))
+	assert(director.placement_drag_over_cancel)
+	assert(director.handle_placement_drag_input(
+		make_touch(7, cancel_center, false)
+	))
+	assert(not director.build_mode)
+	assert(not is_instance_valid(director.tower_to_place))
+	assert(director.money == money_after_build)
+
 	# Precision placement moves on discrete taps, but a following drag cannot
 	# continue moving the pending tower.
 	director.select_tower_build_slot(0)
