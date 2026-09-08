@@ -36,23 +36,12 @@ func run_checks() -> void:
 	var tower_release := make_touch(3, valid_release_screen, false)
 	assert(director.handle_placement_drag_input(tower_release))
 	assert(director.active_placement_drag_kind.is_empty())
-	assert(director.build_mode)
+	assert(not director.build_mode)
 	assert(not director.place_mode)
-	assert(director.money == money_before)
+	assert(director.money < money_before)
 	var placed_towers := get_tree().get_nodes_in_group("towers")
 	assert(placed_towers.size() == 1)
-	assert(not bool(placed_towers[0].get("is_placed")))
-	await get_tree().physics_frame
-	var pending_tower := placed_towers[0] as Node2D
-	var confirm_screen_position: Vector2 = (
-		director.get_canvas_transform() * pending_tower.global_position
-	)
-	assert(director.handle_pending_tower_placement_press(
-		make_touch(3, confirm_screen_position, true)
-	))
-	assert(not director.build_mode)
-	assert(director.money < money_before)
-	assert(bool(pending_tower.get("is_placed")))
+	assert(bool(placed_towers[0].get("is_placed")))
 	var money_after_build: int = director.money
 	director._on_tower_fan_button_gui_input(
 		make_touch(4, Vector2(92.0, 500.0), true), 0
@@ -64,35 +53,61 @@ func run_checks() -> void:
 	assert(director.handle_placement_drag_input(
 		make_touch(4, Vector2.ZERO, false)
 	))
-	assert(director.build_mode)
-	assert(is_instance_valid(director.tower_to_place))
-	assert(director.money == money_after_build)
-	director.cancel_pending_tower_placement()
 	assert(not director.build_mode)
+	assert(not is_instance_valid(director.tower_to_place))
+	assert(director.money == money_after_build)
+
+	# Precision placement moves on discrete taps, but a following drag cannot
+	# continue moving the pending tower.
+	director.select_tower_build_slot(0)
+	assert(director.build_mode and director.place_mode)
+	var precision_position := find_valid_tower_release_screen(director)
+	assert(precision_position != Vector2.INF)
+	assert(director.handle_pending_tower_placement_press(
+		make_touch(6, precision_position, true)
+	))
+	assert(director.build_mode and not director.place_mode)
+	var precision_tower := director.tower_to_place as Node2D
+	var first_precision_position := precision_tower.position
+	assert(director.handle_pending_tower_placement_press(
+		make_touch(6, precision_position + Vector2(96.0, 0.0), true)
+	))
+	assert(not director.place_mode)
+	assert(not precision_tower.position.is_equal_approx(first_precision_position))
+	var tapped_position := precision_tower.position
+	var precision_drag := InputEventScreenDrag.new()
+	precision_drag.index = 6
+	precision_drag.position = precision_position + Vector2(180.0, 0.0)
+	assert(not director.handle_placement_drag_input(precision_drag))
+	assert(precision_tower.position.is_equal_approx(tapped_position))
+	# Move back to the known-valid point, then tap the tower to build it.
+	assert(director.handle_pending_tower_placement_press(
+		make_touch(6, precision_position, true)
+	))
+	await get_tree().physics_frame
+	var precision_confirm_position: Vector2 = (
+		director.get_canvas_transform() * precision_tower.global_position
+	)
+	assert(director.handle_pending_tower_placement_press(
+		make_touch(6, precision_confirm_position, true)
+	))
+	assert(not director.build_mode)
+	assert(precision_tower.is_placed)
 
 	director.round_number = 1
 	director.round_active = true
-	var reinforcement_press := make_touch(5, Vector2(1060.0, 580.0), true)
-	director._on_reinforcement_button_gui_input(reinforcement_press)
-	assert(director.placement_drag_candidate_kind == &"reinforcement")
-	var reinforcement_drag := InputEventScreenDrag.new()
-	reinforcement_drag.index = 5
-	reinforcement_drag.position = Vector2(520.0, 450.0)
-	assert(director.handle_placement_drag_input(reinforcement_drag))
-	assert(director.active_placement_drag_kind == &"reinforcement")
+	director._on_reinforcement_button_pressed()
 	assert(director.reinforcement_targeting)
-	assert(director.reinforcement_preview.global_position.is_equal_approx(
-		Vector2(520.0, 375.0)
-	))
-	var reinforcement_release := make_touch(
-		5, Vector2(520.0, 450.0), false
-	)
-	assert(director.handle_placement_drag_input(reinforcement_release))
+	director._on_reinforcement_button_pressed()
+	assert(not director.reinforcement_targeting)
+	director._on_reinforcement_button_pressed()
+	assert(director.reinforcement_targeting)
+	assert(director.deploy_reinforcements(Vector2(520.0, 375.0)))
 	assert(not director.reinforcement_targeting)
 	assert(director.reinforcement_cooldown_remaining > 0.0)
 	assert(get_tree().get_nodes_in_group("reinforcement_drops").size() == 1)
 
-	print("Placement drag smoke test passed: offset previews, tap-to-confirm towers, and release-to-deploy reinforcements.")
+	print("Placement drag smoke test passed: drag towers commit or cancel, and reinforcements use tap targeting.")
 	director.queue_free()
 	get_tree().quit(0)
 

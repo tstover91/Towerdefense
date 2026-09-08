@@ -83,7 +83,6 @@ const SANDBOX_ITEM_QUANTITY := 20
 const PLACEMENT_DRAG_THRESHOLD := 12.0
 const PLACEMENT_DRAG_PREVIEW_OFFSET := Vector2(0.0, -75.0)
 const DRAG_KIND_TOWER: StringName = &"tower"
-const DRAG_KIND_REINFORCEMENT: StringName = &"reinforcement"
 
 signal money_changed(new_amount: int)
 signal round_started(round_number: int)
@@ -462,7 +461,6 @@ func _ready() -> void:
 	enemy_toggle_button.pressed.connect(_on_enemy_strip_toggled)
 	spawntimer.timeout.connect(_spawn_mob)
 	reinforcement_button.pressed.connect(_on_reinforcement_button_pressed)
-	reinforcement_button.gui_input.connect(_on_reinforcement_button_gui_input)
 	connect_tower_inspector_signals()
 	_configure_between_round_screen(item_shop_screen)
 	_configure_between_round_screen(tower_draft_screen)
@@ -1738,12 +1736,7 @@ func _process_reinforcements(delta: float) -> void:
 		and not shop_open
 		and not game_ended
 	)
-	var preview_world_position := (
-		placement_drag_world_position
-		if active_placement_drag_kind == DRAG_KIND_REINFORCEMENT
-		else get_global_mouse_position()
-	)
-	reinforcement_controller.update_preview(preview_world_position)
+	reinforcement_controller.update_preview(get_global_mouse_position())
 	update_reinforcement_button()
 
 
@@ -1770,16 +1763,6 @@ func _on_reinforcement_button_pressed() -> void:
 	begin_reinforcement_targeting()
 
 
-func _on_reinforcement_button_gui_input(event: InputEvent) -> void:
-	if is_pointer_press_event(event):
-		begin_placement_drag_candidate(
-			DRAG_KIND_REINFORCEMENT,
-			-1,
-			get_pointer_screen_position(event),
-			get_pointer_index(event)
-		)
-
-
 func begin_reinforcement_targeting() -> void:
 	if not can_begin_reinforcement_targeting():
 		return
@@ -1791,11 +1774,6 @@ func begin_reinforcement_targeting() -> void:
 func cancel_reinforcement_targeting() -> void:
 	ensure_reinforcement_controller()
 	reinforcement_controller.cancel_targeting()
-	if (
-		active_placement_drag_kind == DRAG_KIND_REINFORCEMENT
-		or placement_drag_candidate_kind == DRAG_KIND_REINFORCEMENT
-	):
-		clear_placement_drag_state()
 	update_reinforcement_button()
 
 
@@ -3599,12 +3577,6 @@ func begin_active_placement_drag(screen_position: Vector2) -> bool:
 			clear_placement_drag_state()
 			return false
 		clear_tower_details(tower_to_place)
-	elif candidate_kind == DRAG_KIND_REINFORCEMENT:
-		set_build_drawer_open(false)
-		begin_reinforcement_targeting()
-		if not reinforcement_targeting:
-			clear_placement_drag_state()
-			return false
 	else:
 		return false
 
@@ -3636,9 +3608,6 @@ func update_active_placement_drag_preview() -> void:
 			if placement_is_valid
 			else Color(1.0, 0.0, 0.0, 0.5)
 		)
-	elif active_placement_drag_kind == DRAG_KIND_REINFORCEMENT:
-		ensure_reinforcement_controller()
-		reinforcement_controller.update_preview(placement_drag_world_position)
 
 
 func finish_active_placement_drag(screen_position: Vector2) -> void:
@@ -3654,10 +3623,11 @@ func finish_active_placement_drag(screen_position: Vector2) -> void:
 			is_instance_valid(tower_to_place)
 			and can_place_tower(tower_to_place.position)
 		):
+			var dragged_tower := tower_to_place
 			finalize_tower_placement()
-	elif completed_kind == DRAG_KIND_REINFORCEMENT:
-		if not deploy_reinforcements(placement_drag_world_position):
-			cancel_reinforcement_targeting()
+			dragged_tower._on_confirm_pressed()
+		else:
+			cancel_pending_tower_placement()
 	clear_placement_drag_state()
 
 
@@ -3665,8 +3635,6 @@ func handle_placement_drag_input(event: InputEvent) -> bool:
 	if event is InputEventScreenTouch and event.canceled and pointer_event_matches_drag(event):
 		if active_placement_drag_kind == DRAG_KIND_TOWER:
 			cancel_pending_tower_placement()
-		elif active_placement_drag_kind == DRAG_KIND_REINFORCEMENT:
-			cancel_reinforcement_targeting()
 		clear_placement_drag_state()
 		return true
 	if (
@@ -3952,12 +3920,29 @@ func handle_pending_tower_placement_press(event: InputEvent) -> bool:
 	else:
 		return false
 
-	if (
-		not place_mode
-		and get_tower_at_screen_position(screen_position) == tower_to_place
-	):
-		if can_place_tower(tower_to_place.position):
+	if not place_mode:
+		# Precision placement responds to discrete taps only. Tapping the pending
+		# tower confirms it; tapping elsewhere repositions it without enabling drag.
+		if (
+			get_tower_at_screen_position(screen_position) == tower_to_place
+			and can_place_tower(tower_to_place.position)
+		):
 			tower_to_place._on_confirm_pressed()
+			return true
+		var precision_world_position := (
+			get_canvas_transform().affine_inverse() * screen_position
+		)
+		tower_to_place.position = get_tower_build_position(
+			precision_world_position, pending_tower_type
+		)
+		var precision_placement_is_valid := can_place_tower(tower_to_place.position)
+		tower_to_place.set_range_preview(true, precision_placement_is_valid)
+		var precision_sprite := tower_to_place.get_node("Sprite2D") as CanvasItem
+		precision_sprite.modulate = (
+			Color(1.0, 1.0, 1.0, 0.5)
+			if precision_placement_is_valid
+			else Color(1.0, 0.0, 0.0, 0.5)
+		)
 		return true
 
 	build_controller.resume_placement()
