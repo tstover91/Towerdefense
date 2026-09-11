@@ -878,14 +878,16 @@ func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
 	).is_empty()
 	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
 	var next_level := int(stats["level"]) + 1
-	var has_level_upgrade := next_level < levels.size()
+	var has_level_upgrade: bool = next_level < levels.size()
 	tower_upgrade_section.visible = has_level_upgrade
 	_update_manual_upgrade_button(tower)
 
 
 func _update_manual_upgrade_button(tower: Node) -> void:
-	var has_evolutions := tower.has_evolution_options()
-	var has_paths := not GameStats.get_tower_paths(tower.tower_id).is_empty()
+	var has_evolutions: bool = bool(tower.has_evolution_options())
+	var has_paths: bool = not GameStats.get_tower_paths(
+		StringName(tower.get("tower_id"))
+	).is_empty()
 	tower_upgrade_button.get_parent().visible = has_evolutions or has_paths
 	if not has_evolutions and not has_paths:
 		return
