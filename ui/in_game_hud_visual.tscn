@@ -22,6 +22,7 @@
 [ext_resource type="Texture2D" uid="uid://dobxnm4bki3oj" path="res://assets/ui/pti_hud/inventory.png" id="23_q3gsg"]
 [ext_resource type="Texture2D" uid="uid://cmvhng7wvear6" path="res://assets/ui/equipment_panel.svg" id="25_rt46t"]
 [ext_resource type="PackedScene" uid="uid://ct5c7x18dlvof" path="res://ui/components/tower_build_button_visual.tscn" id="26_tower_button"]
+[ext_resource type="PackedScene" path="res://ui/components/tower_item_slot_bar.tscn" id="27_item_slots"]
 [ext_resource type="Texture2D" uid="uid://c2qjgpi8i3hb4" path="res://assets/ui/pti_hud/upgrade_tab.png" id="28_upgrade_tab"]
 [ext_resource type="Texture2D" path="res://assets/ui/pti_hud/intel_panel.png" id="29_intel_panel"]
 
@@ -214,16 +215,16 @@ bg_color = Color(0.09019608, 0.06666667, 0.08627451, 1)
 bg_color = Color(0.5176471, 0.84313726, 0.6901961, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upgrade_normal"]
-bg_color = Color(0.12, 0.22, 0.19, 0.98)
+bg_color = Color(0.518, 0.843, 0.69, 1)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.835, 0.678, 0.616, 0.9)
-corner_radius_top_left = 3
-corner_radius_top_right = 8
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 8
+border_color = Color(0.945, 0.906, 0.827, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
 shadow_color = Color(0, 0, 0, 0.3)
 shadow_size = 2
 shadow_offset = Vector2(0, 2)
@@ -241,7 +242,7 @@ corner_radius_bottom_right = 11
 corner_radius_bottom_left = 11
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upgrade_hover"]
-bg_color = Color(0.16, 0.31, 0.27, 1)
+bg_color = Color(0.61, 0.91, 0.77, 1)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
@@ -254,6 +255,18 @@ corner_radius_bottom_left = 11
 shadow_color = Color(0, 0, 0, 0.34)
 shadow_size = 2
 shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upgrade_disabled"]
+bg_color = Color(0.29, 0.28, 0.29, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.47, 0.45, 0.46, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fp0i2"]
 bg_color = Color(0.12941177, 0.07450981, 0.12156863, 1)
@@ -904,6 +917,8 @@ offset_top = 1040.0
 offset_right = 624.0
 offset_bottom = 1136.0
 
+[node name="TowerItemSlotBar" parent="." instance=ExtResource("27_item_slots")]
+
 [node name="BuildToggleButton" type="Button" parent="." unique_id=1587658736]
 visible = false
 z_index = 30
@@ -1106,21 +1121,6 @@ visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 1
-
-[node name="UpgradeButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/CompactActions" unique_id=765467943]
-visible = false
-custom_minimum_size = Vector2(56, 40)
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.945, 0.906, 0.827, 1)
-theme_override_colors/font_pressed_color = Color(0.8275, 0.8745, 0.7412, 1)
-theme_override_colors/font_hover_color = Color(0.8275, 0.8745, 0.7412, 1)
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = SubResource("StyleBoxFlat_upgrade_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_upgrade_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_upgrade_hover")
-text = "Upgrade · $0"
-clip_text = true
 
 [node name="TargetSection" type="VBoxContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=386935556]
 custom_minimum_size = Vector2(0, 109)
@@ -1599,6 +1599,31 @@ alignment = 1
 [node name="CardSpacer" type="Control" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=1477992817]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="UpgradeButtonMargin" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_bottom = 6
+
+[node name="UpgradeButton" type="Button" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector/UpgradeButtonMargin" unique_id=765467943]
+custom_minimum_size = Vector2(176, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 0
+theme_type_variation = &"BoogalooButton"
+theme_override_colors/font_color = Color(0.09, 0.067, 0.086, 1)
+theme_override_colors/font_pressed_color = Color(0.945, 0.906, 0.827, 1)
+theme_override_colors/font_hover_color = Color(0.09, 0.067, 0.086, 1)
+theme_override_colors/font_disabled_color = Color(0.68, 0.66, 0.67, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBoxFlat_upgrade_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_upgrade_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_upgrade_hover")
+theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_upgrade_pressed")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_upgrade_disabled")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_avdk1")
+text = "UPGRADE"
+clip_text = true
 
 [node name="SellButtonMargin" type="MarginContainer" parent="Sidebar/SidebarMargin/SidebarLayout/TowerInspector" unique_id=638042251]
 layout_mode = 2

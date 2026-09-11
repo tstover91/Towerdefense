@@ -2,6 +2,7 @@ extends Node
 
 const MAIN_SCENE = preload("res://main.tscn")
 const TOWER_SCENE = preload("res://base_tower.tscn")
+const GameStats = preload("res://stat_database.gd")
 
 
 func _ready() -> void:
@@ -37,6 +38,8 @@ func run_test() -> void:
 	assert(main.inventory_button.position.x < main.reinforcement_button.position.x)
 	assert(main.tower_item_inventory_panel.get_parent() == hud)
 	assert(main.tower_item_slot_buttons.size() == 4)
+	assert(main.tower_item_slot_bar.get_parent() == hud)
+	assert(not main.tower_item_slot_bar.visible)
 	assert(main.tower_items_section.get_parent() == main.tower_inspector)
 	assert(main.tower_path_section.get_parent() == main.tower_inspector)
 	assert(main.tower_information_content.get_parent() == main.tower_detail_popup)
@@ -50,6 +53,25 @@ func run_test() -> void:
 	tower.main = main
 	main.add_child(tower)
 	tower.confirm_placement()
+	main.show_tower_details(tower)
+	assert(main.tower_item_slot_bar.visible)
+	assert(not main.tower_items_section.visible)
+	assert(main.tower_upgrade_button.get_parent().visible)
+	assert(main.tower_upgrade_button.disabled)
+	tower.instance_progression.grant_xp(
+		tower.instance_progression.get_total_xp_required_for_level(
+			GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL
+		)
+	)
+	main.add_money(100_000)
+	main.show_tower_details(tower)
+	assert(not main.tower_upgrade_button.disabled)
+	main._on_sidebar_upgrade_pressed()
+	assert(main.tower_evolution_panel_open)
+	assert(main.tower_upgrade_button.text == "BACK")
+	main._on_sidebar_upgrade_pressed()
+	assert(not main.tower_evolution_panel_open)
+	assert(main.tower_upgrade_button.text == "UPGRADE")
 	main.inventory_button.button_pressed = true
 	main._on_inventory_button_pressed()
 	assert(main.tower_item_inventory_panel.item_buttons.size() == 2)
@@ -61,5 +83,7 @@ func run_test() -> void:
 	main.show_tower_details(tower)
 	main._on_tower_item_slot_pressed(2)
 	assert(tower.get_equipped_item_ids()[2] == &"training_manual")
+	main.clear_tower_details(tower)
+	assert(not main.tower_item_slot_bar.visible)
 	print("Minimal HUD smoke test passed: collapsible build drawer, corner status, tower controls, and inventory placement.")
 	get_tree().quit()

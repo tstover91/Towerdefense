@@ -56,6 +56,13 @@ const PTI_GAME_SPEED = preload("res://assets/ui/pti_hud/game_speed.png")
 const TOWER_BUILD_BUTTON_SCENE = preload(
 	"res://ui/components/tower_build_button_visual.tscn"
 )
+const ITEM_SLOT_TEXTURES := {
+	&"empty": preload("res://assets/ui/pti_hud/item_slots/empty.png"),
+	&"common": preload("res://assets/ui/pti_hud/item_slots/common.png"),
+	&"uncommon": preload("res://assets/ui/pti_hud/item_slots/uncommon.png"),
+	&"rare": preload("res://assets/ui/pti_hud/item_slots/rare.png"),
+	&"legendary": preload("res://assets/ui/pti_hud/item_slots/legendary.png"),
+}
 const TOWER_SLOT_COUNT := 5
 const DRAFT_TOWER: StringName = &"tower"
 const DRAFT_ITEM: StringName = &"item"
@@ -102,6 +109,7 @@ signal round_ended(round_number: int)
 @onready var build_sidebar_state: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState
 @onready var tower_selection_area: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/BuildState/TowerSelectionArea
 @onready var tower_fan: Control = $MainUI/HUDRoot/TowerFan
+@onready var tower_item_slot_bar: Control = $MainUI/HUDRoot/TowerItemSlotBar
 @onready var build_toggle_button: Button = $MainUI/HUDRoot/BuildToggleButton
 @onready var build_cancel_label: Label = $MainUI/HUDRoot/BuildToggleButton/CancelLabel
 @onready var reinforcement_button: Button = $MainUI/HUDRoot/ThumbControls/ReinforcementButton
@@ -135,7 +143,7 @@ signal round_ended(round_number: int)
 @onready var tower_upgrade_section: VBoxContainer = $MainUI/HUDRoot/TowerDetailPopup/InformationContent/UpgradeSection
 @onready var tower_upgrade_header: Label = $MainUI/HUDRoot/TowerDetailPopup/InformationContent/UpgradeSection/UpgradeHeaderLabel
 @onready var tower_upgrade_description: Label = $MainUI/HUDRoot/TowerDetailPopup/InformationContent/UpgradeSection/UpgradeDescription
-@onready var tower_upgrade_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/CompactActions/UpgradeButton
+@onready var tower_upgrade_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/UpgradeButtonMargin/UpgradeButton
 @onready var tower_path_section: VBoxContainer = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection
 @onready var tower_path_a_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection/PathButtons/PathAButton
 @onready var tower_path_b_button: Button = $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/PathSection/PathButtons/PathBButton
@@ -506,7 +514,7 @@ func _configure_minimal_hud() -> void:
 	if not tower_list.item_selected.is_connected(_on_item_list_item_selected):
 		tower_list.item_selected.connect(_on_item_list_item_selected)
 	tower_item_slot_buttons.clear()
-	var slot_grid := $MainUI/HUDRoot/Sidebar/SidebarMargin/SidebarLayout/TowerInspector/ItemsSection/ItemSlotButtons
+	var slot_grid := $MainUI/HUDRoot/TowerItemSlotBar/Slots
 	for child in slot_grid.get_children():
 		if child is Button:
 			var slot_button := child as Button
@@ -759,6 +767,7 @@ func show_tower_details(tower: Node) -> void:
 		tower_item_inventory_panel.refresh(tower)
 	update_tower_upgrade_controls(tower, stats)
 	update_tower_path_controls(tower)
+	_update_manual_upgrade_button(tower)
 	update_tower_target_controls(tower)
 	update_tower_sell_control(tower)
 	update_tower_inspector_panel_visibility()
@@ -848,49 +857,78 @@ func update_tower_inspector_panel_visibility() -> void:
 	tower_xp_label.hide()
 	tower_target_section.visible = not showing_evolution
 	if is_instance_valid(displayed_tower):
-		tower_items_section.visible = (
+		var show_item_slots: bool = (
 			displayed_tower.get("instance_progression") != null
 			and not showing_evolution
 		)
+		tower_item_slot_bar.visible = show_item_slots
+	tower_items_section.hide()
 	tower_sell_button.get_parent().visible = not showing_evolution
 	tower_inspector_details.hide()
 	update_context_dock_layout()
 
 
 func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
-	# Tower levels are XP-driven; the old purchase-upgrade button is not used.
-	tower_upgrade_button.hide()
 	if tower.get("instance_progression") != null:
 		tower_upgrade_section.hide()
+		_update_manual_upgrade_button(tower)
 		return
+	tower_upgrade_button.get_parent().visible = not GameStats.get_tower_paths(
+		tower.tower_id
+	).is_empty()
 	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
 	var next_level := int(stats["level"]) + 1
 	var has_level_upgrade := next_level < levels.size()
 	tower_upgrade_section.visible = has_level_upgrade
-	tower_upgrade_button.hide()
-	if not has_level_upgrade:
+	_update_manual_upgrade_button(tower)
+
+
+func _update_manual_upgrade_button(tower: Node) -> void:
+	var has_evolutions := tower.has_evolution_options()
+	var has_paths := not GameStats.get_tower_paths(tower.tower_id).is_empty()
+	tower_upgrade_button.get_parent().visible = has_evolutions or has_paths
+	if not has_evolutions and not has_paths:
 		return
-	var upgrade_cost := int(levels[next_level]["upgrade_cost"])
-	var awaiting_confirmation := (
-		int(tower.get("pending_action")) == BaseTower.MenuAction.UPGRADE
-	)
-	tower_upgrade_header.text = "CONFIRM UPGRADE" if awaiting_confirmation else "NEXT UPGRADE"
-	tower_upgrade_description.text = "Advance to Level %d of %d." % [
-		next_level + 1,
-		levels.size(),
-	]
-	tower_upgrade_button.text = (
-		"Tap Again · $%s" if awaiting_confirmation else "Upgrade · $%s"
-	) % GameStats.format_money(upgrade_cost)
-	tower_upgrade_button.tooltip_text = (
-		"Tap twice to upgrade. Tapping anywhere else cancels confirmation."
-	)
-	tower_upgrade_button.disabled = money < upgrade_cost
+	if tower_evolution_panel_open or tower_path_section.visible:
+		tower_upgrade_button.text = "BACK"
+		tower_upgrade_button.disabled = false
+		tower_upgrade_button.tooltip_text = "Return to tower controls"
+		return
+	if has_evolutions:
+		if not tower.instance_progression.evolution_id.is_empty():
+			tower_upgrade_button.text = "UPGRADED"
+			tower_upgrade_button.disabled = true
+			tower_upgrade_button.tooltip_text = "Evolution already chosen"
+			return
+		var can_upgrade := false
+		for evolution_key in GameStats.get_tower_evolutions(tower.tower_id):
+			if tower.can_purchase_evolution(StringName(evolution_key)):
+				can_upgrade = true
+				break
+		tower_upgrade_button.text = "UPGRADE"
+		tower_upgrade_button.disabled = not can_upgrade
+		tower_upgrade_button.tooltip_text = "Choose an evolution"
+		return
+	if not tower.purchased_paths.is_empty():
+		tower_upgrade_button.text = "UPGRADED"
+		tower_upgrade_button.disabled = true
+		tower_upgrade_button.tooltip_text = "Final path already chosen"
+		return
+	var can_choose_path := false
+	for path_key in GameStats.get_tower_paths(tower.tower_id):
+		if tower.can_purchase_path(StringName(path_key)):
+			can_choose_path = true
+			break
+	tower_upgrade_button.text = "UPGRADE"
+	tower_upgrade_button.disabled = not can_choose_path
+	tower_upgrade_button.tooltip_text = "Choose a final path"
 
 
 func update_tower_item_controls(tower: Node) -> void:
-	tower_items_section.visible = tower.get("instance_progression") != null
-	if not tower_items_section.visible or tower.get("item_controller") == null:
+	var has_item_slots := tower.get("instance_progression") != null
+	tower_items_section.hide()
+	tower_item_slot_bar.visible = has_item_slots
+	if not has_item_slots or tower.get("item_controller") == null:
 		return
 	var item_lines: PackedStringArray = []
 	var tooltip_lines: PackedStringArray = []
@@ -938,7 +976,7 @@ func update_tower_item_controls(tower: Node) -> void:
 		)
 		if item_id.is_empty():
 			slot_button.icon = null
-			_set_item_slot_text(slot_button, "%d\nEMPTY" % (slot_index + 1))
+			_set_item_slot_text(slot_button, "")
 			slot_button.tooltip_text = "Choose an item for slot %d" % (slot_index + 1)
 			continue
 		var item := GameStats.get_tower_item(item_id)
@@ -962,23 +1000,26 @@ func _style_tower_item_slot(
 	confirming_removal := false,
 	choosing_swap := false
 ) -> void:
-	var accent := Color("5b414d")
+	var rarity: StringName = &"empty"
+	if not item_id.is_empty():
+		rarity = StringName(
+			GameStats.get_tower_item(item_id).get("rarity", &"common")
+		)
+	var texture: Texture2D = ITEM_SLOT_TEXTURES.get(
+		rarity, ITEM_SLOT_TEXTURES[&"common"]
+	)
+	var normal_style := StyleBoxTexture.new()
+	normal_style.texture = texture
 	if confirming_removal or choosing_swap:
-		accent = UI_ORANGE
-	elif not item_id.is_empty():
-		var item := GameStats.get_tower_item(item_id)
-		accent = UI_RARITY_COLORS.get(
-			StringName(item.get("rarity", &"common")), UI_CYAN
-		)
-	for state in ["normal", "hover", "pressed"]:
-		var style := StyleBoxFlat.new()
-		style.bg_color = (
-			Color("21131f") if state == "normal" else Color("2b2028")
-		)
-		style.border_color = accent if state == "normal" else accent.lightened(0.18)
-		style.set_border_width_all(2)
-		style.set_corner_radius_all(5)
-		slot_button.add_theme_stylebox_override(state, style)
+		normal_style.modulate_color = Color(1.0, 0.62, 0.45)
+	var hover_style := normal_style.duplicate() as StyleBoxTexture
+	hover_style.modulate_color = Color(1.08, 1.08, 1.08)
+	var pressed_style := normal_style.duplicate() as StyleBoxTexture
+	pressed_style.modulate_color = Color(0.82, 0.82, 0.82)
+	slot_button.add_theme_stylebox_override("normal", normal_style)
+	slot_button.add_theme_stylebox_override("hover", hover_style)
+	slot_button.add_theme_stylebox_override("pressed", pressed_style)
+	slot_button.add_theme_stylebox_override("hover_pressed", pressed_style)
 
 
 func _on_tower_item_slot_pressed(slot_index: int) -> void:
@@ -1109,7 +1150,7 @@ func update_tower_evolution_controls(tower: Node) -> void:
 		and owned_evolution_id.is_empty()
 		and tower.instance_progression.level >= minimum_required_level
 	)
-	tower_evolution_tab_button.visible = evolution_available
+	tower_evolution_tab_button.hide()
 	tower_evolution_tab_button.tooltip_text = (
 		"Return to tower controls"
 		if tower_evolution_panel_open
@@ -1274,11 +1315,19 @@ func update_tower_sell_control(tower: Node) -> void:
 
 
 func _on_sidebar_upgrade_pressed() -> void:
-	if (
-		is_instance_valid(displayed_tower)
-		and prepare_sidebar_double_tap(BaseTower.MenuAction.UPGRADE)
-	):
-		displayed_tower.request_upgrade()
+	if not is_instance_valid(displayed_tower):
+		return
+	if displayed_tower.has_evolution_options():
+		tower_evolution_panel_open = not tower_evolution_panel_open
+		update_tower_path_controls(displayed_tower)
+		_update_manual_upgrade_button(displayed_tower)
+		update_tower_inspector_panel_visibility()
+		return
+	if tower_path_section.visible:
+		displayed_tower.show_main_menu()
+	else:
+		displayed_tower.show_path_menu()
+	show_tower_details(displayed_tower)
 
 
 func _on_sidebar_path_slot_pressed(slot_index: int) -> void:
@@ -1606,6 +1655,7 @@ func clear_tower_details(tower: Node = null) -> void:
 	tower_evolution_tab_button.hide()
 	reset_sidebar_confirmation()
 	tower_inspector.hide()
+	tower_item_slot_bar.hide()
 	if is_instance_valid(tower_detail_popup):
 		tower_detail_popup.hide()
 	tower_inspector_details.hide()
