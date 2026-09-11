@@ -34,14 +34,14 @@ func _ready() -> void:
 		Vector2(75.0, 91.0),
 		&"invader"
 	)
-	assert(snapped_position == Vector2(72.0, 88.0))
+	assert(snapped_position == Vector2(80.0, 96.0))
 	var cells: Array[Vector2i] = controller.get_tower_build_cells(
 		snapped_position,
 		&"invader"
 	)
-	assert(cells.size() == 9)
+	assert(cells.size() == 16)
 	assert(cells.front() == Vector2i(3, 4))
-	assert(cells.back() == Vector2i(5, 6))
+	assert(cells.back() == Vector2i(6, 7))
 	assert(controller.is_build_cell_in_bounds(
 		Vector2i(3, 4),
 		Rect2(Vector2.ZERO, Vector2(160.0, 160.0))

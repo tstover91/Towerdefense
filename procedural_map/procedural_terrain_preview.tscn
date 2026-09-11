@@ -46,6 +46,27 @@ text = "SEED >"
 custom_minimum_size = Vector2(100, 40)
 text = "RANDOM"
 
+[node name="ClearTowers" type="Button" parent="Interface/TopBar"]
+custom_minimum_size = Vector2(120, 40)
+text = "CLEAR TOWERS"
+
+[node name="TowerLabel" type="Label" parent="Interface/TopBar"]
+custom_minimum_size = Vector2(150, 40)
+theme_override_colors/font_color = Color(0.458824, 0.788235, 0.639216, 1)
+theme_override_font_sizes/font_size = 18
+text = "0 TEST TOWERS"
+vertical_alignment = 1
+
+[node name="Instructions" type="Label" parent="Interface"]
+offset_left = 16.0
+offset_top = 56.0
+offset_right = 750.0
+offset_bottom = 82.0
+theme_override_colors/font_color = Color(0.721569, 0.662745, 0.552941, 1)
+theme_override_font_sizes/font_size = 16
+text = "Tap terrain to add or remove 64x64 test towers. Lines show weighted routes."
+
 [connection signal="pressed" from="Interface/TopBar/PreviousSeed" to="." method="_on_previous_seed_pressed"]
 [connection signal="pressed" from="Interface/TopBar/NextSeed" to="." method="_on_next_seed_pressed"]
 [connection signal="pressed" from="Interface/TopBar/Randomize" to="." method="_on_randomize_pressed"]
+[connection signal="pressed" from="Interface/TopBar/ClearTowers" to="." method="_on_clear_towers_pressed"]
