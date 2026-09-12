@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://procedural_map/procedural_terrain_preview.gd" id="1_preview"]
 
 [node name="ProceduralTerrainPreview" type="Node2D"]
+texture_filter = 1
 script = ExtResource("1_preview")
 
 [node name="Backdrop" type="CanvasLayer" parent="."]
@@ -64,7 +65,7 @@ offset_right = 750.0
 offset_bottom = 82.0
 theme_override_colors/font_color = Color(0.721569, 0.662745, 0.552941, 1)
 theme_override_font_sizes/font_size = 16
-text = "Tap terrain to add or remove 64x64 test towers. Lines show weighted routes."
+text = "Tap terrain to add or remove one-tile towers. Lines show weighted routes."
 
 [connection signal="pressed" from="Interface/TopBar/PreviousSeed" to="." method="_on_previous_seed_pressed"]
 [connection signal="pressed" from="Interface/TopBar/NextSeed" to="." method="_on_next_seed_pressed"]

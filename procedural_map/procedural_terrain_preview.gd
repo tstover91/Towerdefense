@@ -61,7 +61,7 @@ func _draw_grid() -> void:
 
 func _draw_routes() -> void:
 	var route_color := Color("F0E6C8B8")
-	for start_y in [2, 5, 8, 11, 14]:
+	for start_y in [1, 3, 5, 7, 8]:
 		var route := flow_field.trace_route(Vector2i(0, start_y))
 		if route.size() < 2:
 			continue

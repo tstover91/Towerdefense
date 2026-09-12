@@ -3,7 +3,7 @@ extends RefCounted
 
 const Terrain = preload("res://procedural_map/terrain_catalog.gd")
 
-const TOWER_FOOTPRINT_CELLS := Vector2i(2, 2)
+const TOWER_FOOTPRINT_CELLS := Vector2i.ONE
 const TOWER_ROUTE_COST := 10.0
 const CARDINAL_DIRECTIONS: Array[Vector2i] = [
 	Vector2i.LEFT,

@@ -6,7 +6,7 @@ const Generator = preload("res://procedural_map/terrain_generator.gd")
 const FlowField = preload("res://procedural_map/terrain_flow_field.gd")
 
 const DEFAULT_SEED := 481516
-const SPAWN_ROWS: Array[int] = [2, 5, 8, 11, 14]
+const SPAWN_ROWS: Array[int] = [1, 3, 5, 7, 8]
 
 @export var generation_seed := DEFAULT_SEED
 
@@ -149,4 +149,3 @@ func _get_tower_navigation_origin(tower_position: Vector2) -> Vector2i:
 
 func _cell_center_y(row: int) -> float:
 	return float(row * Terrain.TILE_SIZE) + Terrain.TILE_SIZE * 0.5
-

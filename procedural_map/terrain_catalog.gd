@@ -7,7 +7,7 @@ enum TerrainType {
 	MUD,
 }
 
-const TILE_SIZE := 32
+const TILE_SIZE := 64
 const TERRAIN_DATA := {
 	TerrainType.FIELD: {
 		"display_name": "Field",
@@ -18,14 +18,14 @@ const TERRAIN_DATA := {
 	},
 	TerrainType.FOREST: {
 		"display_name": "Forest",
-		"route_cost": 1.15,
+		"route_cost": 1.80,
 		"speed_multiplier": 0.85,
 		"buildable": true,
 		"texture_path": "res://assets/terrain/forest_basic.png",
 	},
 	TerrainType.MUD: {
 		"display_name": "Mud",
-		"route_cost": 1.35,
+		"route_cost": 2.40,
 		"speed_multiplier": 0.70,
 		"buildable": false,
 		"texture_path": "res://assets/terrain/mud_basic.png",

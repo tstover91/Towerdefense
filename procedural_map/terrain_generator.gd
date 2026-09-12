@@ -3,10 +3,11 @@ extends RefCounted
 
 const Terrain = preload("res://procedural_map/terrain_catalog.gd")
 
-const GRID_SIZE := Vector2i(28, 16)
-const FOREST_BLOB_COUNT := 5
-const MUD_BLOB_COUNT := 3
-const EDGE_CLEARANCE_COLUMNS := 2
+const GRID_SIZE := Vector2i(18, 10)
+const FOREST_BLOB_COUNT := 3
+const MUD_BLOB_COUNT := 2
+const SOFT_BARRIER_COUNT := 2
+const EDGE_CLEARANCE_COLUMNS := 1
 
 var cells: Array[int] = []
 var map_seed := 1
@@ -23,15 +24,24 @@ func generate(seed_value: int) -> Array[int]:
 		_grow_blob(
 			rng,
 			Terrain.TerrainType.FOREST,
-			rng.randi_range(14, 28),
+			rng.randi_range(8, 15),
 			0.72
 		)
 	for _blob_index in MUD_BLOB_COUNT:
 		_grow_blob(
 			rng,
 			Terrain.TerrainType.MUD,
-			rng.randi_range(9, 18),
+			rng.randi_range(6, 11),
 			0.58
+		)
+	for barrier_index in SOFT_BARRIER_COUNT:
+		_paint_meandering_band(
+			rng,
+			(
+				Terrain.TerrainType.FOREST
+				if barrier_index == 0
+				else Terrain.TerrainType.MUD
+			)
 		)
 	_clear_entry_and_exit()
 	return cells.duplicate()
@@ -103,6 +113,28 @@ func _clear_entry_and_exit() -> void:
 			cells[_index(Vector2i(GRID_SIZE.x - 1 - x, y))] = (
 				Terrain.TerrainType.FIELD
 			)
+
+
+func _paint_meandering_band(
+	rng: RandomNumberGenerator,
+	terrain_type: int
+) -> void:
+	var band_x := rng.randi_range(4, GRID_SIZE.x - 6)
+	var gap_center := rng.randi_range(1, GRID_SIZE.y - 2)
+	var gap_half_height := rng.randi_range(0, 1)
+	for y in GRID_SIZE.y:
+		if absi(y - gap_center) <= gap_half_height:
+			continue
+		if y > 0 and y % 2 == 0:
+			band_x = clampi(
+				band_x + rng.randi_range(-1, 1),
+				2,
+				GRID_SIZE.x - 4
+			)
+		for x_offset in 2:
+			var cell := Vector2i(band_x + x_offset, y)
+			if _can_paint(cell):
+				cells[_index(cell)] = terrain_type
 
 
 func _can_paint(cell: Vector2i) -> bool:
