@@ -4197,6 +4197,8 @@ func release_tower_build_cells(tower: Node2D) -> void:
 
 func _on_tower_confirmed(tower: Node2D) -> void:
 	reserve_tower_build_cells(tower)
+	if active_map != null and active_map.has_method("register_tower_route_weight"):
+		active_map.call("register_tower_route_weight", tower)
 	ensure_build_controller()
 	var placement_cost: int = build_controller.pending_tower_cost
 	build_controller.clear_pending_placement()
@@ -4217,6 +4219,8 @@ func _on_tower_cancelled(tower: Node2D) -> void:
 
 func _on_tower_sold(tower: Node2D) -> void:
 	release_tower_build_cells(tower)
+	if active_map != null and active_map.has_method("unregister_tower_route_weight"):
+		active_map.call("unregister_tower_route_weight", tower)
 	call_deferred("refresh_placed_tower_stats")
 
 func start_build_tower() -> void:

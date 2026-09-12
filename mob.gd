@@ -43,6 +43,7 @@ var armor := 0.0
 var temporary_armor_reduction := 0.0
 var temporary_armor_reduction_remaining := 0.0
 var path_follow: PathFollow2D
+var navigation_map: Node
 var finished := false
 var split_enemy_id: StringName = &""
 var split_count := 0
@@ -181,6 +182,13 @@ func _draw() -> void:
 
 func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
 	path_follow = pf
+	navigation_map = null
+	var ancestor: Node = path_follow.get_parent() if path_follow != null else null
+	while ancestor != null:
+		if ancestor.has_method("get_terrain_speed_multiplier"):
+			navigation_map = ancestor
+			break
+		ancestor = ancestor.get_parent()
 	path_follow.progress = maxf(start_progress, 0.0)
 	fisherman_pull_active = false
 	fisherman_pull_immunity_remaining = 0.0
@@ -206,11 +214,11 @@ func _process(delta: float) -> void:
 	_process_control_effects(delta)
 	if fisherman_minimum_progress >= 0.0 and not fisherman_pull_active:
 		fisherman_minimum_progress += (
-			get_effective_speed()
+			get_navigation_speed()
 			* FISHERMAN_MINIMUM_PROGRESS_RATIO
 			* delta
 		)
-	path_follow.progress += get_effective_speed() * delta
+	path_follow.progress += get_navigation_speed() * delta
 	update_health_bar_position()
 
 	if path_follow.progress_ratio >= 1.0:
@@ -335,6 +343,15 @@ func get_effective_speed() -> float:
 	if slow_remaining > 0.0:
 		result *= active_slow_speed_multiplier
 	return result * cached_speed_aura_multiplier
+
+
+func get_navigation_speed() -> float:
+	var movement_speed := get_effective_speed()
+	if is_instance_valid(navigation_map):
+		movement_speed *= float(
+			navigation_map.call("get_terrain_speed_multiplier", global_position)
+		)
+	return movement_speed
 
 
 func reset_cached_speed_aura() -> void:

@@ -3,6 +3,9 @@ extends Node
 const Terrain = preload("res://procedural_map/terrain_catalog.gd")
 const Generator = preload("res://procedural_map/terrain_generator.gd")
 const FlowField = preload("res://procedural_map/terrain_flow_field.gd")
+const PROCEDURAL_MAP = preload(
+	"res://procedural_map/procedural_battlefield.tscn"
+)
 
 
 func _ready() -> void:
@@ -20,7 +23,8 @@ func _ready() -> void:
 			assert(first.get_terrain(Vector2i(x, y)) == Terrain.TerrainType.FIELD)
 			assert(first.get_terrain(Vector2i(Generator.GRID_SIZE.x - 1 - x, y)) == Terrain.TerrainType.FIELD)
 	_test_weighted_routes()
-	print("Procedural terrain smoke test passed: generation, weighted routing, and passable 64x64 tower footprints.")
+	_test_playable_map()
+	print("Procedural terrain smoke test passed: generation, routing, passable tower weights, and playable map integration.")
 	get_tree().quit(0)
 
 
@@ -48,3 +52,28 @@ func _test_weighted_routes() -> void:
 	var forced_route := flow.trace_route(Vector2i(0, 8))
 	assert(not forced_route.is_empty())
 	assert(forced_route.any(func(cell: Vector2i) -> bool: return flow.is_tower_cell(cell)))
+
+
+func _test_playable_map() -> void:
+	var map := PROCEDURAL_MAP.instantiate() as ProceduralBattlefield
+	add_child(map)
+	assert(map.map_id == &"procedural_test")
+	assert(map.get_build_bounds() == Rect2(0.0, 0.0, 896.0, 512.0))
+	assert(map.get_enemy_paths().size() == map.SPAWN_ROWS.size())
+	for path in map.get_enemy_paths():
+		assert(path.curve != null and path.curve.point_count > 2)
+
+	var center_route := map.flow_field.trace_route(Vector2i(0, 8))
+	var route_cell := center_route[center_route.size() / 2]
+	var tower := Node2D.new()
+	tower.position = (
+		Vector2(route_cell * Terrain.TILE_SIZE)
+		+ Vector2.ONE * Terrain.TILE_SIZE
+	)
+	map.add_child(tower)
+	map.register_tower_route_weight(tower)
+	var tower_origin := map.tower_origins_by_instance[tower.get_instance_id()] as Vector2i
+	assert(map.flow_field.is_tower_cell(tower_origin))
+	map.unregister_tower_route_weight(tower)
+	assert(not map.flow_field.is_tower_cell(tower_origin))
+	map.queue_free()

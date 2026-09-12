@@ -13,6 +13,10 @@ const MAPS := {
 		"scene": preload("res://maps/farm_gauntlet_map.tscn"),
 		"preview": preload("res://assets/maps/farm_gauntlet.png"),
 	},
+	&"procedural_test": {
+		"display_name": "Procedural Test",
+		"scene": preload("res://procedural_map/procedural_battlefield.tscn"),
+	},
 }
 
 
