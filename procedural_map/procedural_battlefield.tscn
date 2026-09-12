@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://procedural_map/procedural_battlefield.gd" id="1_map"]
 [ext_resource type="TileSet" path="res://assets/editor/build_mask_tileset.tres" id="2_mask"]
+[ext_resource type="Resource" path="res://procedural_map/farm_generation_profile.tres" id="3_profile"]
 
 [node name="ProceduralBattlefield" type="Node2D"]
 texture_filter = 1
@@ -10,6 +11,8 @@ map_id = &"procedural_test"
 display_name = "Procedural Test"
 native_build_bounds = Rect2(0, 0, 1152, 640)
 path_no_build_radius = 0.0
+generation_profile = ExtResource("3_profile")
+generation_seed = 0
 
 [node name="Paths" type="Node2D" parent="."]
 

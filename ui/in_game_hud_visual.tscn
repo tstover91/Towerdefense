@@ -548,7 +548,7 @@ layout_mode = 2
 theme_type_variation = &"BoogalooLabel"
 theme_override_colors/font_color = Color(0.945, 0.745, 0.271, 1)
 theme_override_font_sizes/font_size = 20
-text = "$7.5k"
+text = "$10.0k"
 horizontal_alignment = 1
 vertical_alignment = 1
 

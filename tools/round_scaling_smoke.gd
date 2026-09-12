@@ -4,13 +4,14 @@ const GameStats = preload("res://stat_database.gd")
 
 
 func _init() -> void:
+	assert(int(GameStats.get_mode(&"easy")["starting_cash"]) == 10000)
 	assert(GameStats.ROUND_PROFILES.size() == 24)
 	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.18))
 	assert(is_equal_approx(GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER, 0.44))
 	assert(is_equal_approx(GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER, 1.30))
 	assert(is_equal_approx(
 		GameStats.STANDARD_ENEMY_THREAT_BUDGET_MULTIPLIER,
-		0.85
+		0.70
 	))
 	assert(GameStats.get_round_cash_reward(1) == 2000)
 	assert(GameStats.get_round_cash_reward(2) == 2250)
@@ -29,13 +30,13 @@ func _init() -> void:
 	assert(GameStats.format_money(999) == "999")
 	assert(GameStats.format_money(1000) == "1.0k")
 	assert(GameStats.format_money(10500) == "10.5k")
-	assert(is_equal_approx(GameStats.get_round_threat_budget(4), 47.6))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(5), 63.75))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(6), 76.5))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(7), 95.2))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(8), 119.0))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(9), 144.5))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(10), 174.25))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(4), 39.2))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(5), 52.5))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(6), 63.0))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(7), 78.4))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(8), 98.0))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(9), 119.0))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(10), 143.5))
 	assert(is_equal_approx(GameStats.get_elite_enemy_health_multiplier(6), 1.75))
 	assert(is_equal_approx(GameStats.get_elite_enemy_speed_multiplier(6), 1.10))
 	assert(is_equal_approx(GameStats.get_elite_enemy_health_multiplier(11), 2.25))

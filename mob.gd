@@ -44,6 +44,7 @@ var temporary_armor_reduction := 0.0
 var temporary_armor_reduction_remaining := 0.0
 var path_follow: PathFollow2D
 var navigation_map: Node
+var reroute_blend_tween: Tween
 var finished := false
 var split_enemy_id: StringName = &""
 var split_count := 0
@@ -195,6 +196,23 @@ func set_path_follow(pf: PathFollow2D, start_progress := 0.0) -> void:
 	fisherman_minimum_progress = -1.0
 	position = Vector2.ZERO
 	update_health_bar_position()
+
+
+func blend_from_reroute(previous_global_position: Vector2) -> void:
+	if not is_instance_valid(path_follow):
+		return
+	if reroute_blend_tween != null and reroute_blend_tween.is_valid():
+		reroute_blend_tween.kill()
+	position = path_follow.to_local(previous_global_position)
+	var correction_distance := position.length()
+	if correction_distance < 0.5:
+		position = Vector2.ZERO
+		return
+	var blend_duration := clampf(correction_distance / 320.0, 0.18, 0.42)
+	reroute_blend_tween = create_tween()
+	reroute_blend_tween.set_trans(Tween.TRANS_QUAD)
+	reroute_blend_tween.set_ease(Tween.EASE_OUT)
+	reroute_blend_tween.tween_property(self, "position", Vector2.ZERO, blend_duration)
 	
 func _process(delta: float) -> void:
 	temporary_armor_reduction_remaining = maxf(

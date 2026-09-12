@@ -24,8 +24,8 @@ func _ready() -> void:
 
 func _draw() -> void:
 	var tile_size := Vector2(Terrain.TILE_SIZE, Terrain.TILE_SIZE)
-	for y in Generator.GRID_SIZE.y:
-		for x in Generator.GRID_SIZE.x:
+	for y in generator.grid_size.y:
+		for x in generator.grid_size.x:
 			var cell := Vector2i(x, y)
 			var terrain_type := generator.get_terrain(cell)
 			var texture := terrain_textures[terrain_type] as Texture2D
@@ -49,19 +49,19 @@ func _load_terrain_textures() -> void:
 
 
 func _draw_grid() -> void:
-	var map_size := Vector2(Generator.GRID_SIZE * Terrain.TILE_SIZE)
+	var map_size := Vector2(generator.grid_size * Terrain.TILE_SIZE)
 	var grid_color := Color("24182124")
-	for x in range(Generator.GRID_SIZE.x + 1):
+	for x in range(generator.grid_size.x + 1):
 		var line_x := float(x * Terrain.TILE_SIZE)
 		draw_line(Vector2(line_x, 0.0), Vector2(line_x, map_size.y), grid_color)
-	for y in range(Generator.GRID_SIZE.y + 1):
+	for y in range(generator.grid_size.y + 1):
 		var line_y := float(y * Terrain.TILE_SIZE)
 		draw_line(Vector2(0.0, line_y), Vector2(map_size.x, line_y), grid_color)
 
 
 func _draw_routes() -> void:
 	var route_color := Color("F0E6C8B8")
-	for start_y in [1, 3, 5, 7, 8]:
+	for start_y in [3, 7, 10, 14, 17]:
 		var route := flow_field.trace_route(Vector2i(0, start_y))
 		if route.size() < 2:
 			continue
@@ -98,7 +98,7 @@ func _generate_current_seed() -> void:
 
 func _fit_map_to_viewport() -> void:
 	var viewport_size := get_viewport_rect().size
-	var map_size := Vector2(Generator.GRID_SIZE * Terrain.TILE_SIZE)
+	var map_size := Vector2(generator.grid_size * Terrain.TILE_SIZE)
 	var available_size := viewport_size - Vector2(32.0, 88.0)
 	var fitted_scale := minf(
 		available_size.x / map_size.x,
@@ -156,8 +156,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_update_tower_label()
 		return
 	var origin := Vector2i(
-		clampi(cell.x, 0, Generator.GRID_SIZE.x - FlowField.TOWER_FOOTPRINT_CELLS.x),
-		clampi(cell.y, 0, Generator.GRID_SIZE.y - FlowField.TOWER_FOOTPRINT_CELLS.y)
+		clampi(cell.x, 0, generator.grid_size.x - FlowField.TOWER_FOOTPRINT_CELLS.x),
+		clampi(cell.y, 0, generator.grid_size.y - FlowField.TOWER_FOOTPRINT_CELLS.y)
 	)
 	if _tower_footprint_is_free(origin) and _tower_footprint_is_buildable(origin):
 		tower_origins.append(origin)
@@ -200,7 +200,41 @@ func _find_tower_at_cell(cell: Vector2i) -> int:
 
 
 func _rebuild_routes() -> void:
-	flow_field.rebuild(generator.cells, Generator.GRID_SIZE, tower_origins)
+	var blocked: Array[Vector2i] = []
+	for y in range(
+		generator.profile.safe_top_rows,
+		generator.profile.protected_right_top_rows
+	):
+		for x_offset in generator.profile.protected_right_columns:
+			blocked.append(Vector2i(generator.grid_size.x - 1 - x_offset, y))
+	for y in range(
+		generator.grid_size.y - generator.profile.protected_right_bottom_rows,
+		generator.grid_size.y - generator.profile.safe_bottom_rows
+	):
+		for x_offset in generator.profile.protected_right_columns:
+			blocked.append(Vector2i(generator.grid_size.x - 1 - x_offset, y))
+	var exits: Array[int] = []
+	for y in range(
+		generator.profile.exit_top_margin_rows,
+		generator.grid_size.y - generator.profile.exit_bottom_margin_rows
+	):
+		exits.append(y)
+	flow_field.rebuild(
+		generator.cells,
+		generator.grid_size,
+		tower_origins,
+		Rect2i(
+			Vector2i(0, generator.profile.safe_top_rows),
+			Vector2i(
+				generator.grid_size.x,
+				generator.grid_size.y
+					- generator.profile.safe_top_rows
+					- generator.profile.safe_bottom_rows
+			)
+		),
+		blocked,
+		exits
+	)
 	queue_redraw()
 
 

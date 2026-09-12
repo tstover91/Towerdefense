@@ -66,7 +66,7 @@ func run_test() -> void:
 	var levels: Array = GameStats.get_tower(&"reaver")["levels"]
 	if not _check(float(levels[0]["melee_arc_degrees"]) == 120.0 and int(levels[3]["melee_max_targets"]) == 3, "Base Reaver sweep progression is wrong."):
 		return
-	if not _check(is_equal_approx(float(levels[3]["range"]), 7.5), "Base Reaver did not receive its shorter melee range."):
+	if not _check(is_equal_approx(float(levels[3]["range"]), 8.5), "Base Reaver did not receive its shorter melee range."):
 		return
 
 	# Base attacks resolve immediately as one sweep rather than delayed combo hits.
