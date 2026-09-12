@@ -97,7 +97,7 @@ func run_test() -> void:
 	evolving_tower.instance_progression.set_level_for_sandbox(10)
 	assert(
 		int(GameStats.get_tower_evolution(&"saucer", &"gunship")["cost"])
-		== 23_002
+		== 0
 	)
 	evolving_tower.select_evolution_choice(&"gunship")
 	evolving_tower.purchase_selected_evolution()
@@ -173,6 +173,8 @@ func run_test() -> void:
 	tower.load_level_stats()
 	assert(is_equal_approx(component.vulnerability_field_bonus, 0.30))
 	assert(is_equal_approx(component.vulnerability_field_radius_pixels, 5.0 * BaseTower.BUILD_CELL_SIZE))
-	assert(tower.damage == roundi(378.0 * GameStats.XP_MASTERY_DAMAGE_MULTIPLIER))
+	assert(tower.damage == roundi(
+		378.0 * float(GameStats.XP_TOWER_MASTERY_PROFILES[&"saucer"][&"damage"])
+	))
 	print("Saucer smoke test passed: Gunship, hunting Abductor, Mothership support, abduction XP, and capstones.")
 	get_tree().quit(0)

@@ -7,7 +7,7 @@ extends RefCounted
 const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "invader"
 const ECONOMY_SCALE := 10
-const EVOLUTION_COST_MULTIPLIER := 0.50
+const EVOLUTION_COST_MULTIPLIER := 0.0
 const BUILD_CELL_SIZE := 32.0
 const TOWER_FOOTPRINT_SIZE := Vector2(64.0, 64.0)
 const ELECTRIC_HITS_TO_PROC := 5
@@ -1001,6 +1001,11 @@ const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 ## full XP track to reach the same rank values.
 const XP_ABILITY_MILESTONE_LEVELS: Array[int] = [1, 5, 10, 15]
 const XP_STAT_ANCHOR_LEVELS: Array[int] = [1, 7, 13, 19]
+const XP_STAT_SEGMENT_PROGRESS := {
+	# Each segment deliberately back-loads its gain. Early levels feel quick but
+	# modest; the expensive levels near the next anchor deliver larger steps.
+	6: [0.0, 0.03, 0.08, 0.18, 0.35, 0.60, 1.0],
+}
 const TOWER_XP_MAX_LEVEL := 20
 const TOWER_XP_TARGET_AT_MAX_LEVEL := 5000.0
 const TOWER_XP_ROUND_BONUS_BASE := 7.0
@@ -1461,6 +1466,26 @@ const XP_MASTERY_DAMAGE_MULTIPLIER := 1.20
 const XP_MASTERY_INTERVAL_MULTIPLIER := 0.90
 const XP_MASTERY_RANGE_MULTIPLIER := 1.05
 const XP_MASTERY_PROJECTILE_SPEED_MULTIPLIER := 1.10
+const XP_TOWER_MASTERY_PROFILES := {
+	&"invader": {&"damage": 1.08, &"firerate": 0.84, &"projectile_speed": 1.08},
+	&"fisherman": {&"damage": 1.14, &"range": 1.08, &"firerate": 0.94},
+	&"brainiac": {&"damage": 1.10, &"range": 1.12, &"firerate": 0.92},
+	&"reaver": {&"damage": 1.16, &"firerate": 0.90, &"range": 1.04},
+	&"longshot": {&"damage": 1.22, &"range": 1.08, &"projectile_speed": 1.12},
+	&"slinger": {&"damage": 1.10, &"firerate": 0.88, &"projectile_speed": 1.10},
+	&"voidcaller": {&"damage": 1.16, &"range": 1.08, &"firerate": 0.94},
+	&"orbitalcannon": {&"damage": 1.24, &"range": 1.06, &"firerate": 0.96},
+	&"energycore": {&"damage": 1.08, &"firerate": 0.86, &"range": 1.06},
+	&"saucer": {&"damage": 1.12, &"firerate": 0.90, &"range": 1.08},
+	&"dronedepot": {
+		&"spawn_interval": 0.90,
+		&"deployment_radius": 1.08,
+		&"unit_damage": 1.12,
+		&"unit_attack_interval": 0.94,
+		&"unit_aim_radius": 1.06,
+	},
+	&"irradiator": {&"damage": 1.14, &"range": 1.10, &"firerate": 0.92},
+}
 
 const TOWERS := {
 	"invader": {
@@ -3546,10 +3571,14 @@ static func get_tower_xp_level_stats(
 			XP_INTERPOLATED_UNIT_STATS
 		)
 		stats["unit_stats"] = unit_stats
-	if safe_xp_level >= TOWER_XP_MAX_LEVEL:
-		_apply_xp_mastery(stats, 1.0)
-		if tower_id == &"dronedepot":
-			_apply_drone_depot_mastery_correction(stats)
+	if safe_xp_level > TOWER_EVOLUTION_DEFAULT_LEVEL:
+		var mastery_progress := (
+			float(safe_xp_level - TOWER_EVOLUTION_DEFAULT_LEVEL)
+			/ float(TOWER_XP_MAX_LEVEL - TOWER_EVOLUTION_DEFAULT_LEVEL)
+		)
+		# Later post-evolution levels carry more of the mastery reward, matching
+		# their much larger XP requirements.
+		_apply_tower_xp_mastery(stats, tower_id, pow(mastery_progress, 1.45))
 	return stats
 
 
@@ -3565,9 +3594,14 @@ static func _get_tower_xp_numeric_stats(
 			continue
 		var lower_rank := upper_rank - 1
 		var lower_level := XP_STAT_ANCHOR_LEVELS[lower_rank]
-		var progress := (
+		var linear_progress := (
 			float(xp_level - lower_level)
 			/ float(upper_level - lower_level)
+		)
+		var progress := _get_backloaded_stat_progress(
+			xp_level - lower_level,
+			upper_level - lower_level,
+			linear_progress
 		)
 		if progress >= 1.0:
 			return get_tower_level(tower_id, upper_rank)
@@ -3593,6 +3627,17 @@ static func _get_tower_xp_numeric_stats(
 			numeric_stats["unit_stats"] = unit_stats
 		return numeric_stats
 	return get_tower_level(tower_id, 0)
+
+
+static func _get_backloaded_stat_progress(
+	steps_into_segment: int,
+	segment_steps: int,
+	linear_fallback: float
+) -> float:
+	var schedule: Array = XP_STAT_SEGMENT_PROGRESS.get(segment_steps, [])
+	if steps_into_segment >= 0 and steps_into_segment < schedule.size():
+		return float(schedule[steps_into_segment])
+	return pow(clampf(linear_fallback, 0.0, 1.0), 1.55)
 
 
 static func _copy_stat_keys(
@@ -3694,6 +3739,37 @@ static func _apply_drone_depot_mastery_correction(stats: Dictionary) -> void:
 		&"attack_interval",
 		0.95 / XP_MASTERY_INTERVAL_MULTIPLIER
 	)
+	stats["unit_stats"] = unit_stats
+
+
+static func _apply_tower_xp_mastery(
+	stats: Dictionary,
+	tower_id: StringName,
+	progress: float
+) -> void:
+	var profile: Dictionary = XP_TOWER_MASTERY_PROFILES.get(tower_id, {})
+	for key in [&"damage", &"firerate", &"range", &"projectile_speed", &"spawn_interval", &"deployment_radius"]:
+		if profile.has(key):
+			_apply_mastery_multiplier(
+				stats, key, lerpf(1.0, float(profile[key]), progress)
+			)
+	if not stats.get("unit_stats") is Dictionary:
+		return
+	var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
+	for pair in [
+		[&"unit_damage", &"damage"],
+		[&"unit_attack_interval", &"attack_interval"],
+		[&"unit_aim_radius", &"aim_radius"],
+		[&"unit_move_speed", &"move_speed"],
+	]:
+		var profile_key: StringName = pair[0]
+		var stat_key: StringName = pair[1]
+		if profile.has(profile_key):
+			_apply_mastery_multiplier(
+				unit_stats,
+				stat_key,
+				lerpf(1.0, float(profile[profile_key]), progress)
+			)
 	stats["unit_stats"] = unit_stats
 
 

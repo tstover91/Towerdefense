@@ -68,7 +68,9 @@ func run_test() -> void:
 	assert(state.tower_roster == [&"invader", &"brainiac", &"dronedepot"])
 
 	var longshot_level_1 := GameStats.get_tower_xp_level_stats(&"longshot", 1)
+	var longshot_level_2 := GameStats.get_tower_xp_level_stats(&"longshot", 2)
 	var longshot_level_3 := GameStats.get_tower_xp_level_stats(&"longshot", 3)
+	var longshot_level_4 := GameStats.get_tower_xp_level_stats(&"longshot", 4)
 	var longshot_level_5 := GameStats.get_tower_xp_level_stats(&"longshot", 5)
 	var longshot_level_7 := GameStats.get_tower_xp_level_stats(&"longshot", 7)
 	var longshot_level_13 := GameStats.get_tower_xp_level_stats(&"longshot", 13)
@@ -77,16 +79,20 @@ func run_test() -> void:
 	assert(longshot_level_3["damage"] > longshot_level_1["damage"])
 	assert(longshot_level_3["damage"] < longshot_level_5["damage"])
 	assert(
+		int(longshot_level_3["damage"]) - int(longshot_level_2["damage"])
+		< int(longshot_level_5["damage"]) - int(longshot_level_4["damage"])
+	)
+	assert(
 		longshot_level_7["damage"]
 		== GameStats.get_tower_level(&"longshot", 1)["damage"]
 	)
 	assert(
 		longshot_level_13["damage"]
-		== GameStats.get_tower_level(&"longshot", 2)["damage"]
+		> GameStats.get_tower_level(&"longshot", 2)["damage"]
 	)
 	assert(
 		longshot_level_19["damage"]
-		== GameStats.get_tower_level(&"longshot", 3)["damage"]
+		> GameStats.get_tower_level(&"longshot", 3)["damage"]
 	)
 	assert(longshot_level_15["damage"] > longshot_level_13["damage"])
 	assert(longshot_level_15["damage"] < longshot_level_19["damage"])
@@ -111,13 +117,16 @@ func run_test() -> void:
 
 	var longshot_level_20 := GameStats.get_tower_xp_level_stats(&"longshot", 20)
 	assert(int(longshot_level_20["damage"]) == roundi(
-		float(longshot_level_19["damage"])
-		* GameStats.XP_MASTERY_DAMAGE_MULTIPLIER
+		float(GameStats.get_tower_level(&"longshot", 3)["damage"])
+		* 1.22
 	))
 	assert(is_equal_approx(
 		float(longshot_level_20["firerate"]),
-		float(longshot_level_19["firerate"])
-			* GameStats.XP_MASTERY_INTERVAL_MULTIPLIER
+		float(GameStats.get_tower_level(&"longshot", 3)["firerate"])
+	))
+	var invader_level_20 := GameStats.get_tower_xp_level_stats(&"invader", 20)
+	assert(float(invader_level_20["firerate"]) < float(
+		GameStats.get_tower_xp_level_stats(&"invader", 19)["firerate"]
 	))
 
 	var fake_main := FakeMain.new()

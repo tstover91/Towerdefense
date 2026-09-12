@@ -84,6 +84,8 @@ func run_test() -> void:
 	var explosive_cost := int(
 		GameStats.get_tower_evolution(&"slinger", &"explosive_ricochet")["cost"]
 	)
+	if not _check(explosive_cost == 0, "Level 10 evolution still had a gold cost."):
+		return
 	slinger_wave.select_evolution_choice(&"explosive_ricochet")
 	slinger_wave.purchase_selected_evolution()
 	if not _check(
@@ -92,8 +94,8 @@ func run_test() -> void:
 	):
 		return
 	if not _check(
-		fake_main.money == wave_money_before - explosive_cost,
-		"Wave evolution charged the wrong gold amount."
+		fake_main.money == wave_money_before,
+		"Free Level 10 evolution changed the player's gold."
 	):
 		return
 	if not _check(
@@ -158,6 +160,11 @@ func _audit_full_roster(fake_main: Node) -> bool:
 		for evolution_key in evolutions:
 			var evolution_id := StringName(evolution_key)
 			var evolution: Dictionary = evolutions[evolution_key]
+			if not _check(
+				int(evolution.get("cost", -1)) == 0,
+				"%s/%s still costs gold." % [family_id, evolution_id]
+			):
+				return false
 			if not _check(
 				int(evolution.get("required_level", -1)) == GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL,
 				"%s/%s does not unlock at Level %d." % [family_id, evolution_id, GameStats.TOWER_EVOLUTION_DEFAULT_LEVEL]

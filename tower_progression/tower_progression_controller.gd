@@ -99,7 +99,7 @@ func get_evolution_unlock_level(evolution_id: StringName) -> int:
 
 func can_purchase_evolution(
 	evolution_id: StringName,
-	check_money := true
+	_check_money := true
 ) -> bool:
 	if not has_evolution_options():
 		return false
@@ -116,10 +116,6 @@ func can_purchase_evolution(
 		and not tower.main.can_purchase_tower_evolution()
 	):
 		return false
-	if check_money:
-		var evolution_cost := int(evolutions[evolution_id].get("cost", 0))
-		if tower.main == null or tower.main.money < evolution_cost:
-			return false
 	return true
 
 
@@ -135,14 +131,10 @@ func purchase_selected_evolution() -> void:
 	if evolution_id.is_empty() or not can_purchase_evolution(evolution_id):
 		return
 	var evolution := GameStats.get_tower_evolution(tower.tower_id, evolution_id)
-	var evolution_cost := int(evolution.get("cost", 0))
-	if tower.main == null or not tower.main.spend_money(evolution_cost):
-		return
 	if not tower.instance_progression.choose_evolution(
 		evolution_id,
-		evolution_cost
+		0
 	):
-		tower.main.add_money(evolution_cost)
 		return
 	var legacy_path_id := StringName(evolution.get("legacy_path_id", &""))
 	if not legacy_path_id.is_empty():
