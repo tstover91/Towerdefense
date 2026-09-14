@@ -21,6 +21,8 @@ const ROUTE_VARIANTS := {
 	&"lower": 1,
 }
 const SPAWN_LANE_UNLOCKS: Array[int] = [1, 5]
+const MINIMUM_ENTRANCE_SEPARATION_RATIO := 0.35
+const SCENIC_ROUTE_ATTEMPTS := 32
 const ROAD_DIRECTIONS: Array[Vector2i] = [
 	Vector2i.LEFT,
 	Vector2i.RIGHT,
@@ -311,20 +313,37 @@ func _build_primary_road_network() -> void:
 	road_routes_by_spawn.clear()
 	var activation_order := _get_spawn_row_activation_order()
 	var primary_start := Vector2i(0, int(activation_order[0]))
-	primary_road_route = _create_scenic_primary_route(primary_start)
+	var secondary_start := Vector2i(0, int(activation_order[1]))
+	var minimum_join_x := ceili(
+		float(generator.grid_size.x) * MINIMUM_ENTRANCE_SEPARATION_RATIO
+	)
+	var reserved_secondary_corridor := _create_entrance_corridor_clearance(
+		secondary_start.y,
+		minimum_join_x
+	)
+	primary_road_route = _create_scenic_primary_route(
+		primary_start,
+		reserved_secondary_corridor
+	)
 	assert(not primary_road_route.is_empty(), "Procedural battlefield requires a primary road")
 	_add_route_to_road_network(primary_road_route)
 	road_routes_by_spawn[primary_start.y] = primary_road_route.duplicate()
 
 	for index in range(1, activation_order.size()):
 		var connector_start := Vector2i(0, int(activation_order[index]))
-		var straight_entry_end := Vector2i(3, connector_start.y)
+		var straight_entry_end := Vector2i(minimum_join_x, connector_start.y)
 		var connector: Array[Vector2i] = []
 		for x in range(connector_start.x, straight_entry_end.x + 1):
 			connector.append(Vector2i(x, connector_start.y))
+		var connector_clearance := _get_scenic_route_clearance_blocks(
+			connector,
+			straight_entry_end,
+			Vector2i(-1, -1)
+		)
 		var routed_connector := _trace_terrain_route_to_targets(
 			straight_entry_end,
-			_get_road_target_cells()
+			_get_road_target_cells(minimum_join_x),
+			connector_clearance
 		)
 		if not routed_connector.is_empty():
 			routed_connector.pop_front()
@@ -341,46 +360,68 @@ func _build_primary_road_network() -> void:
 		_add_route_to_road_network(connector)
 
 
-func _create_scenic_primary_route(start: Vector2i) -> Array[Vector2i]:
+func _create_scenic_primary_route(
+	start: Vector2i,
+	persistent_blocked_cells: Array[Vector2i]
+) -> Array[Vector2i]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = active_generation_seed ^ 0x6A09E667
 	var bounds := _get_navigation_bounds()
 	var min_y := bounds.position.y
 	var max_y := bounds.end.y - 1
 	var width := generator.grid_size.x
-	var waypoints: Array[Vector2i] = [Vector2i(3, start.y)]
-	var first_y := _pick_distant_road_row(rng, start.y, min_y, max_y)
-	waypoints.append(Vector2i(rng.randi_range(8, 11), first_y))
-	var second_y := _pick_distant_road_row(rng, first_y, min_y, max_y)
-	var second := Vector2i(rng.randi_range(19, 23), second_y)
-	waypoints.append(second)
-	var backtrack_y := _pick_distant_road_row(rng, second.y, min_y, max_y)
-	waypoints.append(Vector2i(
-		maxi(12, second.x - rng.randi_range(3, 6)),
-		backtrack_y
-	))
 	var exit_rows := _get_exit_rows()
-	waypoints.append(Vector2i(
-		rng.randi_range(27, 31),
-		exit_rows[rng.randi_range(0, exit_rows.size() - 1)]
-	))
-	waypoints.append(Vector2i(width - 1, exit_rows[rng.randi_range(0, exit_rows.size() - 1)]))
+	for _attempt in SCENIC_ROUTE_ATTEMPTS:
+		var waypoints: Array[Vector2i] = [Vector2i(3, start.y)]
+		var first_y := _pick_distant_road_row(rng, start.y, min_y, max_y)
+		waypoints.append(Vector2i(rng.randi_range(8, 11), first_y))
+		var second_y := _pick_distant_road_row(rng, first_y, min_y, max_y)
+		var second := Vector2i(rng.randi_range(20, 24), second_y)
+		waypoints.append(second)
+		var backtrack_y := _pick_distant_road_row(rng, second.y, min_y, max_y)
+		waypoints.append(Vector2i(
+			maxi(14, second.x - rng.randi_range(3, 6)),
+			backtrack_y
+		))
+		waypoints.append(Vector2i(
+			rng.randi_range(28, 31),
+			exit_rows[rng.randi_range(0, exit_rows.size() - 1)]
+		))
+		waypoints.append(Vector2i(
+			width - 1,
+			exit_rows[rng.randi_range(0, exit_rows.size() - 1)]
+		))
+		var route := _trace_scenic_route(
+			start,
+			waypoints,
+			persistent_blocked_cells
+		)
+		if not route.is_empty() and _route_has_required_clearance(route):
+			return route
+	return []
 
+
+func _trace_scenic_route(
+	start: Vector2i,
+	waypoints: Array[Vector2i],
+	persistent_blocked_cells: Array[Vector2i]
+) -> Array[Vector2i]:
 	var route: Array[Vector2i] = []
 	var segment_start := start
 	for waypoint in waypoints:
-		var clearance_blocks := _get_scenic_route_clearance_blocks(
+		var clearance_blocks := persistent_blocked_cells.duplicate()
+		for cell in _get_scenic_route_clearance_blocks(
 			route,
 			segment_start,
 			waypoint
-		)
+		):
+			if not clearance_blocks.has(cell):
+				clearance_blocks.append(cell)
 		var segment := _trace_terrain_route_to_targets(
 			segment_start,
 			[waypoint],
 			clearance_blocks
 		)
-		if segment.is_empty() and not clearance_blocks.is_empty():
-			segment = _trace_terrain_route_to_targets(segment_start, [waypoint])
 		if segment.is_empty():
 			return []
 		if not route.is_empty():
@@ -425,16 +466,44 @@ func _get_scenic_route_clearance_blocks(
 		blocked_lookup[used_cell] = true
 		for direction in ROAD_DIRECTIONS:
 			blocked_lookup[used_cell + direction] = true
-	for open_cell in [start, target]:
-		blocked_lookup.erase(open_cell)
-		for direction in ROAD_DIRECTIONS:
-			blocked_lookup.erase(open_cell + direction)
+	blocked_lookup.erase(start)
+	for direction in ROAD_DIRECTIONS:
+		blocked_lookup.erase(start + direction)
+	if target.x >= 0:
+		blocked_lookup.erase(target)
 	var result: Array[Vector2i] = []
 	for cell_variant in blocked_lookup:
 		var cell := cell_variant as Vector2i
 		if generator.contains(cell):
 			result.append(cell)
 	return result
+
+
+func _create_entrance_corridor_clearance(row: int, through_x: int) -> Array[Vector2i]:
+	var blocked: Array[Vector2i] = []
+	for x in range(0, through_x):
+		for y_offset in range(-1, 2):
+			var cell := Vector2i(x, row + y_offset)
+			if generator.contains(cell):
+				blocked.append(cell)
+	return blocked
+
+
+func _route_has_required_clearance(route: Array[Vector2i]) -> bool:
+	var route_indices: Dictionary = {}
+	for index in route.size():
+		var cell := route[index]
+		if route_indices.has(cell):
+			return false
+		route_indices[cell] = index
+	for index in route.size():
+		for direction in ROAD_DIRECTIONS:
+			var neighbor := route[index] + direction
+			if not route_indices.has(neighbor):
+				continue
+			if absi(int(route_indices[neighbor]) - index) > 1:
+				return false
+	return true
 
 
 func _pick_distant_road_row(
@@ -450,20 +519,6 @@ func _pick_distant_road_row(
 	if candidates.is_empty():
 		return rng.randi_range(minimum_row, maximum_row)
 	return candidates[rng.randi_range(0, candidates.size() - 1)]
-
-
-func _remove_route_loops(route: Array[Vector2i]) -> Array[Vector2i]:
-	var result: Array[Vector2i] = []
-	var indices: Dictionary = {}
-	for cell in route:
-		if indices.has(cell):
-			var keep_through := int(indices[cell])
-			while result.size() > keep_through + 1:
-				indices.erase(result.pop_back())
-			continue
-		indices[cell] = result.size()
-		result.append(cell)
-	return result
 
 
 func _stop_route_when_adjacent_to_road(route: Array[Vector2i]) -> Array[Vector2i]:
@@ -485,10 +540,12 @@ func _add_route_to_road_network(route: Array[Vector2i]) -> void:
 		road_cells[cell] = true
 
 
-func _get_road_target_cells() -> Array[Vector2i]:
+func _get_road_target_cells(minimum_x := 0) -> Array[Vector2i]:
 	var targets: Array[Vector2i] = []
 	for cell_variant in road_cells:
-		targets.append(cell_variant as Vector2i)
+		var cell := cell_variant as Vector2i
+		if cell.x >= minimum_x:
+			targets.append(cell)
 	return targets
 
 

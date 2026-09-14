@@ -46,6 +46,7 @@ func _ready() -> void:
 	_test_turn_costs_and_curve_smoothing()
 	_test_seed_selector()
 	_test_playable_map()
+	_test_road_generation_safeguards()
 	print("Procedural terrain smoke test passed: terrain-generated roads, locked routing, smooth curves, and playable map integration.")
 	get_tree().quit(0)
 
@@ -266,6 +267,32 @@ func _is_full_road_square(road_cells: Dictionary, origin: Vector2i) -> bool:
 		if not road_cells.has(origin + offset):
 			return false
 	return true
+
+
+func _test_road_generation_safeguards() -> void:
+	for test_seed in [101, 202, 303, 404]:
+		var map := PROCEDURAL_MAP.instantiate() as ProceduralBattlefield
+		map.generation_seed = test_seed
+		add_child(map)
+		assert(map.spawn_rows.size() == 2)
+		assert(map._route_has_required_clearance(map.primary_road_route))
+		var primary_lookup: Dictionary = {}
+		for cell in map.primary_road_route:
+			primary_lookup[cell] = true
+		var secondary_route: Array[Vector2i] = map.road_routes_by_spawn[map.spawn_rows[0]]
+		var first_shared_x := map.generator.grid_size.x
+		var visited: Dictionary = {}
+		for cell in secondary_route:
+			assert(not visited.has(cell))
+			visited[cell] = true
+			if primary_lookup.has(cell):
+				first_shared_x = cell.x
+				break
+		assert(first_shared_x >= ceili(
+			float(map.generator.grid_size.x)
+				* map.MINIMUM_ENTRANCE_SEPARATION_RATIO
+		) - 1)
+		map.queue_free()
 
 
 func _test_seed_selector() -> void:
