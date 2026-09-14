@@ -72,6 +72,13 @@ func open_for_tower_slot(tower: Node, _slot_index: int) -> void:
 func get_selected_inventory_item_id() -> StringName:
 	return selected_item_id
 
+func select_item(item_id: StringName) -> void:
+	if item_id.is_empty() or not item_buttons.has(item_id):
+		return
+	selected_item_id = item_id
+	_refresh_selection_display()
+	selected_item_changed.emit(selected_item_id)
+
 
 func set_status(message: String) -> void:
 	status_label.text = message

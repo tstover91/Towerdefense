@@ -71,12 +71,14 @@ func run_test() -> void:
 	assert(tower.upgrade_ready_indicator.visible)
 	fake_main.money = 0
 	fake_main.money_changed.emit(fake_main.money)
-	assert(not tower.upgrade_ready_indicator.visible)
+	assert(tower.upgrade_ready_indicator.visible)
+	fake_main.round_ended.emit(1)
+	assert(tower.upgrade_ready_indicator.visible)
 	fake_main.money = 1_000_000
 	fake_main.money_changed.emit(fake_main.money)
 	assert(tower.upgrade_ready_indicator.visible)
 	await get_tree().create_timer(1.6).timeout
 	assert(not tower.level_up_notification.visible)
 
-	print("Progression UI refresh smoke test passed: selected XP is throttled, hidden cards do no UI work, level-up notices expire, and affordable evolutions are marked in-world.")
+	print("Progression UI refresh smoke test passed: selected XP is throttled, hidden cards do no UI work, level-up notices expire, and unlocked evolutions stay marked between rounds.")
 	get_tree().quit(0)

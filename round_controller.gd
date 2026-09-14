@@ -142,8 +142,7 @@ func get_post_round_action(
 		return POST_ROUND_VICTORY
 	if tower_draft_rounds.has(round_number):
 		return POST_ROUND_TOWER_DRAFT
-	# The normal progression loop uses an item shop on every non-draft round.
-	return POST_ROUND_ITEM_SHOP
+	return POST_ROUND_BUILD
 
 
 func calculate_end_round_reward() -> int:

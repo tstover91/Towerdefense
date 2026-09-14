@@ -34,53 +34,6 @@ func run_test() -> void:
 		gameplay.POST_ROUND_REVEAL_DELAY + 0.1
 	).timeout
 	assert(not gameplay.post_round_transition_pending)
-	assert(gameplay.shop_open)
-	assert(gameplay.active_draft_type == &"item")
-	assert(gameplay.round_controller.phase == RoundControllerScript.PHASE_DRAFT)
-	assert(gameplay.item_shop_manager.offers.size() == 4)
-	await get_tree().process_frame
-	var viewport_size: Vector2 = gameplay.get_viewport_rect().size
-	var shop_panel := gameplay.between_round_shop.get_node(
-		"InputBlocker/ShopPanel"
-	) as Control
-	var continue_button := gameplay.between_round_shop.continue_button as Control
-	var inventory_panel := gameplay.between_round_shop.inventory_panel as Control
-	var main_column := gameplay.between_round_shop.get_node(
-		"InputBlocker/ShopPanel/MarginContainer/ShopContent/MainColumn"
-	) as Control
-	for control in [shop_panel, continue_button]:
-		var control_rect: Rect2 = control.get_global_rect()
-		assert(control_rect.position.x >= 0.0)
-		assert(control_rect.position.y >= 0.0)
-		assert(control_rect.end.x <= viewport_size.x)
-		assert(control_rect.end.y <= viewport_size.y)
-	assert(not inventory_panel.visible)
-	assert(gameplay.between_round_shop.health_label.visible)
-	assert(gameplay.between_round_shop.money_label.visible)
-	for card in gameplay.between_round_shop.cards:
-		var name_label := card.name_label as Label
-		assert(name_label.autowrap_mode != TextServer.AUTOWRAP_OFF)
-		assert(name_label.get_global_rect().end.y <= viewport_size.y)
-	var purchased_item_id: StringName = gameplay.item_shop_manager.offers[0]
-	var purchase_price := int(
-		StatDatabase.get_tower_item(purchased_item_id)["price"]
-	)
-	var money_before_purchase: int = gameplay.money
-	gameplay._on_item_purchase_requested(0, purchased_item_id)
-	assert(gameplay.shop_open)
-	assert(gameplay.item_shop_manager.offers[0].is_empty())
-	assert(gameplay.run_state.get_tower_item_count(purchased_item_id) == 1)
-	assert(gameplay.money == money_before_purchase - purchase_price)
-	for child in gameplay.between_round_shop.cards[0].get_node(
-		"MarginContainer/CardLayout"
-	).get_children():
-		assert(not child.visible, "A purchased offer slot was not visually empty.")
-	gameplay._on_item_lock_toggled(1)
-	assert(not gameplay.run_state.locked_tower_item_offers.is_empty())
-	gameplay._on_item_lock_toggled(2)
-	assert(gameplay.item_shop_manager.locked_slots.count(true) == 1)
-	assert(gameplay.item_shop_manager.locked_slots[2])
-	gameplay._on_item_shop_closed()
 	assert(not gameplay.shop_open)
 	assert(gameplay.round_controller.phase == RoundControllerScript.PHASE_BUILD)
 	var tower := TOWER_SCENE.instantiate() as BaseTower
@@ -97,8 +50,19 @@ func run_test() -> void:
 	))
 	gameplay.start_round()
 	assert(gameplay.round_active)
+	gameplay.item_drop_manager.drop_kill_target = 1
+	var defeated_enemy := Node2D.new()
+	gameplay.add_child(defeated_enemy)
+	gameplay._on_mob_died(defeated_enemy)
+	assert(not gameplay.newest_dropped_item_id.is_empty())
+	assert(gameplay.new_item_badge.visible)
+	assert(gameplay.run_state.get_tower_item_count(gameplay.newest_dropped_item_id) == 1)
+	gameplay.inventory_button.button_pressed = true
+	gameplay._on_inventory_button_pressed()
+	assert(gameplay.tower_item_inventory_panel.get_selected_inventory_item_id() != &"")
+	assert(not gameplay.new_item_badge.visible)
 	assert(gameplay.unequip_tower_item_to_inventory(tower, 0))
 	assert(tower.get_equipped_item_ids()[0].is_empty())
 
-	print("Round lifecycle smoke test passed: rewards, responsive side inventory, readable cards, multi-buy shop, locks, and active-wave equipment management.")
+	print("Round lifecycle smoke test passed: rewards, uninterrupted build phases, combat loot feedback, and quick item equipping.")
 	get_tree().quit(0)

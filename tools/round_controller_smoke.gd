@@ -40,7 +40,7 @@ func _ready() -> void:
 	assert(controller.get_post_round_action(
 		tower_rounds,
 		reinforcement_rounds
-	) == RoundControllerScript.POST_ROUND_ITEM_SHOP)
+	) == RoundControllerScript.POST_ROUND_BUILD)
 	controller.round_number = 8
 	assert(controller.get_post_round_action(
 		tower_rounds,

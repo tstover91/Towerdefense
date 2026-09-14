@@ -52,25 +52,25 @@ func run_test() -> void:
 		return
 
 	var levels: Array = GameStats.get_tower(&"fisherman")["levels"]
-	var money_before_upgrade := fake_main.money
-	tower._on_upgradetower_pressed()
-	if not _check(
-		tower.pending_action == BaseTower.MenuAction.NONE,
-		"Automatic progression still requested a paid upgrade confirmation."
-	):
+	for expected_level in range(1, levels.size()):
+		var upgrade_cost := int(levels[expected_level]["upgrade_cost"])
+		var money_before_upgrade := fake_main.money
+		tower._on_upgradetower_pressed()
+		if not _check(
+			tower.pending_action == BaseTower.MenuAction.UPGRADE,
+			"First upgrade press did not request confirmation."
+		):
+			return
+		tower._on_upgradetower_pressed()
+		if not _check(tower.tower_level == expected_level, "Purchased tower level was not applied."):
+			return
+		if not _check(
+			fake_main.money == money_before_upgrade - upgrade_cost,
+			"Tower level charged the wrong amount."
+		):
+			return
+	if not _check(tower.instance_progression.xp == 0.0, "Purchased progression unexpectedly granted XP."):
 		return
-	tower._on_upgradetower_pressed()
-	if not _check(tower.tower_level == 0, "Paid upgrade changed the automatic stat rank."):
-		return
-	if not _check(
-		fake_main.money == money_before_upgrade,
-		"Disabled paid upgrade still charged gold."
-	):
-		return
-
-	tower.tower_level = levels.size() - 1
-	tower.load_base_tags()
-	tower.load_level_stats()
 	var path_a := GameStats.get_tower_path(&"fisherman", &"a")
 	var path_a_cost := int(path_a.get("cost", 0))
 	var money_before_path := fake_main.money
@@ -110,7 +110,7 @@ func run_test() -> void:
 	):
 		return
 
-	print("Tower progression controller smoke test passed: paid upgrades disabled, legacy paths, sell values, and sale flow.")
+	print("Tower progression controller smoke test passed: four purchased levels, final paths, sell values, and sale flow.")
 	get_tree().quit(0)
 
 

@@ -19,6 +19,7 @@ func _ready() -> void:
 	assert(first.count_terrain(Terrain.TerrainType.FIELD) > 0)
 	assert(first.count_terrain(Terrain.TerrainType.FOREST) > 0)
 	assert(first.count_terrain(Terrain.TerrainType.MUD) > 0)
+	assert(not bool(Terrain.get_data(Terrain.TerrainType.ROAD)["buildable"]))
 	assert(first.get_field_ratio() >= first.profile.minimum_field_ratio)
 	assert(_largest_region_size(first, Terrain.TerrainType.FOREST) >= 12)
 	assert(_largest_region_size(first, Terrain.TerrainType.MUD) >= 8)
@@ -45,7 +46,7 @@ func _ready() -> void:
 	_test_turn_costs_and_curve_smoothing()
 	_test_seed_selector()
 	_test_playable_map()
-	print("Procedural terrain smoke test passed: directional routing, terrain influence, smooth curves, tower weights, and playable map integration.")
+	print("Procedural terrain smoke test passed: terrain-generated roads, locked routing, smooth curves, and playable map integration.")
 	get_tree().quit(0)
 
 
@@ -189,13 +190,45 @@ func _test_playable_map() -> void:
 		== map.spawn_rows.size() * map.ROUTE_VARIANTS.size()
 	)
 	assert(map.spawn_rows == [3, 7, 10, 14, 17])
+	assert(map.get_active_spawn_rows(1) == [10])
+	assert(map.get_active_spawn_rows(2) == [10])
+	assert(map.get_active_spawn_rows(3) == [7, 10])
+	assert(map.get_active_spawn_rows(6) == [7, 10, 14])
+	assert(map.get_active_spawn_rows(10) == [3, 7, 10, 14])
+	assert(map.get_active_spawn_rows(16) == [3, 7, 10, 14, 17])
+	assert(map.get_spawn_paths_for_round(1).size() == map.ROUTE_VARIANTS.size())
+	assert(map.get_spawn_paths_for_round(10).size() == 4 * map.ROUTE_VARIANTS.size())
+	assert(map.get_next_spawn_row_unlock(1) == {"row": 7, "round": 3})
+	assert(map.get_next_spawn_row_unlock(16).is_empty())
+	map.set_round_preview(3, true)
+	assert(map.preview_round == 3 and map.route_preview_visible)
+	for spawn_row in map.get_active_spawn_rows(3):
+		var variant_routes: Dictionary = {}
+		for variant_id in map.ROUTE_VARIANTS:
+			var route: Array[Vector2i] = map.flow_fields[variant_id].trace_route(
+				Vector2i(0, spawn_row)
+			)
+			variant_routes[str(route)] = true
+		assert(variant_routes.size() >= 1)
 	assert(map.is_point_blocked_by_build_mask(Vector2(32.0, 32.0)))
 	assert(map.is_point_blocked_by_build_mask(Vector2(1136.0, 112.0)))
+	assert(not map.road_cells.is_empty())
+	for spawn_row in map.spawn_rows:
+		var road_route: Array[Vector2i] = map.flow_field.trace_route(
+			Vector2i(0, spawn_row)
+		)
+		assert(not road_route.is_empty())
+		for road_cell in road_route:
+			assert(map.road_cells.has(road_cell))
 	for path in map.get_enemy_paths():
 		assert(path.curve != null and path.curve.point_count >= 2)
 
-	var center_route := map.flow_field.trace_route(Vector2i(0, 5))
+	var center_route := map.flow_field.trace_route(Vector2i(0, 10))
 	var route_cell := center_route[center_route.size() / 2]
+	var road_center := map._cell_center(route_cell)
+	assert(map.is_point_blocked_by_path(road_center))
+	assert(map.is_point_blocked_by_build_mask(road_center))
+	var route_before_tower := center_route.duplicate()
 	var tower := Node2D.new()
 	tower.position = (
 		Vector2(route_cell * Terrain.TILE_SIZE)
@@ -204,7 +237,8 @@ func _test_playable_map() -> void:
 	map.add_child(tower)
 	map.register_tower_route_weight(tower)
 	var tower_origin := map.tower_origins_by_instance[tower.get_instance_id()] as Vector2i
-	assert(map.flow_field.is_tower_cell(tower_origin))
+	assert(not map.flow_field.is_tower_cell(tower_origin))
+	assert(map.flow_field.trace_route(Vector2i(0, 10)) == route_before_tower)
 	map.unregister_tower_route_weight(tower)
 	assert(not map.flow_field.is_tower_cell(tower_origin))
 	map.queue_free()

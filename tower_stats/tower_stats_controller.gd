@@ -118,7 +118,7 @@ func get_effective_stats_for_xp_level(xp_level: int) -> Dictionary:
 
 
 func get_current_effective_stats() -> Dictionary:
-	if tower.instance_progression == null:
+	if not GameStats.AUTOMATIC_TOWER_XP or tower.instance_progression == null:
 		return get_effective_stats_for_level(tower.tower_level)
 	var expected_rank := GameStats.get_stat_rank_for_xp_level(
 		tower.instance_progression.level
@@ -402,6 +402,9 @@ func get_sidebar_stats() -> Dictionary:
 
 func apply_path_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 	var stats := base_stats.duplicate(true)
+	var inherent_path := GameStats.get_tower_inherent_path(tower.tower_id)
+	if not inherent_path.is_empty():
+		_apply_path_stat_definition(stats, inherent_path)
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
 		_apply_path_stat_definition(stats, path)
@@ -559,6 +562,9 @@ func load_path_behaviors() -> void:
 	tower.continuous_beam_enabled = false
 	if tower.attack_component != null:
 		tower.attack_component.reset_path_behaviors()
+	var inherent_path := GameStats.get_tower_inherent_path(tower.tower_id)
+	if not inherent_path.is_empty():
+		_apply_path_behavior_definition(inherent_path)
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
 		_apply_path_behavior_definition(path)
@@ -603,6 +609,14 @@ func load_base_tags() -> void:
 		"delivery_type", GameStats.DELIVERY_HITSCAN
 	)
 	tower.impact_mode = tower_data.get("impact_mode", GameStats.IMPACT_PRIMARY)
+	var inherent_path := GameStats.get_tower_inherent_path(tower.tower_id)
+	if not inherent_path.is_empty():
+		_apply_tag_changes(inherent_path)
+		loaded_pierce_count += int(inherent_path.get("pierce_count_add", 0))
+		if inherent_path.has("delivery_type"):
+			tower.delivery_type = inherent_path["delivery_type"]
+		if inherent_path.has("impact_mode"):
+			tower.impact_mode = inherent_path["impact_mode"]
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
 		_apply_tag_changes(path)
@@ -636,6 +650,9 @@ func get_primary_damage_type() -> StringName:
 	var primary_type := StringName(
 		tower_data.get("primary_damage_type", tower.damage_tags[0])
 	)
+	var inherent_path := GameStats.get_tower_inherent_path(tower.tower_id)
+	if inherent_path.has("primary_damage_type"):
+		primary_type = StringName(inherent_path["primary_damage_type"])
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
 		if path.has("primary_damage_type"):

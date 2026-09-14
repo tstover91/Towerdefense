@@ -95,6 +95,8 @@ func consume_round_xp_breakdown() -> Dictionary:
 
 
 func grant_xp(amount: float) -> void:
+	if not GameStats.AUTOMATIC_TOWER_XP:
+		return
 	var safe_amount := maxf(amount, 0.0)
 	if safe_amount <= 0.0:
 		return

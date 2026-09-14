@@ -12,6 +12,7 @@ const RoundControllerScript = preload("res://round_controller.gd")
 const ReinforcementControllerScript = preload("res://reinforcement_controller.gd")
 const RunStateScript = preload("res://run_state.gd")
 const ItemShopManagerScript = preload("res://tower_items/item_shop_manager.gd")
+const ItemDropManagerScript = preload("res://tower_items/item_drop_manager.gd")
 const TowerItemInventoryServiceScript = preload(
 	"res://tower_items/tower_item_inventory_service.gd"
 )
@@ -45,7 +46,7 @@ const ELITE_EVENT_RESERVED_SLOTS := 12
 const GAUNTLET_EVENT_RESERVED_SLOTS := 20
 const DRAFT_HEALTH_RECOVERY := 20
 const DRAFT_HEALTH_COST_RATIO := 0.30
-const DRAFT_HEALTH_PRICE_INCREMENT := 250
+const DRAFT_HEALTH_PRICE_INCREMENT := GameStats.PURCHASE_PRICE_INCREMENT
 const TOWER_DRAFT_ROUNDS: Array[int] = [3, 8, 12]
 const REINFORCEMENT_DRAFT_ROUNDS: Array[int] = []
 const POST_ROUND_REVEAL_DELAY := 1.35
@@ -168,6 +169,7 @@ var wave_director = null
 var shop_rng := RandomNumberGenerator.new()
 var draft_manager = null
 var item_shop_manager = null
+var item_drop_manager = null
 var tower_item_inventory_service = null
 var between_round_shop: BetweenRoundShop
 var build_controller = null
@@ -416,8 +418,10 @@ var active_map: TowerDefenseMap
 var next_spawn_path_index := 0
 var game_speed := 1.0
 var inventory_button: Button
+var new_item_badge: Label
 var tower_detail_popup: PanelContainer
 var selected_inventory_item_id: StringName = &""
+var newest_dropped_item_id: StringName = &""
 var tower_item_slot_buttons: Array[Button] = []
 var pending_item_removal_tower_id := 0
 var pending_item_removal_slot := -1
@@ -444,6 +448,7 @@ func _ready() -> void:
 	wave_director = WaveDirectorScript.new(enemy_rng, get_active_enemy_count)
 	draft_manager = DraftManagerScript.new(shop_rng)
 	item_shop_manager = ItemShopManagerScript.new(shop_rng)
+	item_drop_manager = ItemDropManagerScript.new(shop_rng)
 	ensure_build_controller()
 	round_controller = RoundControllerScript.new(enemy_rng)
 	ensure_reinforcement_controller()
@@ -504,6 +509,17 @@ func _configure_between_round_screen(screen: BetweenRoundShop) -> void:
 
 func _configure_minimal_hud() -> void:
 	inventory_button = $MainUI/HUDRoot/ThumbControls/InventoryButton
+	new_item_badge = Label.new()
+	new_item_badge.text = "NEW"
+	new_item_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	new_item_badge.position = Vector2(73.0, -8.0)
+	new_item_badge.add_theme_color_override("font_color", Color("84d7b0"))
+	new_item_badge.add_theme_color_override("font_shadow_color", Color("100d10"))
+	new_item_badge.add_theme_constant_override("shadow_offset_x", 2)
+	new_item_badge.add_theme_constant_override("shadow_offset_y", 2)
+	new_item_badge.add_theme_font_size_override("font_size", 16)
+	new_item_badge.hide()
+	inventory_button.add_child(new_item_badge)
 	tower_detail_popup = $MainUI/HUDRoot/TowerDetailPopup
 	if not speed_button.pressed.is_connected(_on_speed_button_pressed):
 		speed_button.pressed.connect(_on_speed_button_pressed)
@@ -557,6 +573,8 @@ func load_selected_map() -> void:
 	active_map = MapData.instantiate_map(selected_map_id)
 	assert(active_map != null, "Unable to instantiate map: %s" % selected_map_id)
 	map_container.add_child(active_map)
+	if active_map.has_method("set_round_preview"):
+		active_map.call("set_round_preview", maxi(round_number + 1, 1), true)
 
 
 func get_active_map() -> TowerDefenseMap:
@@ -573,11 +591,34 @@ func get_enemy_paths() -> Array[Path2D]:
 
 func get_next_spawn_path() -> Path2D:
 	var paths := get_enemy_paths()
+	if active_map != null and active_map.has_method("get_spawn_paths_for_round"):
+		var round_paths: Array[Path2D] = []
+		round_paths.assign(
+			active_map.call("get_spawn_paths_for_round", maxi(round_number, 1))
+		)
+		paths = round_paths
 	if paths.is_empty():
 		return null
 	var path := paths[next_spawn_path_index % paths.size()]
 	next_spawn_path_index = (next_spawn_path_index + 1) % paths.size()
 	return path
+
+
+func assign_paths_to_spawn_groups(schedule: Array[Dictionary]) -> void:
+	var paths_by_group: Dictionary = {}
+	for spawn_event in schedule:
+		if not StringName(spawn_event.get("path_id", &"")).is_empty():
+			continue
+		var group_id: Variant = spawn_event.get("spawn_group_id", null)
+		if group_id == null:
+			# Compatibility schedules without group metadata stay together.
+			group_id = &"legacy_schedule"
+		if not paths_by_group.has(group_id):
+			var selected_path := get_next_spawn_path()
+			if selected_path == null:
+				continue
+			paths_by_group[group_id] = StringName(selected_path.name)
+		spawn_event["path_id"] = paths_by_group[group_id]
 
 
 func get_path_id_for_requester(requester: Node) -> StringName:
@@ -782,8 +823,12 @@ func refresh_tower_xp_display(tower: Node) -> void:
 	):
 		return
 	var progression: RefCounted = tower.get("instance_progression")
+	tower_level_label.text = "LV %02d" % (int(tower.get("tower_level")) + 1)
+	if not GameStats.AUTOMATIC_TOWER_XP:
+		tower_xp_label.hide()
+		tower_xp_bar.hide()
+		return
 	var xp_level := int(progression.get("level"))
-	tower_level_label.text = "LV %02d" % xp_level
 	var xp_into_level := float(progression.call("get_xp_into_current_level"))
 	var xp_to_next_level := float(progression.call("get_xp_to_next_level"))
 	tower_xp_label.hide()
@@ -853,7 +898,7 @@ func update_tower_inspector_panel_visibility() -> void:
 		tower_detail_popup.visible = tower_info_expanded
 	# Evolution mode keeps only the tower name from the normal card header.
 	tower_level_label.visible = not showing_evolution
-	tower_xp_bar.visible = not showing_evolution
+	tower_xp_bar.visible = GameStats.AUTOMATIC_TOWER_XP and not showing_evolution
 	tower_xp_label.hide()
 	tower_target_section.visible = not showing_evolution
 	if is_instance_valid(displayed_tower):
@@ -869,10 +914,6 @@ func update_tower_inspector_panel_visibility() -> void:
 
 
 func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
-	if tower.get("instance_progression") != null:
-		tower_upgrade_section.hide()
-		_update_manual_upgrade_button(tower)
-		return
 	tower_upgrade_button.get_parent().visible = not GameStats.get_tower_paths(
 		tower.tower_id
 	).is_empty()
@@ -895,6 +936,20 @@ func _update_manual_upgrade_button(tower: Node) -> void:
 		tower_upgrade_button.text = "BACK"
 		tower_upgrade_button.disabled = false
 		tower_upgrade_button.tooltip_text = "Return to tower controls"
+		return
+	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
+	var next_level := int(tower.get("tower_level")) + 1
+	if next_level < levels.size():
+		var upgrade_cost := int(levels[next_level].get("upgrade_cost", 0))
+		tower_upgrade_button.text = (
+			"CONFIRM · $%s" % GameStats.format_money(upgrade_cost)
+			if int(tower.get("pending_action")) == BaseTower.MenuAction.UPGRADE
+			else "UPGRADE · $%s" % GameStats.format_money(upgrade_cost)
+		)
+		tower_upgrade_button.disabled = (
+			tower.main == null or tower.main.money < upgrade_cost
+		)
+		tower_upgrade_button.tooltip_text = "Purchase the next tower level"
 		return
 	if has_evolutions:
 		if not tower.instance_progression.evolution_id.is_empty():
@@ -1077,10 +1132,6 @@ func update_tower_path_controls(tower: Node) -> void:
 	if tower.has_evolution_options():
 		update_tower_evolution_controls(tower)
 		return
-	if tower.get("instance_progression") != null:
-		tower_path_section.hide()
-		tower_path_label.hide()
-		return
 	var paths := GameStats.get_tower_paths(tower.tower_id)
 	var show_paths: bool = (
 		not paths.is_empty()
@@ -1090,8 +1141,8 @@ func update_tower_path_controls(tower: Node) -> void:
 			or not tower.purchased_paths.is_empty()
 		)
 	)
-	tower_path_section.visible = show_paths
-	if not show_paths:
+	tower_path_section.visible = show_paths and tower_evolution_panel_open
+	if not tower_path_section.visible:
 		return
 	tower_path_confirm_button.show()
 	var path_buttons: Array[Button] = [
@@ -1319,16 +1370,18 @@ func update_tower_sell_control(tower: Node) -> void:
 func _on_sidebar_upgrade_pressed() -> void:
 	if not is_instance_valid(displayed_tower):
 		return
+	var levels: Array = GameStats.get_tower(displayed_tower.tower_id)["levels"]
+	if int(displayed_tower.get("tower_level")) + 1 < levels.size():
+		displayed_tower.request_upgrade()
+		show_tower_details(displayed_tower)
+		return
 	if displayed_tower.has_evolution_options():
 		tower_evolution_panel_open = not tower_evolution_panel_open
 		update_tower_path_controls(displayed_tower)
 		_update_manual_upgrade_button(displayed_tower)
 		update_tower_inspector_panel_visibility()
 		return
-	if tower_path_section.visible:
-		displayed_tower.show_main_menu()
-	else:
-		displayed_tower.show_path_menu()
+	tower_evolution_panel_open = not tower_evolution_panel_open
 	show_tower_details(displayed_tower)
 
 
@@ -2113,6 +2166,7 @@ func start_round() -> void:
 	var next_round := round_number + 1
 	if not round_controller.begin_round(get_wave_duration(next_round)):
 		return
+	item_drop_manager.begin_round(round_number)
 	threat_per_second = get_wave_threat_rate(round_number)
 	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
 		threat_per_second *= get_horde_threat_multiplier(round_number)
@@ -2163,6 +2217,10 @@ func start_round() -> void:
 	else:
 		spawn_schedule = build_debut_opening(round_number)
 	mobs_left_to_spawn = spawn_schedule.size()
+	if active_map != null and active_map.has_method("set_round_preview"):
+		active_map.call("set_round_preview", round_number, false)
+	reinforcement_controller.reset_cooldown()
+	reinforcement_button_state_initialized = false
 	round_started.emit(round_number)
 	spawntimer.one_shot = true
 	update_round_count()
@@ -2224,11 +2282,16 @@ func end_round() -> void:
 	spawning_active = false
 	cancel_reinforcement_targeting()
 	clear_reinforcement_drops()
+	reinforcement_controller.reset_cooldown()
+	reinforcement_button_state_initialized = false
+	update_reinforcement_button()
 	clear_active_projectiles()
 	spawn_schedule.clear()
 	pending_enemy_spawns.clear()
 	mobs_left_to_spawn = 0
 	spawntimer.stop()
+	if active_map != null and active_map.has_method("set_round_preview"):
+		active_map.call("set_round_preview", mini(round_number + 1, max_rounds), true)
 	round_ended.emit(round_number)
 	add_money(calculate_end_round_reward())
 	post_round_transition_pending = true
@@ -2727,6 +2790,11 @@ func _on_inventory_button_pressed() -> void:
 	if inventory_button.button_pressed:
 		set_build_drawer_open(false)
 		tower_item_inventory_panel.open_global_inventory()
+		if not newest_dropped_item_id.is_empty():
+			tower_item_inventory_panel.select_item(newest_dropped_item_id)
+			newest_dropped_item_id = &""
+			inventory_button.tooltip_text = "Tower items"
+			new_item_badge.hide()
 		_on_inventory_item_selected(
 			tower_item_inventory_panel.get_selected_inventory_item_id()
 		)
@@ -2740,9 +2808,15 @@ func _on_inventory_item_selected(item_id: StringName) -> void:
 	selected_inventory_item_id = item_id
 	for tower in get_placed_towers_for_item_management():
 		if tower.has_method("set_item_compatibility_highlight"):
+			var compatible := false
+			if not item_id.is_empty() and tower.get("item_controller") != null:
+				for slot_index in GameStats.TOWER_ITEM_SLOT_COUNT:
+					if tower.item_controller.can_equip_or_swap_item(item_id, slot_index):
+						compatible = true
+						break
 			tower.set_item_compatibility_highlight(
 				not item_id.is_empty(),
-				not item_id.is_empty()
+				compatible
 			)
 	if is_instance_valid(displayed_tower):
 		update_tower_item_controls(displayed_tower)
@@ -2980,6 +3054,7 @@ func _create_mob(
 	mob.spawn_variant = spawn_variant
 	mob.xp_budget_multiplier = maxf(xp_budget_multiplier, 0.0)
 	mob.mob_killed.connect(_on_mob_killed)
+	mob.mob_died.connect(_on_mob_died)
 	mob.reached_end.connect(_on_mob_reached_end)
 	mob.spawn_requested.connect(_on_mob_spawn_requested)
 	var pf := PathFollow2D.new()
@@ -3079,6 +3154,7 @@ func sandbox_queue_enemy_batch(
 	if enemy_batch.is_empty():
 		return
 	round_number = test_wave
+	var sandbox_group_id := Time.get_ticks_usec()
 	for entry in enemy_batch:
 		spawn_schedule.append({
 			"enemy_id": entry["enemy_id"],
@@ -3086,7 +3162,9 @@ func sandbox_queue_enemy_batch(
 			"free_spawn": true,
 			"delay_after": 0.08,
 			"style": &"sandbox",
+			"spawn_group_id": sandbox_group_id,
 		})
+	assign_paths_to_spawn_groups(spawn_schedule)
 	mobs_left_to_spawn = spawn_schedule.size()
 	spawning_active = true
 	update_round_count()
@@ -3463,6 +3541,7 @@ func build_elite_event_schedule(
 func inject_special_spawn_schedule(schedule: Array[Dictionary]) -> void:
 	if schedule.is_empty():
 		return
+	assign_paths_to_spawn_groups(schedule)
 	for index in range(schedule.size() - 1, -1, -1):
 		spawn_schedule.push_front(schedule[index])
 	mobs_left_to_spawn = spawn_schedule.size()
@@ -3473,18 +3552,23 @@ func inject_special_spawn_schedule(schedule: Array[Dictionary]) -> void:
 func build_director_group() -> Array[Dictionary]:
 	sync_wave_director_context()
 	var schedule: Array[Dictionary] = wave_director.build_director_group()
+	assign_paths_to_spawn_groups(schedule)
 	sync_wave_director_style_memory()
 	return schedule
 
 
 func build_debut_opening(wave: int) -> Array[Dictionary]:
 	sync_wave_director_context()
-	return wave_director.build_debut_opening(wave)
+	var schedule: Array[Dictionary] = wave_director.build_debut_opening(wave)
+	assign_paths_to_spawn_groups(schedule)
+	return schedule
 
 
 func build_timed_boss_opening() -> Array[Dictionary]:
 	sync_wave_director_context()
-	return wave_director.build_timed_boss_opening()
+	var schedule: Array[Dictionary] = wave_director.build_timed_boss_opening()
+	assign_paths_to_spawn_groups(schedule)
+	return schedule
 
 
 func get_spawn_event_director_cost(spawn_event: Dictionary) -> float:
@@ -3567,6 +3651,41 @@ func _on_mob_killed(reward: int) -> void:
 	var reward_multiplier := 1.0 + get_run_bonus(&"kill_reward")
 	add_money(roundi(float(reward) * reward_multiplier))
 	mob_finished()
+
+
+func _on_mob_died(mob: Node2D) -> void:
+	if item_drop_manager == null or not is_instance_valid(mob):
+		return
+	var item_id: StringName = item_drop_manager.record_kill()
+	if item_id.is_empty():
+		return
+	ensure_run_state()
+	if not run_state.add_tower_item(item_id):
+		return
+	newest_dropped_item_id = item_id
+	new_item_badge.show()
+	if is_instance_valid(tower_item_inventory_panel):
+		tower_item_inventory_panel.refresh()
+	_show_item_drop_feedback(item_id, mob.global_position)
+
+
+func _show_item_drop_feedback(item_id: StringName, world_position: Vector2) -> void:
+	var item := GameStats.get_tower_item(item_id)
+	var icon := TextureRect.new()
+	icon.texture = item.get("texture") as Texture2D
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.size = Vector2(52.0, 52.0)
+	icon.global_position = world_position - icon.size * 0.5
+	$MainUI/HUDRoot.add_child(icon)
+	var target := inventory_button.global_position + inventory_button.size * 0.5 - icon.size * 0.5
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(icon, "global_position", target, 0.65).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(icon, "scale", Vector2(0.55, 0.55), 0.65)
+	tween.tween_property(icon, "modulate:a", 0.0, 0.25).set_delay(0.4)
+	tween.chain().tween_callback(icon.queue_free)
+	inventory_button.tooltip_text = "NEW: %s\nTap to equip" % String(item.get("display_name", item_id))
 
 
 func mob_finished() -> void:

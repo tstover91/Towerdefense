@@ -138,9 +138,6 @@ func _update_sell_button() -> void:
 
 
 func _update_upgrade_button() -> void:
-	if tower.instance_progression != null:
-		upgrade_button.hide()
-		return
 	upgrade_button.show()
 	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
 	var next_level := tower.tower_level + 1

@@ -31,6 +31,24 @@ func run_checks() -> void:
 	var mask_map := MapData.instantiate_map(MapData.DEFAULT_MAP_ID)
 	add_child(mask_map)
 	assert(mask_map.native_build_bounds == Rect2(0.0, 0.0, 1152.0, 640.0))
+	var native_path_end := mask_map.get_enemy_path().curve.get_point_position(
+		mask_map.get_enemy_path().curve.point_count - 1
+	)
+	mask_map.configure_runtime_build_bounds(Rect2(0.0, 0.0, 1536.0, 640.0))
+	assert(mask_map.get_build_bounds() == Rect2(0.0, 0.0, 1536.0, 640.0))
+	assert(mask_map.background_extension.visible)
+	assert(is_equal_approx(
+		mask_map.get_enemy_path().curve.get_point_position(
+			mask_map.get_enemy_path().curve.point_count - 1
+		).x,
+		1536.0
+	))
+	assert(mask_map.is_point_blocked_by_path(Vector2(1400.0, native_path_end.y)))
+	mask_map.configure_runtime_build_bounds(Rect2(0.0, 0.0, 1152.0, 640.0))
+	assert(not mask_map.background_extension.visible)
+	assert(mask_map.get_enemy_path().curve.get_point_position(
+		mask_map.get_enemy_path().curve.point_count - 1
+	) == native_path_end)
 	mask_map.build_mask.set_cell(Vector2i(4, 5), 0, Vector2i.ZERO, 0)
 	assert(mask_map.is_point_blocked_by_build_mask(Vector2(72.0, 88.0)))
 	assert(not mask_map.is_point_blocked_by_build_mask(Vector2(88.0, 88.0)))

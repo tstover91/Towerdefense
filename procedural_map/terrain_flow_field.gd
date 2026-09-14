@@ -9,7 +9,9 @@ const TURN_COST := 0.22
 const U_TURN_COST := 0.65
 const HARDER_TERRAIN_ENTRY_COST := 0.20
 const TERRAIN_CLUSTER_COST := 0.08
-const ROUTE_VARIANT_BIAS_COST := 0.045
+const ROUTE_VARIANT_CORRIDOR_COST_PER_ROW := 0.085
+const UPPER_ROUTE_CORRIDOR_RATIO := 0.32
+const LOWER_ROUTE_CORRIDOR_RATIO := 0.68
 const CARDINAL_DIRECTIONS: Array[Vector2i] = [
 	Vector2i.LEFT,
 	Vector2i.RIGHT,
@@ -206,11 +208,25 @@ func _get_step_cost(
 
 
 func _get_route_variant_bias_cost(cell: Vector2i) -> float:
-	if route_vertical_bias == 0 or grid_size.y <= 1:
+	if route_vertical_bias == 0 or navigation_bounds.size.y <= 1:
 		return 0.0
-	var vertical_ratio := float(cell.y) / float(grid_size.y - 1)
-	return ROUTE_VARIANT_BIAS_COST * (
-		vertical_ratio if route_vertical_bias < 0 else 1.0 - vertical_ratio
+	# Each alternate flow prefers a broad interior corridor. Charging by row
+	# distance makes a sustained alternate route worthwhile, while terrain and
+	# path length can still pull it away from the ideal band. Keeping the bands
+	# inside the navigation bounds avoids recreating edge-hugging routes.
+	var corridor_ratio := (
+		UPPER_ROUTE_CORRIDOR_RATIO
+		if route_vertical_bias < 0
+		else LOWER_ROUTE_CORRIDOR_RATIO
+	)
+	var corridor_y := lerpf(
+		float(navigation_bounds.position.y),
+		float(navigation_bounds.end.y - 1),
+		corridor_ratio
+	)
+	return (
+		absf(float(cell.y) - corridor_y)
+		* ROUTE_VARIANT_CORRIDOR_COST_PER_ROW
 	)
 
 

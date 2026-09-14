@@ -4,32 +4,34 @@ const GameStats = preload("res://stat_database.gd")
 
 
 func _init() -> void:
-	assert(int(GameStats.get_mode(&"easy")["starting_cash"]) == 10000)
+	assert(int(GameStats.get_mode(&"easy")["starting_cash"]) == 750)
 	assert(GameStats.ROUND_PROFILES.size() == 24)
-	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.18))
+	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.122))
 	assert(is_equal_approx(GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER, 0.44))
 	assert(is_equal_approx(GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER, 1.30))
 	assert(is_equal_approx(
 		GameStats.STANDARD_ENEMY_THREAT_BUDGET_MULTIPLIER,
 		0.70
 	))
-	assert(GameStats.get_round_cash_reward(1) == 2000)
-	assert(GameStats.get_round_cash_reward(2) == 2250)
-	assert(GameStats.get_round_cash_reward(3) == 2750)
-	assert(GameStats.get_round_cash_reward(9) == 6000)
-	assert(GameStats.get_round_cash_reward(10) == 7000)
-	assert(GameStats.get_round_cash_reward(11) == 7500)
-	assert(GameStats.get_round_cash_reward(12) == 8500)
-	assert(GameStats.get_round_cash_reward(13) == 9500)
-	assert(GameStats.get_round_cash_reward(14) == 10500)
-	assert(GameStats.get_round_cash_reward(15) == 11500)
-	assert(GameStats.get_round_cash_reward(16) == 12000)
-	assert(GameStats.get_round_cash_reward(17) == 12000)
-	assert(GameStats.get_round_cash_reward(18) == 12500)
-	assert(GameStats.get_round_cash_reward(23) == 14000)
+	assert(GameStats.get_round_cash_reward(1) == 200)
+	assert(GameStats.get_round_cash_reward(2) == 225)
+	assert(GameStats.get_round_cash_reward(3) == 275)
+	assert(GameStats.get_round_cash_reward(9) == 675)
+	assert(GameStats.get_round_cash_reward(10) == 750)
+	assert(GameStats.get_round_cash_reward(11) == 975)
+	assert(GameStats.get_round_cash_reward(12) == 1200)
+	assert(GameStats.get_round_cash_reward(13) == 1425)
+	assert(GameStats.get_round_cash_reward(14) == 1750)
+	assert(GameStats.get_round_cash_reward(15) == 2150)
+	assert(GameStats.get_round_cash_reward(16) == 2400)
+	assert(GameStats.get_round_cash_reward(17) == 5000)
+	assert(GameStats.get_round_cash_reward(18) == 2500)
+	assert(GameStats.get_round_cash_reward(23) == 4300)
 	assert(GameStats.format_money(999) == "999")
 	assert(GameStats.format_money(1000) == "1.0k")
 	assert(GameStats.format_money(10500) == "10.5k")
+	assert(GameStats.scale_purchase_price(114) == 100)
+	assert(GameStats.scale_purchase_price(151) == 200)
 	assert(is_equal_approx(GameStats.get_round_threat_budget(4), 39.2))
 	assert(is_equal_approx(GameStats.get_round_threat_budget(5), 52.5))
 	assert(is_equal_approx(GameStats.get_round_threat_budget(6), 63.0))
@@ -44,7 +46,7 @@ func _init() -> void:
 	var total_round_cash := 0
 	for round_number in range(1, 25):
 		total_round_cash += GameStats.get_round_cash_reward(round_number)
-	assert(total_round_cash == 192250)
+	assert(total_round_cash == 39200)
 	var expected_health_multipliers := [
 		1.50, 2.00, 2.50, 3.00, 3.50, 4.00,
 		4.50, 5.00, 5.50, 6.00, 6.50, 7.00,

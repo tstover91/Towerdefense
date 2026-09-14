@@ -5,11 +5,15 @@ extends Node2D
 @export var display_name := "Map"
 @export var native_build_bounds := Rect2(0.0, 0.0, 960.0, 648.0)
 @export var path_no_build_radius := 24.0
+@export var expands_horizontally := true
 
 @onready var paths_root: Node = $Paths
 @onready var build_mask: TileMapLayer = get_node_or_null("BuildMask")
+@onready var background: Sprite2D = get_node_or_null("Background")
 
 var runtime_build_bounds := Rect2()
+var background_extension: Sprite2D
+var native_path_curves: Dictionary = {}
 
 
 func _ready() -> void:
@@ -17,6 +21,7 @@ func _ready() -> void:
 	assert(not get_enemy_paths().is_empty(), "%s requires at least one Path2D" % map_id)
 	for path in get_enemy_paths():
 		assert(path.curve != null, "Map path %s requires a Curve2D" % path.name)
+		native_path_curves[path.get_instance_id()] = path.curve.duplicate(true)
 	if runtime_build_bounds.size.is_zero_approx():
 		runtime_build_bounds = native_build_bounds
 	if build_mask != null:
@@ -24,7 +29,82 @@ func _ready() -> void:
 
 
 func configure_runtime_build_bounds(available_bounds: Rect2) -> void:
-	runtime_build_bounds = native_build_bounds.intersection(available_bounds)
+	var available_end := available_bounds.end
+	var native_end := native_build_bounds.end
+	var runtime_end := Vector2(
+		available_end.x if expands_horizontally else minf(available_end.x, native_end.x),
+		minf(available_end.y, native_end.y)
+	)
+	runtime_build_bounds = Rect2(
+		native_build_bounds.position,
+		Vector2(
+			maxf(runtime_end.x - native_build_bounds.position.x, 0.0),
+			maxf(runtime_end.y - native_build_bounds.position.y, 0.0)
+		)
+	)
+	_update_background_extension()
+	_update_edge_paths()
+
+
+func _update_background_extension() -> void:
+	if background == null or background.texture == null:
+		return
+	var extra_width := maxf(
+		runtime_build_bounds.end.x - native_build_bounds.end.x, 0.0
+	)
+	if extra_width <= 0.0:
+		if is_instance_valid(background_extension):
+			background_extension.hide()
+		return
+	if not is_instance_valid(background_extension):
+		background_extension = Sprite2D.new()
+		background_extension.name = "RuntimeBackgroundExtension"
+		background_extension.centered = false
+		background_extension.z_index = background.z_index
+		var edge_texture := AtlasTexture.new()
+		edge_texture.atlas = background.texture
+		var source_size := background.texture.get_size()
+		var strip_width := minf(32.0, source_size.x)
+		edge_texture.region = Rect2(
+			source_size.x - strip_width,
+			0.0,
+			strip_width,
+			source_size.y
+		)
+		background_extension.texture = edge_texture
+		add_child(background_extension)
+	var extension_texture_width := background_extension.texture.get_width()
+	background_extension.position = Vector2(native_build_bounds.end.x, 0.0)
+	background_extension.scale = Vector2(
+		extra_width / maxf(extension_texture_width, 1.0),
+		background.scale.y
+	)
+	background_extension.show()
+
+
+func _update_edge_paths() -> void:
+	for path in get_enemy_paths():
+		var native_curve := native_path_curves.get(path.get_instance_id()) as Curve2D
+		if native_curve == null:
+			continue
+		var runtime_curve := native_curve.duplicate(true) as Curve2D
+		var last_index := runtime_curve.point_count - 1
+		if last_index < 0:
+			continue
+		var right_edge := native_build_bounds.end.x
+		var new_right_edge := runtime_build_bounds.end.x
+		if new_right_edge <= right_edge:
+			path.curve = runtime_curve
+			continue
+		var first_point := runtime_curve.get_point_position(0)
+		if is_equal_approx(first_point.x, right_edge):
+			first_point.x = new_right_edge
+			runtime_curve.set_point_position(0, first_point)
+		var last_point := runtime_curve.get_point_position(last_index)
+		if is_equal_approx(last_point.x, right_edge) or last_point.x >= right_edge - 4.0:
+			last_point.x = new_right_edge
+			runtime_curve.set_point_position(last_index, last_point)
+		path.curve = runtime_curve
 
 
 func get_build_bounds() -> Rect2:

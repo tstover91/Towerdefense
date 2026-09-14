@@ -48,6 +48,13 @@ func run_test() -> void:
 	assert(GameStats.get_tower(&"brainiac")["display_name"] == "Psion")
 	assert(GameStats.get_tower(&"dronedepot")["display_name"] == "Alien Factory")
 	assert(GameStats.get_tower_evolutions(&"dronedepot").size() == 3)
+	for family_id in families:
+		var priced_tower := GameStats.get_tower(family_id)
+		assert(int(priced_tower["placement_cost"]) % 100 == 0)
+		for path in Dictionary(priced_tower.get("paths", {})).values():
+			assert(int(path.get("cost", 0)) % 100 == 0)
+		for level_data in Array(priced_tower.get("levels", [])):
+			assert(int(level_data.get("upgrade_cost", 0)) % 100 == 0)
 
 	var invader_data := GameStats.get_tower(&"invader")
 	assert(invader_data["delivery_type"] == GameStats.DELIVERY_HITSCAN)
@@ -88,11 +95,11 @@ func run_test() -> void:
 	)
 	assert(
 		longshot_level_13["damage"]
-		> GameStats.get_tower_level(&"longshot", 2)["damage"]
+		== GameStats.get_tower_level(&"longshot", 2)["damage"]
 	)
 	assert(
 		longshot_level_19["damage"]
-		> GameStats.get_tower_level(&"longshot", 3)["damage"]
+		== GameStats.get_tower_level(&"longshot", 3)["damage"]
 	)
 	assert(longshot_level_15["damage"] > longshot_level_13["damage"])
 	assert(longshot_level_15["damage"] < longshot_level_19["damage"])
@@ -118,15 +125,12 @@ func run_test() -> void:
 	var longshot_level_20 := GameStats.get_tower_xp_level_stats(&"longshot", 20)
 	assert(int(longshot_level_20["damage"]) == roundi(
 		float(GameStats.get_tower_level(&"longshot", 3)["damage"])
-		* 1.22
+		* GameStats.XP_MASTERY_DAMAGE_MULTIPLIER
 	))
 	assert(is_equal_approx(
 		float(longshot_level_20["firerate"]),
 		float(GameStats.get_tower_level(&"longshot", 3)["firerate"])
-	))
-	var invader_level_20 := GameStats.get_tower_xp_level_stats(&"invader", 20)
-	assert(float(invader_level_20["firerate"]) < float(
-		GameStats.get_tower_xp_level_stats(&"invader", 19)["firerate"]
+			* GameStats.XP_MASTERY_INTERVAL_MULTIPLIER
 	))
 
 	var fake_main := FakeMain.new()

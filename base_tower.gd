@@ -863,6 +863,7 @@ func _on_round_started(_round_number: int) -> void:
 		attack_delivery_controller.invalidate_effect_metadata_cache()
 	if item_controller != null:
 		item_controller.reset_runtime_state()
+	refresh_upgrade_ready_indicator()
 	if attack_component != null:
 		attack_component.on_round_started()
 	if is_placed and uses_standard_spawner_system():
@@ -873,7 +874,7 @@ func _on_round_started(_round_number: int) -> void:
 func _on_round_ended(round_number: int) -> void:
 	death_ray_cycle_elapsed = 0.0
 	refresh_death_ray_overcharge_state()
-	if is_placed and instance_progression != null:
+	if GameStats.AUTOMATIC_TOWER_XP and is_placed and instance_progression != null:
 		var round_xp_bonus := clampf(
 			GameStats.TOWER_XP_ROUND_BONUS_BASE
 			+ GameStats.TOWER_XP_ROUND_BONUS_PER_ROUND * float(round_number)
@@ -904,6 +905,7 @@ func _on_round_ended(round_number: int) -> void:
 			"total_xp": snappedf(float(xp_breakdown["total"]), 0.001),
 		}))
 	update_menu_buttons()
+	refresh_upgrade_ready_indicator()
 	if attack_component != null:
 		attack_component.on_round_ended()
 	queue_redraw()
@@ -942,7 +944,7 @@ func try_trigger_microwave() -> bool:
 
 
 func notify_enemy_killed(enemy: Node, attack_context: AttackContext) -> void:
-	if instance_progression != null:
+	if GameStats.AUTOMATIC_TOWER_XP and instance_progression != null:
 		instance_progression.record_kill(
 			_modify_xp_award(
 				TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy, attack_context)
@@ -960,16 +962,15 @@ func notify_damage_dealt(
 	attack_context: AttackContext,
 	damage_type: StringName = &""
 ) -> void:
-	if instance_progression == null or actual_damage <= 0:
-		return
-	instance_progression.record_damage(
-		actual_damage,
-		_modify_xp_award(
-			TOWER_XP_CREDIT_SERVICE.get_damage_xp(
-				actual_damage, enemy, attack_context
+	if GameStats.AUTOMATIC_TOWER_XP and instance_progression != null and actual_damage > 0:
+		instance_progression.record_damage(
+			actual_damage,
+			_modify_xp_award(
+				TOWER_XP_CREDIT_SERVICE.get_damage_xp(
+					actual_damage, enemy, attack_context
+				)
 			)
 		)
-	)
 	if item_controller != null:
 		item_controller.notify_damage_dealt(
 			enemy, actual_damage, attack_context, damage_type
@@ -981,23 +982,24 @@ func notify_enemy_abducted(
 	removed_health: int,
 	attack_context: AttackContext
 ) -> void:
-	if instance_progression == null or not is_instance_valid(enemy):
+	if not is_instance_valid(enemy):
 		return
-	var credited_damage := maxi(removed_health, 0)
-	if credited_damage > 0:
-		instance_progression.record_damage(
-			credited_damage,
-			_modify_xp_award(
-				TOWER_XP_CREDIT_SERVICE.get_damage_xp(
-					credited_damage, enemy, attack_context
+	if GameStats.AUTOMATIC_TOWER_XP and instance_progression != null:
+		var credited_damage := maxi(removed_health, 0)
+		if credited_damage > 0:
+			instance_progression.record_damage(
+				credited_damage,
+				_modify_xp_award(
+					TOWER_XP_CREDIT_SERVICE.get_damage_xp(
+						credited_damage, enemy, attack_context
+					)
 				)
 			)
+		instance_progression.record_kill(
+			_modify_xp_award(
+				TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy, attack_context)
+			)
 		)
-	instance_progression.record_kill(
-		_modify_xp_award(
-			TOWER_XP_CREDIT_SERVICE.get_kill_xp(enemy, attack_context)
-		)
-	)
 
 
 func notify_attack_started(current_target: Node = null) -> void:
@@ -1039,7 +1041,7 @@ func notify_projectile_terminated(
 
 
 func award_support_xp(amount: float) -> void:
-	if instance_progression != null:
+	if GameStats.AUTOMATIC_TOWER_XP and instance_progression != null:
 		instance_progression.record_control_credit(_modify_xp_award(amount))
 
 
@@ -1105,12 +1107,9 @@ func refresh_upgrade_ready_indicator() -> void:
 	var upgrade_ready := false
 	if is_placed and progression_controller != null:
 		if progression_controller.has_evolution_options():
-			for evolution_key in GameStats.get_tower_evolutions(tower_id):
-				if progression_controller.can_purchase_evolution(
-					StringName(evolution_key)
-				):
-					upgrade_ready = true
-					break
+			upgrade_ready = (
+				progression_controller.has_unselected_unlocked_evolution()
+			)
 		else:
 			upgrade_ready = progression_controller.has_available_path_purchase()
 	upgrade_ready_indicator.visible = upgrade_ready

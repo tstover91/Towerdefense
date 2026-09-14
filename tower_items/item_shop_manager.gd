@@ -6,8 +6,8 @@ const GameStats = preload("res://stat_database.gd")
 const OFFER_COUNT := 4
 const REROLL_BASE_COST := 40
 const REROLL_BASE_COST_PER_ROUND := 10
-const REROLL_MINIMUM_COST_STEP := 25
-const REROLL_COST_STEP_PER_ROUND := 5
+const REROLL_MINIMUM_COST_STEP := 100
+const REROLL_COST_STEP_PER_ROUND := 10
 const RARITY_WEIGHTS_BY_ROUND := {
 	&"early": {&"common": 100.0, &"uncommon": 50.0, &"rare": 15.0, &"legendary": 1.0},
 	&"middle": {&"common": 75.0, &"uncommon": 65.0, &"rare": 35.0, &"legendary": 5.0},
@@ -66,7 +66,7 @@ func get_reroll_cost() -> int:
 		REROLL_MINIMUM_COST_STEP,
 		REROLL_COST_STEP_PER_ROUND * current_shop_round
 	)
-	return GameStats.scale_money(base_cost + cost_step * reroll_count)
+	return GameStats.scale_purchase_price(base_cost + cost_step * reroll_count)
 
 
 func has_rerollable_slots() -> bool:

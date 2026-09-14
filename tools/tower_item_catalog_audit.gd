@@ -98,6 +98,7 @@ func run_test() -> void:
 	var compatible_variants: Dictionary = {}
 	for item_id in enabled_ids:
 		var item := GameStats.get_tower_item(item_id)
+		assert(int(item.get("price", 0)) % 100 == 0)
 		if not _check_catalog_definition(item_id, item):
 			return
 		var matches: Array[BaseTower] = []

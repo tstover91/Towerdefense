@@ -51,6 +51,12 @@ func process_cooldown(delta: float, can_recover: bool) -> bool:
 	return ceili(cooldown_remaining) != previous_seconds
 
 
+func reset_cooldown() -> bool:
+	var changed := cooldown_remaining > 0.0
+	cooldown_remaining = 0.0
+	return changed
+
+
 func update_preview(world_position: Vector2) -> void:
 	if targeting and is_instance_valid(preview):
 		preview.set_preview_position(world_position, is_valid_drop_position(world_position))

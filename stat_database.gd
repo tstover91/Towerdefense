@@ -6,8 +6,20 @@ extends RefCounted
 
 const DEFAULT_ENEMY_ID := "normal"
 const DEFAULT_TOWER_ID := "invader"
-const ECONOMY_SCALE := 10
+const ECONOMY_SCALE := 1
+const PURCHASE_PRICE_INCREMENT := 100
 const EVOLUTION_COST_MULTIPLIER := 0.0
+const AUTOMATIC_TOWER_XP := false
+const PURCHASED_TOWER_DATA = preload("res://tower_progression/purchased_tower_data.gd")
+
+# Standalone descendants use an existing family's combat implementation while
+# carrying their former path mechanic from the moment they are built. This lets
+# the roster be split incrementally without duplicating mature attack code.
+const STANDALONE_TOWER_VARIANTS := {
+	&"gunslinger": {"source": &"invader", "path": &"a", "display_name": "Gunslinger"},
+	&"laser_cannon": {"source": &"invader", "path": &"b", "display_name": "Laser Cannon", "modern_path": true},
+	&"gauss_gunner": {"source": &"gauss_repeater", "display_name": "Gauss Gunner"},
+}
 const BUILD_CELL_SIZE := 32.0
 const TOWER_FOOTPRINT_SIZE := Vector2(64.0, 64.0)
 const ELECTRIC_HITS_TO_PROC := 5
@@ -162,7 +174,7 @@ const MAXIMUM_ARMOR_DAMAGE_REDUCTION := 0.60
 
 # Enemy bounties remain composition-dependent. This compensates for the smaller
 # spawn budget so expected kill income stays close to the previous pacing.
-const KILL_REWARD_MULTIPLIER := 0.18
+const KILL_REWARD_MULTIPLIER := 0.122
 
 const ROUND_CASH_REWARDS := {
 	1: 200,
@@ -171,23 +183,23 @@ const ROUND_CASH_REWARDS := {
 	4: 325,
 	5: 400,
 	6: 450,
-	7: 500,
-	8: 550,
-	9: 600,
-	10: 700,
-	11: 750,
-	12: 850,
-	13: 950,
-	14: 1050,
-	15: 1150,
-	16: 1200,
-	17: 1200,
-	18: 1250,
-	19: 1250,
-	20: 1300,
-	21: 1300,
-	22: 1350,
-	23: 1400,
+	7: 525,
+	8: 575,
+	9: 675,
+	10: 750,
+	11: 975,
+	12: 1200,
+	13: 1425,
+	14: 1750,
+	15: 2150,
+	16: 2400,
+	17: 5000,
+	18: 2500,
+	19: 2800,
+	20: 3100,
+	21: 3400,
+	22: 3800,
+	23: 4300,
 	24: 0,
 }
 
@@ -977,7 +989,9 @@ const ENEMIES := {
 ## combat components and tests stay available while their future evolutions are
 ## migrated incrementally.
 const PLAYABLE_TOWER_FAMILY_IDS: Array[StringName] = [
-	&"invader",
+	&"gunslinger",
+	&"laser_cannon",
+	&"gauss_gunner",
 	&"longshot",
 	&"slinger",
 	&"energycore",
@@ -1466,26 +1480,6 @@ const XP_MASTERY_DAMAGE_MULTIPLIER := 1.20
 const XP_MASTERY_INTERVAL_MULTIPLIER := 0.90
 const XP_MASTERY_RANGE_MULTIPLIER := 1.05
 const XP_MASTERY_PROJECTILE_SPEED_MULTIPLIER := 1.10
-const XP_TOWER_MASTERY_PROFILES := {
-	&"invader": {&"damage": 1.08, &"firerate": 0.84, &"projectile_speed": 1.08},
-	&"fisherman": {&"damage": 1.14, &"range": 1.08, &"firerate": 0.94},
-	&"brainiac": {&"damage": 1.10, &"range": 1.12, &"firerate": 0.92},
-	&"reaver": {&"damage": 1.16, &"firerate": 0.90, &"range": 1.04},
-	&"longshot": {&"damage": 1.22, &"range": 1.08, &"projectile_speed": 1.12},
-	&"slinger": {&"damage": 1.10, &"firerate": 0.88, &"projectile_speed": 1.10},
-	&"voidcaller": {&"damage": 1.16, &"range": 1.08, &"firerate": 0.94},
-	&"orbitalcannon": {&"damage": 1.24, &"range": 1.06, &"firerate": 0.96},
-	&"energycore": {&"damage": 1.08, &"firerate": 0.86, &"range": 1.06},
-	&"saucer": {&"damage": 1.12, &"firerate": 0.90, &"range": 1.08},
-	&"dronedepot": {
-		&"spawn_interval": 0.90,
-		&"deployment_radius": 1.08,
-		&"unit_damage": 1.12,
-		&"unit_attack_interval": 0.94,
-		&"unit_aim_radius": 1.06,
-	},
-	&"irradiator": {&"damage": 1.14, &"range": 1.10, &"firerate": 0.92},
-}
 
 const TOWERS := {
 	"invader": {
@@ -2176,7 +2170,7 @@ const TOWERS := {
 				"upgrade_cost": 0,
 				"damage": 575,
 				"firerate": 2.20,
-				"range": 19.0,
+				"range": 15.0,
 				"critical_chance": 0.10,
 				"critical_multiplier": 2.0,
 			},
@@ -2184,7 +2178,7 @@ const TOWERS := {
 				"upgrade_cost": 500,
 				"damage": 719,
 				"firerate": 2.10,
-				"range": 19.5,
+				"range": 15.5,
 				"critical_chance": 0.10,
 				"critical_multiplier": 2.0,
 			},
@@ -2192,7 +2186,7 @@ const TOWERS := {
 				"upgrade_cost": 1825,
 				"damage": 1208,
 				"firerate": 1.95,
-				"range": 20.0,
+				"range": 16.0,
 				"critical_chance": 0.10,
 				"critical_multiplier": 2.0,
 			},
@@ -2200,7 +2194,7 @@ const TOWERS := {
 				"upgrade_cost": 3000,
 				"damage": 2674,
 				"firerate": 1.65,
-				"range": 21.0,
+				"range": 17.0,
 				"critical_chance": 0.10,
 				"critical_multiplier": 2.0,
 			},
@@ -2724,10 +2718,10 @@ const TOWERS := {
 		"levels": [
 			{
 				"upgrade_cost": 0,
-				"damage": 154,
+				"damage": 139,
 				"projectile_speed": 650.0,
 				"firerate": 0.65,
-				"range": 15.0,
+				"range": 10.5,
 				"flyer_move_speed": 165.0,
 				"flyer_attack_radius": 5.0,
 				"abduction_cooldown": 16.0,
@@ -2737,10 +2731,10 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1075,
-				"damage": 218,
+				"damage": 196,
 				"projectile_speed": 760.0,
 				"firerate": 0.60,
-				"range": 16.0,
+				"range": 11.2,
 				"flyer_move_speed": 190.0,
 				"flyer_attack_radius": 5.5,
 				"abduction_cooldown": 16.0,
@@ -2750,10 +2744,10 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1000,
-				"damage": 336,
+				"damage": 302,
 				"projectile_speed": 760.0,
 				"firerate": 0.60,
-				"range": 16.0,
+				"range": 11.2,
 				"flyer_move_speed": 190.0,
 				"flyer_attack_radius": 5.5,
 				"abduction_cooldown": 13.0,
@@ -2763,10 +2757,10 @@ const TOWERS := {
 			},
 			{
 				"upgrade_cost": 1600,
-				"damage": 378,
+				"damage": 340,
 				"projectile_speed": 920.0,
 				"firerate": 0.45,
-				"range": 17.0,
+				"range": 11.9,
 				"flyer_move_speed": 210.0,
 				"flyer_attack_radius": 6.0,
 				"abduction_cooldown": 10.0,
@@ -3154,7 +3148,7 @@ const TOWERS := {
 const MODES := {
 	"easy": {
 		"display_name": "Easy",
-		"starting_cash": 1000,
+		"starting_cash": 750,
 		"starting_lives": 100,
 		"max_rounds": 24,
 		"starting_spawn_threat": 1.0,
@@ -3516,16 +3510,40 @@ static func get_armor_damage_multiplier(
 
 
 static func get_tower(tower_id: StringName) -> Dictionary:
-	assert(TOWERS.has(tower_id), "Unknown tower ID: %s" % tower_id)
-	var tower: Dictionary = TOWERS[tower_id].duplicate(true)
-	tower["placement_cost"] = scale_money(int(tower.get("placement_cost", 0)))
+	var variant: Dictionary = STANDALONE_TOWER_VARIANTS.get(tower_id, {})
+	var source_id := StringName(variant.get("source", tower_id))
+	assert(TOWERS.has(source_id), "Unknown tower ID: %s" % tower_id)
+	var tower: Dictionary = TOWERS[source_id].duplicate(true)
+	if PURCHASED_TOWER_DATA.TOWERS.has(String(source_id)):
+		tower = PURCHASED_TOWER_DATA.TOWERS[String(source_id)].duplicate(true)
+	if not variant.is_empty():
+		tower["display_name"] = variant["display_name"]
+		tower["source_tower_id"] = source_id
+		var path_id := StringName(variant.get("path", &""))
+		if not path_id.is_empty():
+			var path_source: Dictionary = (
+				TOWERS[source_id]
+				if bool(variant.get("modern_path", false))
+				else tower
+			)
+			tower["inherent_path"] = path_source.get("paths", {}).get(path_id, {}).duplicate(true)
+		tower["paths"] = {}
+	tower["placement_cost"] = scale_purchase_price(int(tower.get("placement_cost", 0)))
 	for path_key in Dictionary(tower.get("paths", {})):
 		var path: Dictionary = tower["paths"][path_key]
-		path["cost"] = scale_money(int(path.get("cost", 0)))
+		path["cost"] = scale_purchase_price(int(path.get("cost", 0)))
 	for level in Array(tower.get("levels", [])):
-		level["upgrade_cost"] = scale_money(int(level.get("upgrade_cost", 0)))
-	tower["texture"] = TOWER_TEXTURES.get(tower_id)
+		level["upgrade_cost"] = scale_purchase_price(int(level.get("upgrade_cost", 0)))
+	tower["texture"] = TOWER_TEXTURES.get(source_id)
 	return tower
+
+
+static func get_tower_combat_source_id(tower_id: StringName) -> StringName:
+	return StringName(STANDALONE_TOWER_VARIANTS.get(tower_id, {}).get("source", tower_id))
+
+
+static func get_tower_inherent_path(tower_id: StringName) -> Dictionary:
+	return get_tower(tower_id).get("inherent_path", {}).duplicate(true)
 
 
 static func get_playable_tower_family_ids() -> Array[StringName]:
@@ -3571,14 +3589,10 @@ static func get_tower_xp_level_stats(
 			XP_INTERPOLATED_UNIT_STATS
 		)
 		stats["unit_stats"] = unit_stats
-	if safe_xp_level > TOWER_EVOLUTION_DEFAULT_LEVEL:
-		var mastery_progress := (
-			float(safe_xp_level - TOWER_EVOLUTION_DEFAULT_LEVEL)
-			/ float(TOWER_XP_MAX_LEVEL - TOWER_EVOLUTION_DEFAULT_LEVEL)
-		)
-		# Later post-evolution levels carry more of the mastery reward, matching
-		# their much larger XP requirements.
-		_apply_tower_xp_mastery(stats, tower_id, pow(mastery_progress, 1.45))
+	if safe_xp_level >= TOWER_XP_MAX_LEVEL:
+		_apply_xp_mastery(stats, 1.0)
+		if tower_id == &"dronedepot":
+			_apply_drone_depot_mastery_correction(stats)
 	return stats
 
 
@@ -3742,37 +3756,6 @@ static func _apply_drone_depot_mastery_correction(stats: Dictionary) -> void:
 	stats["unit_stats"] = unit_stats
 
 
-static func _apply_tower_xp_mastery(
-	stats: Dictionary,
-	tower_id: StringName,
-	progress: float
-) -> void:
-	var profile: Dictionary = XP_TOWER_MASTERY_PROFILES.get(tower_id, {})
-	for key in [&"damage", &"firerate", &"range", &"projectile_speed", &"spawn_interval", &"deployment_radius"]:
-		if profile.has(key):
-			_apply_mastery_multiplier(
-				stats, key, lerpf(1.0, float(profile[key]), progress)
-			)
-	if not stats.get("unit_stats") is Dictionary:
-		return
-	var unit_stats: Dictionary = stats["unit_stats"].duplicate(true)
-	for pair in [
-		[&"unit_damage", &"damage"],
-		[&"unit_attack_interval", &"attack_interval"],
-		[&"unit_aim_radius", &"aim_radius"],
-		[&"unit_move_speed", &"move_speed"],
-	]:
-		var profile_key: StringName = pair[0]
-		var stat_key: StringName = pair[1]
-		if profile.has(profile_key):
-			_apply_mastery_multiplier(
-				unit_stats,
-				stat_key,
-				lerpf(1.0, float(profile[profile_key]), progress)
-			)
-	stats["unit_stats"] = unit_stats
-
-
 static func _apply_mastery_multiplier(
 	stats: Dictionary,
 	key: StringName,
@@ -3788,6 +3771,8 @@ static func _apply_mastery_multiplier(
 
 
 static func get_spawned_unit(unit_id: StringName) -> Dictionary:
+	if PURCHASED_TOWER_DATA.SPAWNED_UNITS.has(String(unit_id)):
+		return PURCHASED_TOWER_DATA.SPAWNED_UNITS[String(unit_id)].duplicate(true)
 	assert(SPAWNED_UNITS.has(unit_id), "Unknown spawned unit ID: %s" % unit_id)
 	return SPAWNED_UNITS[unit_id].duplicate(true)
 
@@ -3858,7 +3843,7 @@ static func get_tower_item(item_id: StringName) -> Dictionary:
 		int(item.get("max_copies_per_tower", TOWER_ITEM_STACK_LIMIT)),
 		TOWER_ITEM_STACK_LIMIT
 	)
-	item["price"] = scale_money(int(item.get("price", 0)))
+	item["price"] = scale_purchase_price(int(item.get("price", 0)))
 	item["id"] = item_id
 	var icon_path := "res://assets/ui/item_icons/glyphs/%s.svg" % item_id
 	if ResourceLoader.exists(icon_path):
@@ -4005,6 +3990,15 @@ static func get_round_cash_reward(round_number: int) -> int:
 
 static func scale_money(amount: int) -> int:
 	return amount * ECONOMY_SCALE
+
+
+static func scale_purchase_price(amount: int) -> int:
+	var scaled_amount := scale_money(amount)
+	if scaled_amount <= 0:
+		return scaled_amount
+	return roundi(
+		float(scaled_amount) / float(PURCHASE_PRICE_INCREMENT)
+	) * PURCHASE_PRICE_INCREMENT
 
 
 static func format_money(amount: int) -> String:

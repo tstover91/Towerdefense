@@ -38,8 +38,11 @@ func run_test() -> void:
 	assert(is_equal_approx(controller.cooldown_remaining, 25.0))
 	assert(controller.process_cooldown(1.0, true))
 	assert(is_equal_approx(controller.cooldown_remaining, 24.0))
+	assert(controller.reset_cooldown())
+	assert(is_equal_approx(controller.cooldown_remaining, 0.0))
+	assert(not controller.reset_cooldown())
 	controller.clear_drops()
 	assert(drops[0].is_queued_for_deletion())
 
-	print("Reinforcement controller smoke test passed: readiness, targeting, validation, deployment, cooldown, and cleanup.")
+	print("Reinforcement controller smoke test passed: readiness, targeting, validation, deployment, round reset, and cleanup.")
 	get_tree().quit(0)

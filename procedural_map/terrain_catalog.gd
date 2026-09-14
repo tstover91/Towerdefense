@@ -5,6 +5,7 @@ enum TerrainType {
 	FIELD,
 	FOREST,
 	MUD,
+	ROAD,
 }
 
 const TILE_SIZE := 32
@@ -29,6 +30,13 @@ const TERRAIN_DATA := {
 		"speed_multiplier": 0.70,
 		"buildable": false,
 		"texture_path": "res://assets/terrain/mud_basic.png",
+	},
+	TerrainType.ROAD: {
+		"display_name": "Road",
+		"route_cost": 0.25,
+		"speed_multiplier": 1.0,
+		"buildable": false,
+		"texture_path": "res://assets/terrain/road_placeholder.svg",
 	},
 }
 

@@ -87,8 +87,17 @@ func run_checks() -> void:
 
 
 func validate_schedule(schedule: Array[Dictionary]) -> void:
+	var paths_by_group: Dictionary = {}
 	for event in schedule:
 		var enemy_id := StringName(event.get("enemy_id", &""))
 		assert(not enemy_id.is_empty())
 		assert(GameStats.ENEMIES.has(enemy_id))
 		assert(float(event.get("delay_after", 0.0)) > 0.0)
+		assert(event.has("spawn_group_id"))
+		var path_id := StringName(event.get("path_id", &""))
+		assert(not path_id.is_empty())
+		var group_id: Variant = event["spawn_group_id"]
+		if paths_by_group.has(group_id):
+			assert(paths_by_group[group_id] == path_id)
+		else:
+			paths_by_group[group_id] = path_id

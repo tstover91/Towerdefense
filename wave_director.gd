@@ -68,6 +68,7 @@ var current_round_type: StringName = ROUND_STANDARD
 var current_wave_spawn_style: StringName = &"standard"
 var last_gauntlet_spawn_style: StringName = &""
 var gauntlet_style_repeat_count := 0
+var next_spawn_group_id := 1
 var active_enemy_count_provider: Callable
 
 
@@ -606,6 +607,9 @@ func build_elite_event_schedule(
 		)
 	if not schedule.is_empty():
 		schedule.back()["delay_after"] = 1.0
+		var group_id := _claim_spawn_group_id()
+		for spawn_event in schedule:
+			spawn_event["spawn_group_id"] = group_id
 	return schedule
 
 
@@ -968,6 +972,7 @@ func append_enemy_group(
 		delay_multiplier = SPACED_FORMATION_DELAY_MULTIPLIER
 	var adjusted_interval := maxf(interval * delay_multiplier, 0.01)
 	var adjusted_gap := maxf(gap_after_group * delay_multiplier, 0.01)
+	var group_id := _claim_spawn_group_id()
 	for index in group.size():
 		var delay_after := adjusted_interval
 		if index == group.size() - 1:
@@ -976,7 +981,14 @@ func append_enemy_group(
 			"enemy_id": group[index],
 			"delay_after": delay_after,
 			"style": style_name,
+			"spawn_group_id": group_id,
 		})
+
+
+func _claim_spawn_group_id() -> int:
+	var claimed_id := next_spawn_group_id
+	next_spawn_group_id += 1
+	return claimed_id
 
 
 func take_strongest_enemy(enemy_queue: Array[StringName]) -> StringName:

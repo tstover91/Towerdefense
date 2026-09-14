@@ -74,7 +74,7 @@ func run_test() -> void:
 	assert(component != null)
 	assert(GameStats.get_tower_evolutions(&"saucer").size() == 3)
 	var saucer_levels: Array = GameStats.get_tower(&"saucer")["levels"]
-	var expected_gun_damage := [154, 218, 336, 378]
+	var expected_gun_damage := [139, 196, 302, 340]
 	for level_index in saucer_levels.size():
 		assert(
 			int(saucer_levels[level_index]["damage"])
@@ -174,7 +174,7 @@ func run_test() -> void:
 	assert(is_equal_approx(component.vulnerability_field_bonus, 0.30))
 	assert(is_equal_approx(component.vulnerability_field_radius_pixels, 5.0 * BaseTower.BUILD_CELL_SIZE))
 	assert(tower.damage == roundi(
-		378.0 * float(GameStats.XP_TOWER_MASTERY_PROFILES[&"saucer"][&"damage"])
+		340.0 * GameStats.XP_MASTERY_DAMAGE_MULTIPLIER
 	))
 	print("Saucer smoke test passed: Gunship, hunting Abductor, Mothership support, abduction XP, and capstones.")
 	get_tree().quit(0)

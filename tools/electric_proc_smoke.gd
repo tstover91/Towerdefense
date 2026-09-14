@@ -151,8 +151,8 @@ func spawn_test_mob(at_position: Vector2) -> Node2D:
 
 func assert_electric_stat_nerfs() -> void:
 	assert_level_damage(&"gauss_repeater", [16, 16, 32, 56])
-	assert_level_damage(&"energycore", [16, 22, 30, 75])
-	assert_level_damage(&"saucer", [154, 218, 336, 378])
+	assert_level_damage(&"energycore", [16, 22, 25, 62])
+	assert_level_damage(&"saucer", [139, 196, 302, 340])
 	var storm_fisher: Dictionary = GameStats.get_tower_path(&"fisherman", &"c")
 	assert(is_equal_approx(
 		float(storm_fisher["stat_multipliers"]["damage"]),
@@ -161,9 +161,9 @@ func assert_electric_stat_nerfs() -> void:
 	var rockets: Dictionary = GameStats.get_tower_path(&"saucer", &"a")
 	assert(is_equal_approx(
 		float(rockets["behavior_values"]["saucer_rocket_damage_multiplier"]),
-		1.5
+		1.28
 	))
-	var preserved_rocket_damage := [231, 327, 504, 567]
+	var preserved_rocket_damage := [178, 251, 387, 435]
 	var saucer_levels: Array = GameStats.get_tower(&"saucer")["levels"]
 	for level_index in saucer_levels.size():
 		assert(
