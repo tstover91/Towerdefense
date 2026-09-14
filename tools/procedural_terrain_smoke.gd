@@ -184,7 +184,7 @@ func _test_playable_map() -> void:
 	map.generation_seed = 12345
 	add_child(map)
 	assert(map.active_generation_seed == 12345)
-	assert(map.map_id == &"procedural_test")
+	assert(map.map_id == &"switchback")
 	assert(map.get_build_bounds() == Rect2(0.0, 0.0, 1152.0, 640.0))
 	assert(
 		map.get_enemy_paths().size()
@@ -290,7 +290,7 @@ func _test_road_generation_safeguards() -> void:
 				break
 		assert(first_shared_x >= ceili(
 			float(map.generator.grid_size.x)
-				* map.MINIMUM_ENTRANCE_SEPARATION_RATIO
+				* map.generation_profile.minimum_join_ratio
 		) - 1)
 		map.queue_free()
 

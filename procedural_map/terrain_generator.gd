@@ -6,7 +6,7 @@ const GenerationProfile = preload(
 	"res://procedural_map/terrain_generation_profile.gd"
 )
 const DEFAULT_PROFILE = preload(
-	"res://procedural_map/farm_generation_profile.tres"
+	"res://procedural_map/switchback_generation_profile.tres"
 )
 
 const GRID_SIZE := Vector2i(36, 20)

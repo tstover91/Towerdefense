@@ -13,9 +13,19 @@ const MAPS := {
 		"scene": preload("res://maps/farm_gauntlet_map.tscn"),
 		"preview": preload("res://assets/maps/farm_gauntlet.png"),
 	},
-	&"procedural_test": {
-		"display_name": "Procedural Test",
+	&"switchback": {
+		"display_name": "Switchback",
 		"scene": preload("res://procedural_map/procedural_battlefield.tscn"),
+		"generation_profile": preload(
+			"res://procedural_map/switchback_generation_profile.tres"
+		),
+	},
+	&"convergence": {
+		"display_name": "Convergence",
+		"scene": preload("res://procedural_map/procedural_battlefield.tscn"),
+		"generation_profile": preload(
+			"res://procedural_map/convergence_generation_profile.tres"
+		),
 	},
 }
 
@@ -40,4 +50,9 @@ static func get_map_ids() -> Array[StringName]:
 
 static func instantiate_map(map_id: StringName) -> TowerDefenseMap:
 	var definition := get_map(map_id)
-	return (definition["scene"] as PackedScene).instantiate() as TowerDefenseMap
+	var map := (definition["scene"] as PackedScene).instantiate() as TowerDefenseMap
+	if definition.has("generation_profile"):
+		map.set("generation_profile", definition["generation_profile"])
+	map.map_id = definition["id"]
+	map.display_name = definition["display_name"]
+	return map

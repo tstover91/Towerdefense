@@ -28,6 +28,19 @@ func run_checks() -> void:
 			assert(not map.get_path_id(path).is_empty())
 		map.queue_free()
 
+	var switchback := MapData.instantiate_map(&"switchback") as ProceduralBattlefield
+	var convergence := MapData.instantiate_map(&"convergence") as ProceduralBattlefield
+	assert(switchback.generation_profile.profile_id == &"switchback")
+	assert(switchback.generation_profile.requires_backtracking)
+	assert(convergence.generation_profile.profile_id == &"convergence")
+	assert(not convergence.generation_profile.requires_backtracking)
+	assert(
+		switchback.generation_profile.minimum_join_ratio
+		> convergence.generation_profile.minimum_join_ratio
+	)
+	switchback.queue_free()
+	convergence.queue_free()
+
 	var mask_map := MapData.instantiate_map(MapData.DEFAULT_MAP_ID)
 	add_child(mask_map)
 	assert(mask_map.native_build_bounds == Rect2(0.0, 0.0, 1152.0, 640.0))

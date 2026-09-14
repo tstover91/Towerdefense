@@ -9,7 +9,7 @@ const GenerationProfile = preload(
 	"res://procedural_map/terrain_generation_profile.gd"
 )
 const DEFAULT_GENERATION_PROFILE = preload(
-	"res://procedural_map/farm_generation_profile.tres"
+	"res://procedural_map/switchback_generation_profile.tres"
 )
 
 const DEFAULT_SEED := 481516
@@ -20,9 +20,6 @@ const ROUTE_VARIANTS := {
 	&"upper": -1,
 	&"lower": 1,
 }
-const SPAWN_LANE_UNLOCKS: Array[int] = [1, 5]
-const MINIMUM_ENTRANCE_SEPARATION_RATIO := 0.35
-const SCENIC_ROUTE_ATTEMPTS := 32
 const ROAD_DIRECTIONS: Array[Vector2i] = [
 	Vector2i.LEFT,
 	Vector2i.RIGHT,
@@ -54,7 +51,16 @@ var route_preview_visible := false
 
 
 func _ready() -> void:
+	var profile_errors: PackedStringArray = (
+		generation_profile.get_validation_errors()
+	)
+	assert(
+		profile_errors.is_empty(),
+		"Invalid procedural map profile: %s" % "; ".join(profile_errors)
+	)
 	generator.configure(generation_profile)
+	map_id = generation_profile.profile_id
+	display_name = generation_profile.display_name
 	native_build_bounds = Rect2(
 		Vector2.ZERO,
 		Vector2(generator.grid_size * Terrain.TILE_SIZE)
@@ -102,8 +108,8 @@ func get_spawn_paths_for_round(round_number: int) -> Array[Path2D]:
 
 func get_active_spawn_rows(round_number: int) -> Array[int]:
 	var count := 0
-	for unlock_round in SPAWN_LANE_UNLOCKS:
-		if round_number >= unlock_round:
+	for entrance_index in spawn_rows.size():
+		if round_number >= _get_entrance_unlock_round(entrance_index):
 			count += 1
 	count = clampi(count, 1, spawn_rows.size())
 	var activation_order := _get_spawn_row_activation_order()
@@ -121,8 +127,14 @@ func get_next_spawn_row_unlock(round_number: int) -> Dictionary:
 		return {}
 	return {
 		"row": int(activation_order[active_count]),
-		"round": SPAWN_LANE_UNLOCKS[active_count],
+		"round": _get_entrance_unlock_round(active_count),
 	}
+
+
+func _get_entrance_unlock_round(entrance_index: int) -> int:
+	if entrance_index < generation_profile.entrance_unlock_rounds.size():
+		return maxi(generation_profile.entrance_unlock_rounds[entrance_index], 1)
+	return 1 + entrance_index * 4
 
 
 func _get_spawn_row_activation_order() -> Array[int]:
@@ -313,14 +325,17 @@ func _build_primary_road_network() -> void:
 	road_routes_by_spawn.clear()
 	var activation_order := _get_spawn_row_activation_order()
 	var primary_start := Vector2i(0, int(activation_order[0]))
-	var secondary_start := Vector2i(0, int(activation_order[1]))
 	var minimum_join_x := ceili(
-		float(generator.grid_size.x) * MINIMUM_ENTRANCE_SEPARATION_RATIO
+		float(generator.grid_size.x) * generation_profile.minimum_join_ratio
 	)
-	var reserved_secondary_corridor := _create_entrance_corridor_clearance(
-		secondary_start.y,
-		minimum_join_x
-	)
+	var reserved_secondary_corridor: Array[Vector2i] = []
+	for entrance_index in range(1, activation_order.size()):
+		for cell in _create_entrance_corridor_clearance(
+			int(activation_order[entrance_index]),
+			minimum_join_x
+		):
+			if not reserved_secondary_corridor.has(cell):
+				reserved_secondary_corridor.append(cell)
 	primary_road_route = _create_scenic_primary_route(
 		primary_start,
 		reserved_secondary_corridor
@@ -371,20 +386,58 @@ func _create_scenic_primary_route(
 	var max_y := bounds.end.y - 1
 	var width := generator.grid_size.x
 	var exit_rows := _get_exit_rows()
-	for _attempt in SCENIC_ROUTE_ATTEMPTS:
-		var waypoints: Array[Vector2i] = [Vector2i(3, start.y)]
-		var first_y := _pick_distant_road_row(rng, start.y, min_y, max_y)
-		waypoints.append(Vector2i(rng.randi_range(8, 11), first_y))
-		var second_y := _pick_distant_road_row(rng, first_y, min_y, max_y)
-		var second := Vector2i(rng.randi_range(20, 24), second_y)
-		waypoints.append(second)
-		var backtrack_y := _pick_distant_road_row(rng, second.y, min_y, max_y)
+	for _attempt in generation_profile.scenic_route_attempts:
+		var waypoints: Array[Vector2i] = [Vector2i(
+			generation_profile.initial_straight_columns,
+			start.y
+		)]
+		var previous_row := start.y
+		for checkpoint_ratio in generation_profile.checkpoint_ratios:
+			var checkpoint_row := _pick_distant_road_row(
+				rng,
+				previous_row,
+				min_y,
+				max_y
+			)
+			var checkpoint_x := clampi(
+				roundi(float(width - 1) * checkpoint_ratio)
+					+ rng.randi_range(
+						-generation_profile.checkpoint_jitter_columns,
+						generation_profile.checkpoint_jitter_columns
+					),
+				generation_profile.initial_straight_columns + 2,
+				width - 8
+			)
+			waypoints.append(Vector2i(checkpoint_x, checkpoint_row))
+			previous_row = checkpoint_row
+		if generation_profile.requires_backtracking:
+			var previous_checkpoint := waypoints[-1]
+			var backtrack_y := _pick_distant_road_row(
+				rng,
+				previous_checkpoint.y,
+				min_y,
+				max_y
+			)
+			waypoints.append(Vector2i(
+				maxi(
+					generation_profile.initial_straight_columns + 3,
+					previous_checkpoint.x - rng.randi_range(
+						generation_profile.backtrack_min_columns,
+						generation_profile.backtrack_max_columns
+					)
+				),
+				backtrack_y
+			))
 		waypoints.append(Vector2i(
-			maxi(14, second.x - rng.randi_range(3, 6)),
-			backtrack_y
-		))
-		waypoints.append(Vector2i(
-			rng.randi_range(28, 31),
+			clampi(
+				roundi(float(width - 1) * generation_profile.final_approach_ratio)
+					+ rng.randi_range(
+						-generation_profile.checkpoint_jitter_columns,
+						generation_profile.checkpoint_jitter_columns
+					),
+				generation_profile.initial_straight_columns + 4,
+				width - 4
+			),
 			exit_rows[rng.randi_range(0, exit_rows.size() - 1)]
 		))
 		waypoints.append(Vector2i(
@@ -396,7 +449,7 @@ func _create_scenic_primary_route(
 			waypoints,
 			persistent_blocked_cells
 		)
-		if not route.is_empty() and _route_has_required_clearance(route):
+		if not route.is_empty() and _route_matches_profile(route):
 			return route
 	return []
 
@@ -506,6 +559,27 @@ func _route_has_required_clearance(route: Array[Vector2i]) -> bool:
 	return true
 
 
+func _route_matches_profile(route: Array[Vector2i]) -> bool:
+	if not _route_has_required_clearance(route):
+		return false
+	var route_ratio := float(route.size()) / float(generator.grid_size.x)
+	if (
+		route_ratio < generation_profile.minimum_route_length_ratio
+		or route_ratio > generation_profile.maximum_route_length_ratio
+	):
+		return false
+	var has_backtracking := false
+	for index in range(1, route.size()):
+		if route[index].x < route[index - 1].x:
+			has_backtracking = true
+			break
+	if generation_profile.requires_backtracking and not has_backtracking:
+		return false
+	if not generation_profile.allows_backtracking and has_backtracking:
+		return false
+	return true
+
+
 func _pick_distant_road_row(
 	rng: RandomNumberGenerator,
 	from_row: int,
@@ -514,7 +588,10 @@ func _pick_distant_road_row(
 ) -> int:
 	var candidates: Array[int] = []
 	for row in range(minimum_row, maximum_row + 1):
-		if absi(row - from_row) >= 4:
+		if (
+			absi(row - from_row)
+			>= generation_profile.minimum_vertical_shift_rows
+		):
 			candidates.append(row)
 	if candidates.is_empty():
 		return rng.randi_range(minimum_row, maximum_row)
@@ -713,8 +790,11 @@ func _create_spawn_rows() -> Array[int]:
 	var last_row: int = (
 		generator.grid_size.y - generation_profile.safe_bottom_rows - 1
 	)
-	for lane_index in 2:
-		var lane_ratio := float(lane_index + 1) / 3.0
+	for lane_index in generation_profile.entrance_count:
+		var lane_ratio := (
+			float(lane_index + 1)
+			/ float(generation_profile.entrance_count + 1)
+		)
 		rows.append(roundi(lerpf(float(first_row), float(last_row), lane_ratio)))
 	return rows
 
