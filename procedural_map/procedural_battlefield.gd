@@ -20,7 +20,13 @@ const ROUTE_VARIANTS := {
 	&"upper": -1,
 	&"lower": 1,
 }
-const SPAWN_LANE_UNLOCKS: Array[int] = [1, 3, 6, 10, 16]
+const SPAWN_LANE_UNLOCKS: Array[int] = [1, 5]
+const ROAD_DIRECTIONS: Array[Vector2i] = [
+	Vector2i.LEFT,
+	Vector2i.RIGHT,
+	Vector2i.UP,
+	Vector2i.DOWN,
+]
 const ROUTE_PREVIEW_COLOR := Color(0.93, 0.89, 0.69, 0.20)
 const ROUTE_PREVIEW_OVERLAP_COLOR := Color(1.0, 0.83, 0.35, 0.64)
 const ACTIVE_ENTRY_COLOR := Color(0.46, 0.96, 0.70, 0.95)
@@ -36,11 +42,13 @@ var path_route_configs: Dictionary = {}
 var terrain_textures: Dictionary = {}
 var tower_origins_by_instance: Dictionary = {}
 var road_cells: Dictionary = {}
+var primary_road_route: Array[Vector2i] = []
+var road_routes_by_spawn: Dictionary = {}
 var spawn_rows: Array[int] = []
 var active_generation_seed := 0
 var generation_candidate_results: Array[Dictionary] = []
 var preview_round := 1
-var route_preview_visible := true
+var route_preview_visible := false
 
 
 func _ready() -> void:
@@ -72,14 +80,11 @@ func _draw() -> void:
 				Rect2(Vector2(cell * Terrain.TILE_SIZE), tile_size),
 				false
 			)
-	if route_preview_visible:
-		_draw_route_forecast()
-		_draw_entry_markers()
 
 
 func set_round_preview(round_number: int, visible: bool) -> void:
 	preview_round = maxi(round_number, 1)
-	route_preview_visible = visible
+	route_preview_visible = false
 	queue_redraw()
 
 
@@ -94,11 +99,11 @@ func get_spawn_paths_for_round(round_number: int) -> Array[Path2D]:
 
 
 func get_active_spawn_rows(round_number: int) -> Array[int]:
-	var count := 1
+	var count := 0
 	for unlock_round in SPAWN_LANE_UNLOCKS:
 		if round_number >= unlock_round:
 			count += 1
-	count = clampi(count - 1, 1, spawn_rows.size())
+	count = clampi(count, 1, spawn_rows.size())
 	var activation_order := _get_spawn_row_activation_order()
 	var active: Array[int] = []
 	for index in count:
@@ -303,20 +308,188 @@ func _rebuild_weighted_routes() -> void:
 
 func _build_primary_road_network() -> void:
 	road_cells.clear()
+	road_routes_by_spawn.clear()
+	var activation_order := _get_spawn_row_activation_order()
+	var primary_start := Vector2i(0, int(activation_order[0]))
+	primary_road_route = _create_scenic_primary_route(primary_start)
+	assert(not primary_road_route.is_empty(), "Procedural battlefield requires a primary road")
+	_add_route_to_road_network(primary_road_route)
+	road_routes_by_spawn[primary_start.y] = primary_road_route.duplicate()
+
+	for index in range(1, activation_order.size()):
+		var connector_start := Vector2i(0, int(activation_order[index]))
+		var straight_entry_end := Vector2i(3, connector_start.y)
+		var connector: Array[Vector2i] = []
+		for x in range(connector_start.x, straight_entry_end.x + 1):
+			connector.append(Vector2i(x, connector_start.y))
+		var routed_connector := _trace_terrain_route_to_targets(
+			straight_entry_end,
+			_get_road_target_cells()
+		)
+		if not routed_connector.is_empty():
+			routed_connector.pop_front()
+			connector.append_array(routed_connector)
+		connector = _stop_route_when_adjacent_to_road(connector)
+		assert(not connector.is_empty(), "Procedural battlefield requires every entrance to join the road")
+		var join_cell := connector[-1]
+		var join_index := primary_road_route.rfind(join_cell)
+		assert(join_index >= 0, "Secondary road must join the primary road")
+		var complete_route := connector.duplicate()
+		for route_index in range(join_index + 1, primary_road_route.size()):
+			complete_route.append(primary_road_route[route_index])
+		road_routes_by_spawn[connector_start.y] = complete_route
+		_add_route_to_road_network(connector)
+
+
+func _create_scenic_primary_route(start: Vector2i) -> Array[Vector2i]:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = active_generation_seed ^ 0x6A09E667
+	var bounds := _get_navigation_bounds()
+	var min_y := bounds.position.y
+	var max_y := bounds.end.y - 1
+	var width := generator.grid_size.x
+	var waypoints: Array[Vector2i] = [Vector2i(3, start.y)]
+	var first_y := _pick_distant_road_row(rng, start.y, min_y, max_y)
+	waypoints.append(Vector2i(rng.randi_range(8, 11), first_y))
+	var second_y := _pick_distant_road_row(rng, first_y, min_y, max_y)
+	var second := Vector2i(rng.randi_range(19, 23), second_y)
+	waypoints.append(second)
+	var backtrack_y := _pick_distant_road_row(rng, second.y, min_y, max_y)
+	waypoints.append(Vector2i(
+		maxi(12, second.x - rng.randi_range(3, 6)),
+		backtrack_y
+	))
+	var exit_rows := _get_exit_rows()
+	waypoints.append(Vector2i(
+		rng.randi_range(27, 31),
+		exit_rows[rng.randi_range(0, exit_rows.size() - 1)]
+	))
+	waypoints.append(Vector2i(width - 1, exit_rows[rng.randi_range(0, exit_rows.size() - 1)]))
+
+	var route: Array[Vector2i] = []
+	var segment_start := start
+	for waypoint in waypoints:
+		var clearance_blocks := _get_scenic_route_clearance_blocks(
+			route,
+			segment_start,
+			waypoint
+		)
+		var segment := _trace_terrain_route_to_targets(
+			segment_start,
+			[waypoint],
+			clearance_blocks
+		)
+		if segment.is_empty() and not clearance_blocks.is_empty():
+			segment = _trace_terrain_route_to_targets(segment_start, [waypoint])
+		if segment.is_empty():
+			return []
+		if not route.is_empty():
+			segment.pop_front()
+		route.append_array(segment)
+		segment_start = waypoint
+	return route
+
+
+func _trace_terrain_route_to_targets(
+	start: Vector2i,
+	targets: Array[Vector2i],
+	extra_blocked_cells: Array[Vector2i] = []
+) -> Array[Vector2i]:
 	var terrain_flow := FlowField.new()
+	var blocked_cells := _get_blocked_navigation_cells()
+	for cell in extra_blocked_cells:
+		if not blocked_cells.has(cell):
+			blocked_cells.append(cell)
 	terrain_flow.rebuild(
 		generator.cells,
 		generator.grid_size,
 		[],
 		_get_navigation_bounds(),
-		_get_blocked_navigation_cells(),
-		_get_exit_rows()
+		blocked_cells,
+		[],
+		0,
+		targets
 	)
-	for spawn_row in spawn_rows:
-		var route := terrain_flow.trace_route(Vector2i(0, spawn_row))
-		assert(not route.is_empty(), "Procedural battlefield requires a road to every entrance")
-		for cell in route:
-			road_cells[cell] = true
+	return terrain_flow.trace_route(start)
+
+
+func _get_scenic_route_clearance_blocks(
+	used_route: Array[Vector2i],
+	start: Vector2i,
+	target: Vector2i
+) -> Array[Vector2i]:
+	if used_route.is_empty():
+		return []
+	var blocked_lookup: Dictionary = {}
+	for used_cell in used_route:
+		blocked_lookup[used_cell] = true
+		for direction in ROAD_DIRECTIONS:
+			blocked_lookup[used_cell + direction] = true
+	for open_cell in [start, target]:
+		blocked_lookup.erase(open_cell)
+		for direction in ROAD_DIRECTIONS:
+			blocked_lookup.erase(open_cell + direction)
+	var result: Array[Vector2i] = []
+	for cell_variant in blocked_lookup:
+		var cell := cell_variant as Vector2i
+		if generator.contains(cell):
+			result.append(cell)
+	return result
+
+
+func _pick_distant_road_row(
+	rng: RandomNumberGenerator,
+	from_row: int,
+	minimum_row: int,
+	maximum_row: int
+) -> int:
+	var candidates: Array[int] = []
+	for row in range(minimum_row, maximum_row + 1):
+		if absi(row - from_row) >= 4:
+			candidates.append(row)
+	if candidates.is_empty():
+		return rng.randi_range(minimum_row, maximum_row)
+	return candidates[rng.randi_range(0, candidates.size() - 1)]
+
+
+func _remove_route_loops(route: Array[Vector2i]) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var indices: Dictionary = {}
+	for cell in route:
+		if indices.has(cell):
+			var keep_through := int(indices[cell])
+			while result.size() > keep_through + 1:
+				indices.erase(result.pop_back())
+			continue
+		indices[cell] = result.size()
+		result.append(cell)
+	return result
+
+
+func _stop_route_when_adjacent_to_road(route: Array[Vector2i]) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for cell in route:
+		result.append(cell)
+		if road_cells.has(cell):
+			return result
+		for direction in ROAD_DIRECTIONS:
+			var neighbor := cell + direction
+			if road_cells.has(neighbor):
+				result.append(neighbor)
+				return result
+	return result
+
+
+func _add_route_to_road_network(route: Array[Vector2i]) -> void:
+	for cell in route:
+		road_cells[cell] = true
+
+
+func _get_road_target_cells() -> Array[Vector2i]:
+	var targets: Array[Vector2i] = []
+	for cell_variant in road_cells:
+		targets.append(cell_variant as Vector2i)
+	return targets
 
 
 func _get_displayed_terrain(cell: Vector2i) -> int:
@@ -347,7 +520,7 @@ func _get_non_road_navigation_cells() -> Array[Vector2i]:
 func _update_path_curve(
 	path: Path2D,
 	spawn_row: int,
-	route_flow: TerrainFlowField
+	_route_flow: TerrainFlowField
 ) -> void:
 	var follower_states: Dictionary = {}
 	for child in path.get_children():
@@ -366,7 +539,7 @@ func _update_path_curve(
 				"children": tracked_children,
 			}
 
-	var route := route_flow.trace_route(Vector2i(0, spawn_row))
+	var route: Array[Vector2i] = road_routes_by_spawn.get(spawn_row, [])
 	assert(not route.is_empty(), "Procedural battlefield requires a route to the exit")
 	var route_points: Array[Vector2] = [
 		Vector2(-Terrain.TILE_SIZE, _cell_center_y(spawn_row))
@@ -483,8 +656,8 @@ func _create_spawn_rows() -> Array[int]:
 	var last_row: int = (
 		generator.grid_size.y - generation_profile.safe_bottom_rows - 1
 	)
-	for lane_index in 5:
-		var lane_ratio := float(lane_index) / 4.0
+	for lane_index in 2:
+		var lane_ratio := float(lane_index + 1) / 3.0
 		rows.append(roundi(lerpf(float(first_row), float(last_row), lane_ratio)))
 	return rows
 

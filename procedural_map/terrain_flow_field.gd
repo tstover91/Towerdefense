@@ -41,7 +41,8 @@ func rebuild(
 	new_navigation_bounds := Rect2i(),
 	new_blocked_navigation_cells: Array[Vector2i] = [],
 	exit_rows: Array[int] = [],
-	vertical_bias := 0
+	vertical_bias := 0,
+	target_cells: Array[Vector2i] = []
 ) -> void:
 	grid_size = new_grid_size
 	route_vertical_bias = clampi(vertical_bias, -1, 1)
@@ -61,13 +62,16 @@ func rebuild(
 	next_directions.fill(-1)
 
 	var open_states: Array[int] = []
-	var active_exit_rows := exit_rows
-	if active_exit_rows.is_empty():
-		for y in range(navigation_bounds.position.y, navigation_bounds.end.y):
-			active_exit_rows.append(y)
 	exit_cells.clear()
-	for y in active_exit_rows:
-		var exit_cell := Vector2i(grid_size.x - 1, y)
+	var active_targets: Array[Vector2i] = target_cells.duplicate()
+	if active_targets.is_empty():
+		var active_exit_rows := exit_rows.duplicate()
+		if active_exit_rows.is_empty():
+			for y in range(navigation_bounds.position.y, navigation_bounds.end.y):
+				active_exit_rows.append(y)
+		for y in active_exit_rows:
+			active_targets.append(Vector2i(grid_size.x - 1, y))
+	for exit_cell in active_targets:
 		if not is_navigable(exit_cell):
 			continue
 		exit_cells[exit_cell] = true

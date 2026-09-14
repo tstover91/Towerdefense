@@ -189,20 +189,18 @@ func _test_playable_map() -> void:
 		map.get_enemy_paths().size()
 		== map.spawn_rows.size() * map.ROUTE_VARIANTS.size()
 	)
-	assert(map.spawn_rows == [3, 7, 10, 14, 17])
-	assert(map.get_active_spawn_rows(1) == [10])
-	assert(map.get_active_spawn_rows(2) == [10])
-	assert(map.get_active_spawn_rows(3) == [7, 10])
-	assert(map.get_active_spawn_rows(6) == [7, 10, 14])
-	assert(map.get_active_spawn_rows(10) == [3, 7, 10, 14])
-	assert(map.get_active_spawn_rows(16) == [3, 7, 10, 14, 17])
+	assert(map.spawn_rows == [8, 12])
+	assert(map.get_active_spawn_rows(1) == [12])
+	assert(map.get_active_spawn_rows(4) == [12])
+	assert(map.get_active_spawn_rows(5) == [8, 12])
+	assert(map.get_active_spawn_rows(16) == [8, 12])
 	assert(map.get_spawn_paths_for_round(1).size() == map.ROUTE_VARIANTS.size())
-	assert(map.get_spawn_paths_for_round(10).size() == 4 * map.ROUTE_VARIANTS.size())
-	assert(map.get_next_spawn_row_unlock(1) == {"row": 7, "round": 3})
-	assert(map.get_next_spawn_row_unlock(16).is_empty())
+	assert(map.get_spawn_paths_for_round(5).size() == 2 * map.ROUTE_VARIANTS.size())
+	assert(map.get_next_spawn_row_unlock(1) == {"row": 8, "round": 5})
+	assert(map.get_next_spawn_row_unlock(5).is_empty())
 	map.set_round_preview(3, true)
-	assert(map.preview_round == 3 and map.route_preview_visible)
-	for spawn_row in map.get_active_spawn_rows(3):
+	assert(map.preview_round == 3 and not map.route_preview_visible)
+	for spawn_row in map.get_active_spawn_rows(5):
 		var variant_routes: Dictionary = {}
 		for variant_id in map.ROUTE_VARIANTS:
 			var route: Array[Vector2i] = map.flow_fields[variant_id].trace_route(
@@ -213,17 +211,36 @@ func _test_playable_map() -> void:
 	assert(map.is_point_blocked_by_build_mask(Vector2(32.0, 32.0)))
 	assert(map.is_point_blocked_by_build_mask(Vector2(1136.0, 112.0)))
 	assert(not map.road_cells.is_empty())
+	assert(map.primary_road_route.any(
+		func(cell: Vector2i) -> bool:
+			return cell.y != map.primary_road_route[0].y
+	))
+	var has_westward_section := false
+	for route_index in range(1, map.primary_road_route.size()):
+		if map.primary_road_route[route_index].x < map.primary_road_route[route_index - 1].x:
+			has_westward_section = true
+			break
+	assert(has_westward_section)
+	for y in range(map.generator.grid_size.y - 2):
+		for x in range(map.generator.grid_size.x - 2):
+			var cell := Vector2i(x, y)
+			if _is_full_road_square(map.road_cells, cell):
+				assert(not _is_full_road_square(map.road_cells, cell + Vector2i.RIGHT))
+				assert(not _is_full_road_square(map.road_cells, cell + Vector2i.DOWN))
+	var left_edge_road_rows: Array[int] = []
+	for row in range(map.generator.grid_size.y):
+		if map.road_cells.has(Vector2i(0, row)):
+			left_edge_road_rows.append(row)
+	assert(left_edge_road_rows == map.spawn_rows)
 	for spawn_row in map.spawn_rows:
-		var road_route: Array[Vector2i] = map.flow_field.trace_route(
-			Vector2i(0, spawn_row)
-		)
+		var road_route: Array[Vector2i] = map.road_routes_by_spawn[spawn_row]
 		assert(not road_route.is_empty())
 		for road_cell in road_route:
 			assert(map.road_cells.has(road_cell))
 	for path in map.get_enemy_paths():
 		assert(path.curve != null and path.curve.point_count >= 2)
 
-	var center_route := map.flow_field.trace_route(Vector2i(0, 10))
+	var center_route: Array[Vector2i] = map.road_routes_by_spawn[12]
 	var route_cell := center_route[center_route.size() / 2]
 	var road_center := map._cell_center(route_cell)
 	assert(map.is_point_blocked_by_path(road_center))
@@ -238,10 +255,17 @@ func _test_playable_map() -> void:
 	map.register_tower_route_weight(tower)
 	var tower_origin := map.tower_origins_by_instance[tower.get_instance_id()] as Vector2i
 	assert(not map.flow_field.is_tower_cell(tower_origin))
-	assert(map.flow_field.trace_route(Vector2i(0, 10)) == route_before_tower)
+	assert(map.road_routes_by_spawn[12] == route_before_tower)
 	map.unregister_tower_route_weight(tower)
 	assert(not map.flow_field.is_tower_cell(tower_origin))
 	map.queue_free()
+
+
+func _is_full_road_square(road_cells: Dictionary, origin: Vector2i) -> bool:
+	for offset in [Vector2i.ZERO, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.ONE]:
+		if not road_cells.has(origin + offset):
+			return false
+	return true
 
 
 func _test_seed_selector() -> void:
