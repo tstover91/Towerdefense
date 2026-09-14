@@ -24,6 +24,14 @@ var enforcer_secondary_damage_multiplier := 0.75
 var enforcer_stun_duration := 0.5
 var enforcer_push_distance_units := 1.0
 var enforcer_attack_counter := 0
+var time_bubble_enabled := false
+var time_bubble_active_duration := 3.0
+var time_bubble_cooldown := 7.0
+var time_bubble_refresh_interval := 0.20
+var time_bubble_slow_duration := 0.30
+var time_bubble_active_remaining := 0.0
+var time_bubble_cooldown_remaining := 0.0
+var time_bubble_refresh_remaining := 0.0
 var sweep_visual_remaining := 0.0
 var sweep_visual_direction := Vector2.RIGHT
 var sweep_visual_arc_degrees := 120.0
@@ -51,9 +59,24 @@ func reset_path_behaviors() -> void:
 	enforcer_secondary_damage_multiplier = 0.75
 	enforcer_stun_duration = 0.5
 	enforcer_push_distance_units = 1.0
+	time_bubble_enabled = false
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
+	if flags.get("reaver_time_bubble", false):
+		time_bubble_enabled = true
+		time_bubble_active_duration = maxf(
+			float(values.get("time_bubble_active_duration", 3.0)), 0.1
+		)
+		time_bubble_cooldown = maxf(
+			float(values.get("time_bubble_cooldown", 7.0)), 0.1
+		)
+		time_bubble_refresh_interval = maxf(
+			float(values.get("time_bubble_refresh_interval", 0.20)), 0.05
+		)
+		time_bubble_slow_duration = maxf(
+			float(values.get("time_bubble_slow_duration", 0.30)), 0.05
+		)
 	if flags.get("reaver_assassinate", false):
 		assassinate_enabled = true
 		assassinate_attack_interval = maxi(int(values.get("assassinate_attack_interval", 3)), 1)
@@ -75,13 +98,66 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 
 
 func process_attack(delta: float) -> void:
+	_process_time_bubble(delta)
 	if sweep_visual_remaining <= 0.0:
 		return
 	sweep_visual_remaining = maxf(sweep_visual_remaining - delta, 0.0)
 	tower.queue_redraw()
 
 
+func on_round_started() -> void:
+	if time_bubble_enabled:
+		time_bubble_active_remaining = time_bubble_active_duration
+		time_bubble_cooldown_remaining = 0.0
+		time_bubble_refresh_remaining = 0.0
+
+
+func on_round_ended() -> void:
+	time_bubble_active_remaining = 0.0
+	time_bubble_cooldown_remaining = 0.0
+	time_bubble_refresh_remaining = 0.0
+
+
+func _process_time_bubble(delta: float) -> void:
+	if not time_bubble_enabled or not tower.is_combat_active():
+		return
+	if time_bubble_active_remaining > 0.0:
+		time_bubble_active_remaining = maxf(time_bubble_active_remaining - delta, 0.0)
+		time_bubble_refresh_remaining = maxf(time_bubble_refresh_remaining - delta, 0.0)
+		if time_bubble_refresh_remaining <= 0.0:
+			time_bubble_refresh_remaining = time_bubble_refresh_interval
+			var context := tower.create_attack_context(&"reaver_time_bubble")
+			for candidate in AreaDamage.get_targets_near(
+				tower.get_tree(), tower.global_position, tower.range_radius_pixels
+			):
+				if tower.is_valid_area_target(candidate) and candidate.has_method("apply_slow"):
+					candidate.apply_slow(time_bubble_slow_duration, context)
+		if time_bubble_active_remaining <= 0.0:
+			time_bubble_cooldown_remaining = time_bubble_cooldown
+		tower.queue_redraw()
+		return
+	time_bubble_cooldown_remaining = maxf(time_bubble_cooldown_remaining - delta, 0.0)
+	if time_bubble_cooldown_remaining <= 0.0:
+		time_bubble_active_remaining = time_bubble_active_duration
+		time_bubble_refresh_remaining = 0.0
+
 func draw_attack_visuals() -> void:
+	if time_bubble_active_remaining > 0.0 and tower.is_placed:
+		tower.draw_circle(
+			Vector2.ZERO,
+			tower.range_radius_pixels,
+			Color(0.48, 0.88, 0.78, 0.10)
+		)
+		tower.draw_arc(
+			Vector2.ZERO,
+			tower.range_radius_pixels,
+			0.0,
+			TAU,
+			64,
+			Color(0.62, 1.0, 0.88, 0.60),
+			2.0,
+			true
+		)
 	if sweep_visual_remaining <= 0.0 or not tower.is_placed:
 		return
 	var alpha := clampf(sweep_visual_remaining / 0.14, 0.0, 1.0)

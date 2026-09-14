@@ -402,9 +402,12 @@ func get_sidebar_stats() -> Dictionary:
 
 func apply_path_stat_modifiers(base_stats: Dictionary) -> Dictionary:
 	var stats := base_stats.duplicate(true)
-	var inherent_path := GameStats.get_tower_inherent_path(tower.tower_id)
-	if not inherent_path.is_empty():
+	for inherent_path in GameStats.get_tower_inherent_paths(tower.tower_id):
 		_apply_path_stat_definition(stats, inherent_path)
+	if _is_final_purchased_level_active():
+		_apply_path_stat_definition(
+			stats, GameStats.get_tower_final_level_path(tower.tower_id)
+		)
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
 		_apply_path_stat_definition(stats, path)
@@ -447,6 +450,11 @@ func _is_level_20_capstone_active() -> bool:
 		tower.instance_progression != null
 		and tower.instance_progression.level >= GameStats.TOWER_XP_MAX_LEVEL
 	)
+
+
+func _is_final_purchased_level_active() -> bool:
+	var levels: Array = GameStats.get_tower(tower.tower_id).get("levels", [])
+	return not levels.is_empty() and tower.tower_level >= levels.size() - 1
 
 
 func apply_numeric_modifiers(stats: Dictionary, modifiers: Dictionary, is_multiplier: bool) -> void:
@@ -562,9 +570,15 @@ func load_path_behaviors() -> void:
 	tower.continuous_beam_enabled = false
 	if tower.attack_component != null:
 		tower.attack_component.reset_path_behaviors()
-	var inherent_path := GameStats.get_tower_inherent_path(tower.tower_id)
-	if not inherent_path.is_empty():
+	var tower_levels: Array = GameStats.get_tower(tower.tower_id).get("levels", [])
+	for level_index in range(0, mini(tower.tower_level + 1, tower_levels.size())):
+		_apply_path_behavior_definition(tower_levels[level_index])
+	for inherent_path in GameStats.get_tower_inherent_paths(tower.tower_id):
 		_apply_path_behavior_definition(inherent_path)
+	if _is_final_purchased_level_active():
+		_apply_path_behavior_definition(
+			GameStats.get_tower_final_level_path(tower.tower_id)
+		)
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
 		_apply_path_behavior_definition(path)
@@ -609,14 +623,15 @@ func load_base_tags() -> void:
 		"delivery_type", GameStats.DELIVERY_HITSCAN
 	)
 	tower.impact_mode = tower_data.get("impact_mode", GameStats.IMPACT_PRIMARY)
-	var inherent_path := GameStats.get_tower_inherent_path(tower.tower_id)
-	if not inherent_path.is_empty():
+	for inherent_path in GameStats.get_tower_inherent_paths(tower.tower_id):
 		_apply_tag_changes(inherent_path)
 		loaded_pierce_count += int(inherent_path.get("pierce_count_add", 0))
 		if inherent_path.has("delivery_type"):
 			tower.delivery_type = inherent_path["delivery_type"]
 		if inherent_path.has("impact_mode"):
 			tower.impact_mode = inherent_path["impact_mode"]
+	if _is_final_purchased_level_active():
+		_apply_tag_changes(GameStats.get_tower_final_level_path(tower.tower_id))
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
 		_apply_tag_changes(path)
@@ -650,9 +665,13 @@ func get_primary_damage_type() -> StringName:
 	var primary_type := StringName(
 		tower_data.get("primary_damage_type", tower.damage_tags[0])
 	)
-	var inherent_path := GameStats.get_tower_inherent_path(tower.tower_id)
-	if inherent_path.has("primary_damage_type"):
-		primary_type = StringName(inherent_path["primary_damage_type"])
+	for inherent_path in GameStats.get_tower_inherent_paths(tower.tower_id):
+		if inherent_path.has("primary_damage_type"):
+			primary_type = StringName(inherent_path["primary_damage_type"])
+	if _is_final_purchased_level_active():
+		var final_level_path := GameStats.get_tower_final_level_path(tower.tower_id)
+		if final_level_path.has("primary_damage_type"):
+			primary_type = StringName(final_level_path["primary_damage_type"])
 	for path_id in tower.purchased_paths:
 		var path := GameStats.get_tower_path(tower.tower_id, path_id)
 		if path.has("primary_damage_type"):

@@ -28,7 +28,13 @@ var previous_heavy_shot_remaining := 0.0
 
 
 func uses_directional_aim() -> bool:
-	return true
+	return tower == null or tower.tower_id != &"gauss_gunner"
+
+
+func get_standard_aim_tracking_speed() -> float:
+	# Gauss acquires and fires immediately, but its heavy assembly visibly
+	# rotates more slowly than an ordinary tower.
+	return 1.6
 
 
 func load_level_stats(stats: Dictionary) -> void:
@@ -196,7 +202,7 @@ func execute_attack(current_target: Node2D, attack_damage: int) -> bool:
 	if tower.projectile_scene == null or not tower.is_valid_target(current_target):
 		return true
 	var base_shot_direction := tower.aim_direction
-	if tracking_cone_enabled:
+	if tracking_cone_enabled or tower.tower_id == &"gauss_gunner":
 		var target_offset := current_target.global_position - tower.muzzle.global_position
 		if not target_offset.is_zero_approx():
 			base_shot_direction = target_offset.normalized()

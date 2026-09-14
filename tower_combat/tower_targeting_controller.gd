@@ -111,8 +111,13 @@ func process(delta: float) -> void:
 		var desired_angle := (
 			tower.target.global_position - tower.rotator.global_position
 		).angle()
+		var tracking_speed := 5.0
+		if tower.attack_component != null:
+			tracking_speed = tower.attack_component.get_standard_aim_tracking_speed()
 		tower.rotator.rotation = lerp_angle(
-			tower.rotator.rotation, desired_angle, 5.0 * delta
+			tower.rotator.rotation,
+			desired_angle,
+			clampf(tracking_speed * delta, 0.0, 1.0)
 		)
 
 

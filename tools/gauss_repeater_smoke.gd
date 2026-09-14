@@ -97,5 +97,38 @@ func run_test() -> void:
 	).normalized()
 	assert(component.is_target_in_tracking_cone(mob))
 	assert(component.select_directional_target() == mob)
-	print("Gauss smoke test passed: spread, Heavy Accelerator, Overclock, aim reset, and Threat Tracker.")
+
+	var gunner := TOWER_SCENE.instantiate() as BaseTower
+	gunner.tower_id = &"gauss_gunner"
+	gunner.tower_level = 3
+	gunner.main = fake_main
+	gunner.position = Vector2(250.0, 220.0)
+	add_child(gunner)
+	gunner.confirm_placement()
+	assert(not gunner.uses_directional_aim())
+	assert(gunner.attack_component.shows_target_mode_control())
+	assert(is_equal_approx(
+		gunner.attack_component.get_standard_aim_tracking_speed(),
+		1.6
+	))
+	gunner.target_mode = BaseTower.TargetMode.HIGHEST_HEALTH
+	gunner.mobs_in_range.append(mob)
+	gunner.rotator.rotation = PI
+	gunner.targeting_controller.select_target()
+	assert(gunner.target == mob)
+	var facing_before_attack := gunner.rotator.rotation
+	var projectile_count_before := get_tree().get_nodes_in_group(
+		"tower_projectiles"
+	).size()
+	gunner.targeting_controller.request_attack_if_ready()
+	await get_tree().process_frame
+	var updated_projectiles := get_tree().get_nodes_in_group("tower_projectiles")
+	assert(updated_projectiles.size() == projectile_count_before + 1)
+	assert(is_equal_approx(gunner.rotator.rotation, facing_before_attack))
+	var immediate_projectile := updated_projectiles[-1] as TowerProjectile
+	var expected_direction: Vector2 = (
+		mob.global_position - gunner.muzzle.global_position
+	).normalized()
+	assert(immediate_projectile.direction.dot(expected_direction) > 0.90)
+	print("Gauss smoke test passed: legacy paths plus standalone radial targeting, slow tracking, and immediate acquisition fire.")
 	get_tree().quit(0)

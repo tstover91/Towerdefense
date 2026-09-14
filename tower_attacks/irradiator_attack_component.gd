@@ -14,6 +14,8 @@ var reactor_radius_pixels := 0.0
 var loaded_range_pixels := 0.0
 var reactor_application_interval := 0.75
 var decay_suppressor_enabled := false
+var isotope_beam_enabled := false
+var isotope_beam_half_width_pixels := 0.0
 var last_application_count := 0
 var total_reactor_applications := 0
 
@@ -40,11 +42,18 @@ func load_level_stats(stats: Dictionary) -> void:
 func reset_path_behaviors() -> void:
 	reactor_enabled = false
 	decay_suppressor_enabled = false
+	isotope_beam_enabled = false
+	isotope_beam_half_width_pixels = 0.0
 	reactor_radius_pixels = 0.0
 	reactor_application_interval = 0.75
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
+	if bool(flags.get("irradiator_isotope_beam", false)):
+		isotope_beam_enabled = true
+		isotope_beam_half_width_pixels = maxf(
+			float(values.get("isotope_beam_half_width", 0.35)), 0.05
+		) * BaseTower.BUILD_CELL_SIZE
 	if bool(flags.get("irradiator_decay_suppressor", false)):
 		decay_suppressor_enabled = true
 	if not bool(flags.get("irradiator_reactor", false)):
@@ -80,16 +89,24 @@ func process_attack(delta: float) -> void:
 	application_remaining = maxf(application_remaining - delta, 0.0)
 	if application_remaining > 0.0:
 		return
-	var affected := _get_reactor_targets() if reactor_enabled else _get_cone_targets()
+	var affected: Array[Node2D]
+	if reactor_enabled:
+		affected = _get_reactor_targets()
+	elif isotope_beam_enabled:
+		affected = _get_isotope_beam_targets()
+	else:
+		affected = _get_cone_targets()
 	if affected.is_empty():
 		return
 	application_remaining = _get_application_interval()
 	last_application_count = affected.size()
 	if not reactor_enabled:
 		tower.notify_attack_started(tower.target)
-	var attack_kind: StringName = (
-		&"reactor_exposure" if reactor_enabled else &"irradiator_cone"
-	)
+	var attack_kind := &"irradiator_cone"
+	if reactor_enabled:
+		attack_kind = &"reactor_exposure"
+	elif isotope_beam_enabled:
+		attack_kind = &"isotope_beam"
 	var context := tower.create_attack_context(attack_kind)
 	context.metadata["radiation_application"] = true
 	context.metadata["area_damage"] = true
@@ -115,6 +132,21 @@ func draw_attack_visuals() -> void:
 			64, EDGE_COLOR, 2.0, true
 		)
 		return
+	if isotope_beam_enabled:
+		if (
+			not tower.is_placed
+			or not tower.is_combat_active()
+			or not tower.is_valid_target(tower.target)
+		):
+			return
+		tower.draw_line(
+			Vector2.ZERO,
+			tower.to_local(tower.target.global_position),
+			EDGE_COLOR,
+			maxf(isotope_beam_half_width_pixels * 2.0, 2.0),
+			true
+		)
+		return
 	if not tower.is_placed or not tower.is_combat_active() or tower.target == null:
 		return
 	var direction := tower.global_position.direction_to(tower.target.global_position)
@@ -128,8 +160,13 @@ func draw_attack_visuals() -> void:
 
 
 func get_radiation_debug_state() -> Dictionary:
+	var mode := &"cone"
+	if reactor_enabled:
+		mode = &"reactor"
+	elif isotope_beam_enabled:
+		mode = &"isotope_beam"
 	return {
-		"mode": &"reactor" if reactor_enabled else &"cone",
+		"mode": mode,
 		"application_interval": _get_application_interval(),
 		"last_application_count": last_application_count,
 		"total_reactor_applications": total_reactor_applications,
@@ -169,6 +206,34 @@ func _get_cone_targets() -> Array[Node2D]:
 		if offset.length() > tower.range_radius_pixels or offset.is_zero_approx():
 			continue
 		if aim_direction.dot(offset.normalized()) >= minimum_dot:
+			targets.append(candidate as Node2D)
+	return targets
+
+
+func _get_isotope_beam_targets() -> Array[Node2D]:
+	var targets: Array[Node2D] = []
+	if not tower.is_valid_target(tower.target):
+		return targets
+	var beam_start := tower.global_position
+	var beam_end: Vector2 = tower.target.global_position
+	var beam_vector := beam_end - beam_start
+	var beam_length_squared := beam_vector.length_squared()
+	if beam_length_squared <= 0.001:
+		return targets
+	for candidate in AreaDamage.get_targets_near(
+		tower.get_tree(), beam_start, beam_start.distance_to(beam_end)
+	):
+		if not tower.is_valid_area_target(candidate):
+			continue
+		var offset: Vector2 = candidate.global_position - beam_start
+		var along := clampf(
+			offset.dot(beam_vector) / beam_length_squared, 0.0, 1.0
+		)
+		var closest_point := beam_start + beam_vector * along
+		if (
+			candidate.global_position.distance_to(closest_point)
+			<= isotope_beam_half_width_pixels
+		):
 			targets.append(candidate as Node2D)
 	return targets
 

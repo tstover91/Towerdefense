@@ -52,6 +52,10 @@ func locks_aim_during_attack() -> bool:
 	return false
 
 
+func get_standard_aim_tracking_speed() -> float:
+	return 5.0
+
+
 func get_continuous_beam_origin(default_origin: Vector2) -> Vector2:
 	return default_origin
 

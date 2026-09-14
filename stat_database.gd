@@ -12,13 +12,176 @@ const EVOLUTION_COST_MULTIPLIER := 0.0
 const AUTOMATIC_TOWER_XP := false
 const PURCHASED_TOWER_DATA = preload("res://tower_progression/purchased_tower_data.gd")
 
-# Standalone descendants use an existing family's combat implementation while
-# carrying their former path mechanic from the moment they are built. This lets
-# the roster be split incrementally without duplicating mature attack code.
+# Standalone towers reuse their former family's combat implementation while
+# carrying their defining mechanics from the moment they are built.
 const STANDALONE_TOWER_VARIANTS := {
+	&"fisherman": {
+		"source": &"fisherman",
+		"display_name": "Alien Fisherman",
+		"clear_paths": true,
+		"final_level_path": {
+			"description": "Casts three electrified hooks whose moving lines shock enemies they cross.",
+			"add_damage_tags": [&"electric"],
+			"primary_damage_type": &"electric",
+			"behavior_flags": {
+				"fisherman_multi_hook": true,
+				"fisherman_electric_tether": true,
+			},
+			"behavior_values": {
+				"hook_target_count": 3,
+				"secondary_hook_damage_multiplier": 0.85,
+				"tracking_cone_degrees": 82.5,
+				"tether_half_width": 0.75,
+				"tether_secondary_damage_multiplier": 0.50,
+				"tether_maximum_targets": 4,
+				"tether_final_pulse_multiplier": 1.0,
+			},
+		},
+	},
 	&"gunslinger": {"source": &"invader", "path": &"a", "display_name": "Gunslinger"},
 	&"laser_cannon": {"source": &"invader", "path": &"b", "display_name": "Laser Cannon", "modern_path": true},
-	&"gauss_gunner": {"source": &"gauss_repeater", "display_name": "Gauss Gunner"},
+	&"gauss_gunner": {
+		"source": &"gauss_repeater",
+		"display_name": "Gauss Gunner",
+		"clear_paths": true,
+	},
+	&"anti_materiel": {
+		"source": &"longshot",
+		"path": &"a",
+		"display_name": "Anti-Materiel",
+	},
+	&"kill_chain": {
+		"source": &"longshot",
+		"path": &"b",
+		"display_name": "Kill Chain",
+	},
+	&"explosive_ricochet": {
+		"source": &"slinger",
+		"path": &"a",
+		"display_name": "Explosive Ricochet",
+	},
+	&"razor_disc": {
+		"source": &"slinger",
+		"path": &"b",
+		"display_name": "Razor Disc",
+	},
+	&"containment_core": {
+		"source": &"energycore",
+		"path": &"a",
+		"display_name": "Containment Core",
+	},
+	&"tesla_core": {
+		"source": &"energycore",
+		"path": &"b",
+		"display_name": "Tesla Core",
+	},
+	&"orb_barrage": {
+		"source": &"voidcaller",
+		"path": &"a",
+		"display_name": "Orb Barrage",
+	},
+	&"singularity": {
+		"source": &"voidcaller",
+		"path": &"b",
+		"display_name": "Singularity",
+	},
+	&"psionic": {
+		"source": &"brainiac",
+		"path": &"b",
+		"display_name": "Psionic",
+	},
+	&"solar_lance": {
+		"source": &"orbitalcannon",
+		"path": &"a",
+		"display_name": "Solar Lance",
+	},
+	&"bombardment": {
+		"source": &"orbitalcannon",
+		"path": &"b",
+		"display_name": "Bombardment",
+	},
+	&"atomic_strike": {
+		"source": &"orbitalcannon",
+		"path": &"c",
+		"display_name": "Atomic Strike",
+		"modern_path": true,
+	},
+	&"gunship": {
+		"source": &"saucer",
+		"path": &"a",
+		"display_name": "Gunship",
+		"modern_path": true,
+	},
+	&"abductor": {
+		"source": &"saucer",
+		"path": &"b",
+		"display_name": "Abductor",
+		"modern_path": true,
+	},
+	&"mothership": {
+		"source": &"saucer",
+		"path": &"c",
+		"display_name": "Mothership",
+		"modern_path": true,
+	},
+	&"drone_depot": {
+		"source": &"dronedepot",
+		"path": &"a",
+		"display_name": "Drone Depot",
+		"modern_tower": true,
+	},
+	&"mech_bay": {
+		"source": &"dronedepot",
+		"path": &"b",
+		"display_name": "Mech Bay",
+		"modern_tower": true,
+		"texture_source": &"mechbay",
+	},
+	&"sentry_array": {
+		"source": &"dronedepot",
+		"path": &"c",
+		"display_name": "Sentry Array",
+		"modern_tower": true,
+	},
+	&"reactor": {
+		"source": &"irradiator",
+		"path": &"a",
+		"display_name": "Reactor",
+		"modern_path": true,
+	},
+	&"isotope_projector": {
+		"source": &"irradiator",
+		"display_name": "Isotope Projector",
+		"inherent_path": {
+			"description": "Locks a Radiation beam onto one enemy and irradiates every enemy between the projector and its target.",
+			"behavior_flags": {"irradiator_isotope_beam": true},
+			"behavior_values": {"isotope_beam_half_width": 0.35},
+		},
+	},
+	&"assassin": {
+		"source": &"reaver",
+		"path": &"b",
+		"display_name": "Assassin",
+		"modern_tower": true,
+		"final_level_path": {
+			"description": "Periodically creates a short-lived slowing Time Bubble at maximum level.",
+			"add_bonus_tags": [&"psionic"],
+			"behavior_flags": {"reaver_time_bubble": true},
+			"behavior_values": {
+				"time_bubble_active_duration": 3.0,
+				"time_bubble_cooldown": 7.0,
+				"time_bubble_refresh_interval": 0.20,
+				"time_bubble_slow_duration": 0.30,
+			},
+		},
+	},
+	&"enforcer": {
+		"source": &"reaver",
+		"path": &"a",
+		"additional_paths": [&"c"],
+		"display_name": "Enforcer",
+		"modern_tower": true,
+	},
 }
 const BUILD_CELL_SIZE := 32.0
 const TOWER_FOOTPRINT_SIZE := Vector2(64.0, 64.0)
@@ -992,23 +1155,46 @@ const PLAYABLE_TOWER_FAMILY_IDS: Array[StringName] = [
 	&"gunslinger",
 	&"laser_cannon",
 	&"gauss_gunner",
-	&"longshot",
-	&"slinger",
-	&"energycore",
-	&"brainiac",
-	&"reaver",
+	&"anti_materiel",
+	&"kill_chain",
+	&"explosive_ricochet",
+	&"razor_disc",
+	&"containment_core",
+	&"tesla_core",
+	&"psionic",
+	&"assassin",
+	&"enforcer",
 	&"fisherman",
-	&"voidcaller",
-	&"orbitalcannon",
-	&"saucer",
-	&"dronedepot",
-	&"irradiator",
+	&"orb_barrage",
+	&"singularity",
+	&"solar_lance",
+	&"bombardment",
+	&"atomic_strike",
+	&"gunship",
+	&"abductor",
+	&"mothership",
+	&"drone_depot",
+	&"mech_bay",
+	&"sentry_array",
+	&"reactor",
+	&"isotope_projector",
 ]
 const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
-	&"gauss_repeater": &"invader",
-	&"beholder": &"brainiac",
-	&"hivemother": &"dronedepot",
-	&"mechbay": &"dronedepot",
+	&"invader": &"gunslinger",
+	&"gauss_repeater": &"gauss_gunner",
+	&"beholder": &"psionic",
+	&"hivemother": &"drone_depot",
+	&"mechbay": &"mech_bay",
+	&"longshot": &"anti_materiel",
+	&"slinger": &"explosive_ricochet",
+	&"energycore": &"containment_core",
+	&"voidcaller": &"orb_barrage",
+	&"orbitalcannon": &"bombardment",
+	&"brainiac": &"psionic",
+	&"saucer": &"gunship",
+	&"dronedepot": &"drone_depot",
+	&"irradiator": &"isotope_projector",
+	&"reaver": &"assassin",
 }
 ## Legacy rank dictionaries still carry mechanic and ability changes. Those
 ## unlock on their original cadence, while selected numerical stats take the
@@ -1757,6 +1943,7 @@ const TOWERS := {
 				"damage": 16,
 				"projectile_speed": 900.0,
 				"firerate": 0.080,
+				"range": 9.0,
 				"maximum_spread_degrees": 18.0,
 				"minimum_spread_degrees": 4.5,
 				"spread_tighten_duration": 5.0,
@@ -1768,6 +1955,7 @@ const TOWERS := {
 				"damage": 16,
 				"projectile_speed": 950.0,
 				"firerate": 0.060,
+				"range": 9.5,
 				"maximum_spread_degrees": 18.0,
 				"minimum_spread_degrees": 4.5,
 				"spread_tighten_duration": 4.25,
@@ -1779,6 +1967,7 @@ const TOWERS := {
 				"damage": 32,
 				"projectile_speed": 1050.0,
 				"firerate": 0.05,
+				"range": 10.0,
 				"maximum_spread_degrees": 16.0,
 				"minimum_spread_degrees": 4.0,
 				"spread_tighten_duration": 3.25,
@@ -1790,6 +1979,7 @@ const TOWERS := {
 				"damage": 56,
 				"projectile_speed": 1200.0,
 				"firerate": 0.05,
+				"range": 11.0,
 				"maximum_spread_degrees": 14.0,
 				"minimum_spread_degrees": 3.0,
 				"spread_tighten_duration": 2.0,
@@ -3514,27 +3704,46 @@ static func get_tower(tower_id: StringName) -> Dictionary:
 	var source_id := StringName(variant.get("source", tower_id))
 	assert(TOWERS.has(source_id), "Unknown tower ID: %s" % tower_id)
 	var tower: Dictionary = TOWERS[source_id].duplicate(true)
-	if PURCHASED_TOWER_DATA.TOWERS.has(String(source_id)):
+	if (
+		PURCHASED_TOWER_DATA.TOWERS.has(String(source_id))
+		and not bool(variant.get("modern_tower", false))
+	):
 		tower = PURCHASED_TOWER_DATA.TOWERS[String(source_id)].duplicate(true)
 	if not variant.is_empty():
 		tower["display_name"] = variant["display_name"]
 		tower["source_tower_id"] = source_id
+		var custom_inherent_path: Dictionary = variant.get("inherent_path", {})
 		var path_id := StringName(variant.get("path", &""))
-		if not path_id.is_empty():
+		if not custom_inherent_path.is_empty():
+			tower["inherent_path"] = custom_inherent_path.duplicate(true)
+			tower["paths"] = {}
+		elif not path_id.is_empty():
 			var path_source: Dictionary = (
 				TOWERS[source_id]
 				if bool(variant.get("modern_path", false))
 				else tower
 			)
 			tower["inherent_path"] = path_source.get("paths", {}).get(path_id, {}).duplicate(true)
-		tower["paths"] = {}
+			var additional_paths: Array = []
+			for additional_path_id in variant.get("additional_paths", []):
+				additional_paths.append(
+					path_source.get("paths", {}).get(additional_path_id, {}).duplicate(true)
+				)
+			if not additional_paths.is_empty():
+				tower["additional_inherent_paths"] = additional_paths
+			tower["paths"] = {}
+		elif bool(variant.get("clear_paths", false)):
+			tower["paths"] = {}
 	tower["placement_cost"] = scale_purchase_price(int(tower.get("placement_cost", 0)))
 	for path_key in Dictionary(tower.get("paths", {})):
 		var path: Dictionary = tower["paths"][path_key]
 		path["cost"] = scale_purchase_price(int(path.get("cost", 0)))
 	for level in Array(tower.get("levels", [])):
 		level["upgrade_cost"] = scale_purchase_price(int(level.get("upgrade_cost", 0)))
-	tower["texture"] = TOWER_TEXTURES.get(source_id)
+	var texture_source := StringName(variant.get("texture_source", source_id))
+	if variant.has("final_level_path"):
+		tower["final_level_path"] = Dictionary(variant["final_level_path"]).duplicate(true)
+	tower["texture"] = TOWER_TEXTURES.get(texture_source)
 	return tower
 
 
@@ -3544,6 +3753,21 @@ static func get_tower_combat_source_id(tower_id: StringName) -> StringName:
 
 static func get_tower_inherent_path(tower_id: StringName) -> Dictionary:
 	return get_tower(tower_id).get("inherent_path", {}).duplicate(true)
+
+
+static func get_tower_inherent_paths(tower_id: StringName) -> Array[Dictionary]:
+	var tower := get_tower(tower_id)
+	var paths: Array[Dictionary] = []
+	var primary: Dictionary = tower.get("inherent_path", {})
+	if not primary.is_empty():
+		paths.append(primary.duplicate(true))
+	for additional_path in tower.get("additional_inherent_paths", []):
+		paths.append(Dictionary(additional_path).duplicate(true))
+	return paths
+
+
+static func get_tower_final_level_path(tower_id: StringName) -> Dictionary:
+	return get_tower(tower_id).get("final_level_path", {}).duplicate(true)
 
 
 static func get_playable_tower_family_ids() -> Array[StringName]:
