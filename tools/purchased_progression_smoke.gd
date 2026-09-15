@@ -18,6 +18,7 @@ func run_checks() -> void:
 		game.add_child(tower)
 		tower.is_placed = true
 		tower.set_selected(true)
+		assert(game.tower_upgrade_button.get_parent().visible)
 		assert(not game.tower_xp_bar.visible)
 		tower.instance_progression.grant_xp(100000.0)
 		assert(tower.tower_level == 0)
@@ -26,6 +27,7 @@ func run_checks() -> void:
 		assert(levels.size() == 4)
 		for rank in range(1, 4):
 			var before: int = game.money
+			assert(game.tower_upgrade_button.get_parent().visible)
 			game._on_sidebar_upgrade_pressed()
 			game._on_sidebar_upgrade_pressed()
 			assert(tower.tower_level == rank)

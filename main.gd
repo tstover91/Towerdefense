@@ -914,9 +914,6 @@ func update_tower_inspector_panel_visibility() -> void:
 
 
 func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
-	tower_upgrade_button.get_parent().visible = not GameStats.get_tower_paths(
-		tower.tower_id
-	).is_empty()
 	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
 	var next_level := int(stats["level"]) + 1
 	var has_level_upgrade: bool = next_level < levels.size()
@@ -925,21 +922,24 @@ func update_tower_upgrade_controls(tower: Node, stats: Dictionary) -> void:
 
 
 func _update_manual_upgrade_button(tower: Node) -> void:
+	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
+	var next_level := int(tower.get("tower_level")) + 1
+	var has_level_upgrade := next_level < levels.size()
 	var has_evolutions: bool = bool(tower.has_evolution_options())
 	var has_paths: bool = not GameStats.get_tower_paths(
 		StringName(tower.get("tower_id"))
 	).is_empty()
-	tower_upgrade_button.get_parent().visible = has_evolutions or has_paths
-	if not has_evolutions and not has_paths:
+	tower_upgrade_button.get_parent().visible = (
+		has_level_upgrade or has_evolutions or has_paths
+	)
+	if not has_level_upgrade and not has_evolutions and not has_paths:
 		return
 	if tower_evolution_panel_open or tower_path_section.visible:
 		tower_upgrade_button.text = "BACK"
 		tower_upgrade_button.disabled = false
 		tower_upgrade_button.tooltip_text = "Return to tower controls"
 		return
-	var levels: Array = GameStats.get_tower(tower.tower_id)["levels"]
-	var next_level := int(tower.get("tower_level")) + 1
-	if next_level < levels.size():
+	if has_level_upgrade:
 		var upgrade_cost := int(levels[next_level].get("upgrade_cost", 0))
 		tower_upgrade_button.text = (
 			"CONFIRM · $%s" % GameStats.format_money(upgrade_cost)
