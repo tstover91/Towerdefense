@@ -88,6 +88,7 @@ func _initialize() -> void:
 	var containment_core := GameStats.get_tower(&"containment_core")
 	assert(containment_core["inherent_path"]["behavior_flags"]["energy_shockwave"])
 	var tesla_core := GameStats.get_tower(&"tesla_core")
+	assert(tesla_core["inherent_path"]["add_bonus_tags"] == [&"slow"])
 	assert(tesla_core["levels"][0]["slow_duration"] == 0.50)
 	assert(tesla_core["levels"][2]["behavior_values"]["branch_additional_targets"] == 2)
 	assert(tesla_core["levels"][3]["projectile_count"] == 2)
@@ -114,6 +115,7 @@ func _initialize() -> void:
 	for orbital_id in [&"solar_lance", &"bombardment", &"atomic_strike"]:
 		assert(Registry.create_component(orbital_id, GameStats.get_tower(orbital_id), &"spawner") != null)
 	var gunship := GameStats.get_tower(&"gunship")
+	assert(gunship["inherent_path"]["remove_bonus_tags"] == [&"reveal"])
 	assert(gunship["levels"][0]["behavior_flags"]["saucer_twin_rockets"])
 	assert(gunship["levels"][3]["behavior_values"]["saucer_rocket_count"] == 4)
 	var mothership := GameStats.get_tower(&"mothership")
@@ -129,6 +131,7 @@ func _initialize() -> void:
 	var sentry_array := GameStats.get_tower(&"sentry_array")
 	assert(sentry_array["inherent_path"]["stat_overrides"]["spawned_unit_id"] == &"sentry_turret")
 	assert(sentry_array["levels"][0]["spawn_limit"] == 1)
+	assert(sentry_array["levels"][1]["add_bonus_tags"] == [&"reveal"])
 	assert(sentry_array["levels"][3]["spawn_limit"] == 5)
 	for factory_id in [&"drone_depot", &"mech_bay", &"sentry_array"]:
 		assert(Registry.create_component(factory_id, GameStats.get_tower(factory_id), &"spawner") != null)

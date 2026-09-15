@@ -31,6 +31,7 @@ func run_test() -> void:
 	add_child(fake_main)
 
 	var depot := await _create_tower(fake_main, &"drone_depot")
+	assert(depot.has_bonus_tag(&"reveal"))
 	assert(depot.attack_component.spawned_unit_id == &"drone")
 	assert(depot.attack_component.spawn_limit == 1)
 	assert(is_equal_approx(depot.range_radius_pixels / BaseTower.RANGE_PIXELS_PER_UNIT, 8.0))
@@ -42,6 +43,7 @@ func run_test() -> void:
 	assert(depot.attack_component.spawn_limit == 3)
 	assert(is_equal_approx(depot.range_radius_pixels / BaseTower.RANGE_PIXELS_PER_UNIT, 10.0))
 	drone_stats = depot.get_current_effective_stats()["unit_stats"]
+	assert(int(drone_stats["damage"]) == 175)
 	assert(bool(drone_stats["explode_on_damage_budget"]))
 	assert(int(drone_stats["damage_budget"]) == 4200)
 
@@ -53,18 +55,25 @@ func run_test() -> void:
 	_set_level(mech_bay, 3)
 	assert(mech_bay.attack_component.spawn_limit == 1)
 	mech_stats = mech_bay.get_current_effective_stats()["unit_stats"]
+	assert(int(mech_stats["damage"]) == 2400)
 	assert(bool(mech_stats["periodic_ground_slam"]))
 	assert(is_equal_approx(float(mech_stats["knockback_distance"]), 2.0))
 
 	var sentry_array := await _create_tower(fake_main, &"sentry_array")
 	assert(sentry_array.attack_component.spawned_unit_id == &"sentry_turret")
 	assert(sentry_array.attack_component.spawn_limit == 1)
+	assert(not sentry_array.has_bonus_tag(&"reveal"))
 	var sentry_stats: Dictionary = sentry_array.get_current_effective_stats()["unit_stats"]
 	assert(is_equal_approx(float(sentry_stats["aim_radius"]), 4.5))
+	_set_level(sentry_array, 1)
+	assert(sentry_array.has_bonus_tag(&"reveal"))
+	sentry_stats = sentry_array.get_current_effective_stats()["unit_stats"]
+	assert(Array(sentry_stats["additional_bonus_tags"]).has(&"reveal"))
 	_set_level(sentry_array, 3)
 	assert(sentry_array.attack_component.spawn_limit == 5)
 	assert(is_equal_approx(sentry_array.attack_component.deployment_radius_pixels / BaseTower.RANGE_PIXELS_PER_UNIT, 8.0))
 	sentry_stats = sentry_array.get_current_effective_stats()["unit_stats"]
+	assert(int(sentry_stats["damage"]) == 90)
 	assert(is_equal_approx(float(sentry_stats["aim_radius"]), 5.5))
 
 	print("Standalone spawner identity smoke test passed.")

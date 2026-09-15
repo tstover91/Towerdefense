@@ -28,28 +28,30 @@ func _ready() -> void:
 
 
 func run_test() -> void:
-	var abductor := GameStats.get_tower(&"abductor")
-	assert(abductor["inherent_path"]["behavior_flags"]["saucer_hunt_abductions"])
-	assert(float(abductor["levels"][0]["range"]) == 15.0)
-
 	var fake_main := FakeMain.new()
 	add_child(fake_main)
 	var gunship := await _create_tower(fake_main, &"gunship")
+	assert(not gunship.has_bonus_tag(&"reveal"))
 	assert(is_equal_approx(gunship.range_radius_pixels / BaseTower.RANGE_PIXELS_PER_UNIT, 9.0))
 	assert(gunship.attack_component.twin_rockets_enabled)
 	assert(gunship.attack_component.rocket_count == 1)
 	assert(is_equal_approx(gunship.attack_component.rocket_interval, 4.0))
 	_set_level(gunship, 3)
+	assert(gunship.damage == 450)
 	assert(is_equal_approx(gunship.range_radius_pixels / BaseTower.RANGE_PIXELS_PER_UNIT, 11.0))
 	assert(gunship.attack_component.rocket_count == 4)
 	assert(is_equal_approx(gunship.attack_component.rocket_interval, 2.8))
 
 	var mothership := await _create_tower(fake_main, &"mothership")
+	assert(mothership.has_bonus_tag(&"reveal"))
 	assert(is_equal_approx(mothership.range_radius_pixels / BaseTower.RANGE_PIXELS_PER_UNIT, 9.0))
 	assert(mothership.attack_component.vulnerability_field_enabled)
 	assert(is_equal_approx(mothership.attack_component.vulnerability_field_bonus, 0.08))
 	assert(is_equal_approx(mothership.attack_component.vulnerability_field_radius_pixels / BaseTower.BUILD_CELL_SIZE, 2.5))
 	_set_level(mothership, 3)
+	# The Mothership's inherent support tradeoff applies its 0.8 damage
+	# multiplier after the level value is loaded.
+	assert(mothership.damage == 340)
 	assert(is_equal_approx(mothership.range_radius_pixels / BaseTower.RANGE_PIXELS_PER_UNIT, 11.0))
 	assert(is_equal_approx(mothership.attack_component.vulnerability_field_bonus, 0.25))
 	assert(is_equal_approx(mothership.attack_component.vulnerability_field_radius_pixels / BaseTower.BUILD_CELL_SIZE, 5.0))

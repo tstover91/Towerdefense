@@ -46,6 +46,11 @@ func run_test() -> void:
 		8.5 * BaseTower.RANGE_PIXELS_PER_UNIT
 	))
 
+	fisherman.tower_level = 1
+	fisherman.load_base_tags()
+	fisherman.load_level_stats()
+	assert(fisherman.damage == 225)
+
 	fisherman.tower_level = 2
 	fisherman.load_base_tags()
 	fisherman.load_level_stats()
@@ -53,6 +58,7 @@ func run_test() -> void:
 	assert(not component.electric_tether_enabled)
 	assert(not component.electric_pulse_enabled)
 	assert(fisherman.get_sell_price() == 1500)
+	assert(fisherman.damage == 325)
 
 	fisherman.tower_level = 3
 	fisherman.load_base_tags()

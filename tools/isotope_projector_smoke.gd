@@ -43,14 +43,16 @@ func run_test() -> void:
 	var component := tower.attack_component as IrradiatorAttackComponent
 	assert(component != null)
 	assert(component.isotope_beam_enabled)
+	var target_health_before: int = target.health
 	component.process_attack(0.0)
+	assert(target.health == target_health_before - tower.damage)
 	assert(target.get_radiation_stacks() > 0)
 	assert(between.get_radiation_stacks() > 0)
 	assert(outside.get_radiation_stacks() == 0)
 	assert(beyond_target.get_radiation_stacks() == 0)
 	assert(behind_tower.get_radiation_stacks() == 0)
 	assert(component.get_radiation_debug_state()["mode"] == &"isotope_beam")
-	print("Isotope Projector smoke test passed: locked beam irradiates its target and intervening enemies without area spill.")
+	print("Isotope Projector smoke test passed: the selected target takes a weak Beam hit and the full line receives Radiation.")
 	get_tree().quit(0)
 
 

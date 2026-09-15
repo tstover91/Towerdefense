@@ -52,7 +52,7 @@ const STANDALONE_TOWER_VARIANTS := {
 		"clear_paths": true,
 		"level_overrides": {
 			0: {"damage": 150, "range": 8.5, "hook_pull_speed": 75.0},
-			1: {"damage": 200, "range": 9.0, "hook_pull_speed": 82.0},
+			1: {"damage": 225, "range": 9.0, "hook_pull_speed": 82.0},
 			2: {"damage": 325, "range": 9.75, "hook_pull_speed": 92.0},
 			3: {"damage": 600, "range": 10.5, "hook_pull_speed": 105.0},
 		},
@@ -184,6 +184,7 @@ const STANDALONE_TOWER_VARIANTS := {
 		"display_name": "Tesla Core",
 		"inherent_path": {
 			"description": "Slowing Electric attacks branch from each primary target into nearby enemies.",
+			"add_bonus_tags": [&"slow"],
 		},
 		"level_overrides": {
 			0: {"projectile_count": 1, "slow_duration": 0.50, "behavior_flags": {"energy_branching_current": true}, "behavior_values": {"branch_additional_targets": 1, "branch_range": 4.0, "branch_damage_multiplier": 0.30}},
@@ -259,7 +260,7 @@ const STANDALONE_TOWER_VARIANTS := {
 			0: {"damage": 150, "firerate": 4.5, "range": 9.0, "splash_radius": 2.0, "behavior_flags": {"orbital_solar_lance": true, "infinite_pierce": true}, "behavior_values": {"solar_lance_duration": 1.4, "solar_lance_tick_interval": 0.2, "solar_lance_tick_damage_multiplier": 0.22, "solar_lance_tick_end_damage_multiplier": 0.32, "solar_lance_tracking_speed": 1.6}},
 			1: {"damage": 210, "firerate": 4.3, "range": 9.5, "splash_radius": 2.0, "behavior_flags": {"orbital_solar_lance": true, "infinite_pierce": true}, "behavior_values": {"solar_lance_duration": 1.8, "solar_lance_tick_interval": 0.2, "solar_lance_tick_damage_multiplier": 0.24, "solar_lance_tick_end_damage_multiplier": 0.38, "solar_lance_tracking_speed": 2.0}},
 			2: {"damage": 390, "firerate": 4.1, "range": 10.0, "splash_radius": 2.75, "behavior_flags": {"orbital_solar_lance": true, "infinite_pierce": true}, "behavior_values": {"solar_lance_duration": 2.1, "solar_lance_tick_interval": 0.2, "solar_lance_tick_damage_multiplier": 0.25, "solar_lance_tick_end_damage_multiplier": 0.45, "solar_lance_tracking_speed": 2.2}},
-			3: {"damage": 780, "firerate": 3.8, "range": 11.0, "splash_radius": 3.0, "behavior_flags": {"orbital_solar_lance": true, "infinite_pierce": true}, "behavior_values": {"solar_lance_duration": 3.0, "solar_lance_tick_interval": 0.2, "solar_lance_tick_damage_multiplier": 0.24, "solar_lance_tick_end_damage_multiplier": 0.68, "solar_lance_tracking_speed": 2.4}},
+			3: {"damage": 450, "firerate": 3.8, "range": 11.0, "splash_radius": 3.0, "behavior_flags": {"orbital_solar_lance": true, "infinite_pierce": true}, "behavior_values": {"solar_lance_duration": 3.0, "solar_lance_tick_interval": 0.2, "solar_lance_tick_damage_multiplier": 0.24, "solar_lance_tick_end_damage_multiplier": 0.68, "solar_lance_tracking_speed": 2.4}},
 		},
 	},
 	&"bombardment": {
@@ -272,7 +273,7 @@ const STANDALONE_TOWER_VARIANTS := {
 			0: {"damage": 130, "firerate": 4.0, "range": 9.0, "splash_radius": 3.0, "behavior_flags": {"orbital_bombardment": true}, "behavior_values": {"bombardment_strike_count": 3, "bombardment_stagger": 0.18, "bombardment_spread_radius": 2.0, "bombardment_damage_multiplier": 0.42, "bombardment_radius_multiplier": 0.72}},
 			1: {"damage": 190, "firerate": 3.8, "range": 9.5, "splash_radius": 3.25, "behavior_flags": {"orbital_bombardment": true}, "behavior_values": {"bombardment_strike_count": 4, "bombardment_stagger": 0.17, "bombardment_spread_radius": 2.4, "bombardment_damage_multiplier": 0.42, "bombardment_radius_multiplier": 0.72}},
 			2: {"damage": 360, "firerate": 3.6, "range": 10.0, "splash_radius": 3.5, "behavior_flags": {"orbital_bombardment": true}, "behavior_values": {"bombardment_strike_count": 5, "bombardment_stagger": 0.16, "bombardment_spread_radius": 2.8, "bombardment_damage_multiplier": 0.42, "bombardment_radius_multiplier": 0.74}},
-			3: {"damage": 760, "firerate": 3.3, "range": 11.0, "splash_radius": 4.0, "behavior_flags": {"orbital_bombardment": true}, "behavior_values": {"bombardment_strike_count": 7, "bombardment_stagger": 0.14, "bombardment_spread_radius": 3.2, "bombardment_damage_multiplier": 0.44, "bombardment_radius_multiplier": 0.76}},
+			3: {"damage": 650, "firerate": 3.3, "range": 11.0, "splash_radius": 4.0, "behavior_flags": {"orbital_bombardment": true}, "behavior_values": {"bombardment_strike_count": 7, "bombardment_stagger": 0.14, "bombardment_spread_radius": 3.2, "bombardment_damage_multiplier": 0.44, "bombardment_radius_multiplier": 0.76}},
 		},
 	},
 	&"atomic_strike": {
@@ -287,8 +288,8 @@ const STANDALONE_TOWER_VARIANTS := {
 		"level_overrides": {
 			0: {"damage": 150, "firerate": 8.0, "range": 9.0, "splash_radius": 3.5, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 2.0, "atomic_blast_radius_multiplier": 1.15, "atomic_radiation_stacks": 5, "atomic_radiation_damage_multiplier": 0.035, "fallout_radius_multiplier": 1.0, "fallout_duration": 4.0, "fallout_application_interval": 1.0, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.25}},
 			1: {"damage": 225, "firerate": 7.5, "range": 9.5, "splash_radius": 4.0, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 2.4, "atomic_blast_radius_multiplier": 1.2, "atomic_radiation_stacks": 6, "atomic_radiation_damage_multiplier": 0.035, "fallout_radius_multiplier": 1.05, "fallout_duration": 5.0, "fallout_application_interval": 1.0, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.25}},
-			2: {"damage": 500, "firerate": 7.0, "range": 10.0, "splash_radius": 4.5, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 3.0, "atomic_blast_radius_multiplier": 1.3, "atomic_radiation_stacks": 8, "atomic_radiation_damage_multiplier": 0.04, "fallout_radius_multiplier": 1.1, "fallout_duration": 7.0, "fallout_application_interval": 0.9, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.15}},
-			3: {"damage": 1200, "firerate": 6.5, "range": 11.0, "splash_radius": 5.0, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 4.0, "atomic_blast_radius_multiplier": 1.45, "atomic_radiation_stacks": 12, "atomic_radiation_damage_multiplier": 0.04, "fallout_radius_multiplier": 1.2, "fallout_duration": 10.0, "fallout_application_interval": 0.75, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.0}},
+			2: {"damage": 375, "firerate": 7.0, "range": 10.0, "splash_radius": 4.5, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 3.0, "atomic_blast_radius_multiplier": 1.3, "atomic_radiation_stacks": 8, "atomic_radiation_damage_multiplier": 0.04, "fallout_radius_multiplier": 1.1, "fallout_duration": 7.0, "fallout_application_interval": 0.9, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.15}},
+			3: {"damage": 700, "firerate": 6.5, "range": 11.0, "splash_radius": 5.0, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 4.0, "atomic_blast_radius_multiplier": 1.45, "atomic_radiation_stacks": 12, "atomic_radiation_damage_multiplier": 0.04, "fallout_radius_multiplier": 1.2, "fallout_duration": 10.0, "fallout_application_interval": 0.75, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.0}},
 		},
 	},
 	&"gunship": {
@@ -297,13 +298,14 @@ const STANDALONE_TOWER_VARIANTS := {
 		"inherent_path": {
 			"description": "Patrols around its base, firing a rapid Electric gun and independent homing rockets.",
 			"add_damage_tags": [&"explosive"],
+			"remove_bonus_tags": [&"reveal"],
 			"stat_overrides": {"abduction_health_threshold": 0.0},
 		},
 		"level_overrides": {
 			0: {"damage": 150, "firerate": 0.65, "range": 9.0, "flyer_move_speed": 165.0, "flyer_attack_radius": 5.0, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 0.90, "saucer_rocket_interval": 4.0, "saucer_rocket_splash_radius": 2.25, "saucer_rocket_count": 1}},
 			1: {"damage": 215, "firerate": 0.58, "range": 9.5, "flyer_move_speed": 180.0, "flyer_attack_radius": 5.25, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 0.95, "saucer_rocket_interval": 3.8, "saucer_rocket_splash_radius": 2.5, "saucer_rocket_count": 2}},
 			2: {"damage": 330, "firerate": 0.52, "range": 10.0, "flyer_move_speed": 195.0, "flyer_attack_radius": 5.5, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 1.05, "saucer_rocket_interval": 3.2, "saucer_rocket_splash_radius": 2.75, "saucer_rocket_count": 2}},
-			3: {"damage": 500, "firerate": 0.40, "range": 11.0, "flyer_move_speed": 220.0, "flyer_attack_radius": 6.0, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 1.10, "saucer_rocket_interval": 2.8, "saucer_rocket_splash_radius": 3.0, "saucer_rocket_count": 4}},
+			3: {"damage": 450, "firerate": 0.40, "range": 11.0, "flyer_move_speed": 220.0, "flyer_attack_radius": 6.0, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 1.10, "saucer_rocket_interval": 2.8, "saucer_rocket_splash_radius": 3.0, "saucer_rocket_count": 4}},
 		},
 	},
 	&"mothership": {
@@ -318,7 +320,7 @@ const STANDALONE_TOWER_VARIANTS := {
 			0: {"damage": 135, "firerate": 0.75, "range": 9.0, "flyer_move_speed": 155.0, "flyer_attack_radius": 4.5, "behavior_flags": {"saucer_vulnerability_field": true}, "behavior_values": {"saucer_field_radius": 2.5, "saucer_field_vulnerability": 0.08, "saucer_field_refresh_interval": 0.20}},
 			1: {"damage": 185, "firerate": 0.70, "range": 9.5, "flyer_move_speed": 170.0, "flyer_attack_radius": 4.75, "behavior_flags": {"saucer_vulnerability_field": true}, "behavior_values": {"saucer_field_radius": 3.0, "saucer_field_vulnerability": 0.12, "saucer_field_refresh_interval": 0.20}},
 			2: {"damage": 275, "firerate": 0.62, "range": 10.0, "flyer_move_speed": 185.0, "flyer_attack_radius": 5.0, "behavior_flags": {"saucer_vulnerability_field": true}, "behavior_values": {"saucer_field_radius": 4.0, "saucer_field_vulnerability": 0.16, "saucer_field_refresh_interval": 0.20}},
-			3: {"damage": 475, "firerate": 0.50, "range": 11.0, "flyer_move_speed": 205.0, "flyer_attack_radius": 5.5, "behavior_flags": {"saucer_vulnerability_field": true}, "behavior_values": {"saucer_field_radius": 5.0, "saucer_field_vulnerability": 0.25, "saucer_field_refresh_interval": 0.20}},
+			3: {"damage": 425, "firerate": 0.50, "range": 11.0, "flyer_move_speed": 205.0, "flyer_attack_radius": 5.5, "behavior_flags": {"saucer_vulnerability_field": true}, "behavior_values": {"saucer_field_radius": 5.0, "saucer_field_vulnerability": 0.25, "saucer_field_refresh_interval": 0.20}},
 		},
 	},
 	&"drone_depot": {
@@ -333,9 +335,9 @@ const STANDALONE_TOWER_VARIANTS := {
 		},
 		"level_overrides": {
 			0: {"range": 8.0, "spawn_interval": 0.5, "spawn_limit": 1, "deployment_radius": 8.0, "unit_stats": {"damage": 75, "attack_interval": 0.45, "aim_radius": 2.5, "move_speed": 105.0, "damage_budget": 750, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "die_on_damage_budget": true, "budget_replacement_delay": 0.5}},
-			1: {"range": 8.5, "spawn_interval": 0.5, "spawn_limit": 2, "deployment_radius": 8.5, "unit_stats": {"damage": 90, "attack_interval": 0.42, "aim_radius": 2.5, "move_speed": 115.0, "damage_budget": 1050, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "die_on_damage_budget": true, "budget_replacement_delay": 0.5}},
-			2: {"range": 9.0, "spawn_interval": 0.5, "spawn_limit": 3, "deployment_radius": 9.0, "unit_stats": {"damage": 120, "attack_interval": 0.36, "aim_radius": 2.5, "move_speed": 125.0, "damage_budget": 1700, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "die_on_damage_budget": true, "budget_replacement_delay": 0.5}},
-			3: {"range": 10.0, "spawn_interval": 0.5, "spawn_limit": 3, "deployment_radius": 10.0, "unit_stats": {"damage": 190, "attack_interval": 0.26, "aim_radius": 2.75, "move_speed": 145.0, "damage_budget": 4200, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "additional_damage_tags": [&"explosive"], "die_on_damage_budget": true, "explode_on_damage_budget": true, "budget_replacement_delay": 0.5, "budget_explosion_radius": 2.75, "budget_explosion_damage_multiplier": 3.0}},
+			1: {"range": 8.5, "spawn_interval": 0.5, "spawn_limit": 2, "deployment_radius": 8.5, "unit_stats": {"damage": 80, "attack_interval": 0.42, "aim_radius": 2.5, "move_speed": 115.0, "damage_budget": 1050, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "die_on_damage_budget": true, "budget_replacement_delay": 0.5}},
+			2: {"range": 9.0, "spawn_interval": 0.5, "spawn_limit": 3, "deployment_radius": 9.0, "unit_stats": {"damage": 105, "attack_interval": 0.36, "aim_radius": 2.5, "move_speed": 125.0, "damage_budget": 1700, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "die_on_damage_budget": true, "budget_replacement_delay": 0.5}},
+			3: {"range": 10.0, "spawn_interval": 0.5, "spawn_limit": 3, "deployment_radius": 10.0, "unit_stats": {"damage": 175, "attack_interval": 0.26, "aim_radius": 2.75, "move_speed": 145.0, "damage_budget": 4200, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "additional_damage_tags": [&"explosive"], "die_on_damage_budget": true, "explode_on_damage_budget": true, "budget_replacement_delay": 0.5, "budget_explosion_radius": 2.75, "budget_explosion_damage_multiplier": 3.0}},
 		},
 	},
 	&"mech_bay": {
@@ -356,8 +358,8 @@ const STANDALONE_TOWER_VARIANTS := {
 		"level_overrides": {
 			0: {"range": 7.5, "spawn_interval": 7.0, "spawn_limit": 1, "deployment_radius": 7.5, "unit_stats": {"damage": 600, "attack_interval": 2.8, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 1.75, "move_speed": 62.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 1.0, "visual_scale": 1.15}},
 			1: {"range": 8.0, "spawn_interval": 6.0, "spawn_limit": 1, "deployment_radius": 8.0, "unit_stats": {"damage": 850, "attack_interval": 2.6, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 1.75, "move_speed": 68.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 1.25, "visual_scale": 1.15}},
-			2: {"range": 8.5, "spawn_interval": 5.0, "spawn_limit": 1, "deployment_radius": 8.5, "unit_stats": {"damage": 1250, "attack_interval": 2.25, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 2.0, "move_speed": 76.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 1.75, "visual_scale": 1.20}},
-			3: {"range": 9.0, "spawn_interval": 4.0, "spawn_limit": 1, "deployment_radius": 9.0, "unit_stats": {"damage": 2100, "attack_interval": 1.75, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 2.25, "move_speed": 88.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 2.0, "visual_scale": 1.30, "periodic_ground_slam": true, "ground_slam_interval": 6.0, "ground_slam_radius": 3.5, "ground_slam_damage_multiplier": 1.5, "ground_slam_knockback_distance": 1.75}},
+			2: {"range": 8.5, "spawn_interval": 5.0, "spawn_limit": 1, "deployment_radius": 8.5, "unit_stats": {"damage": 1500, "attack_interval": 2.25, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 2.0, "move_speed": 76.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 1.75, "visual_scale": 1.20}},
+			3: {"range": 9.0, "spawn_interval": 4.0, "spawn_limit": 1, "deployment_radius": 9.0, "unit_stats": {"damage": 2400, "attack_interval": 1.75, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 2.25, "move_speed": 88.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 2.0, "visual_scale": 1.30, "periodic_ground_slam": true, "ground_slam_interval": 6.0, "ground_slam_radius": 3.5, "ground_slam_damage_multiplier": 1.5, "ground_slam_knockback_distance": 1.75}},
 		},
 	},
 	&"sentry_array": {
@@ -371,9 +373,9 @@ const STANDALONE_TOWER_VARIANTS := {
 		},
 		"level_overrides": {
 			0: {"range": 0.0, "spawn_interval": 5.0, "spawn_limit": 1, "deployment_radius": 4.5, "unit_stats": {"damage": 55, "attack_interval": 1.20, "aim_radius": 4.5, "move_speed": 0.0, "projectile_speed": 480.0, "damage_budget": 0, "lifetime": 0.0}},
-			1: {"range": 0.0, "spawn_interval": 4.5, "spawn_limit": 2, "deployment_radius": 5.5, "unit_stats": {"damage": 70, "attack_interval": 1.10, "aim_radius": 4.75, "move_speed": 0.0, "projectile_speed": 520.0, "damage_budget": 0, "lifetime": 0.0}},
-			2: {"range": 0.0, "spawn_interval": 4.0, "spawn_limit": 3, "deployment_radius": 6.5, "unit_stats": {"damage": 100, "attack_interval": 0.95, "aim_radius": 5.0, "move_speed": 0.0, "projectile_speed": 580.0, "damage_budget": 0, "lifetime": 0.0}},
-			3: {"range": 0.0, "spawn_interval": 3.0, "spawn_limit": 5, "deployment_radius": 8.0, "unit_stats": {"damage": 190, "attack_interval": 0.65, "aim_radius": 5.5, "move_speed": 0.0, "projectile_speed": 700.0, "damage_budget": 0, "lifetime": 0.0}},
+			1: {"range": 0.0, "spawn_interval": 4.5, "spawn_limit": 2, "deployment_radius": 5.5, "add_bonus_tags": [&"reveal"], "unit_stats": {"damage": 50, "attack_interval": 1.10, "aim_radius": 4.75, "move_speed": 0.0, "projectile_speed": 520.0, "damage_budget": 0, "lifetime": 0.0, "additional_bonus_tags": [&"reveal"]}},
+			2: {"range": 0.0, "spawn_interval": 4.0, "spawn_limit": 3, "deployment_radius": 6.5, "add_bonus_tags": [&"reveal"], "unit_stats": {"damage": 70, "attack_interval": 0.95, "aim_radius": 5.0, "move_speed": 0.0, "projectile_speed": 580.0, "damage_budget": 0, "lifetime": 0.0, "additional_bonus_tags": [&"reveal"]}},
+			3: {"range": 0.0, "spawn_interval": 3.0, "spawn_limit": 5, "deployment_radius": 8.0, "add_bonus_tags": [&"reveal"], "unit_stats": {"damage": 90, "attack_interval": 0.65, "aim_radius": 5.5, "move_speed": 0.0, "projectile_speed": 700.0, "damage_budget": 0, "lifetime": 0.0, "additional_bonus_tags": [&"reveal"]}},
 		},
 	},
 	&"reactor": {
@@ -386,20 +388,22 @@ const STANDALONE_TOWER_VARIANTS := {
 			0: {"damage": 3, "firerate": 0.90, "range": 7.0, "radiation_stacks_per_application": 3, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.90, "reactor_stacks_per_application": 3}},
 			1: {"damage": 4, "firerate": 0.80, "range": 7.75, "radiation_stacks_per_application": 4, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.80, "reactor_stacks_per_application": 4}},
 			2: {"damage": 7, "firerate": 0.70, "range": 8.5, "radiation_stacks_per_application": 5, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.70, "reactor_stacks_per_application": 5}},
-			3: {"damage": 12, "firerate": 0.50, "range": 9.5, "radiation_stacks_per_application": 7, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.50, "reactor_stacks_per_application": 7}},
+			3: {"damage": 10, "firerate": 0.50, "range": 9.5, "radiation_stacks_per_application": 7, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.50, "reactor_stacks_per_application": 7}},
 		},
 	},
 	&"isotope_projector": {
 		"source": &"irradiator",
 		"display_name": "Isotope Projector",
 		"inherent_path": {
-			"description": "Locks a Radiation beam onto one enemy and irradiates it and every enemy directly between it and the Projector.",
+			"description": "Locks a Beam onto one enemy while irradiating every other enemy caught between it and the Projector.",
+			"add_damage_tags": [&"beam", &"radiation"],
+			"primary_damage_type": &"beam",
 		},
 		"level_overrides": {
 			0: {"damage": 4, "firerate": 0.80, "range": 8.5, "radiation_stacks_per_application": 4, "behavior_flags": {"irradiator_isotope_beam": true}, "behavior_values": {"isotope_beam_half_width": 0.30}},
 			1: {"damage": 5, "firerate": 0.70, "range": 9.0, "radiation_stacks_per_application": 5, "behavior_flags": {"irradiator_isotope_beam": true}, "behavior_values": {"isotope_beam_half_width": 0.35}},
 			2: {"damage": 8, "firerate": 0.60, "range": 9.75, "radiation_stacks_per_application": 7, "behavior_flags": {"irradiator_isotope_beam": true}, "behavior_values": {"isotope_beam_half_width": 0.40}},
-			3: {"damage": 14, "firerate": 0.42, "range": 11.0, "radiation_stacks_per_application": 10, "behavior_flags": {"irradiator_isotope_beam": true}, "behavior_values": {"isotope_beam_half_width": 0.50}},
+			3: {"damage": 13, "firerate": 0.42, "range": 11.0, "radiation_stacks_per_application": 9, "behavior_flags": {"irradiator_isotope_beam": true}, "behavior_values": {"isotope_beam_half_width": 0.50}},
 		},
 	},
 	&"assassin": {

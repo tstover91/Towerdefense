@@ -56,6 +56,8 @@ func run_test() -> void:
 	assert(selected[0] == ordered_targets[0])
 	assert(selected[3] == ordered_targets[3])
 	assert(selected[4] == ordered_targets[5])
+	assert(laser_component._get_beam_target_damage(100, 3, 5) == 40)
+	assert(laser_component._get_beam_target_damage(100, 4, 5) == 100)
 
 	var gauss := await _create_tower(fake_main, &"gauss_gunner")
 	assert(gauss.damage == 16)

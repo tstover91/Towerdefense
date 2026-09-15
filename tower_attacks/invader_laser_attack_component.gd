@@ -150,13 +150,25 @@ func _apply_beam_tick() -> void:
 		tower.apply_control_effects(target, tick_context)
 		tower.apply_tower_damage(
 			target,
-			GameStats.get_piercing_damage(
-				rolled_damage, index, tower.pierce_loses_no_power
-			),
+			_get_beam_target_damage(rolled_damage, index, targets.size()),
 			&"beam",
 			index > 0,
 			tick_context
 		)
+
+
+func _get_beam_target_damage(
+	base_damage: int,
+	hit_index: int,
+	target_count: int
+) -> int:
+	# The selected endpoint is always appended last. Earlier enemies consume
+	# Pierce falloff, while the enemy the tower aimed at receives full damage.
+	if hit_index == target_count - 1:
+		return base_damage
+	return GameStats.get_piercing_damage(
+		base_damage, hit_index, tower.pierce_loses_no_power
+	)
 
 
 func _select_targets_before_endpoint(targets: Array[Node2D]) -> Array[Node2D]:

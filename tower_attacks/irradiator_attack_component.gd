@@ -110,6 +110,16 @@ func process_attack(delta: float) -> void:
 	var context := tower.create_attack_context(attack_kind)
 	context.metadata["radiation_application"] = true
 	context.metadata["area_damage"] = true
+	if isotope_beam_enabled:
+		var beam_damage := maxi(tower.damage, 1)
+		var beam_context := tower.create_attack_context(&"isotope_beam_primary")
+		tower.apply_tower_damage(
+			tower.target,
+			tower.roll_critical_damage(beam_damage, tower.target),
+			&"beam",
+			true,
+			beam_context
+		)
 	for mob in affected:
 		if not mob.has_method("apply_radiation"):
 			continue
