@@ -41,11 +41,13 @@ func _draw() -> void:
 
 func _load_terrain_textures() -> void:
 	for terrain_type in Terrain.TERRAIN_DATA:
-		var image := Image.load_from_file(
-			ProjectSettings.globalize_path(Terrain.get_texture_path(terrain_type))
+		var texture_path := Terrain.get_texture_path(terrain_type)
+		var texture := ResourceLoader.load(texture_path, "Texture2D") as Texture2D
+		assert(
+			texture != null,
+			"Unable to load procedural terrain texture: %s" % texture_path
 		)
-		assert(not image.is_empty(), "Unable to load procedural terrain texture")
-		terrain_textures[terrain_type] = ImageTexture.create_from_image(image)
+		terrain_textures[terrain_type] = texture
 
 
 func _draw_grid() -> void:
