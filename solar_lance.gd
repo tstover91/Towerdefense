@@ -23,6 +23,10 @@ var resolving := false
 var attack_context: AttackContext
 var slowed_mobs: Dictionary = {}
 var slow_refresh_remaining := 0.0
+var tracked_target: WeakRef
+var tracked_path: Path2D
+var path_progress := 0.0
+var tracking_speed := 80.0
 
 
 func setup(
@@ -32,6 +36,8 @@ func setup(
 	lance_tick_end_damage: int,
 	lance_duration: float,
 	lance_tick_interval: float,
+	lance_target: Node2D = null,
+	lance_tracking_speed: float = 80.0,
 	ownership_context: AttackContext = null
 ) -> void:
 	main = game_main
@@ -40,6 +46,8 @@ func setup(
 	tick_end_damage = maxi(lance_tick_end_damage, 1)
 	duration = maxf(lance_duration, 0.01)
 	tick_interval = maxf(lance_tick_interval, 0.01)
+	tracking_speed = maxf(lance_tracking_speed, 0.0)
+	_configure_route_tracking(lance_target)
 	tick_count = floori(duration / tick_interval) + 1
 	tick_index = 0
 	attack_context = ownership_context
@@ -80,6 +88,7 @@ func _process(delta: float) -> void:
 		cancel()
 		return
 	elapsed += delta
+	_update_route_tracking(delta)
 	slow_refresh_remaining -= delta
 	if slow_refresh_remaining <= 0.0:
 		update_zone_slow()
@@ -90,6 +99,38 @@ func _process(delta: float) -> void:
 		tick_remaining += tick_interval
 	if elapsed >= duration:
 		finish()
+
+
+func _configure_route_tracking(lance_target: Node2D) -> void:
+	if not is_instance_valid(lance_target):
+		return
+	tracked_target = weakref(lance_target)
+	var target_follow: PathFollow2D = lance_target.get("path_follow") as PathFollow2D
+	if not is_instance_valid(target_follow):
+		return
+	tracked_path = target_follow.get_parent() as Path2D
+	if not is_instance_valid(tracked_path) or tracked_path.curve == null:
+		tracked_path = null
+		return
+	path_progress = target_follow.progress
+	global_position = tracked_path.to_global(tracked_path.curve.sample_baked(path_progress))
+
+
+func _update_route_tracking(delta: float) -> void:
+	if not is_instance_valid(tracked_path) or tracked_target == null:
+		return
+	var target: Variant = tracked_target.get_ref()
+	if not is_instance_valid(target):
+		return
+	var target_follow: PathFollow2D = target.get("path_follow") as PathFollow2D
+	if not is_instance_valid(target_follow) or target_follow.get_parent() != tracked_path:
+		return
+	path_progress = move_toward(
+		path_progress,
+		target_follow.progress,
+		tracking_speed * delta
+	)
+	global_position = tracked_path.to_global(tracked_path.curve.sample_baked(path_progress))
 
 
 func apply_damage_tick() -> void:

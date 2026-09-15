@@ -12,6 +12,10 @@ var singularity_pull_radius_pixels := 0.0
 var singularity_pull_speed := 80.0
 var singularity_explosion_radius_pixels := 0.0
 var singularity_damage_multiplier := 1.0
+var dedicated_singularity_attack := false
+var event_horizon_enabled := false
+var event_horizon_damage_per_enemy := 0.0
+var event_horizon_maximum_damage_bonus := 0.0
 var active_singularities: Array[Node] = []
 var previous_singularity_remaining := 0.0
 
@@ -25,12 +29,26 @@ func reset_path_behaviors() -> void:
 	singularity_pull_speed = 80.0
 	singularity_explosion_radius_pixels = 0.0
 	singularity_damage_multiplier = 1.0
+	dedicated_singularity_attack = false
+	event_horizon_enabled = false
+	event_horizon_damage_per_enemy = 0.0
+	event_horizon_maximum_damage_bonus = 0.0
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 	if not flags.get("void_singularity", false):
 		return
 	singularity_enabled = true
+	dedicated_singularity_attack = bool(
+		flags.get("dedicated_singularity_attack", false)
+	)
+	event_horizon_enabled = bool(flags.get("singularity_event_horizon", false))
+	event_horizon_damage_per_enemy = maxf(
+		float(values.get("event_horizon_damage_per_enemy", 0.0)), 0.0
+	)
+	event_horizon_maximum_damage_bonus = maxf(
+		float(values.get("event_horizon_maximum_damage_bonus", 0.0)), 0.0
+	)
 	singularity_cooldown = maxf(
 		float(values.get("singularity_cooldown", 10.0)),
 		0.1
@@ -106,6 +124,8 @@ func _exit_tree() -> void:
 func process_attack(delta: float) -> void:
 	if not singularity_enabled or not tower.is_placed:
 		return
+	if dedicated_singularity_attack:
+		return
 	if not tower.is_combat_active():
 		return
 	prune_singularities()
@@ -123,6 +143,11 @@ func process_attack(delta: float) -> void:
 
 
 func execute_attack(current_target: Node2D, attack_damage: int) -> bool:
+	if dedicated_singularity_attack:
+		if not tower.is_valid_target(current_target):
+			return false
+		spawn_singularity(current_target)
+		return true
 	var volley_center := current_target.global_position
 	var aim_offset := volley_center - tower.muzzle.global_position
 	if aim_offset.is_zero_approx():
@@ -206,6 +231,8 @@ func spawn_singularity(current_target: Node2D) -> void:
 		singularity_pull_speed,
 		singularity_explosion_radius_pixels,
 		maxi(roundi(float(tower.damage) * singularity_damage_multiplier), 1),
+		event_horizon_damage_per_enemy if event_horizon_enabled else 0.0,
+		event_horizon_maximum_damage_bonus if event_horizon_enabled else 0.0,
 		tower.create_attack_context(
 			&"void_singularity",
 			singularity,

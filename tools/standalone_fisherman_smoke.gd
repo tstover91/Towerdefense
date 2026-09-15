@@ -31,25 +31,50 @@ func run_test() -> void:
 	fisherman.main = fake_main
 	add_child(fisherman)
 	fisherman.confirm_placement()
+	assert(fisherman.get_sell_price() == 500)
 	var component := fisherman.attack_component as FishermanAttackComponent
 	assert(component != null)
 	assert(component.hook_target_count == 1)
 	assert(not component.electric_tether_enabled)
+	assert(not component.electric_pulse_enabled)
 	assert(not component.mines_enabled)
+	assert(not fisherman.uses_directional_aim())
+	assert(not fisherman.uses_tracking_cone())
+	assert(not fisherman.uses_finite_directional_range())
+	assert(is_equal_approx(
+		fisherman.range_radius_pixels,
+		8.5 * BaseTower.RANGE_PIXELS_PER_UNIT
+	))
 
 	fisherman.tower_level = 2
 	fisherman.load_base_tags()
 	fisherman.load_level_stats()
 	assert(component.hook_target_count == 2)
 	assert(not component.electric_tether_enabled)
+	assert(not component.electric_pulse_enabled)
+	assert(fisherman.get_sell_price() == 1500)
 
 	fisherman.tower_level = 3
 	fisherman.load_base_tags()
 	fisherman.load_level_stats()
-	assert(component.hook_target_count == 3)
-	assert(component.electric_tether_enabled)
+	assert(component.hook_target_count == 2)
+	assert(not component.electric_tether_enabled)
+	assert(component.electric_pulse_enabled)
+	assert(component.electric_pulse_maximum_targets == 2)
 	assert(not component.mines_enabled)
 	assert(fisherman.has_damage_tag(&"electric"))
 	assert(fisherman.get_primary_damage_type() == &"electric")
-	print("Standalone Fisherman smoke test passed: one hook, two-hook upgrade, and final three-hook electric tether.")
+	assert(fisherman.get_sell_price() == 3200)
+
+	var psionic := TOWER_SCENE.instantiate() as BaseTower
+	psionic.tower_id = &"psionic"
+	psionic.main = fake_main
+	add_child(psionic)
+	psionic.confirm_placement()
+	assert(psionic.get_sell_price() == 2000)
+	psionic.tower_level = 1
+	psionic.load_base_tags()
+	psionic.load_level_stats()
+	assert(psionic.get_sell_price() == 2600)
+	print("Standalone Fisherman smoke test passed: radial targeting, two hooks, and final electric pulses.")
 	get_tree().quit(0)

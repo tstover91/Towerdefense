@@ -192,6 +192,14 @@ func projectile_contact_explosion_damage_multiplier() -> float:
 	return 1.0
 
 
+func projectile_return_flight_enabled() -> bool:
+	return false
+
+
+func projectile_return_damage_multiplier() -> float:
+	return 1.0
+
+
 func spawn_unit() -> void:
 	pass
 

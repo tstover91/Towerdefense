@@ -30,6 +30,7 @@ func run_test() -> void:
 	var assassin := _create_tower(&"assassin", fake_main, Vector2(100.0, 100.0))
 	var assassin_component := assassin.attack_component as ReaverAttackComponent
 	assert(assassin_component.assassinate_enabled)
+	assert(assassin_component.roaming_enabled)
 	assert(not assassin_component.time_bubble_enabled)
 	assassin.tower_level = 3
 	assassin.load_base_tags()
@@ -44,12 +45,28 @@ func run_test() -> void:
 	assassin_component.process_attack(0.0)
 	assert(nearby_mob.slow_remaining > 0.0)
 
-	var enforcer := _create_tower(&"enforcer", fake_main, Vector2(300.0, 100.0))
-	var enforcer_component := enforcer.attack_component as ReaverAttackComponent
-	assert(enforcer_component.enforcer_enabled)
-	assert(enforcer_component.champion_enabled)
-	assert(enforcer_component.melee_arc_degrees == 180.0)
-	print("Standalone Reaver smoke test passed: Assassin gains Time Bubble only at level four and Enforcer combines slam and spin behavior.")
+	var champion := _create_tower(&"champion", fake_main, Vector2(300.0, 100.0))
+	var champion_component := champion.attack_component as ReaverAttackComponent
+	assert(champion_component.roaming_enabled)
+	assert(not champion_component.enforcer_enabled)
+	assert(not champion_component.champion_enabled)
+	assert(not champion.has_bonus_tag(&"stun"))
+	assert(champion_component.melee_arc_degrees == 120.0)
+	champion.tower_level = 3
+	champion.load_base_tags()
+	champion.load_level_stats()
+	assert(champion_component.melee_arc_degrees == 360.0)
+	assert(champion_component.melee_max_targets == 8)
+	var roaming_target := MOB_SCENE.instantiate()
+	roaming_target.enemy_id = &"brute"
+	add_child(roaming_target)
+	roaming_target.global_position = Vector2(380.0, 100.0)
+	champion.target = roaming_target
+	champion_component.process_pre_targeting(0.25)
+	assert(champion_component.roaming_offset.x > 0.0)
+	assert(champion.visual_sprite.position == champion_component.roaming_offset)
+	assert(champion.global_position == Vector2(300.0, 100.0))
+	print("Standalone Reaver smoke test passed: Assassin and Champion roam while their bases remain fixed; Champion gains a 360-degree level-four sweep without Enforcer control.")
 	get_tree().quit(0)
 
 

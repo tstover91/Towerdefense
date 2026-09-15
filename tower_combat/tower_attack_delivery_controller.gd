@@ -412,7 +412,13 @@ func launch_projectile_from_position(
 				if tower.item_controller != null
 				else 1.0
 			)
-		)
+		),
+		tower.attack_component != null
+			and tower.attack_component.projectile_return_flight_enabled(),
+		tower.attack_component.projectile_return_damage_multiplier()
+			if tower.attack_component != null
+			else 1.0,
+		launch_position
 	)
 	return projectile
 

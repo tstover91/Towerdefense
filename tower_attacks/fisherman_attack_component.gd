@@ -18,6 +18,10 @@ var tether_half_width_pixels := 0.0
 var tether_secondary_damage_multiplier := 0.0
 var tether_maximum_targets := 0
 var tether_final_pulse_multiplier := 1.0
+var electric_pulse_enabled := false
+var electric_pulse_radius_pixels := 0.0
+var electric_pulse_damage_multiplier := 0.0
+var electric_pulse_maximum_targets := 0
 var mines_enabled := false
 var mine_interval := 6.0
 var mine_remaining := 0.0
@@ -33,15 +37,15 @@ var previous_mine_remaining := 0.0
 
 
 func uses_directional_aim() -> bool:
-	return true
+	return false
 
 
 func uses_tracking_cone() -> bool:
-	return true
+	return false
 
 
 func uses_finite_directional_range() -> bool:
-	return true
+	return false
 
 
 func get_tracking_cone_degrees() -> float:
@@ -103,6 +107,10 @@ func reset_path_behaviors() -> void:
 	hook_target_count = 1
 	secondary_hook_damage_multiplier = 1.0
 	electric_tether_enabled = false
+	electric_pulse_enabled = false
+	electric_pulse_radius_pixels = 0.0
+	electric_pulse_damage_multiplier = 0.0
+	electric_pulse_maximum_targets = 0
 	tether_half_width_pixels = 0.0
 	tether_secondary_damage_multiplier = 0.0
 	tether_maximum_targets = 0
@@ -140,6 +148,17 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 		)
 		tether_final_pulse_multiplier = maxf(
 			float(values.get("tether_final_pulse_multiplier", 1.0)), 0.0
+		)
+	if flags.get("fisherman_electric_pulse", false):
+		electric_pulse_enabled = true
+		electric_pulse_radius_pixels = maxf(
+			float(values.get("electric_pulse_radius", 1.5)), 0.0
+		) * BaseTower.RANGE_PIXELS_PER_UNIT
+		electric_pulse_damage_multiplier = maxf(
+			float(values.get("electric_pulse_damage_multiplier", 0.40)), 0.0
+		)
+		electric_pulse_maximum_targets = maxi(
+			int(values.get("electric_pulse_maximum_targets", 2)), 0
 		)
 	if not flags.get("fisherman_mines", false):
 		return
@@ -261,7 +280,11 @@ func _cast_hook(
 		tether_half_width_pixels,
 		tether_secondary_damage_multiplier,
 		tether_maximum_targets,
-		tether_final_pulse_multiplier
+		tether_final_pulse_multiplier,
+		electric_pulse_enabled,
+		electric_pulse_radius_pixels,
+		electric_pulse_damage_multiplier,
+		electric_pulse_maximum_targets
 	)
 
 
@@ -273,7 +296,7 @@ func _get_hook_targets(primary_target: Node2D) -> Array[Node2D]:
 	for candidate in AreaDamage.get_targets_near(
 		tower.get_tree(), tower.global_position, tower.range_radius_pixels
 	):
-		if candidate != primary_target and is_target_in_tracking_cone(candidate):
+		if candidate != primary_target and tower.is_valid_target(candidate):
 			candidates.append(candidate)
 	candidates.sort_custom(func(left: Node2D, right: Node2D) -> bool:
 		match tower.target_mode:

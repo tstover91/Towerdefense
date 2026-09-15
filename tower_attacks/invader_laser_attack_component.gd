@@ -13,6 +13,7 @@ var charge_duration := 0.0
 var beam_remaining := 0.0
 var tick_remaining := 0.0
 var locked_direction := Vector2.RIGHT
+var locked_endpoint := Vector2.ZERO
 var snapshotted_tick_damage := 0
 
 
@@ -78,7 +79,7 @@ func draw_attack_visuals() -> void:
 	if beam_remaining <= 0.0:
 		return
 	var start := tower.to_local(tower.muzzle.global_position)
-	var finish := start + locked_direction * tower.range_radius_pixels
+	var finish := tower.to_local(locked_endpoint)
 	var width := tower.beam_hit_half_width_pixels
 	tower.draw_line(
 		start, finish, Color(0.1, 0.55, 1.0, 0.35), width * 2.4, true
@@ -99,6 +100,7 @@ func _process_charge(delta: float) -> void:
 	if aim_offset.is_zero_approx():
 		return
 	locked_direction = aim_offset.normalized()
+	locked_endpoint = tower.target.global_position
 	tower.rotator.rotation = locked_direction.angle()
 	tower.notify_attack_started(tower.target)
 	var prepared_damage := tower.damage
@@ -134,18 +136,16 @@ func _apply_beam_tick() -> void:
 	if snapshotted_tick_damage <= 0:
 		return
 	var origin := tower.muzzle.global_position
-	var line_end := origin + locked_direction * tower.range_radius_pixels
+	var line_end := locked_endpoint
 	var targets := tower.get_targets_along_line(
 		origin, line_end, null, tower.beam_hit_half_width_pixels
 	)
-	var maximum_hits := targets.size()
-	if not tower.infinite_pierce:
-		maximum_hits = mini(maximum_hits, 1 + tower.pierce_count)
+	targets = _select_targets_before_endpoint(targets)
 	var rolled_damage := tower.roll_critical_damage(snapshotted_tick_damage)
 	var tick_context := tower.create_attack_context(
 		&"charged_laser_tick", null, &"tower", null, false, true
 	)
-	for index in maximum_hits:
+	for index in targets.size():
 		var target := targets[index]
 		tower.apply_control_effects(target, tick_context)
 		tower.apply_tower_damage(
@@ -159,9 +159,25 @@ func _apply_beam_tick() -> void:
 		)
 
 
+func _select_targets_before_endpoint(targets: Array[Node2D]) -> Array[Node2D]:
+	if tower.infinite_pierce or targets.size() <= 1 + tower.pierce_count:
+		return targets
+	var selected: Array[Node2D] = []
+	# Pierce slots are consumed from the muzzle outward. The final hit is
+	# reserved for the enemy nearest the snapshotted endpoint so the beam still
+	# reaches the target it was charged toward.
+	for index in mini(tower.pierce_count, targets.size() - 1):
+		selected.append(targets[index])
+	var endpoint_target: Node2D = targets.back()
+	if not selected.has(endpoint_target):
+		selected.append(endpoint_target)
+	return selected
+
+
 func _cancel_attack() -> void:
 	charge_remaining = 0.0
 	beam_remaining = 0.0
 	tick_remaining = 0.0
+	locked_endpoint = Vector2.ZERO
 	snapshotted_tick_damage = 0
 	tower.queue_redraw()

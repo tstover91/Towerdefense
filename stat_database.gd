@@ -12,6 +12,37 @@ const EVOLUTION_COST_MULTIPLIER := 0.0
 const AUTOMATIC_TOWER_XP := false
 const PURCHASED_TOWER_DATA = preload("res://tower_progression/purchased_tower_data.gd")
 
+# Four-stage match economy for the standalone roster. Each entry contains the
+# placement price followed by the three upgrade prices. Keeping this separate
+# from combat data makes cost and power passes independently adjustable.
+const STANDALONE_TOWER_PRICE_CURVES := {
+	&"gunslinger": [300, 200, 700, 1800],
+	&"laser_cannon": [600, 400, 1300, 3200],
+	&"gauss_gunner": [900, 600, 2000, 4500],
+	&"anti_materiel": [1200, 700, 2300, 5300],
+	&"kill_chain": [1000, 600, 2100, 4800],
+	&"explosive_ricochet": [300, 300, 900, 2500],
+	&"razor_disc": [400, 300, 1000, 2800],
+	&"containment_core": [400, 300, 1000, 2800],
+	&"tesla_core": [500, 400, 1300, 3300],
+	&"psionic": [2000, 1000, 3000, 6000],
+	&"assassin": [500, 400, 1300, 2800],
+	&"champion": [600, 400, 1400, 3100],
+	&"fisherman": [500, 400, 1200, 2900],
+	&"orb_barrage": [700, 400, 1700, 3700],
+	&"singularity": [900, 500, 2100, 5000],
+	&"solar_lance": [800, 500, 1900, 4800],
+	&"bombardment": [700, 500, 1800, 4500],
+	&"atomic_strike": [1200, 600, 2400, 6800],
+	&"gunship": [1800, 1000, 2700, 5500],
+	&"mothership": [1800, 1000, 2700, 5500],
+	&"drone_depot": [700, 500, 1800, 5000],
+	&"mech_bay": [800, 500, 1900, 5300],
+	&"sentry_array": [700, 500, 1800, 5500],
+	&"reactor": [600, 400, 1600, 3900],
+	&"isotope_projector": [700, 400, 1700, 4200],
+}
+
 # Standalone towers reuse their former family's combat implementation while
 # carrying their defining mechanics from the moment they are built.
 const STANDALONE_TOWER_VARIANTS := {
@@ -19,143 +50,356 @@ const STANDALONE_TOWER_VARIANTS := {
 		"source": &"fisherman",
 		"display_name": "Alien Fisherman",
 		"clear_paths": true,
+		"level_overrides": {
+			0: {"damage": 150, "range": 8.5, "hook_pull_speed": 75.0},
+			1: {"damage": 200, "range": 9.0, "hook_pull_speed": 82.0},
+			2: {"damage": 325, "range": 9.75, "hook_pull_speed": 92.0},
+			3: {"damage": 600, "range": 10.5, "hook_pull_speed": 105.0},
+		},
 		"final_level_path": {
-			"description": "Casts three electrified hooks whose moving lines shock enemies they cross.",
+			"description": "Its two hooks become electrified and pulse around their captured enemies.",
 			"add_damage_tags": [&"electric"],
 			"primary_damage_type": &"electric",
 			"behavior_flags": {
 				"fisherman_multi_hook": true,
-				"fisherman_electric_tether": true,
+				"fisherman_electric_pulse": true,
 			},
 			"behavior_values": {
-				"hook_target_count": 3,
+				"hook_target_count": 2,
 				"secondary_hook_damage_multiplier": 0.85,
-				"tracking_cone_degrees": 82.5,
-				"tether_half_width": 0.75,
-				"tether_secondary_damage_multiplier": 0.50,
-				"tether_maximum_targets": 4,
-				"tether_final_pulse_multiplier": 1.0,
+				"electric_pulse_radius": 1.5,
+				"electric_pulse_damage_multiplier": 0.40,
+				"electric_pulse_maximum_targets": 2,
 			},
 		},
 	},
-	&"gunslinger": {"source": &"invader", "path": &"a", "display_name": "Gunslinger"},
-	&"laser_cannon": {"source": &"invader", "path": &"b", "display_name": "Laser Cannon", "modern_path": true},
+	&"gunslinger": {
+		"source": &"invader",
+		"path": &"a",
+		"display_name": "Gunslinger",
+		# Reveal begins with the first purchased upgrade (displayed level 2).
+		"level_overrides": {
+			1: {"add_bonus_tags": [&"reveal"]},
+			# The expensive late upgrades must compete with spreading the same
+			# money across cheap Gunslingers. Preserve its weak early curve, then
+			# make levels 3 and 4 the meaningful damage investments.
+			2: {"damage": 75, "add_bonus_tags": []},
+			3: {"damage": 190},
+		},
+	},
+	&"laser_cannon": {
+		"source": &"invader",
+		"path": &"b",
+		"display_name": "Laser Cannon",
+		"modern_path": true,
+		# Reveal belongs to Gunslinger's progression, not the Laser Cannon.
+		"level_overrides": {2: {"add_bonus_tags": []}},
+	},
 	&"gauss_gunner": {
 		"source": &"gauss_repeater",
 		"display_name": "Gauss Gunner",
 		"clear_paths": true,
+		# Its final output is conditional on sustained tracking: spread must
+		# tighten and Overclock must ramp. Give that commitment a stronger
+		# payoff without increasing its already strong early-level efficiency.
+		"level_overrides": {3: {"damage": 64}},
 	},
 	&"anti_materiel": {
 		"source": &"longshot",
-		"path": &"a",
 		"display_name": "Anti-Materiel",
+		"inherent_path": {
+			"description": "Fires massively amplified critical shots that ignore Armor and continue through the first enemy behind the selected target.",
+			"add_bonus_tags": [&"pierce"],
+			"pierce_count_add": 1,
+			"stat_multipliers": {
+				"damage": 2.07,
+				"firerate": 1.25,
+			},
+			"stat_additions": {"critical_multiplier": 1.0},
+		},
+		"level_overrides": {
+			0: {"range": 11.5},
+			1: {"range": 12.0},
+			2: {"range": 12.5},
+			3: {"range": 13.0},
+		},
 	},
 	&"kill_chain": {
 		"source": &"longshot",
 		"path": &"b",
 		"display_name": "Kill Chain",
+		"level_overrides": {
+			0: {"range": 11.0},
+			1: {"range": 11.5},
+			2: {"range": 12.0},
+			3: {"range": 12.5},
+		},
 	},
 	&"explosive_ricochet": {
 		"source": &"slinger",
-		"path": &"a",
 		"display_name": "Explosive Ricochet",
+		"inherent_path": {
+			"description": "Throws a projectile that bounces between enemies.",
+		},
+		"level_overrides": {2: {"bounce_count": 2}},
+		"final_level_path": {
+			"description": "Every initial and bounced impact creates an Explosive blast.",
+			"add_damage_tags": [&"explosive"],
+			"stat_multipliers": {"damage": 1.30},
+			"behavior_flags": {"slinger_contact_explosions": true},
+			"behavior_values": {
+				"contact_explosion_radius": 2.5,
+				"contact_explosion_damage_multiplier": 0.55,
+			},
+		},
 	},
 	&"razor_disc": {
 		"source": &"slinger",
-		"path": &"b",
 		"display_name": "Razor Disc",
+		"inherent_path": {
+			"description": "Cuts through up to four enemies in a straight line, losing damage with each hit.",
+			"add_bonus_tags": [&"pierce"],
+			"pierce_count_add": 4,
+			"impact_mode": &"first_contact",
+			"stat_multipliers": {"damage": 2.285714},
+			"stat_overrides": {"bounce_count": 0},
+		},
+		"level_overrides": {2: {"pierce_count_add": 4}},
+		"final_level_path": {
+			"description": "After reaching maximum range, the disc returns to the tower at 60% damage with fresh Pierce falloff.",
+			"behavior_flags": {"razor_return_flight": true},
+			"behavior_values": {"razor_return_damage_multiplier": 0.60},
+		},
 	},
 	&"containment_core": {
 		"source": &"energycore",
 		"path": &"a",
 		"display_name": "Containment Core",
+		# Keep the control-focused final level intact, but prevent level 3 from
+		# losing ground to the same money spent on additional base cores.
+		"level_overrides": {2: {"damage": 36}},
 	},
 	&"tesla_core": {
 		"source": &"energycore",
-		"path": &"b",
 		"display_name": "Tesla Core",
+		"inherent_path": {
+			"description": "Slowing Electric attacks branch from each primary target into nearby enemies.",
+		},
+		"level_overrides": {
+			0: {"projectile_count": 1, "slow_duration": 0.50, "behavior_flags": {"energy_branching_current": true}, "behavior_values": {"branch_additional_targets": 1, "branch_range": 4.0, "branch_damage_multiplier": 0.30}},
+			1: {"damage": 24, "projectile_count": 1, "slow_duration": 0.50, "behavior_flags": {"energy_branching_current": true}, "behavior_values": {"branch_additional_targets": 1, "branch_range": 4.0, "branch_damage_multiplier": 0.30}},
+			2: {"damage": 45, "projectile_count": 1, "slow_duration": 0.50, "behavior_flags": {"energy_branching_current": true}, "behavior_values": {"branch_additional_targets": 2, "branch_range": 4.0, "branch_damage_multiplier": 0.30}},
+			3: {"projectile_count": 2, "slow_duration": 0.50, "behavior_flags": {"energy_branching_current": true}, "behavior_values": {"branch_additional_targets": 2, "branch_range": 4.0, "branch_damage_multiplier": 0.30}},
+		},
 	},
 	&"orb_barrage": {
 		"source": &"voidcaller",
-		"path": &"a",
 		"display_name": "Orb Barrage",
+		"inherent_path": {
+			"description": "Throws explosive void orbs toward its selected target.",
+		},
+		"level_overrides": {
+			0: {"projectile_count": 1, "volley_width": 0.0, "volley_stagger": 0.0},
+			1: {"damage": 140, "projectile_count": 1, "volley_width": 0.0, "volley_stagger": 0.0},
+			2: {"projectile_count": 2, "volley_width": 2.0, "volley_stagger": 0.14},
+			3: {"projectile_count": 2, "volley_width": 2.0, "volley_stagger": 0.14},
+		},
+		"final_level_path": {
+			"description": "Replaces the staggered pair with a simultaneous five-orb fan.",
+			"stat_multipliers": {"damage": 0.80, "firerate": 1.25},
+			"stat_overrides": {
+				"projectile_count": 5,
+				"volley_width": 6.0,
+				"volley_stagger": 0.0,
+			},
+		},
 	},
 	&"singularity": {
 		"source": &"voidcaller",
-		"path": &"b",
 		"display_name": "Singularity",
+		"inherent_path": {
+			"description": "Launches a remote gravity well that gathers enemies smoothly before collapsing in an explosion.",
+		},
+		"level_overrides": {
+			0: {"firerate": 6.0, "projectile_count": 1, "behavior_flags": {"void_singularity": true, "dedicated_singularity_attack": true}, "behavior_values": {"singularity_pull_duration": 1.5, "singularity_pull_radius": 3.5, "singularity_pull_speed": 70.0, "singularity_explosion_radius": 3.0, "singularity_damage_multiplier": 1.0}},
+			1: {"firerate": 5.5, "projectile_count": 1, "behavior_flags": {"void_singularity": true, "dedicated_singularity_attack": true}, "behavior_values": {"singularity_pull_duration": 1.5, "singularity_pull_radius": 4.0, "singularity_pull_speed": 85.0, "singularity_explosion_radius": 3.5, "singularity_damage_multiplier": 1.5}},
+			2: {"firerate": 5.0, "projectile_count": 1, "behavior_flags": {"void_singularity": true, "dedicated_singularity_attack": true}, "behavior_values": {"singularity_pull_duration": 2.0, "singularity_pull_radius": 5.0, "singularity_pull_speed": 100.0, "singularity_explosion_radius": 4.0, "singularity_damage_multiplier": 2.0}},
+			3: {"firerate": 4.5, "projectile_count": 1, "behavior_flags": {"void_singularity": true, "dedicated_singularity_attack": true, "singularity_event_horizon": true}, "behavior_values": {"singularity_pull_duration": 2.5, "singularity_pull_radius": 6.0, "singularity_pull_speed": 120.0, "singularity_explosion_radius": 5.0, "singularity_damage_multiplier": 2.5, "event_horizon_damage_per_enemy": 0.15, "event_horizon_maximum_damage_bonus": 1.50}},
+		},
 	},
 	&"psionic": {
 		"source": &"brainiac",
 		"path": &"b",
 		"display_name": "Psionic",
+		"final_level_path": {
+			"description": "Periodically links its target, spreading part of all damage the target receives to nearby enemies.",
+			"add_bonus_tags": [&"psionic"],
+			"behavior_flags": {"brainiac_psionic_link": true},
+			"behavior_values": {
+				"brainiac_link_duration": 2.0,
+				"brainiac_link_cooldown": 6.0,
+				"brainiac_link_radius": 3.5,
+				"brainiac_link_damage_share": 0.35,
+			},
+		},
 	},
 	&"solar_lance": {
 		"source": &"orbitalcannon",
-		"path": &"a",
 		"display_name": "Solar Lance",
+		"inherent_path": {
+			"description": "Calls down a moving Beam that trails its target along the road, damaging and slowing every enemy it crosses.",
+			"remove_damage_tags": [&"explosive"],
+			"add_damage_tags": [&"beam"],
+			"primary_damage_type": &"beam",
+			"delivery_type": DELIVERY_HITSCAN,
+			"impact_mode": IMPACT_PRIMARY,
+			"add_bonus_tags": [&"pierce"],
+		},
+		"level_overrides": {
+			0: {"damage": 150, "firerate": 4.5, "range": 9.0, "splash_radius": 2.0, "behavior_flags": {"orbital_solar_lance": true, "infinite_pierce": true}, "behavior_values": {"solar_lance_duration": 1.4, "solar_lance_tick_interval": 0.2, "solar_lance_tick_damage_multiplier": 0.22, "solar_lance_tick_end_damage_multiplier": 0.32, "solar_lance_tracking_speed": 1.6}},
+			1: {"damage": 210, "firerate": 4.3, "range": 9.5, "splash_radius": 2.0, "behavior_flags": {"orbital_solar_lance": true, "infinite_pierce": true}, "behavior_values": {"solar_lance_duration": 1.8, "solar_lance_tick_interval": 0.2, "solar_lance_tick_damage_multiplier": 0.24, "solar_lance_tick_end_damage_multiplier": 0.38, "solar_lance_tracking_speed": 2.0}},
+			2: {"damage": 390, "firerate": 4.1, "range": 10.0, "splash_radius": 2.75, "behavior_flags": {"orbital_solar_lance": true, "infinite_pierce": true}, "behavior_values": {"solar_lance_duration": 2.1, "solar_lance_tick_interval": 0.2, "solar_lance_tick_damage_multiplier": 0.25, "solar_lance_tick_end_damage_multiplier": 0.45, "solar_lance_tracking_speed": 2.2}},
+			3: {"damage": 780, "firerate": 3.8, "range": 11.0, "splash_radius": 3.0, "behavior_flags": {"orbital_solar_lance": true, "infinite_pierce": true}, "behavior_values": {"solar_lance_duration": 3.0, "solar_lance_tick_interval": 0.2, "solar_lance_tick_damage_multiplier": 0.24, "solar_lance_tick_end_damage_multiplier": 0.68, "solar_lance_tracking_speed": 2.4}},
+		},
 	},
 	&"bombardment": {
 		"source": &"orbitalcannon",
-		"path": &"b",
 		"display_name": "Bombardment",
+		"inherent_path": {
+			"description": "Automatically blankets the selected enemy's position with staggered Explosive strikes.",
+		},
+		"level_overrides": {
+			0: {"damage": 130, "firerate": 4.0, "range": 9.0, "splash_radius": 3.0, "behavior_flags": {"orbital_bombardment": true}, "behavior_values": {"bombardment_strike_count": 3, "bombardment_stagger": 0.18, "bombardment_spread_radius": 2.0, "bombardment_damage_multiplier": 0.42, "bombardment_radius_multiplier": 0.72}},
+			1: {"damage": 190, "firerate": 3.8, "range": 9.5, "splash_radius": 3.25, "behavior_flags": {"orbital_bombardment": true}, "behavior_values": {"bombardment_strike_count": 4, "bombardment_stagger": 0.17, "bombardment_spread_radius": 2.4, "bombardment_damage_multiplier": 0.42, "bombardment_radius_multiplier": 0.72}},
+			2: {"damage": 360, "firerate": 3.6, "range": 10.0, "splash_radius": 3.5, "behavior_flags": {"orbital_bombardment": true}, "behavior_values": {"bombardment_strike_count": 5, "bombardment_stagger": 0.16, "bombardment_spread_radius": 2.8, "bombardment_damage_multiplier": 0.42, "bombardment_radius_multiplier": 0.74}},
+			3: {"damage": 760, "firerate": 3.3, "range": 11.0, "splash_radius": 4.0, "behavior_flags": {"orbital_bombardment": true}, "behavior_values": {"bombardment_strike_count": 7, "bombardment_stagger": 0.14, "bombardment_spread_radius": 3.2, "bombardment_damage_multiplier": 0.44, "bombardment_radius_multiplier": 0.76}},
+		},
 	},
 	&"atomic_strike": {
 		"source": &"orbitalcannon",
-		"path": &"c",
 		"display_name": "Atomic Strike",
-		"modern_path": true,
+		"inherent_path": {
+			"description": "Automatically warns and then destroys a large area, irradiating survivors and leaving Fallout behind.",
+			"add_damage_tags": [&"radiation"],
+			"delivery_type": DELIVERY_HITSCAN,
+			"impact_mode": IMPACT_PRIMARY,
+		},
+		"level_overrides": {
+			0: {"damage": 150, "firerate": 8.0, "range": 9.0, "splash_radius": 3.5, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 2.0, "atomic_blast_radius_multiplier": 1.15, "atomic_radiation_stacks": 5, "atomic_radiation_damage_multiplier": 0.035, "fallout_radius_multiplier": 1.0, "fallout_duration": 4.0, "fallout_application_interval": 1.0, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.25}},
+			1: {"damage": 225, "firerate": 7.5, "range": 9.5, "splash_radius": 4.0, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 2.4, "atomic_blast_radius_multiplier": 1.2, "atomic_radiation_stacks": 6, "atomic_radiation_damage_multiplier": 0.035, "fallout_radius_multiplier": 1.05, "fallout_duration": 5.0, "fallout_application_interval": 1.0, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.25}},
+			2: {"damage": 500, "firerate": 7.0, "range": 10.0, "splash_radius": 4.5, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 3.0, "atomic_blast_radius_multiplier": 1.3, "atomic_radiation_stacks": 8, "atomic_radiation_damage_multiplier": 0.04, "fallout_radius_multiplier": 1.1, "fallout_duration": 7.0, "fallout_application_interval": 0.9, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.15}},
+			3: {"damage": 1200, "firerate": 6.5, "range": 11.0, "splash_radius": 5.0, "behavior_flags": {"orbital_atomic_strike": true}, "behavior_values": {"atomic_damage_multiplier": 4.0, "atomic_blast_radius_multiplier": 1.45, "atomic_radiation_stacks": 12, "atomic_radiation_damage_multiplier": 0.04, "fallout_radius_multiplier": 1.2, "fallout_duration": 10.0, "fallout_application_interval": 0.75, "fallout_stacks_per_application": 1, "atomic_warning_duration": 1.0}},
+		},
 	},
 	&"gunship": {
 		"source": &"saucer",
-		"path": &"a",
 		"display_name": "Gunship",
-		"modern_path": true,
-	},
-	&"abductor": {
-		"source": &"saucer",
-		"path": &"b",
-		"display_name": "Abductor",
-		"modern_path": true,
+		"inherent_path": {
+			"description": "Patrols around its base, firing a rapid Electric gun and independent homing rockets.",
+			"add_damage_tags": [&"explosive"],
+			"stat_overrides": {"abduction_health_threshold": 0.0},
+		},
+		"level_overrides": {
+			0: {"damage": 150, "firerate": 0.65, "range": 9.0, "flyer_move_speed": 165.0, "flyer_attack_radius": 5.0, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 0.90, "saucer_rocket_interval": 4.0, "saucer_rocket_splash_radius": 2.25, "saucer_rocket_count": 1}},
+			1: {"damage": 215, "firerate": 0.58, "range": 9.5, "flyer_move_speed": 180.0, "flyer_attack_radius": 5.25, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 0.95, "saucer_rocket_interval": 3.8, "saucer_rocket_splash_radius": 2.5, "saucer_rocket_count": 2}},
+			2: {"damage": 330, "firerate": 0.52, "range": 10.0, "flyer_move_speed": 195.0, "flyer_attack_radius": 5.5, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 1.05, "saucer_rocket_interval": 3.2, "saucer_rocket_splash_radius": 2.75, "saucer_rocket_count": 2}},
+			3: {"damage": 500, "firerate": 0.40, "range": 11.0, "flyer_move_speed": 220.0, "flyer_attack_radius": 6.0, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 1.10, "saucer_rocket_interval": 2.8, "saucer_rocket_splash_radius": 3.0, "saucer_rocket_count": 4}},
+		},
 	},
 	&"mothership": {
 		"source": &"saucer",
-		"path": &"c",
 		"display_name": "Mothership",
-		"modern_path": true,
+		"inherent_path": {
+			"description": "Patrols around its base and reveals enemies inside a non-stacking field that increases all damage they take.",
+			"stat_multipliers": {"damage": 0.80},
+			"stat_overrides": {"abduction_health_threshold": 0.0},
+		},
+		"level_overrides": {
+			0: {"damage": 135, "firerate": 0.75, "range": 9.0, "flyer_move_speed": 155.0, "flyer_attack_radius": 4.5, "behavior_flags": {"saucer_vulnerability_field": true}, "behavior_values": {"saucer_field_radius": 2.5, "saucer_field_vulnerability": 0.08, "saucer_field_refresh_interval": 0.20}},
+			1: {"damage": 185, "firerate": 0.70, "range": 9.5, "flyer_move_speed": 170.0, "flyer_attack_radius": 4.75, "behavior_flags": {"saucer_vulnerability_field": true}, "behavior_values": {"saucer_field_radius": 3.0, "saucer_field_vulnerability": 0.12, "saucer_field_refresh_interval": 0.20}},
+			2: {"damage": 275, "firerate": 0.62, "range": 10.0, "flyer_move_speed": 185.0, "flyer_attack_radius": 5.0, "behavior_flags": {"saucer_vulnerability_field": true}, "behavior_values": {"saucer_field_radius": 4.0, "saucer_field_vulnerability": 0.16, "saucer_field_refresh_interval": 0.20}},
+			3: {"damage": 475, "firerate": 0.50, "range": 11.0, "flyer_move_speed": 205.0, "flyer_attack_radius": 5.5, "behavior_flags": {"saucer_vulnerability_field": true}, "behavior_values": {"saucer_field_radius": 5.0, "saucer_field_vulnerability": 0.25, "saucer_field_refresh_interval": 0.20}},
+		},
 	},
 	&"drone_depot": {
 		"source": &"dronedepot",
-		"path": &"a",
 		"display_name": "Drone Depot",
 		"modern_tower": true,
+		"inherent_path": {
+			"description": "Commands mobile ranged Drones inside the Depot's range. Depleted Drones are destroyed and rebuilt.",
+			"projectile_item_eligible": false,
+			"add_bonus_tags": [&"reveal"],
+			"stat_overrides": {"spawned_unit_id": &"drone"},
+		},
+		"level_overrides": {
+			0: {"range": 8.0, "spawn_interval": 0.5, "spawn_limit": 1, "deployment_radius": 8.0, "unit_stats": {"damage": 75, "attack_interval": 0.45, "aim_radius": 2.5, "move_speed": 105.0, "damage_budget": 750, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "die_on_damage_budget": true, "budget_replacement_delay": 0.5}},
+			1: {"range": 8.5, "spawn_interval": 0.5, "spawn_limit": 2, "deployment_radius": 8.5, "unit_stats": {"damage": 90, "attack_interval": 0.42, "aim_radius": 2.5, "move_speed": 115.0, "damage_budget": 1050, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "die_on_damage_budget": true, "budget_replacement_delay": 0.5}},
+			2: {"range": 9.0, "spawn_interval": 0.5, "spawn_limit": 3, "deployment_radius": 9.0, "unit_stats": {"damage": 120, "attack_interval": 0.36, "aim_radius": 2.5, "move_speed": 125.0, "damage_budget": 1700, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "die_on_damage_budget": true, "budget_replacement_delay": 0.5}},
+			3: {"range": 10.0, "spawn_interval": 0.5, "spawn_limit": 3, "deployment_radius": 10.0, "unit_stats": {"damage": 190, "attack_interval": 0.26, "aim_radius": 2.75, "move_speed": 145.0, "damage_budget": 4200, "recharge_duration": 0.0, "lifetime": 0.0, "reveal_via_parent_command_range": true, "additional_damage_tags": [&"explosive"], "die_on_damage_budget": true, "explode_on_damage_budget": true, "budget_replacement_delay": 0.5, "budget_explosion_radius": 2.75, "budget_explosion_damage_multiplier": 3.0}},
+		},
 	},
 	&"mech_bay": {
 		"source": &"dronedepot",
-		"path": &"b",
 		"display_name": "Mech Bay",
 		"modern_tower": true,
 		"texture_source": &"mechbay",
+		"inherent_path": {
+			"description": "Maintains one heavy guard Mech inside the Bay's range. Its slow attacks knock enemies backward.",
+			"remove_damage_tags": [&"ballistic"],
+			"add_damage_tags": [&"melee"],
+			"primary_damage_type": &"melee",
+			"delivery_type": DELIVERY_HITSCAN,
+			"projectile_item_eligible": false,
+			"impact_mode": IMPACT_PRIMARY,
+			"stat_overrides": {"spawned_unit_id": &"mech", "spawn_limit": 1},
+		},
+		"level_overrides": {
+			0: {"range": 7.5, "spawn_interval": 7.0, "spawn_limit": 1, "deployment_radius": 7.5, "unit_stats": {"damage": 600, "attack_interval": 2.8, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 1.75, "move_speed": 62.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 1.0, "visual_scale": 1.15}},
+			1: {"range": 8.0, "spawn_interval": 6.0, "spawn_limit": 1, "deployment_radius": 8.0, "unit_stats": {"damage": 850, "attack_interval": 2.6, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 1.75, "move_speed": 68.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 1.25, "visual_scale": 1.15}},
+			2: {"range": 8.5, "spawn_interval": 5.0, "spawn_limit": 1, "deployment_radius": 8.5, "unit_stats": {"damage": 1250, "attack_interval": 2.25, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 2.0, "move_speed": 76.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 1.75, "visual_scale": 1.20}},
+			3: {"range": 9.0, "spawn_interval": 4.0, "spawn_limit": 1, "deployment_radius": 9.0, "unit_stats": {"damage": 2100, "attack_interval": 1.75, "damage_tags": [&"melee"], "movement_type": MOVEMENT_GUARD, "aim_radius": 2.25, "move_speed": 88.0, "damage_budget": 0, "lifetime": 0.0, "use_parent_tower_range": true, "knockback_distance": 2.0, "visual_scale": 1.30, "periodic_ground_slam": true, "ground_slam_interval": 6.0, "ground_slam_radius": 3.5, "ground_slam_damage_multiplier": 1.5, "ground_slam_knockback_distance": 1.75}},
+		},
 	},
 	&"sentry_array": {
 		"source": &"dronedepot",
-		"path": &"c",
 		"display_name": "Sentry Array",
 		"modern_tower": true,
+		"inherent_path": {
+			"description": "Deploys stationary Ballistic Sentries around the Array for broad local coverage.",
+			"projectile_item_eligible": true,
+			"stat_overrides": {"spawned_unit_id": &"sentry_turret"},
+		},
+		"level_overrides": {
+			0: {"range": 0.0, "spawn_interval": 5.0, "spawn_limit": 1, "deployment_radius": 4.5, "unit_stats": {"damage": 55, "attack_interval": 1.20, "aim_radius": 4.5, "move_speed": 0.0, "projectile_speed": 480.0, "damage_budget": 0, "lifetime": 0.0}},
+			1: {"range": 0.0, "spawn_interval": 4.5, "spawn_limit": 2, "deployment_radius": 5.5, "unit_stats": {"damage": 70, "attack_interval": 1.10, "aim_radius": 4.75, "move_speed": 0.0, "projectile_speed": 520.0, "damage_budget": 0, "lifetime": 0.0}},
+			2: {"range": 0.0, "spawn_interval": 4.0, "spawn_limit": 3, "deployment_radius": 6.5, "unit_stats": {"damage": 100, "attack_interval": 0.95, "aim_radius": 5.0, "move_speed": 0.0, "projectile_speed": 580.0, "damage_budget": 0, "lifetime": 0.0}},
+			3: {"range": 0.0, "spawn_interval": 3.0, "spawn_limit": 5, "deployment_radius": 8.0, "unit_stats": {"damage": 190, "attack_interval": 0.65, "aim_radius": 5.5, "move_speed": 0.0, "projectile_speed": 700.0, "damage_budget": 0, "lifetime": 0.0}},
+		},
 	},
 	&"reactor": {
 		"source": &"irradiator",
-		"path": &"a",
 		"display_name": "Reactor",
-		"modern_path": true,
+		"inherent_path": {
+			"description": "Continuously irradiates every enemy in a compact field around the Reactor.",
+		},
+		"level_overrides": {
+			0: {"damage": 3, "firerate": 0.90, "range": 7.0, "radiation_stacks_per_application": 3, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.90, "reactor_stacks_per_application": 3}},
+			1: {"damage": 4, "firerate": 0.80, "range": 7.75, "radiation_stacks_per_application": 4, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.80, "reactor_stacks_per_application": 4}},
+			2: {"damage": 7, "firerate": 0.70, "range": 8.5, "radiation_stacks_per_application": 5, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.70, "reactor_stacks_per_application": 5}},
+			3: {"damage": 12, "firerate": 0.50, "range": 9.5, "radiation_stacks_per_application": 7, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.50, "reactor_stacks_per_application": 7}},
+		},
 	},
 	&"isotope_projector": {
 		"source": &"irradiator",
 		"display_name": "Isotope Projector",
 		"inherent_path": {
-			"description": "Locks a Radiation beam onto one enemy and irradiates every enemy between the projector and its target.",
-			"behavior_flags": {"irradiator_isotope_beam": true},
-			"behavior_values": {"isotope_beam_half_width": 0.35},
+			"description": "Locks a Radiation beam onto one enemy and irradiates it and every enemy directly between it and the Projector.",
+		},
+		"level_overrides": {
+			0: {"damage": 4, "firerate": 0.80, "range": 8.5, "radiation_stacks_per_application": 4, "behavior_flags": {"irradiator_isotope_beam": true}, "behavior_values": {"isotope_beam_half_width": 0.30}},
+			1: {"damage": 5, "firerate": 0.70, "range": 9.0, "radiation_stacks_per_application": 5, "behavior_flags": {"irradiator_isotope_beam": true}, "behavior_values": {"isotope_beam_half_width": 0.35}},
+			2: {"damage": 8, "firerate": 0.60, "range": 9.75, "radiation_stacks_per_application": 7, "behavior_flags": {"irradiator_isotope_beam": true}, "behavior_values": {"isotope_beam_half_width": 0.40}},
+			3: {"damage": 14, "firerate": 0.42, "range": 11.0, "radiation_stacks_per_application": 10, "behavior_flags": {"irradiator_isotope_beam": true}, "behavior_values": {"isotope_beam_half_width": 0.50}},
 		},
 	},
 	&"assassin": {
@@ -163,6 +407,12 @@ const STANDALONE_TOWER_VARIANTS := {
 		"path": &"b",
 		"display_name": "Assassin",
 		"modern_tower": true,
+		"level_overrides": {
+			0: {"range": 7.0, "roaming_move_speed": 95.0, "melee_attack_radius": 1.35, "behavior_flags": {"reaver_roaming": true}},
+			1: {"range": 7.5, "roaming_move_speed": 105.0, "melee_attack_radius": 1.40, "behavior_flags": {"reaver_roaming": true}},
+			2: {"range": 8.0, "roaming_move_speed": 118.0, "melee_attack_radius": 1.45, "behavior_flags": {"reaver_roaming": true}},
+			3: {"range": 8.5, "roaming_move_speed": 135.0, "melee_attack_radius": 1.55, "behavior_flags": {"reaver_roaming": true}},
+		},
 		"final_level_path": {
 			"description": "Periodically creates a short-lived slowing Time Bubble at maximum level.",
 			"add_bonus_tags": [&"psionic"],
@@ -175,12 +425,19 @@ const STANDALONE_TOWER_VARIANTS := {
 			},
 		},
 	},
-	&"enforcer": {
+	&"champion": {
 		"source": &"reaver",
-		"path": &"a",
-		"additional_paths": [&"c"],
-		"display_name": "Enforcer",
+		"display_name": "Champion",
 		"modern_tower": true,
+		"inherent_path": {
+			"description": "Roams around its base and cuts through groups with broad melee sweeps.",
+		},
+		"level_overrides": {
+			0: {"range": 6.5, "damage": 45, "firerate": 1.15, "melee_arc_degrees": 120.0, "melee_max_targets": 2, "roaming_move_speed": 72.0, "melee_attack_radius": 1.55, "behavior_flags": {"reaver_roaming": true}},
+			1: {"range": 7.0, "damage": 70, "firerate": 0.85, "melee_arc_degrees": 135.0, "melee_max_targets": 3, "roaming_move_speed": 80.0, "melee_attack_radius": 1.65, "behavior_flags": {"reaver_roaming": true}},
+			2: {"range": 7.5, "damage": 120, "firerate": 0.65, "melee_arc_degrees": 160.0, "melee_max_targets": 4, "roaming_move_speed": 90.0, "melee_attack_radius": 1.80, "behavior_flags": {"reaver_roaming": true}},
+			3: {"range": 8.0, "damage": 240, "firerate": 0.50, "melee_arc_degrees": 360.0, "melee_max_targets": 8, "roaming_move_speed": 105.0, "melee_attack_radius": 2.0, "behavior_flags": {"reaver_roaming": true}},
+		},
 	},
 }
 const BUILD_CELL_SIZE := 32.0
@@ -337,32 +594,32 @@ const MAXIMUM_ARMOR_DAMAGE_REDUCTION := 0.60
 
 # Enemy bounties remain composition-dependent. This compensates for the smaller
 # spawn budget so expected kill income stays close to the previous pacing.
-const KILL_REWARD_MULTIPLIER := 0.122
+const KILL_REWARD_MULTIPLIER := 0.592
 
 const ROUND_CASH_REWARDS := {
-	1: 200,
-	2: 225,
-	3: 275,
-	4: 325,
-	5: 400,
-	6: 450,
-	7: 525,
-	8: 575,
-	9: 675,
-	10: 750,
-	11: 975,
-	12: 1200,
-	13: 1425,
-	14: 1750,
-	15: 2150,
-	16: 2400,
-	17: 5000,
-	18: 2500,
-	19: 2800,
-	20: 3100,
-	21: 3400,
-	22: 3800,
-	23: 4300,
+	1: 150,
+	2: 175,
+	3: 200,
+	4: 250,
+	5: 300,
+	6: 350,
+	7: 400,
+	8: 450,
+	9: 500,
+	10: 575,
+	11: 750,
+	12: 900,
+	13: 1075,
+	14: 1325,
+	15: 1625,
+	16: 1825,
+	17: 2050,
+	18: 2250,
+	19: 2500,
+	20: 2800,
+	21: 3100,
+	22: 3450,
+	23: 3900,
 	24: 0,
 }
 
@@ -1163,7 +1420,7 @@ const PLAYABLE_TOWER_FAMILY_IDS: Array[StringName] = [
 	&"tesla_core",
 	&"psionic",
 	&"assassin",
-	&"enforcer",
+	&"champion",
 	&"fisherman",
 	&"orb_barrage",
 	&"singularity",
@@ -1171,7 +1428,6 @@ const PLAYABLE_TOWER_FAMILY_IDS: Array[StringName] = [
 	&"bombardment",
 	&"atomic_strike",
 	&"gunship",
-	&"abductor",
 	&"mothership",
 	&"drone_depot",
 	&"mech_bay",
@@ -1195,6 +1451,7 @@ const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 	&"dronedepot": &"drone_depot",
 	&"irradiator": &"isotope_projector",
 	&"reaver": &"assassin",
+	&"enforcer": &"champion",
 }
 ## Legacy rank dictionaries still carry mechanic and ability changes. Those
 ## unlock on their original cadence, while selected numerical stats take the
@@ -1699,7 +1956,7 @@ const TOWERS := {
 
 		"b": {
 			"display_name": "Laser Cannon",
-			"description": "Charges a fixed one-second Beam that damages every 0.25 seconds and pierces up to five enemies. At Level 20, the Beam gains infinite Pierce.",
+			"description": "Charges a fixed one-second Beam aimed at one position. It can pierce up to four enemies before ending at its selected target.",
 			"cost": 3429,
 			"delivery_type": DELIVERY_HITSCAN,
 			"remove_damage_tags": [&"ballistic"],
@@ -3743,6 +4000,20 @@ static func get_tower(tower_id: StringName) -> Dictionary:
 	var texture_source := StringName(variant.get("texture_source", source_id))
 	if variant.has("final_level_path"):
 		tower["final_level_path"] = Dictionary(variant["final_level_path"]).duplicate(true)
+	var level_overrides: Dictionary = variant.get("level_overrides", {})
+	var levels: Array = tower.get("levels", [])
+	for level_index_variant in level_overrides:
+		var level_index := int(level_index_variant)
+		if level_index >= 0 and level_index < levels.size():
+			levels[level_index].merge(
+				Dictionary(level_overrides[level_index_variant]).duplicate(true), true
+			)
+	if STANDALONE_TOWER_PRICE_CURVES.has(tower_id):
+		var price_curve: Array = STANDALONE_TOWER_PRICE_CURVES[tower_id]
+		assert(price_curve.size() == levels.size())
+		tower["placement_cost"] = int(price_curve[0])
+		for level_index in range(1, levels.size()):
+			levels[level_index]["upgrade_cost"] = int(price_curve[level_index])
 	tower["texture"] = TOWER_TEXTURES.get(texture_source)
 	return tower
 

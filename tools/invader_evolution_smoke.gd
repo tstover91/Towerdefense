@@ -104,9 +104,11 @@ func run_test() -> void:
 	assert(rail.attack_component.beam_remaining == 1.0)
 	assert(rail.attack_component.locks_aim_during_attack())
 	var locked_direction: Vector2 = rail.attack_component.locked_direction
+	var locked_endpoint: Vector2 = rail.attack_component.locked_endpoint
 	laser_target.position += Vector2(0.0, 200.0)
 	rail.attack_component.process_attack(0.10)
 	assert(rail.attack_component.locked_direction.is_equal_approx(locked_direction))
+	assert(rail.attack_component.locked_endpoint.is_equal_approx(locked_endpoint))
 	_level_to(rail, GameStats.TOWER_XP_MAX_LEVEL)
 	assert(rail.infinite_pierce)
 

@@ -5,7 +5,7 @@ const GameStats = preload("res://stat_database.gd")
 const AreaDamage = preload("res://area_damage_helper.gd")
 const SOLAR_LANCE_SCENE = preload("res://solar_lance.tscn")
 const FALLOUT_ZONE_SCENE = preload("res://fallout_zone.tscn")
-const TARGET_ACTIVATION_RADIUS_PIXELS := 12.0
+const ORBITAL_STRIKE_WARNING_SCENE = preload("res://orbital_strike_warning.tscn")
 
 var minimum_range_pixels := 0.0
 var has_target_position := false
@@ -19,6 +19,7 @@ var solar_lance_tick_interval := 0.2
 var solar_lance_tick_damage_multiplier := 0.25
 var solar_lance_tick_end_damage_multiplier := 0.50
 var solar_lance_dual_tick_damage_multiplier := 0.10
+var solar_lance_tracking_speed_pixels := 80.0
 var bombardment_enabled := false
 var bombardment_strike_count := 5
 var bombardment_stagger := 0.15
@@ -34,12 +35,13 @@ var fallout_radius_multiplier := 1.15
 var fallout_duration := 8.0
 var fallout_application_interval := 1.0
 var fallout_stacks_per_application := 1
+var atomic_warning_duration := 1.0
 var active_solar_lances: Array[Node] = []
 var active_fallout_zones: Array[Node] = []
 
 
 func uses_manual_ground_targeting() -> bool:
-	return true
+	return false
 
 
 func load_level_stats(_stats: Dictionary) -> void:
@@ -57,6 +59,7 @@ func reset_path_behaviors() -> void:
 	solar_lance_tick_damage_multiplier = 0.25
 	solar_lance_tick_end_damage_multiplier = 0.50
 	solar_lance_dual_tick_damage_multiplier = 0.10
+	solar_lance_tracking_speed_pixels = 80.0
 	bombardment_enabled = false
 	bombardment_strike_count = 5
 	bombardment_stagger = 0.15
@@ -72,6 +75,7 @@ func reset_path_behaviors() -> void:
 	fallout_duration = 8.0
 	fallout_application_interval = 1.0
 	fallout_stacks_per_application = 1
+	atomic_warning_duration = 1.0
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
@@ -92,6 +96,9 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 		solar_lance_dual_tick_damage_multiplier = maxf(
 			float(values.get("solar_lance_dual_tick_damage_multiplier", 0.10)), 0.0
 		)
+		solar_lance_tracking_speed_pixels = maxf(
+			float(values.get("solar_lance_tracking_speed", 2.5)), 0.0
+		) * BaseTower.RANGE_PIXELS_PER_UNIT
 	if flags.get("orbital_bombardment", false):
 		bombardment_enabled = true
 		bombardment_strike_count = maxi(
@@ -134,6 +141,9 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 		fallout_stacks_per_application = maxi(
 			int(values.get("fallout_stacks_per_application", 1)), 1
 		)
+		atomic_warning_duration = maxf(
+			float(values.get("atomic_warning_duration", 1.0)), 0.0
+		)
 
 
 func process_pre_targeting(_delta: float) -> void:
@@ -145,33 +155,7 @@ func process_pre_targeting(_delta: float) -> void:
 
 
 func draw_attack_visuals() -> void:
-	if not tower.is_placed:
-		return
-	if tower.range_preview_visible and minimum_range_pixels > 0.0:
-		tower.draw_circle(
-			Vector2.ZERO, minimum_range_pixels, Color(1.0, 0.12, 0.12, 0.18)
-		)
-		tower.draw_arc(
-			Vector2.ZERO,
-			minimum_range_pixels,
-			0.0,
-			TAU,
-			64,
-			Color(1.0, 0.25, 0.2, 0.9),
-			2.0,
-			true
-		)
-	if has_target_position:
-		_draw_target_symbol(
-			tower.to_local(target_position), Color(1.0, 0.45, 0.15, 0.75)
-		)
-	if targeting_active:
-		_draw_target_symbol(
-			tower.to_local(preview_position),
-			Color(0.25, 1.0, 0.35, 0.95)
-				if preview_valid
-				else Color(1.0, 0.15, 0.15, 0.95)
-		)
+	pass
 
 
 func _draw_target_symbol(local_position: Vector2, color: Color) -> void:
@@ -255,25 +239,12 @@ func is_valid_manual_target_position(world_position: Vector2) -> bool:
 	)
 
 
-func has_manual_attack_opportunity() -> bool:
-	if not tower.is_combat_active() or not has_target_position:
+func execute_attack(current_target: Node2D, attack_damage: int) -> bool:
+	if not tower.is_valid_target(current_target):
 		return false
-	for mob in AreaDamage.get_targets_near(
-		tower.get_tree(), target_position, TARGET_ACTIVATION_RADIUS_PIXELS
-	):
-		if not tower.is_valid_target(mob):
-			continue
-		if (
-			mob.global_position.distance_to(target_position)
-			<= TARGET_ACTIVATION_RADIUS_PIXELS
-		):
-			return true
-	return false
-
-
-func execute_manual_attack() -> void:
+	target_position = current_target.global_position
 	var strike_count := bombardment_strike_count if bombardment_enabled else 1
-	var strike_damage := tower.roll_attack_damage()
+	var strike_damage := attack_damage
 	var strike_radius := tower.splash_radius_pixels
 	if bombardment_enabled:
 		strike_damage = maxi(
@@ -290,25 +261,27 @@ func execute_manual_attack() -> void:
 			strike_position += Vector2.from_angle(offset_angle) * offset_distance
 		var strike_delay := bombardment_stagger * float(strike_index)
 		if strike_delay <= 0.0:
-			_resolve_strike(strike_position, strike_damage, strike_radius)
+			_resolve_strike(strike_position, strike_damage, strike_radius, current_target)
 		else:
 			tower.get_tree().create_timer(strike_delay, false).timeout.connect(
-				_resolve_strike.bind(strike_position, strike_damage, strike_radius)
+				_resolve_strike.bind(strike_position, strike_damage, strike_radius, current_target)
 			)
+	return true
 
 
 func _resolve_strike(
 	strike_position: Vector2,
 	strike_damage: int,
-	strike_radius: float
+	strike_radius: float,
+	tracked_target: Node2D = null
 ) -> void:
 	if not tower.is_placed or not tower.is_combat_active():
 		return
 	if atomic_strike_enabled:
-		_resolve_atomic_strike(strike_position, strike_damage, strike_radius)
+		_spawn_atomic_warning(strike_position, strike_damage, strike_radius)
 		return
 	if solar_lance_enabled:
-		_spawn_solar_lance(strike_position, strike_damage)
+		_spawn_solar_lance(strike_position, strike_damage, tracked_target)
 		return
 	tower.launch_projectile_from_position(
 		null,
@@ -317,6 +290,24 @@ func _resolve_strike(
 		tower.muzzle.global_position.distance_to(strike_position),
 		strike_damage,
 		strike_radius
+	)
+
+
+func _spawn_atomic_warning(
+	strike_position: Vector2,
+	strike_damage: int,
+	strike_radius: float
+) -> void:
+	if ORBITAL_STRIKE_WARNING_SCENE == null or tower.get_tree().current_scene == null:
+		_resolve_atomic_strike(strike_position, strike_damage, strike_radius)
+		return
+	var warning := ORBITAL_STRIKE_WARNING_SCENE.instantiate() as Node2D
+	tower.get_tree().current_scene.add_child(warning)
+	warning.global_position = strike_position
+	warning.setup(
+		strike_radius * atomic_blast_radius_multiplier,
+		atomic_warning_duration,
+		_resolve_atomic_strike.bind(strike_position, strike_damage, strike_radius)
 	)
 
 
@@ -395,7 +386,11 @@ func _spawn_fallout_zone(
 	active_fallout_zones.append(fallout)
 
 
-func _spawn_solar_lance(strike_position: Vector2, strike_damage: int) -> void:
+func _spawn_solar_lance(
+	strike_position: Vector2,
+	strike_damage: int,
+	tracked_target: Node2D
+) -> void:
 	if SOLAR_LANCE_SCENE == null or tower.get_tree().current_scene == null:
 		return
 	var tick_start_multiplier := solar_lance_tick_damage_multiplier
@@ -417,6 +412,8 @@ func _spawn_solar_lance(strike_position: Vector2, strike_damage: int) -> void:
 		maxi(roundi(float(strike_damage) * tick_end_multiplier), 1),
 		solar_lance_duration,
 		solar_lance_tick_interval,
+		tracked_target,
+		solar_lance_tracking_speed_pixels,
 		tower.create_attack_context(
 			&"solar_lance", lance, &"persistent_effect", null, false, true
 		)

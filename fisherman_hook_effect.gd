@@ -21,6 +21,10 @@ var tether_half_width := 0.0
 var tether_secondary_damage_multiplier := 0.0
 var tether_maximum_targets := 0
 var tether_final_pulse_multiplier := 1.0
+var electric_pulse := false
+var pulse_radius := 0.0
+var pulse_damage_multiplier := 0.0
+var pulse_maximum_targets := 0
 var attack_context: AttackContext
 var elapsed := 0.0
 var ticks_applied := 0
@@ -50,7 +54,11 @@ func setup(
 	attack_tether_half_width := 0.0,
 	attack_tether_secondary_damage_multiplier := 0.0,
 	attack_tether_maximum_targets := 0,
-	attack_tether_final_pulse_multiplier := 1.0
+	attack_tether_final_pulse_multiplier := 1.0,
+	attack_electric_pulse := false,
+	attack_pulse_radius := 0.0,
+	attack_pulse_damage_multiplier := 0.0,
+	attack_pulse_maximum_targets := 0
 ) -> void:
 	source_tower = attack_source
 	hooked_target = target
@@ -70,6 +78,10 @@ func setup(
 	tether_final_pulse_multiplier = maxf(
 		attack_tether_final_pulse_multiplier, 0.0
 	)
+	electric_pulse = attack_electric_pulse
+	pulse_radius = maxf(attack_pulse_radius, 0.0)
+	pulse_damage_multiplier = maxf(attack_pulse_damage_multiplier, 0.0)
+	pulse_maximum_targets = maxi(attack_pulse_maximum_targets, 0)
 	attack_context = parent_context
 	tick_interval = duration / float(maxi(tick_count - 1, 1))
 	z_index = 12
@@ -150,6 +162,18 @@ func _draw() -> void:
 		return
 	draw_line(start, finish, Color(0.25, 0.85, 0.95, 0.95), 2.0, true)
 	draw_circle(finish, 3.5, Color(1.0, 0.55, 0.18, 0.95))
+	if electric_pulse and pulse_radius > 0.0:
+		var pulse_progress := fmod(elapsed, tick_interval) / maxf(tick_interval, 0.01)
+		draw_arc(
+			finish,
+			pulse_radius * (0.35 + pulse_progress * 0.65),
+			0.0,
+			TAU,
+			24,
+			Color(0.40, 0.95, 1.0, 0.85 * (1.0 - pulse_progress)),
+			2.5,
+			true
+		)
 
 
 func _cache_live_line_endpoints() -> void:
@@ -183,7 +207,42 @@ func _apply_damage_tick() -> void:
 	)
 	if electric_line and tether_half_width > 0.0 and tether_maximum_targets > 0:
 		_apply_tether_damage(tick_damage, tick_context)
+	if electric_pulse and pulse_radius > 0.0 and pulse_maximum_targets > 0:
+		_apply_pulse_damage(tick_damage, tick_context)
 	ticks_applied += 1
+
+
+func _apply_pulse_damage(
+	primary_tick_damage: int,
+	parent_tick_context: AttackContext
+) -> void:
+	var pulse_damage := maxi(
+		roundi(float(primary_tick_damage) * pulse_damage_multiplier), 1
+	)
+	var candidates: Array[Node2D] = []
+	for candidate in AreaDamage.get_targets_near(
+		source_tower.get_tree(), hooked_target.global_position, pulse_radius
+	):
+		if candidate != hooked_target and source_tower.is_valid_target(candidate):
+			candidates.append(candidate)
+	candidates.sort_custom(func(left: Node2D, right: Node2D) -> bool:
+		return hooked_target.global_position.distance_squared_to(left.global_position) < hooked_target.global_position.distance_squared_to(right.global_position)
+	)
+	for target_index in mini(candidates.size(), pulse_maximum_targets):
+		var pulse_context := parent_tick_context.derive(
+			self,
+			&"persistent_effect",
+			&"fisherman_electric_pulse_tick",
+			true,
+			{"area_damage": true}
+		)
+		source_tower.apply_tower_damage(
+			candidates[target_index],
+			pulse_damage,
+			&"electric",
+			false,
+			pulse_context
+		)
 
 
 func _apply_tether_damage(

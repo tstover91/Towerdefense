@@ -612,13 +612,15 @@ func load_base_tags() -> void:
 	for tag in tower_data.get("bonus_tags", []):
 		tower.bonus_tags.append(tag)
 	var levels: Array = tower_data.get("levels", [])
+	var level_pierce_count := 0
 	for level_index in range(0, mini(tower.tower_level + 1, levels.size())):
 		var level_data: Dictionary = levels[level_index]
 		_apply_tag_changes(level_data)
+		level_pierce_count += int(level_data.get("pierce_count_add", 0))
 	var loaded_pierce_count := int(tower_data.get(
 		"pierce_count",
 		1 if tower.bonus_tags.has(BaseTower.BONUS_PIERCE) else 0
-	))
+	)) + level_pierce_count
 	tower.delivery_type = tower_data.get(
 		"delivery_type", GameStats.DELIVERY_HITSCAN
 	)

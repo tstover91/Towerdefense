@@ -48,6 +48,10 @@ var hit_target_ids: Dictionary = {}
 var contact_splash_hit_target_ids: Dictionary = {}
 var segment_started_bounce := false
 var termination_notified := false
+var return_flight_enabled := false
+var return_damage_multiplier := 1.0
+var return_destination := Vector2.ZERO
+var returning := false
 var segment_query_shape := RectangleShape2D.new()
 
 
@@ -79,7 +83,10 @@ func setup(
 	attack_pierce_loses_no_power := false,
 	attack_contact_explosion_damage_multiplier := 1.0,
 	attack_ownership_context: AttackContext = null,
-	attack_bounce_damage_multiplier := 1.0
+	attack_bounce_damage_multiplier := 1.0,
+	attack_return_flight_enabled := false,
+	attack_return_damage_multiplier := 1.0,
+	attack_return_destination := Vector2.ZERO
 ) -> void:
 	primary_target = target_node
 	original_primary_target_instance_id = (
@@ -111,6 +118,9 @@ func setup(
 		0.0
 	)
 	bounce_damage_multiplier = maxf(attack_bounce_damage_multiplier, 0.0)
+	return_flight_enabled = attack_return_flight_enabled
+	return_damage_multiplier = clampf(attack_return_damage_multiplier, 0.0, 1.0)
+	return_destination = attack_return_destination
 	infinite_pierce = attack_infinite_pierce
 	pierce_loses_no_power = attack_pierce_loses_no_power
 	can_hit_hidden = attack_can_hit_hidden
@@ -339,6 +349,8 @@ func process_pierce_travel(delta: float) -> void:
 
 
 func resolve_pierce_segment(start: Vector2, end: Vector2) -> bool:
+	if not infinite_pierce and remaining_pierce_hits <= 0:
+		return not return_flight_enabled
 	for candidate in get_segment_candidates(start, end):
 		var mob: Node2D = candidate["mob"]
 		if not is_valid_target(mob):
@@ -363,11 +375,13 @@ func resolve_pierce_segment(start: Vector2, end: Vector2) -> bool:
 		if not infinite_pierce:
 			remaining_pierce_hits -= 1
 			if remaining_pierce_hits <= 0:
-				return true
+				return not return_flight_enabled
 	return false
 
 
 func resolve_first_contact_segment(start: Vector2, end: Vector2) -> bool:
+	if not infinite_pierce and remaining_pierce_hits <= 0:
+		return not return_flight_enabled
 	for candidate in get_segment_candidates(start, end):
 		var mob: Node2D = candidate["mob"]
 		if not is_valid_target(mob):
@@ -400,6 +414,8 @@ func resolve_first_contact_segment(start: Vector2, end: Vector2) -> bool:
 		if not infinite_pierce:
 			remaining_pierce_hits -= 1
 			if remaining_pierce_hits <= 0:
+				if return_flight_enabled and not returning:
+					return false
 				global_position = mob.global_position
 				if begin_next_bounce():
 					segment_started_bounce = true
@@ -614,6 +630,9 @@ func _notify_status_applied(
 
 
 func _finish_projectile() -> void:
+	if return_flight_enabled and not returning:
+		_begin_return_flight()
+		return
 	if not termination_notified and attack_context != null:
 		termination_notified = true
 		var root_tower := attack_context.get_root_tower()
@@ -626,6 +645,28 @@ func _finish_projectile() -> void:
 				global_position, damage, attack_context
 			)
 	queue_free()
+
+
+func _begin_return_flight() -> void:
+	returning = true
+	var return_offset := return_destination - global_position
+	if return_offset.is_zero_approx():
+		return_flight_enabled = false
+		_finish_projectile()
+		return
+	direction = return_offset.normalized()
+	rotation = direction.angle()
+	damage = maxi(roundi(float(damage) * return_damage_multiplier), 1)
+	continuation_distance = return_offset.length()
+	distance_traveled = 0.0
+	piercing_after_primary = true
+	pierce_chain_hit_count = 0
+	remaining_pierce_hits = 1 + pierce_count
+	hit_target_ids.clear()
+	if attack_context != null:
+		attack_context = attack_context.derive(
+			self, &"projectile", &"return_flight", true
+		)
 
 
 func derive_attack_context(derived_attack_kind: StringName) -> AttackContext:

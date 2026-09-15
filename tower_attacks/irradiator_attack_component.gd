@@ -226,9 +226,9 @@ func _get_isotope_beam_targets() -> Array[Node2D]:
 		if not tower.is_valid_area_target(candidate):
 			continue
 		var offset: Vector2 = candidate.global_position - beam_start
-		var along := clampf(
-			offset.dot(beam_vector) / beam_length_squared, 0.0, 1.0
-		)
+		var along := offset.dot(beam_vector) / beam_length_squared
+		if along < 0.0 or along > 1.0:
+			continue
 		var closest_point := beam_start + beam_vector * along
 		if (
 			candidate.global_position.distance_to(closest_point)

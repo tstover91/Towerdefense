@@ -36,11 +36,20 @@ var sweep_visual_remaining := 0.0
 var sweep_visual_direction := Vector2.RIGHT
 var sweep_visual_arc_degrees := 120.0
 var sweep_visual_radius := 0.0
+var roaming_enabled := false
+var roaming_move_speed := 80.0
+var melee_attack_radius_pixels := 48.0
+var roaming_offset := Vector2.ZERO
 
 
 func load_level_stats(stats: Dictionary) -> void:
 	melee_arc_degrees = clampf(float(stats.get("melee_arc_degrees", 120.0)), 0.0, 360.0)
 	melee_max_targets = maxi(int(stats.get("melee_max_targets", 1)), 1)
+	roaming_move_speed = maxf(float(stats.get("roaming_move_speed", 80.0)), 0.0)
+	melee_attack_radius_pixels = maxf(
+		float(stats.get("melee_attack_radius", 1.5)) * BaseTower.BUILD_CELL_SIZE,
+		1.0
+	)
 
 
 func reset_path_behaviors() -> void:
@@ -60,9 +69,12 @@ func reset_path_behaviors() -> void:
 	enforcer_stun_duration = 0.5
 	enforcer_push_distance_units = 1.0
 	time_bubble_enabled = false
+	roaming_enabled = false
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
+	if flags.get("reaver_roaming", false):
+		roaming_enabled = true
 	if flags.get("reaver_time_bubble", false):
 		time_bubble_enabled = true
 		time_bubble_active_duration = maxf(
@@ -97,6 +109,47 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 		enforcer_push_distance_units = maxf(float(values.get("enforcer_push_distance", 1.0)), 0.0)
 
 
+func on_placement_confirmed() -> void:
+	_apply_roaming_offset(Vector2.ZERO)
+
+
+func process_pre_targeting(delta: float) -> void:
+	if not roaming_enabled or not tower.is_placed:
+		return
+	var destination := Vector2.ZERO
+	if tower.is_valid_target(tower.target):
+		var target_offset := tower.target.global_position - tower.global_position
+		if target_offset.length() <= tower.range_radius_pixels:
+			destination = target_offset
+			var current_distance := get_combat_origin().distance_to(
+				tower.target.global_position
+			)
+			if current_distance <= melee_attack_radius_pixels * 0.72:
+				destination = roaming_offset
+	var maximum_offset := maxf(
+		tower.range_radius_pixels - melee_attack_radius_pixels * 0.25,
+		0.0
+	)
+	if destination.length() > maximum_offset:
+		destination = destination.normalized() * maximum_offset
+	_apply_roaming_offset(
+		roaming_offset.move_toward(destination, roaming_move_speed * delta)
+	)
+
+
+func _apply_roaming_offset(new_offset: Vector2) -> void:
+	roaming_offset = new_offset
+	if is_instance_valid(tower.visual_sprite):
+		tower.visual_sprite.position = roaming_offset
+	if is_instance_valid(tower.rotator):
+		tower.rotator.position = roaming_offset
+	tower.queue_redraw()
+
+
+func get_combat_origin() -> Vector2:
+	return tower.global_position + roaming_offset
+
+
 func process_attack(delta: float) -> void:
 	_process_time_bubble(delta)
 	if sweep_visual_remaining <= 0.0:
@@ -128,7 +181,7 @@ func _process_time_bubble(delta: float) -> void:
 			time_bubble_refresh_remaining = time_bubble_refresh_interval
 			var context := tower.create_attack_context(&"reaver_time_bubble")
 			for candidate in AreaDamage.get_targets_near(
-				tower.get_tree(), tower.global_position, tower.range_radius_pixels
+				tower.get_tree(), get_combat_origin(), tower.range_radius_pixels
 			):
 				if tower.is_valid_area_target(candidate) and candidate.has_method("apply_slow"):
 					candidate.apply_slow(time_bubble_slow_duration, context)
@@ -144,12 +197,12 @@ func _process_time_bubble(delta: float) -> void:
 func draw_attack_visuals() -> void:
 	if time_bubble_active_remaining > 0.0 and tower.is_placed:
 		tower.draw_circle(
-			Vector2.ZERO,
+			roaming_offset,
 			tower.range_radius_pixels,
 			Color(0.48, 0.88, 0.78, 0.10)
 		)
 		tower.draw_arc(
-			Vector2.ZERO,
+			roaming_offset,
 			tower.range_radius_pixels,
 			0.0,
 			TAU,
@@ -163,17 +216,20 @@ func draw_attack_visuals() -> void:
 	var alpha := clampf(sweep_visual_remaining / 0.14, 0.0, 1.0)
 	var color := Color(1.0, 0.76, 0.30, 0.72 * alpha)
 	if sweep_visual_arc_degrees >= 359.9:
-		tower.draw_arc(Vector2.ZERO, sweep_visual_radius, 0.0, TAU, 64, color, 4.0, true)
+		tower.draw_arc(roaming_offset, sweep_visual_radius, 0.0, TAU, 64, color, 4.0, true)
 		return
 	var center_angle := sweep_visual_direction.angle()
 	var half_angle := deg_to_rad(sweep_visual_arc_degrees * 0.5)
-	tower.draw_arc(Vector2.ZERO, sweep_visual_radius, center_angle - half_angle, center_angle + half_angle, 32, color, 4.0, true)
+	tower.draw_arc(roaming_offset, sweep_visual_radius, center_angle - half_angle, center_angle + half_angle, 32, color, 4.0, true)
 
 
 func execute_raw_attack(current_target: Node2D, base_damage: int) -> bool:
 	if not tower.is_valid_target(current_target):
 		return false
-	var attack_direction := (current_target.global_position - tower.global_position).normalized()
+	var combat_origin := get_combat_origin()
+	if roaming_enabled and combat_origin.distance_to(current_target.global_position) > melee_attack_radius_pixels:
+		return true
+	var attack_direction := (current_target.global_position - combat_origin).normalized()
 	if assassinate_enabled:
 		return _execute_assassin_attack(current_target, base_damage, attack_direction)
 	if champion_enabled:
@@ -195,12 +251,12 @@ func _execute_assassin_attack(current_target: Node2D, base_damage: int, attack_d
 	if is_assassinate:
 		assassinate_attack_counter = 0
 	_apply_direct_hit(current_target, base_damage, &"reaver_assassinate" if is_assassinate else &"reaver_strike", is_assassinate, assassinate_critical_multiplier_bonus if is_assassinate else 0.0)
-	_show_sweep(attack_direction, 18.0, tower.range_radius_pixels)
+	_show_sweep(attack_direction, 18.0, melee_attack_radius_pixels)
 	return true
 
 
 func _execute_sweep(current_target: Node2D, base_damage: int, attack_direction: Vector2) -> bool:
-	var targets := _get_arc_targets(current_target, tower.global_position, attack_direction, tower.range_radius_pixels, melee_arc_degrees, melee_max_targets)
+	var targets := _get_arc_targets(current_target, get_combat_origin(), attack_direction, melee_attack_radius_pixels, melee_arc_degrees, melee_max_targets)
 	for target_index in targets.size():
 		var target_damage := (
 			base_damage if target_index == 0
@@ -209,13 +265,13 @@ func _execute_sweep(current_target: Node2D, base_damage: int, attack_direction: 
 			), 1)
 		)
 		_apply_direct_hit(targets[target_index], target_damage, &"reaver_sweep", false, 0.0, target_index > 0)
-	_show_sweep(attack_direction, melee_arc_degrees, tower.range_radius_pixels)
+	_show_sweep(attack_direction, melee_arc_degrees, melee_attack_radius_pixels)
 	return true
 
 
 func _execute_champion_spin(current_target: Node2D, base_damage: int, attack_direction: Vector2) -> bool:
-	var radius := tower.range_radius_pixels * champion_spin_radius_multiplier
-	var targets := _get_radial_targets(current_target, tower.global_position, radius, champion_spin_max_targets)
+	var radius := melee_attack_radius_pixels * champion_spin_radius_multiplier
+	var targets := _get_radial_targets(current_target, get_combat_origin(), radius, champion_spin_max_targets)
 	var spin_damage := maxi(roundi(float(base_damage) * champion_spin_damage_multiplier), 1)
 	for target_index in targets.size():
 		_apply_direct_hit(targets[target_index], spin_damage, &"reaver_champion_spin", false, 0.0, target_index > 0)

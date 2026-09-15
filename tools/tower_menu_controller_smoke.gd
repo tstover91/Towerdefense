@@ -80,8 +80,8 @@ func run_test() -> void:
 
 	var fisherman := create_tower(&"fisherman", fake_main)
 	assert(not fisherman.has_node("DirectionUI"))
-	assert(fisherman.get_node("HBoxContainer/targetmode").text == "Set Aim\nDirection")
-	assert(fisherman.uses_finite_directional_range())
+	assert(fisherman.get_node("HBoxContainer/targetmode").text != "Set Aim\nDirection")
+	assert(not fisherman.uses_finite_directional_range())
 
 	var orbital := create_tower(&"orbitalcannon", fake_main)
 	orbital.set_selected(true)

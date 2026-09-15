@@ -214,24 +214,24 @@ func get_sell_price() -> int:
 			if tower.purchase_price >= 0
 			else int(GameStats.get_tower(tower.tower_id)["placement_cost"])
 		)
-	var level_values: Array = GameStats.PURCHASED_TOWER_DATA.TOWER_UPGRADED_SELL_VALUES.get(
-		GameStats.get_tower_combat_source_id(tower.tower_id), []
+	var tower_data := GameStats.get_tower(tower.tower_id)
+	var placement_investment := (
+		maxi(tower.purchase_price, 0)
+		if tower.purchase_price >= 0
+		else int(tower_data["placement_cost"])
 	)
-	if level_values.is_empty():
-		return int(GameStats.get_tower(tower.tower_id)["placement_cost"])
-	var level_index := mini(tower.tower_level, level_values.size() - 1)
-	var sell_price := GameStats.scale_money(int(level_values[level_index]))
-	var path_sell_values: Variant = (
-		GameStats.PURCHASED_TOWER_DATA.TOWER_PATH_SELL_VALUE_ADDITIONS.get(tower.tower_id, {})
-	)
+	var upgrade_investment := 0
+	var levels: Array = tower_data.get("levels", [])
+	for level_index in range(1, mini(tower.tower_level + 1, levels.size())):
+		upgrade_investment += int(levels[level_index].get("upgrade_cost", 0))
 	for path_id in tower.purchased_paths:
-		if path_sell_values is Dictionary:
-			sell_price += GameStats.scale_money(
-				int(path_sell_values.get(path_id, 0))
-			)
-		else:
-			sell_price += GameStats.scale_money(int(path_sell_values))
-	return sell_price
+		upgrade_investment += int(
+			GameStats.get_tower_path(tower.tower_id, path_id).get("cost", 0)
+		)
+	var upgrade_refund := GameStats.scale_purchase_price(
+		roundi(float(upgrade_investment) * 0.60)
+	)
+	return placement_investment + upgrade_refund
 
 
 func show_upgrade_range_preview() -> void:

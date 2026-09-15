@@ -17,10 +17,13 @@ var pull_radius := 64.5
 var pull_speed := 160.0
 var explosion_radius := 58.05
 var explosion_damage := 1
+var damage_per_caught_enemy := 0.0
+var maximum_damage_bonus := 0.0
 var elapsed := 0.0
 var resolving := false
 var attack_context: AttackContext
 var pull_targets: Array[Node2D] = []
+var caught_target_ids: Dictionary = {}
 var target_refresh_remaining := 0.0
 var visual_refresh_remaining := 0.0
 
@@ -33,6 +36,8 @@ func setup(
 	path_pull_speed: float,
 	final_explosion_radius: float,
 	final_explosion_damage: int,
+	caught_enemy_damage_bonus := 0.0,
+	maximum_caught_damage_bonus := 0.0,
 	ownership_context: AttackContext = null
 ) -> void:
 	main = game_main
@@ -42,6 +47,8 @@ func setup(
 	pull_speed = maxf(path_pull_speed, 0.0)
 	explosion_radius = maxf(final_explosion_radius, 1.0)
 	explosion_damage = maxi(final_explosion_damage, 1)
+	damage_per_caught_enemy = maxf(caught_enemy_damage_bonus, 0.0)
+	maximum_damage_bonus = maxf(maximum_caught_damage_bonus, 0.0)
 	attack_context = ownership_context
 	queue_redraw()
 
@@ -89,9 +96,18 @@ func pull_nearby_mobs(delta: float) -> void:
 			continue
 		if global_position.distance_to(mob.global_position) > pull_radius:
 			continue
+		var target_progress := center_path_progress
+		var route := mob.path_follow.get_parent() as Path2D
+		if route != null and route.curve != null:
+			# Each route has its own progress scale. Pull toward the point on that
+			# enemy's route nearest the well instead of reusing the selected
+			# target's progress value across every route.
+			target_progress = route.curve.get_closest_offset(
+				route.to_local(global_position)
+			)
 		mob.path_follow.progress = move_toward(
 			mob.path_follow.progress,
-			center_path_progress,
+			target_progress,
 			pull_speed * delta
 		)
 
@@ -106,6 +122,7 @@ func refresh_pull_targets() -> void:
 		if not is_nearest_singularity_for(mob):
 			continue
 		pull_targets.append(mob)
+		caught_target_ids[mob.get_instance_id()] = true
 
 
 func is_nearest_singularity_for(mob: Node2D) -> bool:
@@ -147,6 +164,7 @@ func explode() -> void:
 		global_position,
 		explosion_radius
 	)
+	var explosion_targets: Array[Node2D] = []
 	for mob in AreaDamage.get_targets_near(
 		get_tree(), global_position, explosion_radius
 	):
@@ -155,8 +173,12 @@ func explode() -> void:
 		var distance_from_center: float = global_position.distance_to(mob.global_position)
 		if distance_from_center > explosion_radius:
 			continue
+		explosion_targets.append(mob)
+	var caught_damage_multiplier := get_collapse_damage_multiplier()
+	for mob in explosion_targets:
+		var distance_from_center: float = global_position.distance_to(mob.global_position)
 		var dealt_damage := GameStats.get_explosion_damage(
-			explosion_damage,
+			maxi(roundi(float(explosion_damage) * caught_damage_multiplier), 1),
 			distance_from_center,
 			explosion_radius
 		)
@@ -172,6 +194,13 @@ func explode() -> void:
 			mob.apply_damage(dealt_damage, &"explosive", false, true, resolved_context)
 	finished.emit(self)
 	queue_free()
+
+
+func get_collapse_damage_multiplier() -> float:
+	return 1.0 + minf(
+		damage_per_caught_enemy * float(caught_target_ids.size()),
+		maximum_damage_bonus
+	)
 
 
 func cancel() -> void:

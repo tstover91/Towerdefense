@@ -37,6 +37,8 @@ func run_test() -> void:
 	var target := _create_mob(Vector2(300.0, 100.0))
 	var between := _create_mob(Vector2(200.0, 104.0))
 	var outside := _create_mob(Vector2(200.0, 150.0))
+	var beyond_target := _create_mob(Vector2(304.0, 100.0))
+	var behind_tower := _create_mob(Vector2(96.0, 100.0))
 	tower.target = target
 	var component := tower.attack_component as IrradiatorAttackComponent
 	assert(component != null)
@@ -45,6 +47,8 @@ func run_test() -> void:
 	assert(target.get_radiation_stacks() > 0)
 	assert(between.get_radiation_stacks() > 0)
 	assert(outside.get_radiation_stacks() == 0)
+	assert(beyond_target.get_radiation_stacks() == 0)
+	assert(behind_tower.get_radiation_stacks() == 0)
 	assert(component.get_radiation_debug_state()["mode"] == &"isotope_beam")
 	print("Isotope Projector smoke test passed: locked beam irradiates its target and intervening enemies without area spill.")
 	get_tree().quit(0)
