@@ -1628,7 +1628,9 @@ func get_short_enemy_description(enemy_id: StringName) -> String:
 		&"rushes": "Occasionally surges forward.",
 		&"summons": "Summons additional enemies.",
 		&"shielded": "Carries a shield that absorbs hits.",
+		&"regenerating_shield": "Restores its shield after avoiding attacks.",
 		&"shield_aura": "Shields nearby enemies.",
+		&"carrier": "Deploys troops while moving and releases a squad when destroyed.",
 		&"boss": "A major boss threat.",
 	}
 	var descriptions: Array[String] = []
@@ -3263,8 +3265,7 @@ func get_descendant_xp_multiplier(
 		return 1.0
 	var descendant_count := (
 		int(requester.get("split_count"))
-		if request_kind == &"split"
-		else int(requester.get("summon_limit"))
+		+ int(requester.get("summon_limit"))
 	)
 	if descendant_count <= 0:
 		return 0.0

@@ -7,6 +7,8 @@ func _init() -> void:
 	var observed_debut_rounds := {}
 	var observed_round_eight_styles := {}
 	var observed_round_eighteen_styles := {}
+	var matching_upgrade_count := 0
+	var total_upgrade_count := 0
 	for enemy_key in GameStats.ENEMIES:
 		observed_debut_rounds[StringName(enemy_key)] = {}
 
@@ -16,6 +18,14 @@ func _init() -> void:
 		var progression := GameStats.build_normal_enemy_progression(rng)
 		var debut_plan: Dictionary = progression["debut_plan"]
 		validate_debut_plan(debut_plan, progression)
+		for enemy_id in progression["selected_tier_two"]:
+			total_upgrade_count += 1
+			if GameStats.get_enemy_family(enemy_id) in progression["selected_families"]:
+				matching_upgrade_count += 1
+		for enemy_id in progression["selected_tier_three"]:
+			total_upgrade_count += 1
+			if GameStats.get_enemy_family(enemy_id) in progression["selected_families"]:
+				matching_upgrade_count += 1
 		var style_plan := GameStats.build_round_style_plan(rng, debut_plan)
 		validate_style_plan(debut_plan, style_plan)
 		observed_round_eight_styles[style_plan[8]] = true
@@ -25,9 +35,14 @@ func _init() -> void:
 
 	for enemy_id in observed_debut_rounds:
 		if GameStats.get_enemy_family(enemy_id) != &"general":
-			assert(observed_debut_rounds[enemy_id].size() > 1)
+			assert(
+				observed_debut_rounds[enemy_id].size() > 1,
+				"Enemy %s did not vary its debut across seeds: %s"
+				% [enemy_id, observed_debut_rounds[enemy_id]],
+			)
 	assert(observed_round_eight_styles.size() > 1)
 	assert(observed_round_eighteen_styles.size() > 1)
+	assert(matching_upgrade_count > total_upgrade_count / 2)
 
 	var first_rng := RandomNumberGenerator.new()
 	first_rng.seed = 90210
@@ -61,21 +76,27 @@ func validate_debut_plan(plan: Dictionary, progression: Dictionary) -> void:
 	var selected_families: Array = progression["selected_families"]
 	var selected_tier_one: Array = progression["selected_tier_one"]
 	var selected_tier_two: Array = progression["selected_tier_two"]
+	var selected_tier_three: Array = progression["selected_tier_three"]
 	assert(selected_families.size() == 3)
 	assert(selected_tier_one.size() == 3)
 	assert(selected_tier_two.size() == 2)
+	assert(selected_tier_three.size() == 1)
 	for index in selected_tier_one.size():
 		assert(GameStats.get_enemy_family(selected_tier_one[index]) == selected_families[index])
 		assert(int(plan[selected_tier_one[index]]) == [4, 6, 10][index])
 	for index in selected_tier_two.size():
 		assert(GameStats.get_enemy_family_tier(selected_tier_two[index]) == 2)
 		assert(int(plan[selected_tier_two[index]]) == [14, 18][index])
+	for index in selected_tier_three.size():
+		assert(GameStats.get_enemy_family_tier(selected_tier_three[index]) == 3)
+		assert(int(plan[selected_tier_three[index]]) == [20][index])
 	for enemy_key in GameStats.ENEMIES:
 		var enemy_id := StringName(enemy_key)
 		if (
 			GameStats.get_enemy_family(enemy_id) != &"general"
 			and not selected_tier_one.has(enemy_id)
 			and not selected_tier_two.has(enemy_id)
+			and not selected_tier_three.has(enemy_id)
 		):
 			assert(int(plan[enemy_id]) == 999)
 

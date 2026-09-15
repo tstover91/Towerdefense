@@ -49,6 +49,7 @@ var finished := false
 var split_enemy_id: StringName = &""
 var split_count := 0
 var regeneration_per_second := 0
+var regeneration_max_health_ratio := 0.0
 var regeneration_elapsed := 0.0
 var speed_aura_radius := 0.0
 var speed_aura_multiplier := 1.0
@@ -60,6 +61,8 @@ var summon_limit := 0
 var summons_created := 0
 var summon_elapsed := 0.0
 var summon_request_pending := false
+var passenger_capacity := 0
+var passenger_leak_damage := 0
 var cached_speed_aura_multiplier := 1.0
 var hide_health_bar_while_full := false
 var slow_remaining := 0.0
@@ -84,6 +87,10 @@ var external_vulnerability_context: AttackContext
 var maximum_ablative_shield_points := 0
 var ablative_shield_points := 0
 var shield_aura_radius := 0.0
+var shield_regeneration_delay := 0.0
+var shield_regeneration_interval := 0.0
+var shield_regeneration_delay_remaining := 0.0
+var shield_regeneration_elapsed := 0.0
 var fisherman_pull_immunity_remaining := 0.0
 var fisherman_pull_active := false
 var fisherman_minimum_progress := -1.0
@@ -224,6 +231,7 @@ func _process(delta: float) -> void:
 	_process_beholder_damage_mark(delta)
 	_process_external_vulnerability(delta)
 	_process_radiation(delta)
+	_process_ablative_shield_regeneration(delta)
 	if path_follow == null or finished:
 		return
 
@@ -321,11 +329,23 @@ func load_stats() -> void:
 	)
 	ablative_shield_points = maximum_ablative_shield_points
 	shield_aura_radius = maxf(float(stats.get("shield_aura_radius", 0.0)), 0.0)
+	shield_regeneration_delay = maxf(
+		float(stats.get("shield_regeneration_delay", 0.0)),
+		0.0
+	)
+	shield_regeneration_interval = maxf(
+		float(stats.get("shield_regeneration_interval", 0.0)),
+		0.0
+	)
 	if shield_aura_radius > 0.0 and ablative_shield_points > 0:
 		add_to_group("shield_projectors")
 	split_enemy_id = stats.get("split_enemy_id", &"")
 	split_count = stats.get("split_count", 0)
 	regeneration_per_second = stats.get("regeneration_per_second", 0)
+	regeneration_max_health_ratio = maxf(
+		float(stats.get("regeneration_max_health_ratio", 0.0)),
+		0.0
+	)
 	speed_aura_radius = stats.get("speed_aura_radius", 0.0)
 	speed_aura_multiplier = stats.get("speed_aura_multiplier", 1.0)
 	if speed_aura_multiplier > 1.0 and speed_aura_radius > 0.0:
@@ -335,6 +355,8 @@ func load_stats() -> void:
 	summon_enemy_id = stats.get("summon_enemy_id", &"")
 	summon_interval = stats.get("summon_interval", 0.0)
 	summon_limit = stats.get("summon_limit", 0)
+	passenger_capacity = maxi(int(stats.get("passenger_capacity", 0)), 0)
+	passenger_leak_damage = maxi(int(stats.get("passenger_leak_damage", 0)), 0)
 	var visual_scale: float = stats.get("visual_scale", 1.0) * visual_multiplier
 	sprite.modulate = stats.get("color", Color.WHITE)
 	if spawn_variant == &"elite":
@@ -347,7 +369,12 @@ func load_stats() -> void:
 
 func get_leak_damage() -> int:
 	var health_ratio := clampf(float(health) / float(max_health), 0.0, 1.0)
-	return maxi(1, ceili(base_damage * health_ratio))
+	var undeployed_passengers := maxi(passenger_capacity - summons_created, 0)
+	return maxi(
+		1,
+		ceili(base_damage * health_ratio)
+		+ undeployed_passengers * passenger_leak_damage
+	)
 
 
 func get_effective_speed() -> float:
@@ -918,13 +945,20 @@ func get_speed_buff_for(other_mob: Node2D) -> float:
 
 
 func _process_regeneration(delta: float) -> void:
-	if regeneration_per_second <= 0 or health >= max_health:
+	if (
+		regeneration_per_second <= 0
+		and regeneration_max_health_ratio <= 0.0
+	) or health >= max_health:
 		return
 
 	regeneration_elapsed += delta
 	while regeneration_elapsed >= 1.0:
 		regeneration_elapsed -= 1.0
-		health = mini(health + regeneration_per_second, max_health)
+		var regeneration_amount := maxi(
+			regeneration_per_second,
+			ceili(float(max_health) * regeneration_max_health_ratio)
+		)
+		health = mini(health + regeneration_amount, max_health)
 		health_bar.value = health
 		update_health_bar_visibility()
 
@@ -1037,6 +1071,8 @@ func apply_damage(
 		and bool(attack_context.metadata.get("shot_missed", false))
 	):
 		return 0
+	if amount > 0:
+		reset_ablative_shield_regeneration()
 	var effective_armor := maxf(armor - temporary_armor_reduction, 0.0)
 	var thermite_affects_armor := (
 		amount > 0
@@ -1305,8 +1341,46 @@ func consume_projected_shield_hit() -> void:
 
 
 func remove_ablative_shield_points(amount: int) -> void:
+	if amount > 0:
+		reset_ablative_shield_regeneration()
 	ablative_shield_points = maxi(ablative_shield_points - maxi(amount, 0), 0)
 	queue_redraw()
+
+
+func reset_ablative_shield_regeneration() -> void:
+	if shield_regeneration_interval <= 0.0:
+		return
+	shield_regeneration_delay_remaining = shield_regeneration_delay
+	shield_regeneration_elapsed = 0.0
+
+
+func _process_ablative_shield_regeneration(delta: float) -> void:
+	if (
+		shield_regeneration_interval <= 0.0
+		or ablative_shield_points >= maximum_ablative_shield_points
+	):
+		return
+	var regeneration_delta := delta
+	if shield_regeneration_delay_remaining > 0.0:
+		var delay_step := minf(
+			regeneration_delta,
+			shield_regeneration_delay_remaining
+		)
+		shield_regeneration_delay_remaining = maxf(
+			shield_regeneration_delay_remaining - delay_step,
+			0.0
+		)
+		regeneration_delta -= delay_step
+		if shield_regeneration_delay_remaining > 0.0:
+			return
+	shield_regeneration_elapsed += regeneration_delta
+	while (
+		shield_regeneration_elapsed >= shield_regeneration_interval
+		and ablative_shield_points < maximum_ablative_shield_points
+	):
+		shield_regeneration_elapsed -= shield_regeneration_interval
+		ablative_shield_points += 1
+		queue_redraw()
 
 
 func get_nearest_ablative_shield_provider() -> Node2D:

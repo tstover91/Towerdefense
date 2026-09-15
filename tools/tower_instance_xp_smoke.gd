@@ -204,9 +204,24 @@ func run_test() -> void:
 		"Summoned enemies did not receive the reserved family XP share."
 	):
 		return
+	var carrier := FakeDescendantRequester.new()
+	carrier.enemy_id = &"troop_carrier"
+	carrier.split_count = 4
+	carrier.summon_limit = 3
+	if not _check(
+		is_equal_approx(
+			gameplay.get_descendant_xp_multiplier(
+				&"swarmling", carrier, &"summon"
+			),
+			17.0 / 14.0
+		),
+		"Troop Carrier passengers did not share one finite descendant XP budget."
+	):
+		return
 	gameplay.free()
 	splitter.free()
 	summoner.free()
+	carrier.free()
 
 	print("Tower instance XP smoke test passed: unique state, normalized threat XP, descendants, overkill, kills, derived attribution, pacing, and automatic levels.")
 	get_tree().quit(0)

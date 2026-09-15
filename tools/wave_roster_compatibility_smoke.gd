@@ -5,6 +5,8 @@ const WaveDirectorScript = preload("res://wave_director.gd")
 
 
 func _ready() -> void:
+	validate_enemy_lifecycles()
+	validate_late_composition()
 	var tier_one_by_family := get_tier_one_by_family()
 	var families: Array = tier_one_by_family.keys()
 	var early_order_count := validate_early_family_orders(
@@ -23,10 +25,22 @@ func _ready() -> void:
 				var selected_tier_one: Array[StringName] = []
 				for family in selected_families:
 					selected_tier_one.append(tier_one_by_family[family])
-				for selected_tier_two in get_tier_two_pairs(selected_families):
+				var tier_three_options := get_tier_three_options()
+				var tier_two_pairs := get_tier_two_pairs(selected_families)
+				if tier_two_pairs.size() > 3:
+					tier_two_pairs = [
+						tier_two_pairs.front(),
+						tier_two_pairs[floori(tier_two_pairs.size() / 2.0)],
+						tier_two_pairs.back(),
+					]
+				for selected_tier_two in tier_two_pairs:
+					var selected_tier_three := tier_three_options[
+						case_count % tier_three_options.size()
+					]
 					validate_roster(
 						selected_tier_one,
 						selected_tier_two,
+						selected_tier_three,
 						1000 + case_count
 					)
 					case_count += 1
@@ -37,6 +51,75 @@ func _ready() -> void:
 		% [case_count, early_order_count]
 	)
 	get_tree().quit(0)
+
+
+func validate_enemy_lifecycles() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77123
+	var director = WaveDirectorScript.new(rng)
+	director.enemy_debut_plan = {
+		&"normal": 1,
+		&"runner": 4,
+		&"rusher": 14,
+		&"swarmling": 6,
+		&"splitter": 14,
+		&"bruiser": 10,
+		&"juggernaut": 18,
+	}
+	director.round_number = 14
+	var runner_at_successor_debut := director.get_progression_spawn_weight(&"runner")
+	var swarmling_at_splitter_debut := director.get_progression_spawn_weight(&"swarmling")
+	director.round_number = 17
+	assert(director.get_progression_spawn_weight(&"runner") < runner_at_successor_debut)
+	assert(is_equal_approx(
+		director.get_progression_spawn_weight(&"swarmling"),
+		swarmling_at_splitter_debut
+	))
+	director.round_number = 21
+	assert(is_equal_approx(
+		director.get_progression_spawn_weight(&"runner"),
+		65.0 * 0.15
+	))
+	assert(is_equal_approx(
+		director.get_progression_spawn_weight(&"normal"),
+		100.0 * 0.15
+	))
+
+
+func validate_late_composition() -> void:
+	var total_count := 0.0
+	var fodder_count := 0.0
+	var normal_count := 0.0
+	var fodder_threat := 0.0
+	var tank_threat := 0.0
+	for seed_value in range(1, 9):
+		var rng := RandomNumberGenerator.new()
+		var director = WaveDirectorScript.new(rng)
+		var counts: Dictionary = director.simulate_spawn_counts(
+			23,
+			&"standard",
+			90000 + seed_value,
+			&"easy",
+			24
+		)
+		for count_key in counts:
+			var enemy_id := StringName(String(count_key).get_slice("|", 0))
+			var count := float(counts[count_key])
+			var stats := GameStats.get_enemy(enemy_id)
+			var role := StringName(stats.get("role", &"fodder"))
+			var threat := count * float(stats.get("director_cost", 1))
+			total_count += count
+			if role == &"fodder":
+				fodder_count += count
+				fodder_threat += threat
+			elif role == &"tank":
+				tank_threat += threat
+			if enemy_id == &"normal":
+				normal_count += count
+	assert(total_count > 0.0)
+	assert(fodder_count / total_count < 0.20)
+	assert(normal_count / total_count < 0.12)
+	assert(tank_threat > fodder_threat * 4.0)
 
 
 func validate_new_wave_shapes() -> void:
@@ -165,9 +248,22 @@ func get_tier_two_pairs(selected_families: Array) -> Array:
 	return pairs
 
 
+func get_tier_three_options() -> Array[StringName]:
+	var options: Array[StringName] = []
+	for enemy_key in GameStats.ENEMIES:
+		var enemy_id := StringName(enemy_key)
+		if (
+			GameStats.get_enemy_family(enemy_id) != &"general"
+			and GameStats.get_enemy_family_tier(enemy_id) == 3
+		):
+			options.append(enemy_id)
+	return options
+
+
 func validate_roster(
 	selected_tier_one: Array[StringName],
 	selected_tier_two_value: Array,
+	selected_tier_three: StringName,
 	seed_value: int
 ) -> void:
 	var selected_tier_two: Array[StringName] = []
@@ -181,6 +277,7 @@ func validate_roster(
 		plan[selected_tier_one[index]] = [4, 6, 10][index]
 	for index in selected_tier_two.size():
 		plan[selected_tier_two[index]] = [14, 18][index]
+	plan[selected_tier_three] = 20
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
@@ -196,7 +293,15 @@ func validate_roster(
 		)
 	var full_roster := selected_tier_one.duplicate()
 	full_roster.append_array(selected_tier_two)
-	for round_number in [19, 21, 22, 23]:
+	validate_style_group(
+		director,
+		plan,
+		19,
+		&"layered_assault",
+		full_roster
+	)
+	full_roster.append(selected_tier_three)
+	for round_number in [21, 22, 23]:
 		validate_style_group(
 			director,
 			plan,
@@ -205,7 +310,7 @@ func validate_roster(
 			full_roster
 		)
 
-	for round_number in [4, 5, 6, 8, 10, 14, 18, 22]:
+	for round_number in [4, 5, 6, 8, 10, 14, 18, 20, 22]:
 		var available := GameStats.get_available_enemy_ids(round_number, plan)
 		var eligible := GameStats.get_eligible_wave_styles(round_number, available)
 		assert(not eligible.is_empty())

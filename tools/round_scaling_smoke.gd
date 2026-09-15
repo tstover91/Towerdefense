@@ -8,7 +8,7 @@ func _init() -> void:
 	assert(GameStats.ROUND_PROFILES.size() == 24)
 	assert(is_equal_approx(GameStats.KILL_REWARD_MULTIPLIER, 0.592))
 	assert(is_equal_approx(GameStats.STANDARD_ENEMY_SPEED_MULTIPLIER, 0.44))
-	assert(is_equal_approx(GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER, 1.30))
+	assert(is_equal_approx(GameStats.STANDARD_ENEMY_HEALTH_MULTIPLIER, 1.00))
 	assert(is_equal_approx(
 		GameStats.STANDARD_ENEMY_THREAT_BUDGET_MULTIPLIER,
 		0.70
@@ -48,10 +48,10 @@ func _init() -> void:
 		total_round_cash += GameStats.get_round_cash_reward(round_number)
 	assert(total_round_cash == 30900)
 	var expected_health_multipliers := [
-		1.50, 2.00, 2.50, 3.00, 3.50, 4.00,
-		4.50, 5.00, 5.50, 6.00, 6.50, 7.00,
-		7.40, 7.70, 8.00, 8.30, 8.60, 9.00,
-		9.40, 9.80, 10.20, 10.60, 11.00, 11.00,
+		1.00, 1.08, 1.16, 1.25, 1.35, 1.46,
+		1.58, 1.70, 1.84, 2.00, 2.15, 2.30,
+		2.50, 2.70, 2.95, 3.20, 3.45, 3.75,
+		4.10, 4.50, 4.90, 5.30, 5.75, 5.75,
 	]
 	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(10), 1.0))
 	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(11), 1.025))
@@ -72,10 +72,6 @@ func _init() -> void:
 		var expected_boss_health := (
 			1.15 + float(round_number - 1) * 0.025
 		) * 1.10 * GameStats.get_late_difficulty_health_multiplier(round_number)
-		expected_health_multipliers[round_number - 1] *= (
-			GameStats.get_late_difficulty_health_multiplier(round_number)
-		)
-
 		assert(is_equal_approx(
 			GameStats.get_round_duration(round_number),
 			expected_duration
@@ -104,21 +100,30 @@ func _init() -> void:
 		assert(not enemy.has("threat_cost"))
 		assert(not enemy.has("first_wave"))
 		assert(enemy.has("family"))
-		assert(int(enemy.get("family_tier", 0)) in [1, 2])
+		assert(int(enemy.get("family_tier", 0)) in [1, 2, 3])
 
 	var expected_families := {
 		&"speed": {1: [&"runner"], 2: [&"rusher"]},
-		&"swarms": {1: [&"swarmling"], 2: [&"splitter"]},
-		&"tank": {1: [&"bruiser"], 2: [&"juggernaut"]},
-		&"armor": {1: [&"armored"], 2: [&"swat_enforcer"]},
+		&"swarms": {
+			1: [&"swarmling"],
+			2: [&"splitter"],
+			3: [&"troop_carrier"],
+		},
+		&"tank": {1: [&"bruiser"], 2: [], 3: [&"juggernaut"]},
+		&"armor": {1: [&"armored"], 2: [], 3: [&"swat_enforcer"]},
 		&"buffs": {1: [&"buffer"], 2: []},
 		&"hidden": {1: [], 2: [&"hidden"]},
 		&"healer": {1: [], 2: [&"regenerator"]},
 		&"summon": {1: [], 2: [&"summoner"]},
-		&"shields": {1: [&"shielded"], 2: [&"shield_projector"]},
+		&"shields": {
+			1: [&"shielded"],
+			2: [&"shield_regenerator"],
+			3: [&"shield_projector"],
+		},
 		&"general": {
 			1: [&"normal"],
-			2: [&"striker", &"heavy_enforcer", &"bulwark", &"brute"],
+			2: [&"striker", &"heavy_enforcer"],
+			3: [&"bulwark", &"brute"],
 		},
 	}
 	for family in expected_families:
@@ -131,21 +136,24 @@ func _init() -> void:
 	assert(int(GameStats.ENEMIES[&"juggernaut"]["armor"]) == 0)
 	assert(not GameStats.ENEMIES[&"juggernaut"]["traits"].has(&"armored"))
 	var early_family_weights: Dictionary = GameStats.WAVE_ROLE_WEIGHTS[1]["weights"]
-	assert(is_equal_approx(float(early_family_weights[&"fodder"]), 50.0))
+	assert(is_equal_approx(float(early_family_weights[&"fodder"]), 45.0))
 	assert(is_equal_approx(float(early_family_weights[&"support"]), 10.0))
+	var late_family_weights: Dictionary = GameStats.WAVE_ROLE_WEIGHTS.back()["weights"]
+	assert(is_equal_approx(float(late_family_weights[&"fodder"]), 5.0))
+	assert(is_equal_approx(float(late_family_weights[&"tank"]), 57.0))
 
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(1, &"normal")
-	) == 98)
+	) == 50)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"normal")
-	) == 843)
+	) == 288)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"bruiser"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"bruiser")
-	) == 6642)
+	) == 1265)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"brute"]["health"])
 		* GameStats.get_enemy_health_multiplier(24, &"brute")

@@ -185,7 +185,10 @@ func build_enemy_scenario(
 			"armor": float(enemy.get("armor", 0.0)),
 			"health": maxf(health, 1.0),
 			"speed": speed,
-			"regeneration": float(enemy.get("regeneration_per_second", 0.0)),
+			"regeneration": maxf(
+				float(enemy.get("regeneration_per_second", 0.0)),
+				health * float(enemy.get("regeneration_max_health_ratio", 0.0))
+			),
 			"ablative_shield_points": int(enemy.get("ablative_shield_points", 0)),
 			"boss": bool(enemy.get("boss", false)),
 			"hidden": enemy_traits.has(&"hidden"),

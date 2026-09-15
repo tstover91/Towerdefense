@@ -63,6 +63,7 @@ var round_style_plan: Dictionary = {}
 var selected_enemy_families: Array[StringName] = []
 var selected_tier_one_enemies: Array[StringName] = []
 var selected_tier_two_enemies: Array[StringName] = []
+var selected_tier_three_enemies: Array[StringName] = []
 var round_number := 1
 var current_round_type: StringName = ROUND_STANDARD
 var current_wave_spawn_style: StringName = &"standard"
@@ -86,6 +87,7 @@ func generate_run_plan() -> void:
 	selected_enemy_families.assign(progression["selected_families"])
 	selected_tier_one_enemies.assign(progression["selected_tier_one"])
 	selected_tier_two_enemies.assign(progression["selected_tier_two"])
+	selected_tier_three_enemies.assign(progression["selected_tier_three"])
 	round_style_plan = GameStats.build_round_style_plan(rng, enemy_debut_plan)
 
 
@@ -353,7 +355,7 @@ func build_role_based_enemy_queue(
 func get_progression_roster_enemies(include_tier_two: bool) -> Array[StringName]:
 	var roster: Array[StringName] = []
 	var eligible_debut_rounds := (
-		[4, 6, 10, 14, 18] if include_tier_two else [4, 6, 10]
+		[4, 6, 10, 14, 18, 20] if include_tier_two else [4, 6, 10]
 	)
 	for enemy_key in enemy_debut_plan:
 		var enemy_id := StringName(enemy_key)
@@ -1066,11 +1068,49 @@ func choose_weighted_enemy(available: Array[StringName]) -> StringName:
 func get_progression_spawn_weight(enemy_id: StringName) -> float:
 	var stats := GameStats.get_enemy(enemy_id)
 	var base_weight := float(stats.get("spawn_weight", 1.0))
-	if StringName(stats.get("family", &"general")) == &"general":
-		return base_weight
 	var debut_round := int(enemy_debut_plan.get(enemy_id, round_number))
 	var rounds_available := maxi(round_number - debut_round, 0)
-	return base_weight * (1.0 + minf(float(rounds_available) * 0.08, 0.8))
+	var debut_multiplier := 1.0
+	if rounds_available == 0:
+		debut_multiplier = 1.35
+	elif rounds_available == 1:
+		debut_multiplier = 1.15
+
+	var retirement_multiplier := 1.0
+	if enemy_id == &"normal":
+		retirement_multiplier = get_retirement_multiplier(17)
+	elif (
+		int(stats.get("family_tier", 1)) < 3
+		and StringName(stats.get("family", &"general")) != &"swarms"
+	):
+		var successor_debut := get_available_family_successor_debut(enemy_id)
+		if successor_debut < 999:
+			retirement_multiplier = get_retirement_multiplier(successor_debut)
+	return base_weight * debut_multiplier * retirement_multiplier
+
+
+func get_available_family_successor_debut(enemy_id: StringName) -> int:
+	var family := GameStats.get_enemy_family(enemy_id)
+	var current_tier := GameStats.get_enemy_family_tier(enemy_id)
+	var earliest_successor_debut := 999
+	for successor_tier in range(current_tier + 1, 4):
+		for successor_id in GameStats.get_enemy_family_ids(family, successor_tier):
+			var successor_debut := int(enemy_debut_plan.get(successor_id, 999))
+			if successor_debut <= round_number:
+				earliest_successor_debut = mini(
+					earliest_successor_debut,
+					successor_debut
+				)
+	return earliest_successor_debut
+
+
+func get_retirement_multiplier(successor_debut: int) -> float:
+	var rounds_since_successor := maxi(round_number - successor_debut, 0)
+	return lerpf(
+		1.0,
+		0.15,
+		clampf(float(rounds_since_successor) / 3.0, 0.0, 1.0)
+	)
 
 
 func simulate_spawn_counts(

@@ -491,6 +491,7 @@ const FIXED_ENEMY_DEBUT_ROUNDS := {
 const ENEMY_DEBUT_GROUPS := [
 	{"family_tier": 1, "count": 3, "rounds": [4, 6, 10]},
 	{"family_tier": 2, "count": 2, "rounds": [14, 18]},
+	{"family_tier": 3, "count": 1, "rounds": [20]},
 ]
 
 # Set pieces are eligible only when their required roster is already revealed.
@@ -526,36 +527,36 @@ const WAVE_ROLE_WEIGHTS := [
 	{
 		"maximum_wave": 8,
 		"weights": {
-			&"fodder": 50.0, &"pressure": 25.0,
+			&"fodder": 45.0, &"pressure": 30.0,
 			&"tank": 15.0, &"support": 10.0,
 		},
 	},
 	{
 		"maximum_wave": 13,
 		"weights": {
-			&"fodder": 45.0, &"pressure": 25.0,
-			&"tank": 20.0, &"support": 10.0,
+			&"fodder": 35.0, &"pressure": 30.0,
+			&"tank": 25.0, &"support": 10.0,
 		},
 	},
 	{
 		"maximum_wave": 17,
 		"weights": {
-			&"fodder": 35.0, &"pressure": 25.0,
-			&"tank": 30.0, &"support": 10.0,
+			&"fodder": 20.0, &"pressure": 30.0,
+			&"tank": 38.0, &"support": 12.0,
 		},
 	},
 	{
 		"maximum_wave": 21,
 		"weights": {
-			&"fodder": 25.0, &"pressure": 25.0,
-			&"tank": 40.0, &"support": 10.0,
+			&"fodder": 10.0, &"pressure": 25.0,
+			&"tank": 48.0, &"support": 17.0,
 		},
 	},
 	{
 		"maximum_wave": 999,
 		"weights": {
-			&"fodder": 15.0, &"pressure": 20.0,
-			&"tank": 50.0, &"support": 15.0,
+			&"fodder": 5.0, &"pressure": 18.0,
+			&"tank": 57.0, &"support": 20.0,
 		},
 	},
 ]
@@ -627,67 +628,46 @@ const ROUND_CASH_REWARDS := {
 	24: 0,
 }
 
-# Explicit round scaling profiles. Standard health follows a deliberately flat
-# curve so late enemy identity comes primarily from base stats and composition.
+# Explicit round scaling profiles. Standard health uses one moderate curve so
+# late enemy identity comes primarily from tiers, traits, and composition.
 #
 # threat_budget is the pre-pacing nominal amount generated during timed
 # spawning. get_round_threat_budget() applies the global pacing multiplier used
 # to trade crowd size for longer-lived individual enemies. Chunk timing can
 # leave a small reserve unspent. The mode's starting_spawn_threat is separate.
 const ROUND_PROFILES := {
-	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.50, "boss_health_multiplier": 1.2650},
-	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 2.00, "boss_health_multiplier": 1.2925},
-	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 2.50, "boss_health_multiplier": 1.3200},
-	4: {"duration": 35.0, "threat_budget": 56, "standard_health_multiplier": 3.00, "boss_health_multiplier": 1.3475},
-	5: {"duration": 40.0, "threat_budget": 75.0, "standard_health_multiplier": 3.50, "boss_health_multiplier": 1.3750},
-	6: {"duration": 45.0, "threat_budget": 90.0, "standard_health_multiplier": 4.00, "boss_health_multiplier": 1.4025},
-	7: {"duration": 50.0, "threat_budget": 112.0, "standard_health_multiplier": 4.50, "boss_health_multiplier": 1.4300},
-	8: {"duration": 55.0, "threat_budget": 140.0, "standard_health_multiplier": 5.00, "boss_health_multiplier": 1.4575},
-	9: {"duration": 60.0, "threat_budget": 170.0, "standard_health_multiplier": 5.50, "boss_health_multiplier": 1.4850},
-	10: {"duration": 60.0, "threat_budget": 205.0, "standard_health_multiplier": 6.00, "boss_health_multiplier": 1.5125},
-	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 6.50, "boss_health_multiplier": 1.5400},
-	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 7.00, "boss_health_multiplier": 1.5675},
-	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 7.40, "boss_health_multiplier": 1.5950},
-	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 7.70, "boss_health_multiplier": 1.6225},
-	15: {"duration": 60.0, "threat_budget": 380.0, "standard_health_multiplier": 8.00, "boss_health_multiplier": 1.6500},
-	16: {"duration": 60.0, "threat_budget": 400.0, "standard_health_multiplier": 8.30, "boss_health_multiplier": 1.6775},
-	17: {"duration": 60.0, "threat_budget": 420.0, "standard_health_multiplier": 8.60, "boss_health_multiplier": 1.7050},
-	18: {"duration": 60.0, "threat_budget": 440.0, "standard_health_multiplier": 9.00, "boss_health_multiplier": 1.7325},
-	19: {"duration": 60.0, "threat_budget": 460.0, "standard_health_multiplier": 9.40, "boss_health_multiplier": 1.7600},
-	20: {"duration": 60.0, "threat_budget": 480.0, "standard_health_multiplier": 9.80, "boss_health_multiplier": 1.7875},
-	21: {"duration": 60.0, "threat_budget": 505.0, "standard_health_multiplier": 10.20, "boss_health_multiplier": 1.8150},
-	22: {"duration": 60.0, "threat_budget": 535.0, "standard_health_multiplier": 10.60, "boss_health_multiplier": 1.8425},
-	23: {"duration": 60.0, "threat_budget": 570.0, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8700},
-	24: {"duration": 90.0, "threat_budget": 820.0, "standard_health_multiplier": 11.00, "boss_health_multiplier": 1.8975},
+	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.00, "boss_health_multiplier": 1.2650},
+	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 1.08, "boss_health_multiplier": 1.2925},
+	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 1.16, "boss_health_multiplier": 1.3200},
+	4: {"duration": 35.0, "threat_budget": 56, "standard_health_multiplier": 1.25, "boss_health_multiplier": 1.3475},
+	5: {"duration": 40.0, "threat_budget": 75.0, "standard_health_multiplier": 1.35, "boss_health_multiplier": 1.3750},
+	6: {"duration": 45.0, "threat_budget": 90.0, "standard_health_multiplier": 1.46, "boss_health_multiplier": 1.4025},
+	7: {"duration": 50.0, "threat_budget": 112.0, "standard_health_multiplier": 1.58, "boss_health_multiplier": 1.4300},
+	8: {"duration": 55.0, "threat_budget": 140.0, "standard_health_multiplier": 1.70, "boss_health_multiplier": 1.4575},
+	9: {"duration": 60.0, "threat_budget": 170.0, "standard_health_multiplier": 1.84, "boss_health_multiplier": 1.4850},
+	10: {"duration": 60.0, "threat_budget": 205.0, "standard_health_multiplier": 2.00, "boss_health_multiplier": 1.5125},
+	11: {"duration": 60.0, "threat_budget": 286.3560, "standard_health_multiplier": 2.15, "boss_health_multiplier": 1.5400},
+	12: {"duration": 60.0, "threat_budget": 313.8240, "standard_health_multiplier": 2.30, "boss_health_multiplier": 1.5675},
+	13: {"duration": 60.0, "threat_budget": 342.8040, "standard_health_multiplier": 2.50, "boss_health_multiplier": 1.5950},
+	14: {"duration": 60.0, "threat_budget": 373.2960, "standard_health_multiplier": 2.70, "boss_health_multiplier": 1.6225},
+	15: {"duration": 60.0, "threat_budget": 380.0, "standard_health_multiplier": 2.95, "boss_health_multiplier": 1.6500},
+	16: {"duration": 60.0, "threat_budget": 400.0, "standard_health_multiplier": 3.20, "boss_health_multiplier": 1.6775},
+	17: {"duration": 60.0, "threat_budget": 420.0, "standard_health_multiplier": 3.45, "boss_health_multiplier": 1.7050},
+	18: {"duration": 60.0, "threat_budget": 440.0, "standard_health_multiplier": 3.75, "boss_health_multiplier": 1.7325},
+	19: {"duration": 60.0, "threat_budget": 460.0, "standard_health_multiplier": 4.10, "boss_health_multiplier": 1.7600},
+	20: {"duration": 60.0, "threat_budget": 480.0, "standard_health_multiplier": 4.50, "boss_health_multiplier": 1.7875},
+	21: {"duration": 60.0, "threat_budget": 505.0, "standard_health_multiplier": 4.90, "boss_health_multiplier": 1.8150},
+	22: {"duration": 60.0, "threat_budget": 535.0, "standard_health_multiplier": 5.30, "boss_health_multiplier": 1.8425},
+	23: {"duration": 60.0, "threat_budget": 570.0, "standard_health_multiplier": 5.75, "boss_health_multiplier": 1.8700},
+	24: {"duration": 90.0, "threat_budget": 820.0, "standard_health_multiplier": 5.75, "boss_health_multiplier": 1.8975},
 	
-}
-
-const ENEMY_LATE_HEALTH_FACTORS := {
-	&"normal": 0.65,
-	&"runner": 0.75,
-	&"swarmling": 0.45,
-	&"bruiser": 1.20,
-	&"splitter": 0.90,
-	&"hidden": 0.80,
-	&"armored": 1.10,
-	&"buffer": 1.00,
-	&"regenerator": 1.15,
-	&"rusher": 0.85,
-	&"summoner": 1.00,
-	&"swat_enforcer": 1.20,
-	&"heavy_enforcer": 1.15,
-	&"shielded": 1.00,
-	&"shield_projector": 1.00,
-	&"juggernaut": 1.10,
-	&"bulwark": 1.05,
-	&"brute": 1.00,
 }
 
 # Variants remain independent layers because they define special-round enemy
 # behavior rather than ordinary round progression. Standard enemies are slower,
 # tougher, and less numerous so their traits have time to become readable.
 const STANDARD_ENEMY_SPEED_MULTIPLIER := 0.44
-const STANDARD_ENEMY_HEALTH_MULTIPLIER := 1.30
+const STANDARD_ENEMY_HEALTH_MULTIPLIER := 1.00
 const STANDARD_ENEMY_THREAT_BUDGET_MULTIPLIER := 0.70
 const HORDE_ENEMY_HEALTH_MULTIPLIER := 0.55
 const ELITE_ENEMY_HEALTH_MULTIPLIER := 2.25
@@ -1115,6 +1095,33 @@ const ENEMIES := {
 		"color": Color(0.65, 0.25, 0.9),
 		"visual_scale": 1.1,
 	},
+	"troop_carrier": {
+		"display_name": "Troop Carrier",
+		"health": 1400,
+		"health_per_wave": 0.0,
+		"move_speed": 58.0,
+		"cash_reward": 120,
+		"base_damage": 30,
+		"armor": 10,
+		"earliest_debut_round": 20,
+		"formation_strength": 42,
+		"director_cost": 34,
+		"spawn_weight": 6,
+		"spawn_style": &"spaced",
+		"role": &"tank",
+		"family": &"swarms",
+		"family_tier": 3,
+		"traits": [&"armored", &"carrier"],
+		"summon_enemy_id": &"swarmling",
+		"summon_interval": 4.0,
+		"summon_limit": 3,
+		"split_enemy_id": &"swarmling",
+		"split_count": 4,
+		"passenger_capacity": 7,
+		"passenger_leak_damage": 1,
+		"color": Color(0.28, 0.34, 0.24),
+		"visual_scale": 1.6,
+	},
 	"hidden": {
 		"display_name": "Hidden",
 		"health": 75,
@@ -1194,7 +1201,7 @@ const ENEMIES := {
 		"family": &"healer",
 		"family_tier": 2,
 		"traits": [&"regenerates"],
-		"regeneration_per_second": 20,
+		"regeneration_max_health_ratio": 0.018,
 		"color": Color(0.25, 1.0, 0.35),
 		"visual_scale": 1.15,
 	},
@@ -1251,14 +1258,14 @@ const ENEMIES := {
 		"cash_reward": 80,
 		"base_damage": 30,
 		"armor": 25,
-		"earliest_debut_round": 14,
+		"earliest_debut_round": 20,
 		"formation_strength": 30,
 		"director_cost": 22,
 		"spawn_weight": 8,
 		"spawn_style": &"spaced",
 		"role": &"tank",
 		"family": &"armor",
-		"family_tier": 2,
+		"family_tier": 3,
 		"traits": [&"armored", &"high_health"],
 		"color": Color(0.18, 0.22, 0.28),
 		"visual_scale": 1.45,
@@ -1305,41 +1312,64 @@ const ENEMIES := {
 	},
 	"shielded": {
 		"display_name": "Shielded",
-		"health": 450,
+		"health": 180,
 		"health_per_wave": 0.0,
 		"move_speed": 78.0,
-		"cash_reward": 58,
-		"base_damage": 16,
+		"cash_reward": 30,
+		"base_damage": 9,
 		"armor": 0,
-		"earliest_debut_round": 17,
-		"formation_strength": 16,
-		"director_cost": 11,
-		"spawn_weight": 14,
+		"earliest_debut_round": 4,
+		"formation_strength": 8,
+		"director_cost": 6,
+		"spawn_weight": 24,
 		"spawn_style": &"spaced",
 		"role": &"tank",
 		"family": &"shields",
 		"family_tier": 1,
 		"traits": [&"shielded"],
-		"ablative_shield_points": 5,
+		"ablative_shield_points": 3,
 		"color": Color(0.25, 0.72, 1.0),
 		"visual_scale": 1.15,
 	},
+	"shield_regenerator": {
+		"display_name": "Shield Regenerator",
+		"health": 500,
+		"health_per_wave": 0.0,
+		"move_speed": 72.0,
+		"cash_reward": 65,
+		"base_damage": 17,
+		"armor": 0,
+		"earliest_debut_round": 14,
+		"formation_strength": 18,
+		"director_cost": 12,
+		"spawn_weight": 12,
+		"spawn_style": &"spaced",
+		"role": &"tank",
+		"family": &"shields",
+		"family_tier": 2,
+		"traits": [&"shielded", &"regenerating_shield"],
+		"ablative_shield_points": 6,
+		"shield_regeneration_delay": 4.0,
+		"shield_regeneration_interval": 1.5,
+		"color": Color(0.22, 0.82, 0.92),
+		"visual_scale": 1.2,
+	},
 	"shield_projector": {
 		"display_name": "Shield Projector",
-		"health": 525,
+		"health": 700,
 		"health_per_wave": 0.0,
 		"move_speed": 68.0,
-		"cash_reward": 82,
+		"cash_reward": 100,
 		"base_damage": 18,
 		"armor": 0,
 		"earliest_debut_round": 20,
-		"formation_strength": 20,
-		"director_cost": 14,
+		"formation_strength": 28,
+		"director_cost": 22,
 		"spawn_weight": 10,
 		"spawn_style": &"steady",
 		"role": &"support",
 		"family": &"shields",
-		"family_tier": 2,
+		"family_tier": 3,
 		"traits": [&"shielded", &"shield_aura"],
 		"ablative_shield_points": 12,
 		"shield_aura_radius": 96.0,
@@ -1361,7 +1391,7 @@ const ENEMIES := {
 		"spawn_style": &"spaced",
 		"role": &"tank",
 		"family": &"tank",
-		"family_tier": 2,
+		"family_tier": 3,
 		"traits": [&"high_health", &"slow"],
 		"color": Color(0.42, 0.30, 0.22),
 		"visual_scale": 1.7,
@@ -1381,7 +1411,7 @@ const ENEMIES := {
 		"spawn_style": &"spaced",
 		"role": &"tank",
 		"family": &"general",
-		"family_tier": 2,
+		"family_tier": 3,
 		"traits": [&"armored", &"high_health", &"slow"],
 		"color": Color(0.20, 0.28, 0.42),
 		"visual_scale": 1.9,
@@ -1401,7 +1431,7 @@ const ENEMIES := {
 		"spawn_style": &"boss",
 		"role": &"boss",
 		"family": &"general",
-		"family_tier": 2,
+		"family_tier": 3,
 		"traits": [&"boss", &"high_health"],
 		"boss": true,
 		"color": Color(0.75, 0.08, 0.08),
@@ -3624,7 +3654,7 @@ static func get_enemy_family(enemy_id: StringName) -> StringName:
 
 
 static func get_enemy_family_tier(enemy_id: StringName) -> int:
-	return clampi(int(get_enemy(enemy_id).get("family_tier", 1)), 1, 2)
+	return clampi(int(get_enemy(enemy_id).get("family_tier", 1)), 1, 3)
 
 
 static func get_enemy_family_ids(
@@ -3651,6 +3681,7 @@ static func build_normal_enemy_progression(
 ) -> Dictionary:
 	var tier_one_by_family := {}
 	var tier_two_by_family := {}
+	var tier_three_by_family := {}
 	for enemy_key in ENEMIES:
 		var enemy_id := StringName(enemy_key)
 		var enemy: Dictionary = ENEMIES[enemy_key]
@@ -3660,16 +3691,19 @@ static func build_normal_enemy_progression(
 		if family == &"general":
 			continue
 		var family_tier := int(enemy.get("family_tier", 1))
-		var family_members: Array = (
-			tier_one_by_family.get(family, [])
-			if family_tier == 1
-			else tier_two_by_family.get(family, [])
-		)
+		var tier_pool := tier_one_by_family
+		if family_tier == 2:
+			tier_pool = tier_two_by_family
+		elif family_tier == 3:
+			tier_pool = tier_three_by_family
+		var family_members: Array = tier_pool.get(family, [])
 		family_members.append(enemy_id)
 		if family_tier == 1:
 			tier_one_by_family[family] = family_members
-		else:
+		elif family_tier == 2:
 			tier_two_by_family[family] = family_members
+		else:
+			tier_three_by_family[family] = family_members
 
 	var family_pool: Array = tier_one_by_family.keys()
 	shuffle_with_rng(family_pool, rng)
@@ -3682,52 +3716,47 @@ static func build_normal_enemy_progression(
 		selected_families.append(family)
 		selected_tier_one.append(StringName(tier_one_options[0]))
 
-	var upgrade_family_pool: Array = []
-	for family in selected_families:
-		if not Array(tier_two_by_family.get(family, [])).is_empty():
-			upgrade_family_pool.append(family)
-	shuffle_with_rng(upgrade_family_pool, rng)
 	var selected_tier_two: Array[StringName] = []
 	var advanced_families: Array[StringName] = []
-	for family_value in upgrade_family_pool:
-		if selected_tier_two.size() >= 2:
+	# Matching families are three times as likely, but standalone Tier 2 threats
+	# remain possible so the late roster still varies substantially between runs.
+	while selected_tier_two.size() < 2:
+		var weighted_options: Array[StringName] = []
+		for family_key in tier_two_by_family:
+			var family := StringName(family_key)
+			if family in advanced_families:
+				continue
+			var copies := 3 if family in selected_families else 1
+			for enemy_value in Array(tier_two_by_family[family]):
+				for _copy in copies:
+					weighted_options.append(StringName(enemy_value))
+		if weighted_options.is_empty():
 			break
-		var family := StringName(family_value)
-		var tier_two_options: Array = tier_two_by_family[family].duplicate()
-		shuffle_with_rng(tier_two_options, rng)
-		selected_tier_two.append(StringName(tier_two_options[0]))
-		advanced_families.append(family)
-
-	# A run can select families that do not have Tier 2 content yet. Fill any
-	# missing upgrade beats from the remaining non-general Tier 2 roster.
-	var fallback_tier_two: Array = []
-	for family_key in tier_two_by_family:
-		if advanced_families.has(StringName(family_key)):
-			continue
-		for enemy_id in Array(tier_two_by_family[family_key]):
-			if not selected_tier_two.has(StringName(enemy_id)):
-				fallback_tier_two.append(StringName(enemy_id))
-	shuffle_with_rng(fallback_tier_two, rng)
-	while selected_tier_two.size() < 2 and not fallback_tier_two.is_empty():
-		var enemy_id := StringName(fallback_tier_two.pop_back())
+		var enemy_id := weighted_options[rng.randi_range(0, weighted_options.size() - 1)]
 		selected_tier_two.append(enemy_id)
 		advanced_families.append(get_enemy_family(enemy_id))
-	if selected_tier_two.size() < 2:
-		var any_tier_two: Array = []
-		for enemy_key in ENEMIES:
-			var enemy_id := StringName(enemy_key)
-			var enemy: Dictionary = ENEMIES[enemy_key]
-			if (
-				not bool(enemy.get("boss", false))
-				and int(enemy.get("family_tier", 1)) == 2
-				and not selected_tier_two.has(enemy_id)
-			):
-				any_tier_two.append(enemy_id)
-		shuffle_with_rng(any_tier_two, rng)
-		while selected_tier_two.size() < 2 and not any_tier_two.is_empty():
-			var enemy_id := StringName(any_tier_two.pop_back())
-			selected_tier_two.append(enemy_id)
-			advanced_families.append(get_enemy_family(enemy_id))
+
+	var selected_tier_three: Array[StringName] = []
+	var apex_families: Array[StringName] = []
+	while selected_tier_three.size() < 1:
+		var weighted_options: Array[StringName] = []
+		for family_key in tier_three_by_family:
+			var family := StringName(family_key)
+			if family in apex_families:
+				continue
+			var copies := 1
+			if family in advanced_families:
+				copies = 5
+			elif family in selected_families:
+				copies = 3
+			for enemy_value in Array(tier_three_by_family[family]):
+				for _copy in copies:
+					weighted_options.append(StringName(enemy_value))
+		if weighted_options.is_empty():
+			break
+		var enemy_id := weighted_options[rng.randi_range(0, weighted_options.size() - 1)]
+		selected_tier_three.append(enemy_id)
+		apex_families.append(get_enemy_family(enemy_id))
 
 	var plan := {}
 	for enemy_key in ENEMIES:
@@ -3742,12 +3771,17 @@ static func build_normal_enemy_progression(
 	var tier_two_rounds := [14, 18]
 	for index in selected_tier_two.size():
 		plan[selected_tier_two[index]] = tier_two_rounds[index]
+	var tier_three_rounds := [20]
+	for index in selected_tier_three.size():
+		plan[selected_tier_three[index]] = tier_three_rounds[index]
 	return {
 		"debut_plan": plan,
 		"selected_families": selected_families,
 		"selected_tier_one": selected_tier_one,
 		"selected_tier_two": selected_tier_two,
+		"selected_tier_three": selected_tier_three,
 		"advanced_families": advanced_families,
+		"apex_families": apex_families,
 	}
 
 
@@ -3914,12 +3948,12 @@ static func get_late_kill_reward_multiplier(round_number: int) -> float:
 
 static func get_round_health_multiplier(round_number: int, boss := false) -> float:
 	var profile := get_round_profile(round_number)
-	return (
-		float(profile[
-			"boss_health_multiplier" if boss else "standard_health_multiplier"
-		])
-		* get_late_difficulty_health_multiplier(round_number)
-	)
+	if boss:
+		return (
+			float(profile["boss_health_multiplier"])
+			* get_late_difficulty_health_multiplier(round_number)
+		)
+	return float(profile["standard_health_multiplier"])
 
 
 static func get_enemy_health_multiplier(
@@ -3929,11 +3963,8 @@ static func get_enemy_health_multiplier(
 	var enemy := get_enemy(enemy_id)
 	if bool(enemy.get("boss", false)):
 		return get_round_health_multiplier(round_number, true)
-	var progress := clampf(float(round_number - 1) / 23.0, 0.0, 1.0)
-	var late_factor := float(ENEMY_LATE_HEALTH_FACTORS.get(enemy_id, 1.0))
 	return (
 		get_round_health_multiplier(round_number, false)
-		* lerpf(1.0, late_factor, progress)
 		* STANDARD_ENEMY_HEALTH_MULTIPLIER
 	)
 
