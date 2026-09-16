@@ -378,6 +378,9 @@ var pooled_hitscan_effects: Array[Node2D] = []
 var pooled_explosion_effects: Array[Node2D] = []
 var spawning_active := false
 var director_cooldown := 0.0
+var planned_group_pause_active := false
+var planned_group_minimum_pause_remaining := 0.0
+var planned_group_release_active_count := 0
 var spore_network_last_refresh_msec := -1000000
 var spore_network_primary_owner_id := 0
 var spore_network_primary_target: Node2D
@@ -2169,11 +2172,8 @@ func start_round() -> void:
 	if not round_controller.begin_round(get_wave_duration(next_round)):
 		return
 	item_drop_manager.begin_round(round_number)
-	threat_per_second = get_wave_threat_rate(round_number)
-	if current_round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
-		threat_per_second *= get_horde_threat_multiplier(round_number)
 	var mode: Dictionary = GameStats.get_mode(mode_id)
-	spawn_threat = mode.get("starting_spawn_threat", 1.0)
+	spawn_threat = 0.0
 	threat_chunk_elapsed = 0.0
 	threat_continuous_ratio = mode.get("threat_continuous_ratio", 1.0)
 	threat_chunk_ratio = mode.get("threat_chunk_ratio", 0.0)
@@ -2194,6 +2194,9 @@ func start_round() -> void:
 			absolute_enemy_cap
 		)
 	director_cooldown = 0.0
+	planned_group_pause_active = false
+	planned_group_minimum_pause_remaining = 0.0
+	planned_group_release_active_count = 0
 	final_elite_pack_spawned = false
 	last_gauntlet_spawn_style = &""
 	gauntlet_style_repeat_count = 0
@@ -2213,11 +2216,21 @@ func start_round() -> void:
 		next_elite_event_time = INF
 	spawning_active = true
 	current_wave_spawn_style = choose_wave_spawn_style(round_number)
-	if round_number == max_rounds:
-		current_wave_spawn_style = &"boss_escort"
-		spawn_schedule = build_timed_boss_opening()
-	else:
-		spawn_schedule = build_debut_opening(round_number)
+	sync_wave_director_context()
+	var round_plan: Dictionary = wave_director.build_round_schedule(
+		round_number,
+		current_round_type,
+		mode_id,
+		max_rounds
+	)
+	spawn_schedule.assign(round_plan.get("schedule", []))
+	current_wave_spawn_style = StringName(round_plan.get(
+		"style", current_wave_spawn_style
+	))
+	assign_paths_to_spawn_groups(spawn_schedule)
+	for spawn_event in spawn_schedule:
+		if not bool(spawn_event.get("free_spawn", false)):
+			spawn_threat += get_spawn_event_director_cost(spawn_event)
 	mobs_left_to_spawn = spawn_schedule.size()
 	if active_map != null and active_map.has_method("set_round_preview"):
 		active_map.call("set_round_preview", round_number, false)
@@ -2225,6 +2238,8 @@ func start_round() -> void:
 	reinforcement_button_state_initialized = false
 	round_started.emit(round_number)
 	spawntimer.one_shot = true
+	if not spawn_schedule.is_empty():
+		spawntimer.start(0.01)
 	update_round_count()
 	update_play_pause_button()
 	
@@ -2246,11 +2261,11 @@ func update_round_count() -> void:
 	var round_type_name := get_round_type_display_name(current_round_type)
 	if round_active and spawning_active:
 		if current_round_type == ROUND_STANDARD:
-			round_timer_display.text = "Spawning: %ds" % ceili(round_time_remaining)
+			round_timer_display.text = "Enemies incoming: %d" % mobs_left_to_spawn
 		else:
-			round_timer_display.text = "%s: %ds" % [
+			round_timer_display.text = "%s: %d incoming" % [
 				round_type_name,
-				ceili(round_time_remaining),
+				mobs_left_to_spawn,
 			]
 	elif round_active:
 		if current_round_type == ROUND_STANDARD:
@@ -2683,7 +2698,7 @@ func ensure_draft_manager() -> void:
 
 func roll_tower_offers() -> Array[StringName]:
 	ensure_draft_manager()
-	return draft_manager.roll_tower_offers(tower_roster)
+	return draft_manager.roll_tower_offers(tower_roster, [], round_number)
 
 
 func _on_draft_confirmed(item_id: StringName, quantity: int) -> void:
@@ -2987,6 +3002,7 @@ func _spawn_mob():
 		spawntimer.stop()
 		return
 	var spawn_event: Dictionary = spawn_schedule.front()
+	planned_group_pause_active = false
 	var event_cap := active_enemy_cap
 	if not spawn_event.get("special_event", false):
 		if current_round_type == ROUND_ELITE:
@@ -3017,15 +3033,23 @@ func _spawn_mob():
 
 	if spawn_schedule.is_empty():
 		spawntimer.stop()
-		director_cooldown = spawn_event["delay_after"]
+		spawning_active = false
+		update_round_count()
 		if sandbox_mode and not round_active:
-			spawning_active = false
 			update_round_count()
 			sandbox_panel.set_status(
 				"Wave deployed. %d enemies active." % mobs_alive
 			)
 	else:
 		var delay_after: float = spawn_event["delay_after"]
+		if bool(spawn_event.get("planned_group_end", false)):
+			planned_group_pause_active = true
+			planned_group_minimum_pause_remaining = float(
+				spawn_event.get("minimum_group_gap", 0.65)
+			)
+			planned_group_release_active_count = int(
+				spawn_event.get("adaptive_release_active_count", 1)
+			)
 		spawntimer.start(delay_after)
 
 
@@ -3420,36 +3444,29 @@ func simulate_director_spawn_counts(
 
 
 func _process_round_director(delta: float) -> void:
-	if not round_active or not spawning_active:
+	if not round_active:
 		return
 
 	ensure_round_controller()
-	var duration_finished: bool = round_controller.advance_time(delta)
-	spawn_threat += threat_per_second * threat_continuous_ratio * delta
-	threat_chunk_elapsed += delta
-	while threat_chunk_interval > 0.0 and threat_chunk_elapsed >= threat_chunk_interval:
-		threat_chunk_elapsed -= threat_chunk_interval
-		spawn_threat += (
-			threat_per_second
-			* threat_chunk_interval
-			* threat_chunk_ratio
+	round_controller.advance_time(delta)
+	if planned_group_pause_active:
+		planned_group_minimum_pause_remaining = maxf(
+			planned_group_minimum_pause_remaining - delta,
+			0.0
 		)
-	director_cooldown = maxf(director_cooldown - delta, 0.0)
-	process_special_round_events()
+		if (
+			planned_group_minimum_pause_remaining <= 0.0
+			and mobs_alive <= planned_group_release_active_count
+			and not spawntimer.is_stopped()
+		):
+			planned_group_pause_active = false
+			spawntimer.stop()
+			spawntimer.start(0.01)
 	update_round_count()
 
-	if duration_finished:
-		stop_timed_spawning()
+	if not spawning_active:
 		return
-
-	if not spawntimer.is_stopped():
-		return
-
-	if spawn_schedule.is_empty() and director_cooldown <= 0.0:
-		spawn_schedule = build_director_group()
-		mobs_left_to_spawn = spawn_schedule.size()
-
-	if not spawn_schedule.is_empty():
+	if spawntimer.is_stopped() and not spawn_schedule.is_empty():
 		spawntimer.start(0.01)
 
 

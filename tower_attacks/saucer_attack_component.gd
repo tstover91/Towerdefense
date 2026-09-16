@@ -11,6 +11,7 @@ var rocket_damage_multiplier := 2.0
 var rocket_interval := 3.0
 var rocket_splash_radius_pixels := 0.0
 var rocket_count := 2
+var rocket_damage_type: StringName = BaseTower.DAMAGE_EXPLOSIVE
 var monster_drop_enabled := false
 var hunt_abductions_enabled := false
 var maximum_monsters := 1
@@ -68,6 +69,7 @@ func reset_path_behaviors() -> void:
 	rocket_interval = 3.0
 	rocket_splash_radius_pixels = 0.0
 	rocket_count = 2
+	rocket_damage_type = BaseTower.DAMAGE_EXPLOSIVE
 	monster_drop_enabled = false
 	hunt_abductions_enabled = false
 	maximum_monsters = 1
@@ -93,6 +95,9 @@ func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 			* BaseTower.RANGE_PIXELS_PER_UNIT
 		)
 		rocket_count = maxi(int(values.get("saucer_rocket_count", 2)), 1)
+		rocket_damage_type = StringName(values.get(
+			"saucer_rocket_damage_type", BaseTower.DAMAGE_EXPLOSIVE
+		))
 	if flags.get("saucer_monster_drop", false):
 		monster_drop_enabled = true
 		maximum_monsters = maxi(int(values.get("saucer_maximum_monsters", 1)), 1)
@@ -368,7 +373,7 @@ func _fire_homing_rockets(
 			tower.projectile_speed,
 			maxf(tower.range_radius_pixels, rocket_origin.distance_to(destination) * 2.0),
 			rocket_damage,
-			BaseTower.DAMAGE_EXPLOSIVE,
+			rocket_damage_type,
 			GameStats.IMPACT_PRIMARY,
 			rocket_splash_radius_pixels,
 			0,

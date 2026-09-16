@@ -274,7 +274,7 @@ func validate_roster(
 	for enemy_id in GameStats.FIXED_ENEMY_DEBUT_ROUNDS:
 		plan[enemy_id] = GameStats.FIXED_ENEMY_DEBUT_ROUNDS[enemy_id]
 	for index in selected_tier_one.size():
-		plan[selected_tier_one[index]] = [4, 6, 10][index]
+		plan[selected_tier_one[index]] = [6, 8, 10][index]
 	for index in selected_tier_two.size():
 		plan[selected_tier_two[index]] = [14, 18][index]
 	plan[selected_tier_three] = 20

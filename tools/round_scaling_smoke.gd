@@ -32,8 +32,11 @@ func _init() -> void:
 	assert(GameStats.format_money(10500) == "10.5k")
 	assert(GameStats.scale_purchase_price(114) == 100)
 	assert(GameStats.scale_purchase_price(151) == 200)
-	assert(is_equal_approx(GameStats.get_round_threat_budget(4), 39.2))
-	assert(is_equal_approx(GameStats.get_round_threat_budget(5), 52.5))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(1), 6.3))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(2), 8.4))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(3), 10.5))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(4), 13.3))
+	assert(is_equal_approx(GameStats.get_round_threat_budget(5), 16.1))
 	assert(is_equal_approx(GameStats.get_round_threat_budget(6), 63.0))
 	assert(is_equal_approx(GameStats.get_round_threat_budget(7), 78.4))
 	assert(is_equal_approx(GameStats.get_round_threat_budget(8), 98.0))
@@ -48,7 +51,7 @@ func _init() -> void:
 		total_round_cash += GameStats.get_round_cash_reward(round_number)
 	assert(total_round_cash == 30900)
 	var expected_health_multipliers := [
-		1.00, 1.08, 1.16, 1.25, 1.35, 1.46,
+		1.15, 1.22, 1.30, 1.38, 1.46, 1.46,
 		1.58, 1.70, 1.84, 2.00, 2.15, 2.30,
 		2.50, 2.70, 2.95, 3.20, 3.45, 3.75,
 		4.10, 4.50, 4.90, 5.30, 5.75, 5.75,
@@ -59,15 +62,22 @@ func _init() -> void:
 	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(15), 1.15))
 	assert(is_equal_approx(GameStats.get_late_difficulty_health_multiplier(24), 1.85))
 	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(14), 1.0))
+	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(1), 2.25))
+	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(2), 3.0))
+	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(3), 3.5))
+	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(4), 3.0))
+	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(5), 4.0))
 	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(19), 0.875))
 	assert(is_equal_approx(GameStats.get_late_kill_reward_multiplier(24), 0.75))
 	var total_duration := 0.0
 	var previous_threat_budget := 0.0
 	for round_number in range(1, 25):
-		var expected_duration := (
-			90.0
-			if round_number == 24
-			else minf(20.0 + float(round_number - 1) * 5.0, 60.0)
+		var expected_duration: float = (
+			[15.0, 18.0, 20.0, 23.0, 26.0][round_number - 1]
+			if round_number <= 5
+			else (90.0 if round_number == 24 else minf(
+				20.0 + float(round_number - 1) * 5.0, 60.0
+			))
 		)
 		var expected_boss_health := (
 			1.15 + float(round_number - 1) * 0.025
@@ -89,7 +99,7 @@ func _init() -> void:
 		))
 		total_duration += expected_duration
 
-	assert(is_equal_approx(total_duration, 1290.0))
+	assert(is_equal_approx(total_duration, 1242.0))
 	for enemy_id in GameStats.ENEMIES:
 		var enemy: Dictionary = GameStats.ENEMIES[enemy_id]
 		assert(enemy.has("director_cost"))
@@ -145,7 +155,7 @@ func _init() -> void:
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(1, &"normal")
-	) == 50)
+	) == 57)
 	assert(roundi(
 		float(GameStats.ENEMIES[&"normal"]["health"])
 		* GameStats.get_enemy_health_multiplier(23, &"normal")

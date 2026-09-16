@@ -35,10 +35,6 @@ func run_audit() -> void:
 				run_seed + round_number * 7919,
 				false
 			)
-			append_special_event_counts(
-				director, counts, round_number, round_type,
-				run_seed + round_number * 15485863
-			)
 			var income := get_counts_income(counts, round_number)
 			round_totals[round_number - 1] += income
 			run_total += income

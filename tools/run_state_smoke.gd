@@ -43,7 +43,7 @@ func _ready() -> void:
 	assert(not state.collect_tower(&"slinger", 5))
 	assert(state.get_tower_roster_dictionary().size() == 3)
 	assert(not state.get_roster_base_tags().is_empty())
-	assert(state.get_sidebar_tower_id(0) == &"invader")
+	assert(state.get_sidebar_tower_id(0) == &"gunslinger")
 	assert(state.get_sidebar_tower_id(5).is_empty())
 	assert(state.get_tower_build_cost(&"invader") == int(
 		GameStats.get_tower(&"invader")["placement_cost"]

@@ -54,6 +54,9 @@ const SPACED_FORMATION_DELAY_MULTIPLIER := 0.85
 const RANDOM_SPAWN_BREAK_CHANCE := 0.30
 const RANDOM_SPAWN_BREAK_MIN_DURATION := 0.75
 const RANDOM_SPAWN_BREAK_MAX_DURATION := 1.50
+const PLANNED_GROUP_MINIMUM_GAP := 0.65
+const PLANNED_GROUP_MAXIMUM_GAP := 2.25
+const MAX_PLANNING_GROUPS := 64
 const WAVE_ROLE_WEIGHTS := GameStats.WAVE_ROLE_WEIGHTS
 const FORMATION_ROLE_WEIGHTS := GameStats.FORMATION_ROLE_WEIGHTS
 
@@ -107,13 +110,189 @@ func reset_round_style_memory() -> void:
 
 
 func choose_wave_spawn_style(wave: int) -> StringName:
-	if round_style_plan.has(wave):
-		return StringName(round_style_plan[wave])
 	var available := get_available_enemies(wave)
-	return GameStats.choose_weighted_wave_style(
-		GameStats.get_eligible_wave_styles(wave, available),
-		rng
+	var eligible := GameStats.get_eligible_wave_styles(wave, available)
+	if round_style_plan.has(wave):
+		var planned_style := StringName(round_style_plan[wave])
+		if planned_style in eligible:
+			return planned_style
+	return GameStats.choose_weighted_wave_style(eligible, rng)
+
+
+func build_round_schedule(
+	wave: int,
+	round_type: StringName,
+	mode_id: StringName,
+	max_rounds: int
+) -> Dictionary:
+	round_number = wave
+	current_round_type = round_type
+	current_wave_spawn_style = choose_wave_spawn_style(wave)
+	if wave == max_rounds:
+		current_wave_spawn_style = &"boss_escort"
+
+	var threat_budget := GameStats.get_round_threat_budget(wave)
+	if round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
+		threat_budget *= get_horde_threat_multiplier(wave)
+
+	var remaining_threat := threat_budget
+	var schedule: Array[Dictionary] = []
+	var opening := (
+		build_timed_boss_opening()
+		if wave == max_rounds
+		else build_debut_opening(wave)
 	)
+	remaining_threat -= append_affordable_group(
+		schedule, opening, remaining_threat
+	)
+
+	var planned_group_count := count_schedule_groups(schedule)
+	while planned_group_count < MAX_PLANNING_GROUPS:
+		var cheapest_cost := get_cheapest_available_director_cost()
+		if cheapest_cost <= 0.0 or remaining_threat + 0.001 < cheapest_cost:
+			break
+		var candidate_group := build_director_group()
+		var spent := append_affordable_group(
+			schedule, candidate_group, remaining_threat
+		)
+		if spent <= 0.0:
+			var fallback := build_cheapest_fallback_group(remaining_threat)
+			spent = append_affordable_group(schedule, fallback, remaining_threat)
+		if spent <= 0.0:
+			break
+		remaining_threat -= spent
+		planned_group_count += 1
+
+	if round_type == ROUND_ELITE:
+		insert_planned_elite_groups(schedule, false)
+	elif round_type == ROUND_GAUNTLET:
+		insert_planned_elite_groups(schedule, true)
+
+	finalize_planned_group_metadata(schedule)
+	return {
+		"schedule": schedule,
+		"style": current_wave_spawn_style,
+		"threat_budget": threat_budget,
+		"threat_spent": threat_budget - remaining_threat,
+		"group_count": count_schedule_groups(schedule),
+	}
+
+
+func append_affordable_group(
+	destination: Array[Dictionary],
+	candidate_group: Array[Dictionary],
+	available_threat: float
+) -> float:
+	var accepted: Array[Dictionary] = []
+	var spent := 0.0
+	for spawn_event in candidate_group:
+		var event_cost := get_spawn_event_director_cost(spawn_event)
+		if bool(spawn_event.get("free_spawn", false)):
+			event_cost = 0.0
+		if spent + event_cost > available_threat + 0.001:
+			continue
+		accepted.append(spawn_event.duplicate(true))
+		spent += event_cost
+	if accepted.is_empty():
+		return 0.0
+	# Truncating a formation can remove its original final event. Preserve a
+	# clear group boundary so path assignment and adaptive pacing stay coherent.
+	var group_id: Variant = accepted[0].get(
+		"spawn_group_id", _claim_spawn_group_id()
+	)
+	for spawn_event in accepted:
+		spawn_event["spawn_group_id"] = group_id
+	destination.append_array(accepted)
+	return spent
+
+
+func build_cheapest_fallback_group(available_threat: float) -> Array[Dictionary]:
+	var available := get_available_enemies(round_number)
+	var cheapest_id: StringName = &""
+	var cheapest_cost := INF
+	for enemy_id in available:
+		var cost := float(get_enemy_director_cost(enemy_id))
+		if cost <= available_threat + 0.001 and cost < cheapest_cost:
+			cheapest_id = enemy_id
+			cheapest_cost = cost
+	var fallback: Array[Dictionary] = []
+	if not cheapest_id.is_empty():
+		append_enemy_group(fallback, [cheapest_id], 0.1, 0.9, &"fallback")
+	return fallback
+
+
+func get_cheapest_available_director_cost() -> float:
+	var cheapest := INF
+	for enemy_id in get_available_enemies(round_number):
+		cheapest = minf(cheapest, float(get_enemy_director_cost(enemy_id)))
+	return cheapest
+
+
+func insert_planned_elite_groups(
+	schedule: Array[Dictionary],
+	gauntlet: bool
+) -> void:
+	var middle := build_elite_event_schedule(
+		1 if not gauntlet else rng.randi_range(1, 2),
+		rng.randi_range(3, 5) if not gauntlet else rng.randi_range(4, 7),
+		VARIANT_HORDE if gauntlet else VARIANT_NORMAL
+	)
+	var final_count := 3 if round_number >= 11 else 1
+	var final_group := build_elite_event_schedule(
+		final_count,
+		rng.randi_range(4, 7),
+		VARIANT_HORDE if gauntlet else VARIANT_NORMAL
+	)
+	var insertion_index := find_middle_group_boundary(schedule)
+	for index in range(middle.size() - 1, -1, -1):
+		schedule.insert(insertion_index, middle[index])
+	schedule.append_array(final_group)
+
+
+func find_middle_group_boundary(schedule: Array[Dictionary]) -> int:
+	if schedule.is_empty():
+		return 0
+	var target := schedule.size() / 2
+	var target_group: Variant = schedule[target].get("spawn_group_id", null)
+	while (
+		target < schedule.size()
+		and schedule[target].get("spawn_group_id", null) == target_group
+	):
+		target += 1
+	return target
+
+
+func finalize_planned_group_metadata(schedule: Array[Dictionary]) -> void:
+	var group_sizes := {}
+	for spawn_event in schedule:
+		var size_group_id: Variant = spawn_event.get("spawn_group_id", null)
+		group_sizes[size_group_id] = int(group_sizes.get(size_group_id, 0)) + 1
+	for index in schedule.size():
+		var spawn_event := schedule[index]
+		var group_id: Variant = spawn_event.get("spawn_group_id", index)
+		var is_group_end: bool = (
+			index == schedule.size() - 1
+			or schedule[index + 1].get("spawn_group_id", index + 1) != group_id
+		)
+		spawn_event["planned_group_end"] = is_group_end
+		if is_group_end:
+			spawn_event["minimum_group_gap"] = PLANNED_GROUP_MINIMUM_GAP
+			spawn_event["adaptive_release_active_count"] = maxi(
+				1,
+				floori(float(group_sizes.get(group_id, 1)) * 0.25)
+			)
+			spawn_event["delay_after"] = clampf(
+				float(spawn_event.get("delay_after", 1.0)),
+				PLANNED_GROUP_MINIMUM_GAP,
+				PLANNED_GROUP_MAXIMUM_GAP
+			)
+
+
+func count_schedule_groups(schedule: Array[Dictionary]) -> int:
+	var groups := {}
+	for spawn_event in schedule:
+		groups[spawn_event.get("spawn_group_id", groups.size())] = true
+	return groups.size()
 
 
 func get_wave_duration(wave: int) -> float:
@@ -355,7 +534,7 @@ func build_role_based_enemy_queue(
 func get_progression_roster_enemies(include_tier_two: bool) -> Array[StringName]:
 	var roster: Array[StringName] = []
 	var eligible_debut_rounds := (
-		[4, 6, 10, 14, 18, 20] if include_tier_two else [4, 6, 10]
+		[6, 8, 10, 14, 18, 20] if include_tier_two else [6, 8, 10]
 	)
 	for enemy_key in enemy_debut_plan:
 		var enemy_id := StringName(enemy_key)
@@ -1124,60 +1303,14 @@ func simulate_spawn_counts(
 	rng.seed = seed
 	if regenerate_plan or enemy_debut_plan.is_empty() or round_style_plan.is_empty():
 		generate_run_plan()
-	round_number = wave
-	current_round_type = round_type
-	current_wave_spawn_style = choose_wave_spawn_style(wave)
-	if wave == max_rounds:
-		current_wave_spawn_style = &"boss_escort"
-	var duration := get_wave_duration(wave)
-	var simulated_threat_rate := get_wave_threat_rate(wave)
-	if round_type in [ROUND_HORDE, ROUND_GAUNTLET, ROUND_PAYDAY]:
-		simulated_threat_rate *= get_horde_threat_multiplier(wave)
-	var mode := GameStats.get_mode(mode_id)
-	var available_threat := float(mode.get("starting_spawn_threat", 1.0))
-	var continuous_ratio := float(mode.get("threat_continuous_ratio", 1.0))
-	var chunk_ratio := float(mode.get("threat_chunk_ratio", 0.0))
-	var chunk_interval := maxf(
-		float(mode.get("threat_chunk_interval", 4.0)), 0.01
-	)
-	var chunk_elapsed := 0.0
-	var cooldown := 0.0
-	var event_wait := 0.0
-	var schedule: Array[Dictionary] = (
-		build_timed_boss_opening()
-		if wave == max_rounds
-		else build_debut_opening(wave)
-	)
+	var plan := build_round_schedule(wave, round_type, mode_id, max_rounds)
+	var schedule: Array[Dictionary] = plan["schedule"]
 	var counts := {}
-	var elapsed := 0.0
-	const DIRECTOR_STEP := 0.05
-	while elapsed < duration:
-		var delta := minf(DIRECTOR_STEP, duration - elapsed)
-		available_threat += simulated_threat_rate * continuous_ratio * delta
-		chunk_elapsed += delta
-		while chunk_elapsed >= chunk_interval:
-			chunk_elapsed -= chunk_interval
-			available_threat += simulated_threat_rate * chunk_interval * chunk_ratio
-		cooldown = maxf(cooldown - delta, 0.0)
-		event_wait = maxf(event_wait - delta, 0.0)
-		if schedule.is_empty() and cooldown <= 0.0 and event_wait <= 0.0:
-			schedule = build_director_group()
-		if not schedule.is_empty() and event_wait <= 0.0:
-			var spawn_event: Dictionary = schedule.front()
-			var enemy_id := StringName(spawn_event["enemy_id"])
-			var spawn_cost := get_spawn_event_director_cost(spawn_event)
-			if available_threat >= spawn_cost:
-				schedule.pop_front()
-				available_threat -= spawn_cost
-				var spawn_variant := StringName(
-					spawn_event.get("variant", VARIANT_NORMAL)
-				)
-				var count_key := "%s|%s" % [enemy_id, spawn_variant]
-				counts[count_key] = float(counts.get(count_key, 0.0)) + 1.0
-				var delay := float(spawn_event.get("delay_after", 0.1))
-				if schedule.is_empty():
-					cooldown = delay
-				else:
-					event_wait = delay
-		elapsed += delta
+	for spawn_event in schedule:
+		var enemy_id := StringName(spawn_event["enemy_id"])
+		var spawn_variant := StringName(
+			spawn_event.get("variant", VARIANT_NORMAL)
+		)
+		var count_key := "%s|%s" % [enemy_id, spawn_variant]
+		counts[count_key] = float(counts.get(count_key, 0.0)) + 1.0
 	return counts

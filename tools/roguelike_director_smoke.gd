@@ -83,7 +83,7 @@ func validate_debut_plan(plan: Dictionary, progression: Dictionary) -> void:
 	assert(selected_tier_three.size() == 1)
 	for index in selected_tier_one.size():
 		assert(GameStats.get_enemy_family(selected_tier_one[index]) == selected_families[index])
-		assert(int(plan[selected_tier_one[index]]) == [4, 6, 10][index])
+		assert(int(plan[selected_tier_one[index]]) == [6, 8, 10][index])
 	for index in selected_tier_two.size():
 		assert(GameStats.get_enemy_family_tier(selected_tier_two[index]) == 2)
 		assert(int(plan[selected_tier_two[index]]) == [14, 18][index])

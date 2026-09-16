@@ -38,7 +38,8 @@ func run_test() -> void:
 	assert(gunslinger.damage == 75)
 	_set_level(gunslinger, 3)
 	assert(gunslinger.damage == 190)
-	assert(float(gunslinger.damage) / gunslinger.loaded_attack_interval > 1100.0)
+	assert(float(gunslinger.damage) / gunslinger.loaded_attack_interval > 700.0)
+	assert(float(gunslinger.damage) / gunslinger.loaded_attack_interval < 900.0)
 
 	var laser := await _create_tower(fake_main, &"laser_cannon")
 	_set_level(laser, 2)
@@ -59,6 +60,23 @@ func run_test() -> void:
 	assert(laser_component._get_beam_target_damage(100, 3, 5) == 40)
 	assert(laser_component._get_beam_target_damage(100, 4, 5) == 100)
 
+	var decay_engine := await _create_tower(fake_main, &"decay_engine")
+	var decay_component := decay_engine.attack_component as IrradiatorAttackComponent
+	assert(decay_component != null)
+	assert(decay_component.decay_engine_enabled)
+	assert(not decay_component.reactor_enabled)
+	assert(not decay_component.isotope_beam_enabled)
+	assert(is_equal_approx(
+		decay_component.decay_engine_radius_pixels / BaseTower.BUILD_CELL_SIZE,
+		2.0
+	))
+	_set_level(decay_engine, 3)
+	assert(is_equal_approx(
+		decay_component.decay_engine_radius_pixels / BaseTower.BUILD_CELL_SIZE,
+		3.5
+	))
+	assert(is_equal_approx(decay_component.decay_engine_interval, 0.90))
+
 	var gauss := await _create_tower(fake_main, &"gauss_gunner")
 	assert(gauss.damage == 16)
 	_set_level(gauss, 3)
@@ -76,8 +94,44 @@ func run_test() -> void:
 	var kill_chain := await _create_tower(fake_main, &"kill_chain")
 	assert(kill_chain.pierce_count == 0)
 	assert(kill_chain.attack_component.kill_chain_enabled)
+	assert(kill_chain.has_damage_tag(&"radiation"))
+	assert(kill_chain.attack_component.radiation_chain_enabled)
+	assert(is_equal_approx(kill_chain.attack_component.radiation_chain_base_damage_multiplier, 0.08))
 	_set_level(kill_chain, 3)
 	assert(is_equal_approx(kill_chain.range_radius_pixels / BaseTower.RANGE_PIXELS_PER_UNIT, 12.5))
+	assert(is_equal_approx(kill_chain.attack_component.radiation_chain_base_damage_multiplier, 0.15))
+	assert(is_equal_approx(kill_chain.attack_component.radiation_chain_maximum_bonus, 0.20))
+
+	var champion := await _create_tower(fake_main, &"champion")
+	var champion_component := champion.attack_component as ReaverAttackComponent
+	assert(champion_component != null)
+	assert(champion.has_damage_tag(&"radiation"))
+	assert(champion_component.radiation_blade_enabled)
+	assert(is_equal_approx(champion_component.radiation_blade_damage_multiplier, 0.08))
+	_set_level(champion, 3)
+	assert(is_equal_approx(champion_component.melee_arc_degrees, 360.0))
+	assert(is_equal_approx(champion_component.radiation_blade_damage_multiplier, 0.15))
+
+	var gunship := await _create_tower(fake_main, &"gunship")
+	var gunship_component := gunship.attack_component as SaucerAttackComponent
+	assert(gunship_component != null)
+	assert(gunship.has_damage_tag(&"electric"))
+	assert(not gunship.has_damage_tag(&"explosive"))
+	assert(gunship_component.rocket_damage_type == &"electric")
+	_set_level(gunship, 3)
+	assert(gunship_component.rocket_count == 4)
+	assert(gunship_component.rocket_damage_type == &"electric")
+
+	var sentry_array := await _create_tower(fake_main, &"sentry_array")
+	assert(sentry_array.has_damage_tag(&"explosive"))
+	assert(not sentry_array.has_damage_tag(&"ballistic"))
+	var sentry_stats := sentry_array.stats_controller.get_current_effective_stats()
+	assert(sentry_stats["unit_stats"].get("damage_tags", []).has(&"explosive"))
+	assert(is_equal_approx(float(sentry_stats["unit_stats"].get("splash_radius", 0.0)), 1.25))
+	_set_level(sentry_array, 3)
+	sentry_stats = sentry_array.stats_controller.get_current_effective_stats()
+	assert(int(sentry_stats.get("spawn_limit", 0)) == 5)
+	assert(is_equal_approx(float(sentry_stats["unit_stats"].get("splash_radius", 0.0)), 2.25))
 
 	var psionic := await _create_tower(fake_main, &"psionic")
 	var psionic_component := psionic.attack_component as BrainiacAttackComponent
@@ -133,6 +187,22 @@ func run_test() -> void:
 	assert(tesla.attack_component.branch_additional_targets == 2)
 	_set_level(tesla, 3)
 	assert(tesla.projectile_count == 2)
+
+	var energy_core := await _create_tower(fake_main, &"energy_core")
+	var energy_component := energy_core.attack_component as EnergyCoreAttackComponent
+	assert(energy_component != null)
+	assert(energy_core.slow_duration > 0.0)
+	assert(energy_component.branching_current_enabled)
+	assert(not energy_component.shockwave_enabled)
+	_set_level(energy_core, 1)
+	assert(energy_component.shockwave_enabled)
+	assert(is_equal_approx(energy_component.shockwave_cooldown, 6.0))
+	_set_level(energy_core, 2)
+	assert(energy_component.branch_additional_targets == 2)
+	assert(is_equal_approx(energy_component.shockwave_cooldown, 5.0))
+	_set_level(energy_core, 3)
+	assert(energy_core.projectile_count == 2)
+	assert(is_equal_approx(energy_component.shockwave_cooldown, 3.5))
 
 	var orb_barrage := await _create_tower(fake_main, &"orb_barrage")
 	assert(orb_barrage.projectile_count == 1)

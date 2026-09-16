@@ -40,6 +40,8 @@ var roaming_enabled := false
 var roaming_move_speed := 80.0
 var melee_attack_radius_pixels := 48.0
 var roaming_offset := Vector2.ZERO
+var radiation_blade_enabled := false
+var radiation_blade_damage_multiplier := 0.08
 
 
 func load_level_stats(stats: Dictionary) -> void:
@@ -70,11 +72,16 @@ func reset_path_behaviors() -> void:
 	enforcer_push_distance_units = 1.0
 	time_bubble_enabled = false
 	roaming_enabled = false
+	radiation_blade_enabled = false
+	radiation_blade_damage_multiplier = 0.08
 
 
 func apply_path_behavior(flags: Dictionary, values: Dictionary) -> void:
 	if flags.get("reaver_roaming", false):
 		roaming_enabled = true
+	if flags.get("reaver_radiation_blade", false):
+		radiation_blade_enabled = true
+		radiation_blade_damage_multiplier = maxf(float(values.get("radiation_blade_damage_multiplier", 0.08)), 0.0)
 	if flags.get("reaver_time_bubble", false):
 		time_bubble_enabled = true
 		time_bubble_active_duration = maxf(
@@ -308,6 +315,13 @@ func _apply_enforcer_control(target: Node2D, hit_context: AttackContext) -> void
 
 func _apply_direct_hit(target: Node2D, base_damage: int, attack_kind: StringName, guaranteed_critical := false, critical_multiplier_bonus := 0.0, secondary := false) -> void:
 	var hit_context := _create_hit_context(target, base_damage, attack_kind, guaranteed_critical, critical_multiplier_bonus, secondary)
+	if radiation_blade_enabled and target.has_method("apply_radiation"):
+		target.apply_radiation(
+			1,
+			maxi(roundi(float(base_damage) * radiation_blade_damage_multiplier), 1),
+			hit_context,
+			1.0
+		)
 	tower.apply_hitscan_damage(target, int(hit_context.metadata["rolled_damage"]), hit_context)
 
 

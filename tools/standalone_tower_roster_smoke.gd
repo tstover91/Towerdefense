@@ -23,16 +23,18 @@ func _initialize() -> void:
 	assert(GameStats.get_canonical_tower_family_id(&"gauss_repeater") == &"gauss_gunner")
 	assert(GameStats.get_canonical_tower_family_id(&"brainiac") == &"psionic")
 	assert(GameStats.get_canonical_tower_family_id(&"beholder") == &"psionic")
+	assert(GameStats.get_canonical_tower_family_id(&"containment_core") == &"energy_core")
+	assert(GameStats.get_canonical_tower_family_id(&"tesla_core") == &"energy_core")
+	assert(GameStats.get_canonical_tower_family_id(&"laser_cannon") == &"decay_engine")
 	var standalone_ids: Array[StringName] = [
 		&"gunslinger",
-		&"laser_cannon",
+		&"decay_engine",
 		&"gauss_gunner",
 		&"anti_materiel",
 		&"kill_chain",
 		&"explosive_ricochet",
 		&"razor_disc",
-		&"containment_core",
-		&"tesla_core",
+		&"energy_core",
 		&"orb_barrage",
 		&"singularity",
 		&"psionic",
@@ -63,6 +65,11 @@ func _initialize() -> void:
 	assert(laser["inherent_path"]["primary_damage_type"] == &"beam")
 	assert(laser["levels"][2]["add_bonus_tags"].is_empty())
 	assert(Registry.create_component(&"laser_cannon", laser, &"spawner") != null)
+	var decay_engine := GameStats.get_tower(&"decay_engine")
+	assert(decay_engine["display_name"] == "Decay Engine")
+	assert(decay_engine["levels"][0]["behavior_flags"]["irradiator_decay_engine"])
+	assert(decay_engine["levels"][3]["behavior_values"]["decay_engine_radius"] == 3.5)
+	assert(Registry.create_component(&"decay_engine", decay_engine, &"spawner") != null)
 	var gunslinger := GameStats.get_tower(&"gunslinger")
 	assert(gunslinger["levels"][1]["add_bonus_tags"] == [&"reveal"])
 	assert(gunslinger["levels"][2]["add_bonus_tags"].is_empty())
@@ -85,13 +92,15 @@ func _initialize() -> void:
 	assert(razor_disc["inherent_path"]["pierce_count_add"] == 4)
 	assert(razor_disc["levels"][2]["pierce_count_add"] == 4)
 	assert(not razor_disc["inherent_path"].get("behavior_flags", {}).get("infinite_pierce", false))
-	var containment_core := GameStats.get_tower(&"containment_core")
-	assert(containment_core["inherent_path"]["behavior_flags"]["energy_shockwave"])
-	var tesla_core := GameStats.get_tower(&"tesla_core")
-	assert(tesla_core["inherent_path"]["add_bonus_tags"] == [&"slow"])
-	assert(tesla_core["levels"][0]["slow_duration"] == 0.50)
-	assert(tesla_core["levels"][2]["behavior_values"]["branch_additional_targets"] == 2)
-	assert(tesla_core["levels"][3]["projectile_count"] == 2)
+	var energy_core := GameStats.get_tower(&"energy_core")
+	assert(energy_core["inherent_path"]["add_bonus_tags"] == [&"slow"])
+	assert(energy_core["levels"][0]["slow_duration"] == 0.50)
+	assert(not energy_core["levels"][0].get("behavior_flags", {}).get("energy_shockwave", false))
+	assert(energy_core["levels"][1]["behavior_flags"]["energy_shockwave"])
+	assert(energy_core["levels"][2]["behavior_values"]["branch_additional_targets"] == 2)
+	assert(energy_core["levels"][3]["projectile_count"] == 2)
+	assert(energy_core["levels"][3]["behavior_values"]["shockwave_cooldown"] == 3.5)
+	assert(Registry.create_component(&"energy_core", energy_core, &"spawner") != null)
 	var orb_barrage := GameStats.get_tower(&"orb_barrage")
 	assert(orb_barrage["levels"][0]["projectile_count"] == 1)
 	assert(orb_barrage["levels"][2]["projectile_count"] == 2)
@@ -160,7 +169,124 @@ func _initialize() -> void:
 	assert(fisherman_final["behavior_values"]["hook_target_count"] == 2)
 	assert(fisherman_final["behavior_flags"]["fisherman_electric_pulse"])
 	var draft := DraftManagerScript.new(RandomNumberGenerator.new())
-	var offers := draft.roll_tower_offers([], standalone_ids)
+	var starters := draft.roll_random_starting_towers(2)
+	assert(starters.size() == 2)
+	for starter_id in starters:
+		assert(GameStats.STARTER_TOWER_FAMILY_IDS.has(starter_id))
+	for seed_value in 100:
+		var seeded_rng := RandomNumberGenerator.new()
+		seeded_rng.seed = seed_value
+		var seeded_draft := DraftManagerScript.new(seeded_rng)
+		var seeded_starters := seeded_draft.roll_random_starting_towers(2)
+		assert(seeded_starters[0] != seeded_starters[1])
+		for starter_id in seeded_starters:
+			assert(GameStats.STARTER_TOWER_FAMILY_IDS.has(starter_id))
+	var expected_focused := {
+		&"gunslinger": &"anti_materiel",
+		&"energy_core": &"psionic",
+		&"orb_barrage": &"bombardment",
+		&"assassin": &"mech_bay",
+		&"reactor": &"decay_engine",
+	}
+	for starter_id in expected_focused:
+		assert(GameStats.get_focused_tower_unlock(starter_id) == expected_focused[starter_id])
+	var expected_hybrids := {
+		&"gunslinger+energy_core": &"gauss_gunner",
+		&"gunslinger+orb_barrage": &"explosive_ricochet",
+		&"gunslinger+assassin": &"drone_depot",
+		&"gunslinger+reactor": &"kill_chain",
+		&"energy_core+orb_barrage": &"singularity",
+		&"energy_core+assassin": &"gunship",
+		&"energy_core+reactor": &"isotope_projector",
+		&"orb_barrage+assassin": &"sentry_array",
+		&"orb_barrage+reactor": &"atomic_strike",
+		&"assassin+reactor": &"champion",
+	}
+	assert(GameStats.HYBRID_TOWER_UNLOCKS == expected_hybrids)
+	var expected_additional := {
+		&"razor_disc": [&"gunslinger"],
+		&"solar_lance": [&"energy_core"],
+		&"fisherman": [&"gunslinger", &"energy_core"],
+	}
+	assert(GameStats.ADDITIONAL_FAMILY_TOWER_UNLOCKS.size() == 3)
+	for unlock_entry in GameStats.ADDITIONAL_FAMILY_TOWER_UNLOCKS:
+		var tower_id := StringName(unlock_entry["tower_id"])
+		assert(expected_additional.has(tower_id))
+		assert(unlock_entry["required_starters"] == expected_additional[tower_id])
+	var starter_pool := GameStats.get_starter_tower_family_ids()
+	var hybrids: Array[StringName] = []
+	for first_index in starter_pool.size():
+		for second_index in range(first_index + 1, starter_pool.size()):
+			var hybrid_id := GameStats.get_hybrid_tower_unlock(
+				starter_pool[first_index], starter_pool[second_index]
+			)
+			assert(not hybrid_id.is_empty())
+			assert(GameStats.is_playable_tower_family(hybrid_id))
+			assert(not hybrids.has(hybrid_id))
+			hybrids.append(hybrid_id)
+			assert(
+				GameStats.get_hybrid_tower_unlock(
+					starter_pool[second_index], starter_pool[first_index]
+				) == hybrid_id
+			)
+	assert(hybrids.size() == 10)
+	assert(not hybrids.has(&"mothership"))
+	var ballistic_energy_unlocks := GameStats.get_initial_family_unlocks(
+		[&"gunslinger", &"energy_core"]
+	)
+	assert(ballistic_energy_unlocks.has(&"anti_materiel"))
+	assert(ballistic_energy_unlocks.has(&"psionic"))
+	assert(ballistic_energy_unlocks.has(&"gauss_gunner"))
+	assert(ballistic_energy_unlocks.has(&"razor_disc"))
+	assert(ballistic_energy_unlocks.has(&"solar_lance"))
+	assert(ballistic_energy_unlocks.has(&"fisherman"))
+	var ballistic_explosive_unlocks := GameStats.get_initial_family_unlocks(
+		[&"gunslinger", &"orb_barrage"]
+	)
+	assert(ballistic_explosive_unlocks.has(&"explosive_ricochet"))
+	assert(ballistic_explosive_unlocks.has(&"anti_materiel"))
+	assert(ballistic_explosive_unlocks.has(&"razor_disc"))
+	var energy_radiation_unlocks := GameStats.get_initial_family_unlocks(
+		[&"energy_core", &"reactor"]
+	)
+	assert(energy_radiation_unlocks.has(&"isotope_projector"))
+	assert(energy_radiation_unlocks.has(&"decay_engine"))
+	assert(energy_radiation_unlocks.has(&"solar_lance"))
+	var energy_deployment_unlocks := GameStats.get_initial_family_unlocks(
+		[&"energy_core", &"assassin"]
+	)
+	assert(energy_deployment_unlocks.has(&"gunship"))
+	assert(not energy_deployment_unlocks.has(&"fisherman"))
+	for starter_pair_value in [
+		[&"gunslinger", &"energy_core"],
+		[&"gunslinger", &"orb_barrage"],
+		[&"gunslinger", &"assassin"],
+		[&"gunslinger", &"reactor"],
+		[&"energy_core", &"orb_barrage"],
+		[&"energy_core", &"assassin"],
+		[&"energy_core", &"reactor"],
+		[&"orb_barrage", &"assassin"],
+		[&"orb_barrage", &"reactor"],
+		[&"assassin", &"reactor"],
+	]:
+		var starter_pair: Array[StringName] = []
+		starter_pair.assign(starter_pair_value)
+		assert(not GameStats.get_initial_family_unlocks(starter_pair).has(&"mothership"))
+	var offers := draft.roll_tower_offers(starters, standalone_ids)
 	assert(offers.size() == 3)
+	for offer_id in offers:
+		assert(not starters.has(offer_id))
+	var history_rng := RandomNumberGenerator.new()
+	history_rng.seed = 81723
+	var history_draft := DraftManagerScript.new(history_rng)
+	var history_pool: Array[StringName] = [
+		&"decay_engine", &"gauss_gunner", &"anti_materiel",
+		&"kill_chain", &"explosive_ricochet", &"razor_disc",
+	]
+	var first_history_offers := history_draft.roll_tower_offers([], history_pool)
+	var second_history_offers := history_draft.roll_tower_offers([], history_pool)
+	for offer_id in second_history_offers:
+		assert(not first_history_offers.has(offer_id))
+	assert(history_draft.offered_tower_ids.size() == 6)
 	print("Standalone tower roster smoke checks passed")
 	quit()

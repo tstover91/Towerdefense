@@ -18,18 +18,20 @@ const PURCHASED_TOWER_DATA = preload("res://tower_progression/purchased_tower_da
 const STANDALONE_TOWER_PRICE_CURVES := {
 	&"gunslinger": [300, 200, 700, 1800],
 	&"laser_cannon": [600, 400, 1300, 3200],
+	&"decay_engine": [600, 400, 1300, 3200],
 	&"gauss_gunner": [900, 600, 2000, 4500],
 	&"anti_materiel": [1200, 700, 2300, 5300],
 	&"kill_chain": [1000, 600, 2100, 4800],
 	&"explosive_ricochet": [300, 300, 900, 2500],
 	&"razor_disc": [400, 300, 1000, 2800],
+	&"energy_core": [400, 300, 1100, 3000],
 	&"containment_core": [400, 300, 1000, 2800],
 	&"tesla_core": [500, 400, 1300, 3300],
 	&"psionic": [2000, 1000, 3000, 6000],
 	&"assassin": [500, 400, 1300, 2800],
 	&"champion": [600, 400, 1400, 3100],
 	&"fisherman": [500, 400, 1200, 2900],
-	&"orb_barrage": [700, 400, 1700, 3700],
+	&"orb_barrage": [600, 400, 1700, 3700],
 	&"singularity": [900, 500, 2100, 5000],
 	&"solar_lance": [800, 500, 1900, 4800],
 	&"bombardment": [700, 500, 1800, 4500],
@@ -39,7 +41,7 @@ const STANDALONE_TOWER_PRICE_CURVES := {
 	&"drone_depot": [700, 500, 1800, 5000],
 	&"mech_bay": [800, 500, 1900, 5300],
 	&"sentry_array": [700, 500, 1800, 5500],
-	&"reactor": [600, 400, 1600, 3900],
+	&"reactor": [500, 400, 1600, 3900],
 	&"isotope_projector": [700, 400, 1700, 4200],
 }
 
@@ -79,12 +81,13 @@ const STANDALONE_TOWER_VARIANTS := {
 		"display_name": "Gunslinger",
 		# Reveal begins with the first purchased upgrade (displayed level 2).
 		"level_overrides": {
-			1: {"add_bonus_tags": [&"reveal"]},
+			0: {"firerate": 1.05},
+			1: {"firerate": 0.86, "add_bonus_tags": [&"reveal"]},
 			# The expensive late upgrades must compete with spreading the same
 			# money across cheap Gunslingers. Preserve its weak early curve, then
 			# make levels 3 and 4 the meaningful damage investments.
-			2: {"damage": 75, "add_bonus_tags": []},
-			3: {"damage": 190},
+			2: {"damage": 75, "firerate": 0.71, "add_bonus_tags": []},
+			3: {"damage": 190, "firerate": 0.57},
 		},
 	},
 	&"laser_cannon": {
@@ -94,6 +97,20 @@ const STANDALONE_TOWER_VARIANTS := {
 		"modern_path": true,
 		# Reveal belongs to Gunslinger's progression, not the Laser Cannon.
 		"level_overrides": {2: {"add_bonus_tags": []}},
+	},
+	&"decay_engine": {
+		"source": &"irradiator",
+		"display_name": "Decay Engine",
+		"texture_source": &"irradiator",
+		"inherent_path": {
+			"description": "Projects repeated Radiation pulses around its selected target.",
+		},
+		"level_overrides": {
+			0: {"damage": 5, "firerate": 1.50, "range": 9.0, "radiation_stacks_per_application": 5, "behavior_flags": {"irradiator_decay_engine": true}, "behavior_values": {"decay_engine_radius": 2.0, "decay_engine_interval": 1.50}},
+			1: {"damage": 7, "firerate": 1.35, "range": 9.5, "radiation_stacks_per_application": 6, "behavior_flags": {"irradiator_decay_engine": true}, "behavior_values": {"decay_engine_radius": 2.5, "decay_engine_interval": 1.35}},
+			2: {"damage": 11, "firerate": 1.15, "range": 10.0, "radiation_stacks_per_application": 8, "behavior_flags": {"irradiator_decay_engine": true}, "behavior_values": {"decay_engine_radius": 3.0, "decay_engine_interval": 1.15}},
+			3: {"damage": 18, "firerate": 0.90, "range": 11.0, "radiation_stacks_per_application": 10, "behavior_flags": {"irradiator_decay_engine": true}, "behavior_values": {"decay_engine_radius": 3.5, "decay_engine_interval": 0.90}},
+		},
 	},
 	&"gauss_gunner": {
 		"source": &"gauss_repeater",
@@ -129,10 +146,10 @@ const STANDALONE_TOWER_VARIANTS := {
 		"path": &"b",
 		"display_name": "Kill Chain",
 		"level_overrides": {
-			0: {"range": 11.0},
-			1: {"range": 11.5},
-			2: {"range": 12.0},
-			3: {"range": 12.5},
+			0: {"range": 11.0, "add_damage_tags": [&"radiation"], "behavior_flags": {"longshot_radiation_chain": true}, "behavior_values": {"radiation_chain_base_damage_multiplier": 0.08, "radiation_chain_damage_per_kill": 0.02, "radiation_chain_maximum_bonus": 0.08}},
+			1: {"range": 11.5, "add_damage_tags": [&"radiation"], "behavior_flags": {"longshot_radiation_chain": true}, "behavior_values": {"radiation_chain_base_damage_multiplier": 0.10, "radiation_chain_damage_per_kill": 0.025, "radiation_chain_maximum_bonus": 0.10}},
+			2: {"range": 12.0, "add_damage_tags": [&"radiation"], "behavior_flags": {"longshot_radiation_chain": true}, "behavior_values": {"radiation_chain_base_damage_multiplier": 0.12, "radiation_chain_damage_per_kill": 0.03, "radiation_chain_maximum_bonus": 0.15}},
+			3: {"range": 12.5, "add_damage_tags": [&"radiation"], "behavior_flags": {"longshot_radiation_chain": true}, "behavior_values": {"radiation_chain_base_damage_multiplier": 0.15, "radiation_chain_damage_per_kill": 0.04, "radiation_chain_maximum_bonus": 0.20}},
 		},
 	},
 	&"explosive_ricochet": {
@@ -169,6 +186,81 @@ const STANDALONE_TOWER_VARIANTS := {
 			"description": "After reaching maximum range, the disc returns to the tower at 60% damage with fresh Pierce falloff.",
 			"behavior_flags": {"razor_return_flight": true},
 			"behavior_values": {"razor_return_damage_multiplier": 0.60},
+		},
+	},
+	&"energy_core": {
+		"source": &"energycore",
+		"display_name": "Energy Core",
+		"texture_source": &"energycore",
+		"inherent_path": {
+			"description": "Slowing electric bolts branch into nearby enemies. Upgrades add a periodic stunning pulse.",
+			"add_bonus_tags": [&"slow"],
+		},
+		"level_overrides": {
+			0: {
+				"projectile_count": 1,
+				"slow_duration": 0.50,
+				"behavior_flags": {"energy_branching_current": true},
+				"behavior_values": {
+					"branch_additional_targets": 1,
+					"branch_range": 4.0,
+					"branch_damage_multiplier": 0.25,
+				},
+			},
+			1: {
+				"damage": 24,
+				"projectile_count": 1,
+				"slow_duration": 0.50,
+				"add_bonus_tags": [&"stun"],
+				"behavior_flags": {
+					"energy_branching_current": true,
+					"energy_shockwave": true,
+				},
+				"behavior_values": {
+					"branch_additional_targets": 1,
+					"branch_range": 4.0,
+					"branch_damage_multiplier": 0.25,
+					"shockwave_cooldown": 6.0,
+					"shockwave_damage_multiplier": 0.25,
+					"shockwave_stun_duration": 0.60,
+				},
+			},
+			2: {
+				"damage": 45,
+				"projectile_count": 1,
+				"slow_duration": 0.50,
+				"add_bonus_tags": [&"stun"],
+				"behavior_flags": {
+					"energy_branching_current": true,
+					"energy_shockwave": true,
+				},
+				"behavior_values": {
+					"branch_additional_targets": 2,
+					"branch_range": 4.5,
+					"branch_damage_multiplier": 0.30,
+					"shockwave_cooldown": 5.0,
+					"shockwave_damage_multiplier": 0.35,
+					"shockwave_stun_duration": 1.0,
+				},
+			},
+			3: {
+				"damage": 80,
+				"projectile_count": 2,
+				"slow_duration": 0.75,
+				"add_bonus_tags": [&"stun"],
+				"behavior_flags": {
+					"energy_branching_current": true,
+					"energy_shockwave": true,
+				},
+				"behavior_values": {
+					"branch_additional_targets": 2,
+					"branch_range": 5.5,
+					"branch_damage_multiplier": 0.35,
+					"shockwave_cooldown": 3.5,
+					"shockwave_damage_multiplier": 0.50,
+					"shockwave_stun_duration": 1.5,
+				},
+			},
 		},
 	},
 	&"containment_core": {
@@ -296,16 +388,15 @@ const STANDALONE_TOWER_VARIANTS := {
 		"source": &"saucer",
 		"display_name": "Gunship",
 		"inherent_path": {
-			"description": "Patrols around its base, firing a rapid Electric gun and independent homing rockets.",
-			"add_damage_tags": [&"explosive"],
+			"description": "Patrols around its base, firing a rapid Electric gun and independent homing energy missiles.",
 			"remove_bonus_tags": [&"reveal"],
 			"stat_overrides": {"abduction_health_threshold": 0.0},
 		},
 		"level_overrides": {
-			0: {"damage": 150, "firerate": 0.65, "range": 9.0, "flyer_move_speed": 165.0, "flyer_attack_radius": 5.0, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 0.90, "saucer_rocket_interval": 4.0, "saucer_rocket_splash_radius": 2.25, "saucer_rocket_count": 1}},
-			1: {"damage": 215, "firerate": 0.58, "range": 9.5, "flyer_move_speed": 180.0, "flyer_attack_radius": 5.25, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 0.95, "saucer_rocket_interval": 3.8, "saucer_rocket_splash_radius": 2.5, "saucer_rocket_count": 2}},
-			2: {"damage": 330, "firerate": 0.52, "range": 10.0, "flyer_move_speed": 195.0, "flyer_attack_radius": 5.5, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 1.05, "saucer_rocket_interval": 3.2, "saucer_rocket_splash_radius": 2.75, "saucer_rocket_count": 2}},
-			3: {"damage": 450, "firerate": 0.40, "range": 11.0, "flyer_move_speed": 220.0, "flyer_attack_radius": 6.0, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 1.10, "saucer_rocket_interval": 2.8, "saucer_rocket_splash_radius": 3.0, "saucer_rocket_count": 4}},
+			0: {"damage": 150, "firerate": 0.65, "range": 9.0, "flyer_move_speed": 165.0, "flyer_attack_radius": 5.0, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 0.90, "saucer_rocket_interval": 4.0, "saucer_rocket_splash_radius": 1.5, "saucer_rocket_count": 1, "saucer_rocket_damage_type": &"electric"}},
+			1: {"damage": 215, "firerate": 0.58, "range": 9.5, "flyer_move_speed": 180.0, "flyer_attack_radius": 5.25, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 0.95, "saucer_rocket_interval": 3.8, "saucer_rocket_splash_radius": 1.75, "saucer_rocket_count": 2, "saucer_rocket_damage_type": &"electric"}},
+			2: {"damage": 330, "firerate": 0.52, "range": 10.0, "flyer_move_speed": 195.0, "flyer_attack_radius": 5.5, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 1.05, "saucer_rocket_interval": 3.2, "saucer_rocket_splash_radius": 2.0, "saucer_rocket_count": 2, "saucer_rocket_damage_type": &"electric"}},
+			3: {"damage": 450, "firerate": 0.40, "range": 11.0, "flyer_move_speed": 220.0, "flyer_attack_radius": 6.0, "behavior_flags": {"saucer_twin_rockets": true}, "behavior_values": {"saucer_rocket_damage_multiplier": 1.10, "saucer_rocket_interval": 2.8, "saucer_rocket_splash_radius": 2.25, "saucer_rocket_count": 4, "saucer_rocket_damage_type": &"electric"}},
 		},
 	},
 	&"mothership": {
@@ -367,15 +458,18 @@ const STANDALONE_TOWER_VARIANTS := {
 		"display_name": "Sentry Array",
 		"modern_tower": true,
 		"inherent_path": {
-			"description": "Deploys stationary Ballistic Sentries around the Array for broad local coverage.",
+			"description": "Deploys stationary explosive Sentries around the Array for broad area coverage.",
+			"remove_damage_tags": [&"ballistic"],
+			"add_damage_tags": [&"explosive"],
+			"primary_damage_type": &"explosive",
 			"projectile_item_eligible": true,
 			"stat_overrides": {"spawned_unit_id": &"sentry_turret"},
 		},
 		"level_overrides": {
-			0: {"range": 0.0, "spawn_interval": 5.0, "spawn_limit": 1, "deployment_radius": 4.5, "unit_stats": {"damage": 55, "attack_interval": 1.20, "aim_radius": 4.5, "move_speed": 0.0, "projectile_speed": 480.0, "damage_budget": 0, "lifetime": 0.0}},
-			1: {"range": 0.0, "spawn_interval": 4.5, "spawn_limit": 2, "deployment_radius": 5.5, "add_bonus_tags": [&"reveal"], "unit_stats": {"damage": 50, "attack_interval": 1.10, "aim_radius": 4.75, "move_speed": 0.0, "projectile_speed": 520.0, "damage_budget": 0, "lifetime": 0.0, "additional_bonus_tags": [&"reveal"]}},
-			2: {"range": 0.0, "spawn_interval": 4.0, "spawn_limit": 3, "deployment_radius": 6.5, "add_bonus_tags": [&"reveal"], "unit_stats": {"damage": 70, "attack_interval": 0.95, "aim_radius": 5.0, "move_speed": 0.0, "projectile_speed": 580.0, "damage_budget": 0, "lifetime": 0.0, "additional_bonus_tags": [&"reveal"]}},
-			3: {"range": 0.0, "spawn_interval": 3.0, "spawn_limit": 5, "deployment_radius": 8.0, "add_bonus_tags": [&"reveal"], "unit_stats": {"damage": 90, "attack_interval": 0.65, "aim_radius": 5.5, "move_speed": 0.0, "projectile_speed": 700.0, "damage_budget": 0, "lifetime": 0.0, "additional_bonus_tags": [&"reveal"]}},
+			0: {"range": 0.0, "spawn_interval": 5.0, "spawn_limit": 1, "deployment_radius": 4.5, "unit_stats": {"damage": 55, "attack_interval": 1.20, "aim_radius": 4.5, "move_speed": 0.0, "projectile_speed": 480.0, "damage_tags": [&"explosive"], "splash_radius": 1.25, "damage_budget": 0, "lifetime": 0.0}},
+			1: {"range": 0.0, "spawn_interval": 4.5, "spawn_limit": 2, "deployment_radius": 5.5, "add_bonus_tags": [&"reveal"], "unit_stats": {"damage": 50, "attack_interval": 1.10, "aim_radius": 4.75, "move_speed": 0.0, "projectile_speed": 520.0, "damage_tags": [&"explosive"], "splash_radius": 1.5, "damage_budget": 0, "lifetime": 0.0, "additional_bonus_tags": [&"reveal"]}},
+			2: {"range": 0.0, "spawn_interval": 4.0, "spawn_limit": 3, "deployment_radius": 6.5, "add_bonus_tags": [&"reveal"], "unit_stats": {"damage": 70, "attack_interval": 0.95, "aim_radius": 5.0, "move_speed": 0.0, "projectile_speed": 580.0, "damage_tags": [&"explosive"], "splash_radius": 1.75, "damage_budget": 0, "lifetime": 0.0, "additional_bonus_tags": [&"reveal"]}},
+			3: {"range": 0.0, "spawn_interval": 3.0, "spawn_limit": 5, "deployment_radius": 8.0, "add_bonus_tags": [&"reveal"], "unit_stats": {"damage": 90, "attack_interval": 0.65, "aim_radius": 5.5, "move_speed": 0.0, "projectile_speed": 700.0, "damage_tags": [&"explosive"], "splash_radius": 2.25, "damage_budget": 0, "lifetime": 0.0, "additional_bonus_tags": [&"reveal"]}},
 		},
 	},
 	&"reactor": {
@@ -385,7 +479,7 @@ const STANDALONE_TOWER_VARIANTS := {
 			"description": "Continuously irradiates every enemy in a compact field around the Reactor.",
 		},
 		"level_overrides": {
-			0: {"damage": 3, "firerate": 0.90, "range": 7.0, "radiation_stacks_per_application": 3, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.90, "reactor_stacks_per_application": 3}},
+			0: {"damage": 4, "firerate": 0.90, "range": 7.0, "radiation_stacks_per_application": 5, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.90, "reactor_stacks_per_application": 5}},
 			1: {"damage": 4, "firerate": 0.80, "range": 7.75, "radiation_stacks_per_application": 4, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.80, "reactor_stacks_per_application": 4}},
 			2: {"damage": 7, "firerate": 0.70, "range": 8.5, "radiation_stacks_per_application": 5, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.70, "reactor_stacks_per_application": 5}},
 			3: {"damage": 10, "firerate": 0.50, "range": 9.5, "radiation_stacks_per_application": 7, "behavior_flags": {"irradiator_reactor": true}, "behavior_values": {"reactor_application_interval": 0.50, "reactor_stacks_per_application": 7}},
@@ -434,13 +528,14 @@ const STANDALONE_TOWER_VARIANTS := {
 		"display_name": "Champion",
 		"modern_tower": true,
 		"inherent_path": {
-			"description": "Roams around its base and cuts through groups with broad melee sweeps.",
+			"description": "Roams around its base and irradiates groups with broad melee sweeps.",
+			"add_damage_tags": [&"radiation"],
 		},
 		"level_overrides": {
-			0: {"range": 6.5, "damage": 45, "firerate": 1.15, "melee_arc_degrees": 120.0, "melee_max_targets": 2, "roaming_move_speed": 72.0, "melee_attack_radius": 1.55, "behavior_flags": {"reaver_roaming": true}},
-			1: {"range": 7.0, "damage": 70, "firerate": 0.85, "melee_arc_degrees": 135.0, "melee_max_targets": 3, "roaming_move_speed": 80.0, "melee_attack_radius": 1.65, "behavior_flags": {"reaver_roaming": true}},
-			2: {"range": 7.5, "damage": 120, "firerate": 0.65, "melee_arc_degrees": 160.0, "melee_max_targets": 4, "roaming_move_speed": 90.0, "melee_attack_radius": 1.80, "behavior_flags": {"reaver_roaming": true}},
-			3: {"range": 8.0, "damage": 240, "firerate": 0.50, "melee_arc_degrees": 360.0, "melee_max_targets": 8, "roaming_move_speed": 105.0, "melee_attack_radius": 2.0, "behavior_flags": {"reaver_roaming": true}},
+			0: {"range": 6.5, "damage": 45, "firerate": 1.15, "melee_arc_degrees": 120.0, "melee_max_targets": 2, "roaming_move_speed": 72.0, "melee_attack_radius": 1.55, "behavior_flags": {"reaver_roaming": true, "reaver_radiation_blade": true}, "behavior_values": {"radiation_blade_damage_multiplier": 0.08}},
+			1: {"range": 7.0, "damage": 70, "firerate": 0.85, "melee_arc_degrees": 135.0, "melee_max_targets": 3, "roaming_move_speed": 80.0, "melee_attack_radius": 1.65, "behavior_flags": {"reaver_roaming": true, "reaver_radiation_blade": true}, "behavior_values": {"radiation_blade_damage_multiplier": 0.10}},
+			2: {"range": 7.5, "damage": 120, "firerate": 0.65, "melee_arc_degrees": 160.0, "melee_max_targets": 4, "roaming_move_speed": 90.0, "melee_attack_radius": 1.80, "behavior_flags": {"reaver_roaming": true, "reaver_radiation_blade": true}, "behavior_values": {"radiation_blade_damage_multiplier": 0.12}},
+			3: {"range": 8.0, "damage": 240, "firerate": 0.50, "melee_arc_degrees": 360.0, "melee_max_targets": 8, "roaming_move_speed": 105.0, "melee_attack_radius": 2.0, "behavior_flags": {"reaver_roaming": true, "reaver_radiation_blade": true}, "behavior_values": {"radiation_blade_damage_multiplier": 0.15}},
 		},
 	},
 }
@@ -489,7 +584,7 @@ const FIXED_ENEMY_DEBUT_ROUNDS := {
 	&"brute": 24,
 }
 const ENEMY_DEBUT_GROUPS := [
-	{"family_tier": 1, "count": 3, "rounds": [4, 6, 10]},
+	{"family_tier": 1, "count": 3, "rounds": [6, 8, 10]},
 	{"family_tier": 2, "count": 2, "rounds": [14, 18]},
 	{"family_tier": 3, "count": 1, "rounds": [20]},
 ]
@@ -601,6 +696,17 @@ const MAXIMUM_ARMOR_DAMAGE_REDUCTION := 0.60
 # spawn budget so expected kill income stays close to the previous pacing.
 const KILL_REWARD_MULTIPLIER := 0.592
 
+# Early rounds deliberately use a small number of readable enemies. Pay each
+# one more so cutting the opening crowd does not also cut the player's upgrade
+# income. The multiplier returns to normal once the broader roster takes over.
+const EARLY_KILL_REWARD_MULTIPLIERS := {
+	1: 2.25,
+	2: 3.00,
+	3: 3.50,
+	4: 3.00,
+	5: 4.00,
+}
+
 const ROUND_CASH_REWARDS := {
 	1: 150,
 	2: 175,
@@ -636,11 +742,11 @@ const ROUND_CASH_REWARDS := {
 # to trade crowd size for longer-lived individual enemies. Chunk timing can
 # leave a small reserve unspent. The mode's starting_spawn_threat is separate.
 const ROUND_PROFILES := {
-	1: {"duration": 20.0, "threat_budget": 18, "standard_health_multiplier": 1.00, "boss_health_multiplier": 1.2650},
-	2: {"duration": 25.0, "threat_budget": 29, "standard_health_multiplier": 1.08, "boss_health_multiplier": 1.2925},
-	3: {"duration": 30.0, "threat_budget": 43, "standard_health_multiplier": 1.16, "boss_health_multiplier": 1.3200},
-	4: {"duration": 35.0, "threat_budget": 56, "standard_health_multiplier": 1.25, "boss_health_multiplier": 1.3475},
-	5: {"duration": 40.0, "threat_budget": 75.0, "standard_health_multiplier": 1.35, "boss_health_multiplier": 1.3750},
+	1: {"duration": 15.0, "threat_budget": 9, "standard_health_multiplier": 1.15, "boss_health_multiplier": 1.2650},
+	2: {"duration": 18.0, "threat_budget": 12, "standard_health_multiplier": 1.22, "boss_health_multiplier": 1.2925},
+	3: {"duration": 20.0, "threat_budget": 15, "standard_health_multiplier": 1.30, "boss_health_multiplier": 1.3200},
+	4: {"duration": 23.0, "threat_budget": 19, "standard_health_multiplier": 1.38, "boss_health_multiplier": 1.3475},
+	5: {"duration": 26.0, "threat_budget": 23.0, "standard_health_multiplier": 1.46, "boss_health_multiplier": 1.3750},
 	6: {"duration": 45.0, "threat_budget": 90.0, "standard_health_multiplier": 1.46, "boss_health_multiplier": 1.4025},
 	7: {"duration": 50.0, "threat_budget": 112.0, "standard_health_multiplier": 1.58, "boss_health_multiplier": 1.4300},
 	8: {"duration": 55.0, "threat_budget": 140.0, "standard_health_multiplier": 1.70, "boss_health_multiplier": 1.4575},
@@ -1444,14 +1550,13 @@ const ENEMIES := {
 ## migrated incrementally.
 const PLAYABLE_TOWER_FAMILY_IDS: Array[StringName] = [
 	&"gunslinger",
-	&"laser_cannon",
+	&"decay_engine",
 	&"gauss_gunner",
 	&"anti_materiel",
 	&"kill_chain",
 	&"explosive_ricochet",
 	&"razor_disc",
-	&"containment_core",
-	&"tesla_core",
+	&"energy_core",
 	&"psionic",
 	&"assassin",
 	&"champion",
@@ -1469,15 +1574,68 @@ const PLAYABLE_TOWER_FAMILY_IDS: Array[StringName] = [
 	&"reactor",
 	&"isotope_projector",
 ]
+
+# Every normal run begins from two of these five foundation families.
+const STARTER_TOWER_FAMILY_IDS: Array[StringName] = [
+	&"gunslinger",
+	&"energy_core",
+	&"orb_barrage",
+	&"assassin",
+	&"reactor",
+]
+
+# Each root has one advanced tower that doubles down on its core play style.
+const FOCUSED_TOWER_UNLOCKS := {
+	&"gunslinger": &"anti_materiel",
+	&"energy_core": &"psionic",
+	&"orb_barrage": &"bombardment",
+	&"assassin": &"mech_bay",
+	&"reactor": &"decay_engine",
+}
+
+# Every possible pair of starter families has one hybrid. Pair keys are kept in
+# STARTER_TOWER_FAMILY_IDS order so lookup and validation remain deterministic.
+const HYBRID_TOWER_UNLOCKS := {
+	&"gunslinger+energy_core": &"gauss_gunner",
+	&"gunslinger+orb_barrage": &"explosive_ricochet",
+	&"gunslinger+assassin": &"drone_depot",
+	&"gunslinger+reactor": &"kill_chain",
+	&"energy_core+orb_barrage": &"singularity",
+	&"energy_core+assassin": &"gunship",
+	&"energy_core+reactor": &"isotope_projector",
+	&"orb_barrage+assassin": &"sentry_array",
+	&"orb_barrage+reactor": &"atomic_strike",
+	&"assassin+reactor": &"champion",
+}
+
+# Additional towers retained from the old roster. These supplement the core
+# focused/hybrid choice for their families rather than replacing it.
+const ADDITIONAL_FAMILY_TOWER_UNLOCKS := [
+	{
+		"tower_id": &"razor_disc",
+		"required_starters": [&"gunslinger"],
+	},
+	{
+		"tower_id": &"solar_lance",
+		"required_starters": [&"energy_core"],
+	},
+	{
+		"tower_id": &"fisherman",
+		"required_starters": [&"gunslinger", &"energy_core"],
+	},
+]
 const LEGACY_TOWER_FAMILY_REPLACEMENTS := {
 	&"invader": &"gunslinger",
+	&"laser_cannon": &"decay_engine",
 	&"gauss_repeater": &"gauss_gunner",
 	&"beholder": &"psionic",
 	&"hivemother": &"drone_depot",
 	&"mechbay": &"mech_bay",
 	&"longshot": &"anti_materiel",
 	&"slinger": &"explosive_ricochet",
-	&"energycore": &"containment_core",
+	&"energycore": &"energy_core",
+	&"containment_core": &"energy_core",
+	&"tesla_core": &"energy_core",
 	&"voidcaller": &"orb_barrage",
 	&"orbitalcannon": &"bombardment",
 	&"brainiac": &"psionic",
@@ -3765,7 +3923,10 @@ static func build_normal_enemy_progression(
 	# choices, so retain their established availability beats.
 	for enemy_id in FIXED_ENEMY_DEBUT_ROUNDS:
 		plan[enemy_id] = int(FIXED_ENEMY_DEBUT_ROUNDS[enemy_id])
-	var tier_one_rounds := [4, 6, 10]
+	# Give the opening five rounds a stable baseline before the run-specific
+	# roster begins. This lets every starter establish itself before counters
+	# such as Armor or swarm pressure enter the match.
+	var tier_one_rounds := [6, 8, 10]
 	for index in selected_tier_one.size():
 		plan[selected_tier_one[index]] = tier_one_rounds[index]
 	var tier_two_rounds := [14, 18]
@@ -3941,6 +4102,8 @@ static func get_late_difficulty_health_multiplier(round_number: int) -> float:
 
 
 static func get_late_kill_reward_multiplier(round_number: int) -> float:
+	if EARLY_KILL_REWARD_MULTIPLIERS.has(round_number):
+		return float(EARLY_KILL_REWARD_MULTIPLIERS[round_number])
 	if round_number <= 14:
 		return 1.0
 	return lerpf(1.0, 0.75, clampf(float(round_number - 14) / 10.0, 0.0, 1.0))
@@ -4078,6 +4241,113 @@ static func get_tower_final_level_path(tower_id: StringName) -> Dictionary:
 
 static func get_playable_tower_family_ids() -> Array[StringName]:
 	return PLAYABLE_TOWER_FAMILY_IDS.duplicate()
+
+
+static func get_starter_tower_family_ids() -> Array[StringName]:
+	return STARTER_TOWER_FAMILY_IDS.duplicate()
+
+
+static func get_focused_tower_unlock(starter_id: StringName) -> StringName:
+	var canonical_id := get_canonical_tower_family_id(starter_id)
+	return StringName(FOCUSED_TOWER_UNLOCKS.get(canonical_id, &""))
+
+
+static func get_hybrid_tower_unlock(
+	first_starter_id: StringName,
+	second_starter_id: StringName
+) -> StringName:
+	var first_id := get_canonical_tower_family_id(first_starter_id)
+	var second_id := get_canonical_tower_family_id(second_starter_id)
+	if first_id == second_id:
+		return &""
+	var first_index := STARTER_TOWER_FAMILY_IDS.find(first_id)
+	var second_index := STARTER_TOWER_FAMILY_IDS.find(second_id)
+	if first_index < 0 or second_index < 0:
+		return &""
+	if first_index > second_index:
+		var swap_id := first_id
+		first_id = second_id
+		second_id = swap_id
+	var pair_key := StringName("%s+%s" % [first_id, second_id])
+	return StringName(HYBRID_TOWER_UNLOCKS.get(pair_key, &""))
+
+
+static func get_initial_family_unlocks(
+	starter_roster: Array[StringName]
+) -> Array[StringName]:
+	var roots := get_tower_family_roots(starter_roster)
+	var unlocks: Array[StringName] = []
+	for root_id in roots:
+		var focused_id := get_focused_tower_unlock(root_id)
+		if not focused_id.is_empty() and not unlocks.has(focused_id):
+			unlocks.append(focused_id)
+	for first_index in roots.size():
+		for second_index in range(first_index + 1, roots.size()):
+			var hybrid_id := get_hybrid_tower_unlock(
+				roots[first_index], roots[second_index]
+			)
+			if not hybrid_id.is_empty() and not unlocks.has(hybrid_id):
+				unlocks.append(hybrid_id)
+	for unlock_entry in ADDITIONAL_FAMILY_TOWER_UNLOCKS:
+		var requirements_met := true
+		for required_starter in unlock_entry["required_starters"]:
+			if not roots.has(StringName(required_starter)):
+				requirements_met = false
+				break
+		if requirements_met:
+			var tower_id := StringName(unlock_entry["tower_id"])
+			if not unlocks.has(tower_id):
+				unlocks.append(tower_id)
+	return unlocks
+
+
+static func get_tower_family_roots(tower_roster: Array[StringName]) -> Array[StringName]:
+	var roots: Array[StringName] = []
+	for roster_id in tower_roster:
+		var tower_id := get_canonical_tower_family_id(roster_id)
+		if STARTER_TOWER_FAMILY_IDS.has(tower_id):
+			_append_unique_string_name(roots, tower_id)
+			continue
+		for starter_id in FOCUSED_TOWER_UNLOCKS:
+			if StringName(FOCUSED_TOWER_UNLOCKS[starter_id]) == tower_id:
+				_append_unique_string_name(roots, StringName(starter_id))
+		for pair_key in HYBRID_TOWER_UNLOCKS:
+			if StringName(HYBRID_TOWER_UNLOCKS[pair_key]) != tower_id:
+				continue
+			for starter_label in String(pair_key).split("+", false):
+				_append_unique_string_name(roots, StringName(starter_label))
+		for unlock_entry in ADDITIONAL_FAMILY_TOWER_UNLOCKS:
+			if StringName(unlock_entry["tower_id"]) != tower_id:
+				continue
+			for required_starter in unlock_entry["required_starters"]:
+				_append_unique_string_name(roots, StringName(required_starter))
+	return roots
+
+
+static func get_wildcard_hybrid_unlocks(
+	tower_roster: Array[StringName]
+) -> Array[StringName]:
+	var owned_roots := get_tower_family_roots(tower_roster)
+	var wildcards: Array[StringName] = []
+	for pair_key in HYBRID_TOWER_UNLOCKS:
+		var pair := String(pair_key).split("+", false)
+		if pair.size() != 2:
+			continue
+		var first_owned := owned_roots.has(StringName(pair[0]))
+		var second_owned := owned_roots.has(StringName(pair[1]))
+		if first_owned == second_owned:
+			continue
+		var tower_id := StringName(HYBRID_TOWER_UNLOCKS[pair_key])
+		if not tower_roster.has(tower_id):
+			wildcards.append(tower_id)
+	return wildcards
+
+
+static func _append_unique_string_name(
+	values: Array[StringName], value: StringName
+) -> void:
+	if not values.has(value):
+		values.append(value)
 
 
 static func is_playable_tower_family(tower_id: StringName) -> bool:
