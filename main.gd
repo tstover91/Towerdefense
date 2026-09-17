@@ -2698,7 +2698,10 @@ func ensure_draft_manager() -> void:
 
 func roll_tower_offers() -> Array[StringName]:
 	ensure_draft_manager()
-	return draft_manager.roll_tower_offers(tower_roster, [], round_number)
+	var empty_tower_pool: Array[StringName] = []
+	return draft_manager.roll_tower_offers(
+		tower_roster, empty_tower_pool, round_number
+	)
 
 
 func _on_draft_confirmed(item_id: StringName, quantity: int) -> void:
