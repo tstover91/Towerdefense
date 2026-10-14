@@ -47,7 +47,6 @@ var preview_changes_path := false
 var board_origin := Vector2.ZERO
 var cell_size := 48.0
 var title_font: Font
-var last_touch_press_msec := -1000
 
 
 func _ready() -> void:
@@ -62,11 +61,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_update_hover(_screen_to_cell(event.position))
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		# Android may synthesize a mouse click from the touch handled below.
-		if event.pressed and Time.get_ticks_msec() - last_touch_press_msec > 200:
+		if event.pressed:
 			_handle_cell_press(_screen_to_cell(event.position))
 	elif event is InputEventScreenTouch and event.pressed:
-		last_touch_press_msec = Time.get_ticks_msec()
 		var touched_cell := _screen_to_cell(event.position)
 		_update_hover(touched_cell)
 		_handle_cell_press(touched_cell)
@@ -90,7 +87,7 @@ func _draw() -> void:
 
 func _draw_header() -> void:
 	var heading := "Tower Flow Test"
-	var instructions := "Tap an empty tile to place a blocking tower. Tap a tower to remove it. Towers need one empty tile between them."
+	var instructions := "Tap repeatedly to place squares. Tap a square to remove it. Keep one empty tile between every square."
 	draw_string(title_font, Vector2(GRID_MARGIN, 30.0), heading, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("f4ead3"))
 	draw_string(title_font, Vector2(GRID_MARGIN, 57.0), instructions, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("bdb1c3"))
 
