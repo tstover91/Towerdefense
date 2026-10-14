@@ -87,7 +87,7 @@ func _draw() -> void:
 
 func _draw_header() -> void:
 	var heading := "Tower Flow Test"
-	var instructions := "Tap repeatedly to place squares. Tap a square to remove it. Keep one empty tile between every square."
+	var instructions := "Tap repeatedly to place squares. Squares may touch, but every route must remain open."
 	draw_string(title_font, Vector2(GRID_MARGIN, 30.0), heading, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("f4ead3"))
 	draw_string(title_font, Vector2(GRID_MARGIN, 57.0), instructions, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("bdb1c3"))
 
@@ -157,7 +157,7 @@ func _draw_footer() -> void:
 			if preview_changes_path:
 				status += " — route changes"
 		else:
-			status += "    Invalid: marker, spacing, or blocked route"
+			status += "    Invalid: marker or blocked route"
 	status += "    R/C/Backspace: clear"
 	var baseline := board_origin.y + float(GRID_SIZE.y) * cell_size + 29.0
 	draw_string(title_font, Vector2(GRID_MARGIN, baseline), status, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color("d9cfdd"))
@@ -202,10 +202,6 @@ func _update_hover(cell: Vector2i) -> void:
 func _is_legal_new_tower(cell: Vector2i, candidate_blocks: Dictionary) -> bool:
 	if _is_route_marker(cell):
 		return false
-	for other_cell in placed_towers:
-		var offset: Vector2i = cell - other_cell
-		if absi(offset.x) <= 1 and absi(offset.y) <= 1:
-			return false
 	return not _calculate_complete_path(candidate_blocks).is_empty()
 
 
