@@ -1,0 +1,25 @@
+; Standalone project for the mobile path-flow prototype.
+config_version=5
+
+[application]
+
+config/name="Tower Flow Test"
+run/main_scene="res://main.tscn"
+
+[display]
+
+window/size/viewport_width=1152
+window/size/viewport_height=648
+window/size/window_width_override=1152
+window/size/window_height_override=648
+window/stretch/mode="canvas_items"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
