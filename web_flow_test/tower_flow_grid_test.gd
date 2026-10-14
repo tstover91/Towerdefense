@@ -87,7 +87,7 @@ func _draw() -> void:
 
 func _draw_header() -> void:
 	var heading := "Tower Flow Test"
-	var instructions := "Tap repeatedly to place squares. Squares may touch, but every route must remain open."
+	var instructions := "Tap to place/remove. Towers may touch; every route must stay open."
 	draw_string(title_font, Vector2(GRID_MARGIN, 30.0), heading, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("f4ead3"))
 	draw_string(title_font, Vector2(GRID_MARGIN, 57.0), instructions, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("bdb1c3"))
 
@@ -281,7 +281,10 @@ func _recalculate_layout() -> void:
 		available_height / float(GRID_SIZE.y)
 	), MIN_CELL_SIZE, MAX_CELL_SIZE)
 	var board_size := Vector2(GRID_SIZE) * cell_size
+	var board_y := TOP_UI_HEIGHT + maxf((available_height - board_size.y) * 0.5, 0.0)
+	if viewport_size.y > viewport_size.x:
+		board_y = TOP_UI_HEIGHT
 	board_origin = Vector2(
 		(viewport_size.x - board_size.x) * 0.5,
-		TOP_UI_HEIGHT + maxf((available_height - board_size.y) * 0.5, 0.0)
+		board_y
 	)
