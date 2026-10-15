@@ -70,13 +70,13 @@ func _run() -> void:
 	_assert(board.towers_by_cell.has(tower_cell), "the second precision tap creates a combat tower")
 	_assert(int(board.placement_mode) == 0, "precision placement ends after building")
 	_assert(board.displayed_route != original_route, "blocking a route cell changes the displayed path")
-	_assert(game.economy.credits == 400, "tower placement costs $100")
+	_assert(game.economy.credits == 350, "gun placement costs $150")
 	_assert(game.economy.used_power == 1, "tower placement consumes Power")
 	var tower: Node2D = board.towers_by_cell[tower_cell]
 	_assert(tower.level == 1, "new tower starts at level one")
 	board._upgrade_selected_tower()
 	_assert(tower.level == 2, "selected tower upgrades")
-	_assert(game.economy.credits == 300, "level two costs $100")
+	_assert(game.economy.credits == 300, "the gun's modest level-two upgrade costs $50")
 
 	board.spawn_enemy({
 		"health": 8,
@@ -112,14 +112,14 @@ func _run() -> void:
 	_assert(not board.towers_by_cell.has(unused_cell), "drag preview does not commit early")
 	board._finish_placement_drag(drag_release)
 	_assert(board.towers_by_cell.has(unused_cell), "releasing a valid drag builds immediately")
-	_assert(game.economy.credits == 340, "a second tower costs $100")
+	_assert(game.economy.credits == 290, "a second gun costs $150")
 	board.show_wave_reward({
-		"base_reward": 120,
+		"base_reward": 180,
 		"interest_reward": 20,
 		"limits_increased": false,
 	})
 	_assert(
-		board.status_override == "Wave reward $120 + interest $20",
+		board.status_override == "Wave reward $180 + interest $20",
 		"wave rewards remain visible while a tower is selected"
 	)
 	board._sell_selected_tower()
@@ -151,16 +151,16 @@ func _run() -> void:
 	game.round_controller.schedule_index = game.round_controller.schedule.size()
 	game.round_controller.active_enemy_count = 0
 	_assert(game.round_controller._try_complete_wave(), "forced integration wave completes")
-	_assert(game.economy.credits == 582, "wave clear pays $120 plus the locked $22 interest")
+	_assert(game.economy.credits == 642, "wave clear pays $180 plus the locked $22 interest")
 	_assert(
-		board.status_override == "Wave reward $120 + interest $22 · WALL +1",
+		board.status_override == "Wave reward $180 + interest $22 · WALL +1",
 		"the coordinated wave reward is the final visible notification"
 	)
 
 	board._handle_screen_press(board.build_button_rect.get_center())
 	board._handle_screen_press(board._cell_center(unused_cell))
 	board._handle_screen_press(board._cell_center(unused_cell))
-	_assert(game.economy.credits == 482, "building remains available between waves")
+	_assert(game.economy.credits == 492, "building remains available between waves")
 	var terminal_tower_count: int = board.towers_by_cell.size()
 	board.spawn_enemy({
 		"health": 9999,
@@ -179,7 +179,7 @@ func _run() -> void:
 		board.towers_by_cell.size() == terminal_tower_count,
 		"build, upgrade, and sell transactions stop after the run"
 	)
-	_assert(game.economy.credits == 482, "terminal input cannot change the balance")
+	_assert(game.economy.credits == 492, "terminal input cannot change the balance")
 	_finish("PROTOTYPE_COMBAT_INTEGRATION_SMOKE_OK")
 
 

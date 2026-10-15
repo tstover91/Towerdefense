@@ -9,26 +9,27 @@ const TYPE_BEAM: StringName = &"beam"
 const TARGET_SCAN_INTERVAL := 0.10
 const PARTICIPATED_SELL_RATIO := 0.70
 const TYPE_DATA := {
-	TYPE_GUN: {"name": "GUN", "cost": 100, "color": Color("e84f3d"), "stats": [
-		{"damage": 8, "interval": 0.75, "range_cells": 3.2},
-		{"damage": 13, "interval": 0.68, "range_cells": 3.4},
-		{"damage": 24, "interval": 0.58, "range_cells": 3.8},
-		{"damage": 48, "interval": 0.45, "range_cells": 4.3},
+	# Each price curve follows the same broad TDS shape: a cheap, modest first
+	# upgrade, a defining midgame jump, and an expensive late-game capstone.
+	TYPE_GUN: {"name": "GUN", "cost": 150, "upgrade_costs": [50, 300, 900], "color": Color("e84f3d"), "stats": [
+		{"damage": 8, "interval": 0.80, "range_cells": 3.2},
+		{"damage": 8, "interval": 0.60, "range_cells": 3.3},
+		{"damage": 18, "interval": 0.45, "range_cells": 3.6},
+		{"damage": 40, "interval": 0.40, "range_cells": 4.0},
 	]},
-	TYPE_MORTAR: {"name": "MORTAR", "cost": 140, "color": Color("efb83d"), "splash_cells": [1.15, 1.20, 1.30, 1.45], "stats": [
-		{"damage": 18, "interval": 1.85, "range_cells": 4.2},
-		{"damage": 30, "interval": 1.72, "range_cells": 4.4},
-		{"damage": 58, "interval": 1.55, "range_cells": 4.8},
-		{"damage": 120, "interval": 1.30, "range_cells": 5.2},
+	TYPE_MORTAR: {"name": "MORTAR", "cost": 350, "upgrade_costs": [150, 600, 1800], "color": Color("efb83d"), "splash_cells": [1.15, 1.20, 1.40, 1.70], "stats": [
+		{"damage": 20, "interval": 2.00, "range_cells": 4.2},
+		{"damage": 24, "interval": 1.80, "range_cells": 4.3},
+		{"damage": 55, "interval": 1.70, "range_cells": 4.6},
+		{"damage": 130, "interval": 1.55, "range_cells": 5.0},
 	]},
-	TYPE_BEAM: {"name": "BEAM", "cost": 180, "color": Color("8c69d4"), "stats": [
-		{"damage": 2, "interval": 0.20, "range_cells": 3.6, "ramp": 2},
-		{"damage": 3, "interval": 0.20, "range_cells": 3.8, "ramp": 3},
-		{"damage": 5, "interval": 0.18, "range_cells": 4.1, "ramp": 5},
-		{"damage": 8, "interval": 0.16, "range_cells": 4.5, "ramp": 8},
+	TYPE_BEAM: {"name": "BEAM", "cost": 750, "upgrade_costs": [200, 700, 2700], "color": Color("8c69d4"), "stats": [
+		{"damage": 2, "interval": 0.25, "range_cells": 3.6, "ramp": 2},
+		{"damage": 2, "interval": 0.20, "range_cells": 3.7, "ramp": 2},
+		{"damage": 4, "interval": 0.20, "range_cells": 4.0, "ramp": 4},
+		{"damage": 8, "interval": 0.16, "range_cells": 4.4, "ramp": 8},
 	]},
 }
-const UPGRADE_COSTS: Array[int] = [100, 300, 800]
 const BODY_DARK := Color("171717")
 const BODY_LIGHT := Color("f1ead8")
 const RANGE_COLOR := Color(0.91, 0.31, 0.24, 0.12)
@@ -43,7 +44,7 @@ var attack_cooldown := 0.0
 var target_scan_remaining := 0.0
 var target: Node2D
 var aim_direction := Vector2.RIGHT
-var total_investment := 100
+var total_investment := 0
 var has_participated := false
 var target_lock_time := 0.0
 
@@ -103,7 +104,10 @@ func can_upgrade() -> bool:
 
 
 func get_next_upgrade_cost() -> int:
-	return UPGRADE_COSTS[level - 1] if can_upgrade() else 0
+	if not can_upgrade():
+		return 0
+	var upgrade_costs: Array = TYPE_DATA[tower_type]["upgrade_costs"]
+	return int(upgrade_costs[level - 1])
 
 
 func upgrade(paid_cost: int) -> bool:

@@ -6,8 +6,11 @@ const STARTING_POWER_LIMIT := 3
 const STARTING_WALL_LIMIT := 5
 const INTEREST_RATE := 0.05
 const INTEREST_REWARD_CAP_RATIO := 0.50
-const BASE_WAVE_REWARD := 120
-const WAVE_REWARD_INCREMENT := 20
+# TDS pays both enemy bounties and a rising wave bonus. This prototype has no
+# per-kill income, so this reward deliberately combines those two income lanes.
+const BASE_WAVE_REWARD := 180
+const WAVE_REWARD_STEP := 28
+const WAVE_REWARD_EXPONENT := 1.03
 const POWER_INCREASE_WAVES: Array[int] = [2, 4, 6, 9, 12, 15, 18]
 const WALL_INCREASE_WAVES: Array[int] = [
 	1, 2, 3, 4,
@@ -79,7 +82,11 @@ func add_credits(amount: int) -> void:
 
 
 func get_wave_reward(wave: int) -> int:
-	return BASE_WAVE_REWARD + maxi(wave - 1, 0) * WAVE_REWARD_INCREMENT
+	var completed_waves := maxi(wave - 1, 0)
+	return floori(
+		float(BASE_WAVE_REWARD)
+		+ pow(float(completed_waves * WAVE_REWARD_STEP), WAVE_REWARD_EXPONENT)
+	)
 
 
 func get_projected_interest(wave: int) -> int:
