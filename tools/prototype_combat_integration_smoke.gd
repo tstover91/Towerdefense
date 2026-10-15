@@ -19,6 +19,21 @@ func _run() -> void:
 	var board: Node2D = game.get_node("GridBoard")
 	board.enemy_resolved.connect(_on_enemy_resolved)
 	var button_center: Vector2 = board.build_button_rect.get_center()
+	var android_touch := InputEventScreenTouch.new()
+	android_touch.index = 0
+	android_touch.position = button_center
+	android_touch.pressed = true
+	board._input(android_touch)
+	android_touch = InputEventScreenTouch.new()
+	android_touch.index = 0
+	android_touch.position = button_center
+	android_touch.pressed = false
+	board._input(android_touch)
+	_assert(
+		int(board.placement_mode) == 1,
+		"raw viewport touch begins precision placement before GUI handling"
+	)
+	board._cancel_placement()
 	board._begin_precision_placement()
 	board._arm_placement_drag(button_center, 0)
 	var touch_jitter := button_center + Vector2(14.0, 0.0)

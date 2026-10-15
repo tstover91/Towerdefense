@@ -11,9 +11,9 @@ signal enemy_resolved(leaked: bool, leak_damage: int)
 const GRID_SIZE := Vector2i(18, 9)
 const GRID_MARGIN := 18.0
 const TOP_UI_HEIGHT := 68.0
-const BOTTOM_UI_HEIGHT := 76.0
+const BOTTOM_UI_HEIGHT := 88.0
 const COMPACT_TOP_UI_HEIGHT := 52.0
-const COMPACT_BOTTOM_UI_HEIGHT := 68.0
+const COMPACT_BOTTOM_UI_HEIGHT := 80.0
 const WAVE_REWARD_MESSAGE_DURATION_MSEC := 3500
 const PLACEMENT_DRAG_THRESHOLD := 18.0
 const PLACEMENT_FINGER_OFFSET_CELLS := 0.85
@@ -142,7 +142,7 @@ func _process(_delta: float) -> void:
 		queue_redraw()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if portrait_view:
 		return
 	if event is InputEventScreenTouch:
@@ -1103,7 +1103,7 @@ func _recalculate_layout() -> void:
 		)
 	)
 	var footer_y := board_origin.y + board_size.y + 8.0
-	var button_height := 48.0 if compact_layout else 52.0
+	var button_height := 60.0 if compact_layout else 64.0
 	build_button_rect = Rect2(
 		safe_view_rect.position.x + GRID_MARGIN,
 		footer_y,
