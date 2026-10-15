@@ -103,6 +103,7 @@ var placement_press_position := Vector2.ZERO
 var placement_drag_armed := false
 var placement_drag_over_cancel := false
 var placement_started_msec := -1000
+var placement_rejection_reasons: Dictionary = {}
 var economy = null
 var economy_state: Dictionary = {
 	"credits": 500,
@@ -525,7 +526,10 @@ func _handle_precision_cell_press(cell: Vector2i) -> void:
 	status_message = (
 		"Tap again to build."
 		if preview_is_valid
-		else "That cell cannot hold this tower."
+		else String(placement_rejection_reasons.get(
+			cell,
+			"That cell cannot hold this tower."
+		))
 	)
 	queue_redraw()
 
@@ -550,9 +554,9 @@ func _try_place_building(cell: Vector2i) -> bool:
 			status_message = "Tower capacity is full. Sell a tower to free one slot."
 		queue_redraw()
 		return false
-	var route_states := _get_active_route_states()
-	if not router.can_add_dynamic_block(cell, route_states):
-		status_message = "Blocked: that placement would trap a route or an active unit."
+	var rejection_reason := _get_placement_rejection_reason(cell)
+	if not rejection_reason.is_empty():
+		status_message = rejection_reason
 		_update_preview(cell, true)
 		return false
 	if placement_kind == BUILD_WALL:
@@ -606,6 +610,7 @@ func _begin_precision_placement(kind: StringName = BUILD_TOWER) -> bool:
 	placement_mode = PlacementMode.PRECISION
 	placement_kind = kind
 	placement_started_msec = Time.get_ticks_msec()
+	placement_rejection_reasons.clear()
 	precision_cell = Vector2i(-1, -1)
 	_select_tower(null)
 	status_message = "Tap a cell, then tap it again to build %s." % (
@@ -622,6 +627,7 @@ func _cancel_placement(message := "") -> void:
 	placement_drag_armed = false
 	placement_drag_over_cancel = false
 	placement_pointer_index = -2
+	placement_rejection_reasons.clear()
 	_clear_placement_preview()
 	if not message.is_empty():
 		status_message = message
@@ -718,13 +724,16 @@ func _finish_placement_drag(screen_position: Vector2) -> void:
 		_get_build_kind_at(screen_position) == placement_kind
 	)
 	var placed := false
+	var rejection_message := "Placement canceled."
 	if not placement_drag_over_cancel:
 		var preview_position := screen_position + Vector2.UP * cell_size * PLACEMENT_FINGER_OFFSET_CELLS
 		_update_preview(_screen_to_cell(preview_position), true)
 		if preview_is_valid:
 			placed = _try_place_building(hovered_cell)
+		elif placement_rejection_reasons.has(hovered_cell):
+			rejection_message = String(placement_rejection_reasons[hovered_cell])
 	_cancel_placement(
-		"" if placed else "Placement canceled."
+		"" if placed else rejection_message
 	)
 
 
@@ -743,10 +752,7 @@ func _update_preview(cell: Vector2i, force := false) -> void:
 	):
 		preview_is_valid = (
 			_can_begin_placement(placement_kind)
-			and router.can_add_dynamic_block(
-			cell,
-			_get_active_route_states()
-			)
+			and _get_placement_rejection_reason(cell).is_empty()
 		)
 		if preview_is_valid:
 			var candidate_blocks: Dictionary = router.dynamic_blocks.duplicate()
@@ -757,6 +763,20 @@ func _update_preview(cell: Vector2i, force := false) -> void:
 				candidate_blocks
 			)
 	queue_redraw()
+
+
+func _get_placement_rejection_reason(cell: Vector2i) -> String:
+	if placement_rejection_reasons.has(cell):
+		return String(placement_rejection_reasons[cell])
+	if not router.can_add_dynamic_block(cell):
+		var route_message := "Blocked: the complete waypoint route would retrace or close."
+		placement_rejection_reasons[cell] = route_message
+		return route_message
+	if not router.can_add_dynamic_block(cell, _get_active_route_states()):
+		var active_message := "Wait: an active enemy would have to backtrack."
+		placement_rejection_reasons[cell] = active_message
+		return active_message
+	return ""
 
 
 func _clear_placement_preview() -> void:

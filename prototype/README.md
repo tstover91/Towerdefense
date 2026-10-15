@@ -12,6 +12,8 @@ when it would block a required waypoint route or trap an active enemy.
 Later waypoint segments cannot reuse an earlier tile-to-tile connection, so
 enemies cannot retrace long sections of the route. A route may revisit a tile
 through unused sides, allowing proper crossroads and perpendicular crossings.
+If a square would force an active enemy to backtrack, it remains rejected for
+the rest of that placement gesture instead of changing while enemies move.
 
 Use **Start Wave** to play the ten-wave combat slice. Enemies arrive in planned
 groups, rounds finish as soon as all planned enemies are defeated or leak, and

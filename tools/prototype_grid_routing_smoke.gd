@@ -28,6 +28,7 @@ func _init() -> void:
 	var changed_route: Array[Vector2i] = router.find_complete_route(entrance)
 	_assert(not changed_route.is_empty(), "route remains open after legal placement")
 	_assert(not changed_route.has(first_open_route_cell), "new route avoids placed tower")
+	_assert(_has_unique_edges(router, changed_route), "every accepted route uses each edge once")
 
 	router.clear_dynamic_blocks()
 	for y in grid_size.y:
@@ -208,6 +209,16 @@ func _appears_in_order(route: Array[Vector2i], targets: Array[Vector2i]) -> bool
 		if route_index >= route.size():
 			return false
 		route_index += 1
+	return true
+
+
+func _has_unique_edges(router: RefCounted, route: Array[Vector2i]) -> bool:
+	var used_edges: Dictionary = {}
+	for index in range(1, route.size()):
+		var edge = router.get_edge_key(route[index - 1], route[index])
+		if used_edges.has(edge):
+			return false
+		used_edges[edge] = true
 	return true
 
 
