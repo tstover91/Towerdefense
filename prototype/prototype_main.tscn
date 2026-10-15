@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource path="res://prototype/prototype_game.gd" type="Script" id="1_game"]
+[ext_resource path="res://prototype/prototype_grid_board.gd" type="Script" id="2_board"]
+
+[node name="GridMazePrototype" type="Node"]
+script = ExtResource("1_game")
+
+[node name="GridBoard" type="Node2D" parent="."]
+script = ExtResource("2_board")
