@@ -68,6 +68,11 @@ func _run() -> void:
 			board.safe_view_rect.encloses(board.sell_button_rect),
 			"%s keeps the sell control inside the safe viewport" % viewport_size
 		)
+		_assert(
+			board.safe_view_rect.encloses(board.export_button_rect)
+			and board.export_button_rect.size.y >= 60.0,
+			"%s keeps the stats export control mobile-sized and inside the safe viewport" % viewport_size
+		)
 	get_root().size = Vector2i(540, 960)
 	board._recalculate_layout()
 	_assert(board.portrait_view, "portrait view is rejected instead of changing the grid")

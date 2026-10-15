@@ -10,6 +10,7 @@ signal enemy_resolved(leaked: bool, leak_damage: int)
 signal enemies_added(count: int)
 signal enemy_spawned_for_stats(enemy_type: StringName, max_health: int)
 signal tower_damage_recorded(tower_type: StringName, amount: int)
+signal export_stats_requested
 
 const GRID_SIZE := Vector2i(19, 10)
 const GRID_MARGIN := 18.0
@@ -92,6 +93,7 @@ var wall_button_rect := Rect2()
 var start_button_rect := Rect2()
 var upgrade_button_rect := Rect2()
 var sell_button_rect := Rect2()
+var export_button_rect := Rect2()
 var safe_view_rect := Rect2()
 var portrait_view := false
 var compact_layout := false
@@ -483,7 +485,8 @@ func _draw_footer_controls() -> void:
 			or selected_wall_cell.x >= 0
 		) and _is_gameplay_phase()
 	)
-	var info_x := sell_button_rect.end.x + 16.0
+	_draw_button(export_button_rect, "STATS", true)
+	var info_x := export_button_rect.end.x + 16.0
 	var info_width := maxf(safe_view_rect.end.x - info_x - GRID_MARGIN, 0.0)
 	var displayed_status := status_override
 	if displayed_status.is_empty():
@@ -548,6 +551,10 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 	if sell_button_rect.has_point(screen_position):
 		_cancel_placement()
 		_remove_selected_building()
+		return
+	if export_button_rect.has_point(screen_position):
+		_cancel_placement()
+		export_stats_requested.emit()
 		return
 	var cell := _screen_to_cell(screen_position)
 	if not router.is_inside_grid(cell):
@@ -1148,6 +1155,15 @@ func show_wave_reward(reward: Dictionary) -> void:
 	queue_redraw()
 
 
+func show_stats_export_result(result: Dictionary) -> void:
+	status_override = String(result.get(
+		"message",
+		"Stats exported." if bool(result.get("success", false)) else "No stats report was found."
+	))
+	status_override_expires_msec = Time.get_ticks_msec() + WAVE_REWARD_MESSAGE_DURATION_MSEC
+	queue_redraw()
+
+
 func _request_start_wave() -> void:
 	if StringName(combat_state.get("phase", &"build")) != &"build":
 		return
@@ -1375,13 +1391,13 @@ func _recalculate_layout() -> void:
 	)
 	var footer_y := board_origin.y + board_size.y + 8.0
 	var button_height := 60.0 if compact_layout else 64.0
-	var base_widths := PackedFloat32Array([92.0, 108.0, 96.0, 96.0, 110.0, 88.0, 88.0])
+	var base_widths := PackedFloat32Array([92.0, 108.0, 96.0, 96.0, 110.0, 88.0, 88.0, 72.0])
 	var control_gap := 4.0 if compact_layout else 8.0
 	var available_control_width := safe_view_rect.size.x - GRID_MARGIN * 2.0
 	var base_total := 0.0
 	for width in base_widths:
 		base_total += width
-	var width_scale := minf((available_control_width - control_gap * 6.0) / base_total, 1.0)
+	var width_scale := minf((available_control_width - control_gap * 7.0) / base_total, 1.0)
 	for index in base_widths.size():
 		base_widths[index] *= width_scale
 	build_button_rect = Rect2(
@@ -1424,6 +1440,12 @@ func _recalculate_layout() -> void:
 		upgrade_button_rect.end.x + control_gap,
 		footer_y,
 		base_widths[6],
+		button_height
+	)
+	export_button_rect = Rect2(
+		sell_button_rect.end.x + control_gap,
+		footer_y,
+		base_widths[7],
 		button_height
 	)
 

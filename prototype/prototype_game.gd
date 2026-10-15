@@ -22,6 +22,7 @@ func _ready() -> void:
 	board.enemy_spawned_for_stats.connect(run_stats.record_spawn)
 	board.tower_damage_recorded.connect(run_stats.record_damage)
 	board.enemy_resolved.connect(run_stats.record_enemy_resolved)
+	board.export_stats_requested.connect(_on_export_stats_requested)
 	round_controller.enemy_spawn_requested.connect(board.spawn_enemy)
 	round_controller.wave_cleared.connect(_on_wave_cleared)
 	round_controller.state_changed.connect(_on_combat_state_changed)
@@ -65,6 +66,10 @@ func _on_combat_state_changed(state: Dictionary) -> void:
 			round_controller.lives,
 			"defeat"
 		)
+
+
+func _on_export_stats_requested() -> void:
+	board.show_stats_export_result(run_stats.export_reports_to_project())
 
 
 func _refresh_economy_state() -> void:

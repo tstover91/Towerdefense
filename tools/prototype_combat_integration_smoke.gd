@@ -198,6 +198,15 @@ func _run() -> void:
 	var stats_row: Dictionary = game.run_stats.get_rows()[0]
 	_assert(int(stats_row["spawned_health"]) == 9999, "telemetry records effective spawned health")
 	_assert(int(stats_row["tower_count"]) == 0, "telemetry snapshots the end-of-wave tower count")
+	var export_result: Dictionary = game.run_stats.export_reports_to_project()
+	game.board.show_stats_export_result(export_result)
+	if not bool(export_result.get("success", false)):
+		push_error("Stats export failed: %s" % String(export_result.get("message", "unknown error")))
+	_assert(
+		FileAccess.file_exists("res://balance_reports/prototype_run_stats.csv")
+		and FileAccess.file_exists("res://balance_reports/prototype_run_stats.json"),
+		"the stats control exports both reports into the project folder"
+	)
 	var terminal_tower_count: int = board.towers_by_cell.size()
 	board.spawn_enemy({
 		"health": 9999,

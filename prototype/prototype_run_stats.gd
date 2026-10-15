@@ -3,6 +3,7 @@ extends RefCounted
 
 const CSV_PATH := "user://prototype_run_stats.csv"
 const JSON_PATH := "user://prototype_run_stats.json"
+const EXPORT_DIRECTORY := "res://balance_reports"
 const DAMAGE_TYPES: Array[String] = ["gun", "mortar", "beam"]
 
 var rows: Array[Dictionary] = []
@@ -124,13 +125,65 @@ func get_report_paths() -> Dictionary:
 	}
 
 
+func export_reports_to_project() -> Dictionary:
+	var export_directory := ProjectSettings.globalize_path(EXPORT_DIRECTORY)
+	var directory_error := DirAccess.make_dir_recursive_absolute(export_directory)
+	if directory_error != OK and directory_error != ERR_ALREADY_EXISTS:
+		return {
+			"success": false,
+			"message": "Could not create the balance_reports folder.",
+		}
+	var copied_files := 0
+	for source_path_value in [CSV_PATH, JSON_PATH]:
+		var source_path := String(source_path_value)
+		if not FileAccess.file_exists(source_path):
+			continue
+		var file_name: String = source_path.get_file()
+		var destination_path: String = ProjectSettings.globalize_path(
+			EXPORT_DIRECTORY.path_join(file_name)
+		)
+		if _copy_file(source_path, destination_path):
+			copied_files += 1
+	if copied_files == 0 and not rows.is_empty():
+		var direct_csv_path := export_directory.path_join(CSV_PATH.get_file())
+		var direct_json_path := export_directory.path_join(JSON_PATH.get_file())
+		if _write_reports_to_paths(direct_csv_path, direct_json_path):
+			copied_files = 2
+	if copied_files == 0:
+		return {
+			"success": false,
+			"message": "No completed-round stats were found to export.",
+		}
+	return {
+		"success": true,
+		"message": "Stats exported to balance_reports (%d files)." % copied_files,
+		"path": export_directory,
+	}
+
+
+func _copy_file(source_path: String, destination_path: String) -> bool:
+	var source := FileAccess.open(source_path, FileAccess.READ)
+	if source == null:
+		return false
+	var destination := FileAccess.open(destination_path, FileAccess.WRITE)
+	if destination == null:
+		return false
+	destination.store_buffer(source.get_buffer(source.get_length()))
+	return true
+
+
 func _write_reports() -> void:
-	var json_file := FileAccess.open(JSON_PATH, FileAccess.WRITE)
+	_write_reports_to_paths(CSV_PATH, JSON_PATH)
+
+
+func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
+	var json_file := FileAccess.open(json_path, FileAccess.WRITE)
 	if json_file != null:
 		json_file.store_string(JSON.stringify(rows, "\t"))
-	var csv_file := FileAccess.open(CSV_PATH, FileAccess.WRITE)
+		json_file.close()
+	var csv_file := FileAccess.open(csv_path, FileAccess.WRITE)
 	if csv_file == null:
-		return
+		return false
 	var headers: Array[String] = [
 		"wave", "outcome", "duration_seconds", "base_reward", "interest_reward",
 		"starting_credits", "ending_credits", "tower_count", "level_1_towers",
@@ -147,3 +200,5 @@ func _write_reports() -> void:
 		for header in headers:
 			values.append(str(row.get(header, "")))
 		csv_file.store_csv_line(values)
+	csv_file.close()
+	return json_file != null
