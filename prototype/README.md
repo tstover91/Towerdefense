@@ -1,8 +1,8 @@
 # Grid maze prototype
 
-This scene is isolated from the current game and does not replace its main scene.
+This is the project's only gameplay scene and launches when the project runs.
 
-Run `res://prototype/prototype_main.tscn` in Godot. Tap an empty grid cell to
+Run the project or `res://prototype/prototype_main.tscn` in Godot. Tap an empty grid cell to
 place a blocking tower and tap an existing tower to select it. Use the footer
 controls to upgrade or sell the selected tower. Placement is rejected when it
 would block the entrance route or trap an active enemy.

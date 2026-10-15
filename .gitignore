@@ -2,6 +2,8 @@
 .godot/
 .nomedia
 .codex-remote-attachments/
+/balance_reports/
+/design_mockups/
 
 # Godot-specific ignores
 .import/
@@ -15,10 +17,6 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
-
-# Balance reports are reproducible generated data; keep only the Godot ignore marker.
-balance_reports/*
-!balance_reports/.gdignore
 
 # Local headless verification output.
 /prototype_*_smoke.log

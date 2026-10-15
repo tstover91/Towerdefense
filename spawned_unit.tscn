@@ -1,7 +1,0 @@
-[gd_scene format=3 uid="uid://bky3rok1wxb36"]
-
-[ext_resource type="Script" uid="uid://l6g8hac2o7uk" path="res://spawned_unit.gd" id="1_unit"]
-
-[node name="SpawnedUnit" type="Node2D" unique_id=630158331]
-z_index = 4
-script = ExtResource("1_unit")

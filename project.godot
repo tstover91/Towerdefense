@@ -1,41 +1,24 @@
-; Engine configuration file.
-; It's best edited using the editor UI and not directly,
-; since the parameters that go here are not all obvious.
-;
-; Format:
-;   [section] ; section goes between []
-;   param=value ; assign values to parameters
+; Minimal project configuration for the grid-maze gameplay prototype.
 
 config_version=5
 
 [application]
 
-config/name="Tower Defence"
-config/description="A mobile tower-defense game with branching tower upgrades and relic-driven builds."
-config/version="0.1.4"
-run/main_scene="res://ui/screens/main_menu_visual.tscn"
+config/name="Grid Maze Prototype"
+config/description="A landscape grid-based tower-defense maze prototype."
+config/version="0.1.0"
+run/main_scene="res://prototype/prototype_main.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
-config/icon="uid://n5wurppyeq5"
-
-[autoload]
-
-SessionState="*res://session_state.gd"
 
 [display]
 
+window/size/viewport_width=1152
+window/size/viewport_height=648
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-
-[global_group]
-
-mobs=""
-
-[physics]
-
-3d/physics_engine="Jolt Physics"
+window/handheld/orientation=5
 
 [rendering]
 
-rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
 textures/vram_compression/import_etc2_astc=true

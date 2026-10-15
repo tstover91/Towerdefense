@@ -1,8 +1,7 @@
 class_name PrototypeTower
 extends Node2D
 
-const GameStats = preload("res://stat_database.gd")
-const ProjectileScene = preload("res://projectile.tscn")
+const ProjectileScript = preload("res://prototype/prototype_projectile.gd")
 
 const LEVEL_STATS: Array[Dictionary] = [
 	{"damage": 8, "interval": 0.75, "range_cells": 3.2},
@@ -158,30 +157,13 @@ func _is_target_in_range(candidate: Node2D) -> bool:
 func _fire_at(current_target: Node2D) -> void:
 	mark_participated()
 	attack_cooldown = get_attack_interval()
-	var projectile := ProjectileScene.instantiate() as Node2D
+	var projectile := ProjectileScript.new() as Node2D
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = global_position + aim_direction * get_cell_size() * 0.22
 	projectile.setup(
 		current_target,
-		current_target.global_position,
 		maxf(get_cell_size() * 11.0, 420.0),
-		get_range_pixels(),
-		get_damage(),
-		&"ballistic",
-		GameStats.IMPACT_PRIMARY,
-		0.0,
-		0,
-		0.0,
-		0.0,
-		false,
-		0,
-		0.0,
-		false,
-		0.0,
-		false,
-		false,
-		&"prototype_basic",
-		true
+		get_damage()
 	)
 
 
