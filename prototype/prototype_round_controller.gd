@@ -12,26 +12,26 @@ const PHASE_DEFEAT: StringName = &"defeat"
 const MAX_EMPTY_FIELD_DELAY := 0.35
 
 const WAVES: Array[Dictionary] = [
-	{"health": 18, "speed": 1.25, "groups": [{"count": 4, "interval": 0.58}, {"count": 3, "interval": 0.52, "gap": 1.10}]},
-	{"health": 22, "speed": 1.30, "groups": [{"count": 5, "interval": 0.52}, {"count": 4, "interval": 0.48, "gap": 1.00}]},
-	{"health": 28, "speed": 1.35, "groups": [{"count": 5, "interval": 0.46}, {"count": 5, "interval": 0.42, "gap": 0.95}]},
-	{"health": 35, "speed": 1.40, "groups": [{"count": 6, "interval": 0.42}, {"count": 5, "interval": 0.38, "gap": 0.90}]},
-	{"health": 43, "speed": 1.45, "groups": [{"count": 5, "interval": 0.38}, {"count": 5, "interval": 0.36, "gap": 0.80}, {"count": 3, "interval": 0.32, "gap": 0.90}]},
-	{"health": 52, "speed": 1.50, "groups": [{"count": 7, "interval": 0.36}, {"count": 7, "interval": 0.34, "gap": 0.80}]},
-	{"health": 62, "speed": 1.55, "groups": [{"count": 6, "interval": 0.34}, {"count": 6, "interval": 0.32, "gap": 0.75}, {"count": 4, "interval": 0.28, "gap": 0.80}]},
-	{"health": 72, "speed": 1.60, "groups": [{"count": 8, "interval": 0.32}, {"count": 8, "interval": 0.30, "gap": 0.72}]},
-	{"health": 82, "speed": 1.65, "groups": [{"count": 7, "interval": 0.30}, {"count": 7, "interval": 0.28, "gap": 0.68}, {"count": 5, "interval": 0.25, "gap": 0.72}]},
-	{"health": 95, "speed": 1.70, "groups": [{"count": 8, "interval": 0.28}, {"count": 8, "interval": 0.26, "gap": 0.65}, {"count": 8, "interval": 0.24, "gap": 0.65}]},
-	{"health": 112, "speed": 1.72, "groups": [{"count": 6, "interval": 0.28}, {"count": 6, "interval": 0.26, "gap": 0.70}, {"count": 6, "interval": 0.24, "gap": 0.70}]},
-	{"health": 130, "speed": 1.74, "groups": [{"count": 7, "interval": 0.27}, {"count": 7, "interval": 0.25, "gap": 0.68}, {"count": 6, "interval": 0.23, "gap": 0.68}]},
-	{"health": 150, "speed": 1.76, "groups": [{"count": 6, "interval": 0.26}, {"count": 6, "interval": 0.24, "gap": 0.65}, {"count": 6, "interval": 0.22, "gap": 0.65}]},
-	{"health": 175, "speed": 1.78, "groups": [{"count": 7, "interval": 0.25}, {"count": 7, "interval": 0.23, "gap": 0.62}, {"count": 7, "interval": 0.21, "gap": 0.62}]},
-	{"health": 240, "speed": 1.68, "groups": [{"count": 4, "interval": 0.42}, {"count": 4, "interval": 0.38, "gap": 0.90}, {"count": 4, "interval": 0.34, "gap": 0.90}]},
-	{"health": 220, "speed": 1.82, "groups": [{"count": 6, "interval": 0.24}, {"count": 6, "interval": 0.22, "gap": 0.60}, {"count": 6, "interval": 0.20, "gap": 0.60}]},
-	{"health": 255, "speed": 1.84, "groups": [{"count": 7, "interval": 0.23}, {"count": 7, "interval": 0.21, "gap": 0.58}, {"count": 6, "interval": 0.19, "gap": 0.58}]},
-	{"health": 290, "speed": 1.86, "groups": [{"count": 7, "interval": 0.22}, {"count": 7, "interval": 0.20, "gap": 0.56}, {"count": 7, "interval": 0.18, "gap": 0.56}]},
-	{"health": 330, "speed": 1.88, "groups": [{"count": 8, "interval": 0.21}, {"count": 8, "interval": 0.19, "gap": 0.54}, {"count": 8, "interval": 0.17, "gap": 0.54}]},
-	{"health": 480, "speed": 1.72, "groups": [{"count": 5, "interval": 0.38}, {"count": 5, "interval": 0.34, "gap": 0.85}, {"count": 5, "interval": 0.30, "gap": 0.85}]},
+	{"scale": 1.00, "groups": [{"type": &"soldier", "count": 4, "interval": 0.58}, {"type": &"soldier", "count": 3, "interval": 0.52, "gap": 1.10}]},
+	{"scale": 1.08, "groups": [{"type": &"soldier", "count": 5, "interval": 0.52}, {"type": &"runner", "count": 3, "interval": 0.46, "gap": 1.00}]},
+	{"scale": 1.16, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier"], "interval": 0.48}, {"type": &"runner", "count": 4, "interval": 0.42, "gap": 1.10}]},
+	{"scale": 1.25, "groups": [{"type": &"soldier", "count": 6, "interval": 0.44}, {"members": [&"carrier", &"soldier", &"soldier"], "interval": 0.50, "gap": 1.00}]},
+	{"scale": 1.38, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.45}, {"type": &"runner", "count": 5, "interval": 0.36, "gap": 1.10}]},
+	{"scale": 1.50, "groups": [{"type": &"soldier", "count": 7, "interval": 0.40}, {"type": &"carrier", "count": 2, "interval": 0.80, "gap": 1.00}]},
+	{"scale": 1.64, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.42}, {"type": &"runner", "count": 6, "interval": 0.32, "gap": 1.00}]},
+	{"scale": 1.80, "groups": [{"type": &"soldier", "count": 8, "interval": 0.37}, {"members": [&"carrier", &"soldier", &"soldier", &"soldier"], "interval": 0.44, "gap": 0.95}]},
+	{"scale": 1.98, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.40}, {"type": &"runner", "count": 7, "interval": 0.29, "gap": 0.90}]},
+	{"scale": 2.20, "groups": [{"type": &"carrier", "count": 3, "interval": 0.65}, {"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.38, "gap": 1.00}]},
+	{"scale": 2.35, "groups": [{"type": &"soldier", "count": 9, "interval": 0.34}, {"type": &"runner", "count": 7, "interval": 0.27, "gap": 0.85}]},
+	{"scale": 2.55, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.36}, {"type": &"carrier", "count": 3, "interval": 0.60, "gap": 0.95}]},
+	{"scale": 2.75, "groups": [{"type": &"runner", "count": 9, "interval": 0.25}, {"type": &"soldier", "count": 9, "interval": 0.32, "gap": 0.90}]},
+	{"scale": 3.00, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"carrier", &"soldier", &"soldier"], "interval": 0.38}, {"type": &"runner", "count": 8, "interval": 0.24, "gap": 0.90}]},
+	{"scale": 3.30, "groups": [{"type": &"giant", "count": 3, "interval": 0.70}, {"type": &"carrier", "count": 3, "interval": 0.58, "gap": 0.90}]},
+	{"scale": 3.50, "groups": [{"type": &"soldier", "count": 10, "interval": 0.30}, {"type": &"runner", "count": 10, "interval": 0.22, "gap": 0.82}]},
+	{"scale": 3.75, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"carrier", &"soldier"], "interval": 0.34}, {"type": &"runner", "count": 9, "interval": 0.21, "gap": 0.85}]},
+	{"scale": 4.00, "groups": [{"type": &"carrier", "count": 4, "interval": 0.52}, {"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.32, "gap": 0.80}]},
+	{"scale": 4.30, "groups": [{"type": &"runner", "count": 12, "interval": 0.20}, {"type": &"soldier", "count": 11, "interval": 0.28, "gap": 0.78}]},
+	{"scale": 4.80, "groups": [{"members": [&"giant", &"giant", &"soldier", &"soldier", &"carrier", &"soldier", &"soldier"], "interval": 0.36}, {"type": &"carrier", "count": 4, "interval": 0.48, "gap": 0.85}, {"type": &"runner", "count": 10, "interval": 0.20, "gap": 0.85}]},
 ]
 
 var phase: StringName = PHASE_BUILD
@@ -74,6 +74,13 @@ func notify_enemy_resolved(leaked: bool, leak_damage := 1) -> void:
 			return
 	if not _try_complete_wave():
 		_emit_state()
+
+
+func notify_enemies_added(count: int) -> void:
+	if phase != PHASE_ACTIVE or count <= 0:
+		return
+	active_enemy_count += count
+	_emit_state()
 
 
 func _process(delta: float) -> void:
@@ -122,14 +129,14 @@ func _build_schedule(wave_data: Dictionary) -> Array[Dictionary]:
 	var group_index := 0
 	for group_data in wave_data["groups"]:
 		event_time += float(group_data.get("gap", 0.0))
-		var enemy_count := int(group_data["count"])
+		var members: Array = group_data.get("members", [])
+		var enemy_count := members.size() if not members.is_empty() else int(group_data["count"])
 		var interval := float(group_data["interval"])
 		for enemy_index in enemy_count:
 			result.append({
 				"time": event_time,
-				"health": int(wave_data["health"]),
-				"speed_cells_per_second": float(wave_data["speed"]),
-				"leak_damage": 1,
+				"enemy_type": members[enemy_index] if not members.is_empty() else group_data.get("type", &"soldier"),
+				"health_scale": float(wave_data.get("scale", 1.0)),
 				"group_index": group_index,
 				"index_in_group": enemy_index,
 			})

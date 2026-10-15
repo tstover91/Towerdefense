@@ -15,6 +15,7 @@ func _ready() -> void:
 	board.configure_economy(economy)
 	board.start_wave_requested.connect(_on_start_wave_requested)
 	board.enemy_resolved.connect(round_controller.notify_enemy_resolved)
+	board.enemies_added.connect(round_controller.notify_enemies_added)
 	round_controller.enemy_spawn_requested.connect(board.spawn_enemy)
 	round_controller.wave_cleared.connect(_on_wave_cleared)
 	round_controller.state_changed.connect(_on_combat_state_changed)

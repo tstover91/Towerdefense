@@ -45,6 +45,19 @@ func begin() -> bool:
 	return reroute()
 
 
+func begin_from_state(world_position: Vector2, route_state: Dictionary) -> bool:
+	if router == null or not cell_center_provider.is_valid():
+		return false
+	position = world_position
+	next_checkpoint_index = int(route_state.get("next_checkpoint_index", 0))
+	traversed_edges = Dictionary(route_state.get("used_edges", {})).duplicate()
+	last_reached_cell = Vector2i(route_state.get("cell", router.entrance))
+	active = true
+	route.clear()
+	route_index = 0
+	return reroute()
+
+
 func reroute() -> bool:
 	if not active or router == null:
 		return false

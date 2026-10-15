@@ -3,23 +3,39 @@ extends Node2D
 
 const ProjectileScript = preload("res://prototype/prototype_projectile.gd")
 
-const LEVEL_STATS: Array[Dictionary] = [
-	{"damage": 8, "interval": 0.75, "range_cells": 3.2},
-	{"damage": 13, "interval": 0.68, "range_cells": 3.4},
-	{"damage": 24, "interval": 0.58, "range_cells": 3.8},
-	{"damage": 48, "interval": 0.45, "range_cells": 4.3},
-]
+const TYPE_GUN: StringName = &"gun"
+const TYPE_MORTAR: StringName = &"mortar"
+const TYPE_BEAM: StringName = &"beam"
 const TARGET_SCAN_INTERVAL := 0.10
-const BUILD_COST := 100
-const UPGRADE_COSTS: Array[int] = [100, 300, 800]
 const PARTICIPATED_SELL_RATIO := 0.70
-const BODY_COLOR := Color("e84f3d")
+const TYPE_DATA := {
+	TYPE_GUN: {"name": "GUN", "cost": 100, "color": Color("e84f3d"), "stats": [
+		{"damage": 8, "interval": 0.75, "range_cells": 3.2},
+		{"damage": 13, "interval": 0.68, "range_cells": 3.4},
+		{"damage": 24, "interval": 0.58, "range_cells": 3.8},
+		{"damage": 48, "interval": 0.45, "range_cells": 4.3},
+	]},
+	TYPE_MORTAR: {"name": "MORTAR", "cost": 140, "color": Color("efb83d"), "splash_cells": [1.15, 1.20, 1.30, 1.45], "stats": [
+		{"damage": 18, "interval": 1.85, "range_cells": 4.2},
+		{"damage": 30, "interval": 1.72, "range_cells": 4.4},
+		{"damage": 58, "interval": 1.55, "range_cells": 4.8},
+		{"damage": 120, "interval": 1.30, "range_cells": 5.2},
+	]},
+	TYPE_BEAM: {"name": "BEAM", "cost": 180, "color": Color("8c69d4"), "stats": [
+		{"damage": 2, "interval": 0.20, "range_cells": 3.6, "ramp": 2},
+		{"damage": 3, "interval": 0.20, "range_cells": 3.8, "ramp": 3},
+		{"damage": 5, "interval": 0.18, "range_cells": 4.1, "ramp": 5},
+		{"damage": 8, "interval": 0.16, "range_cells": 4.5, "ramp": 8},
+	]},
+}
+const UPGRADE_COSTS: Array[int] = [100, 300, 800]
 const BODY_DARK := Color("171717")
 const BODY_LIGHT := Color("f1ead8")
 const RANGE_COLOR := Color(0.91, 0.31, 0.24, 0.12)
 const RANGE_EDGE_COLOR := Color(0.91, 0.31, 0.24, 0.45)
 
 var grid_cell := Vector2i.ZERO
+var tower_type: StringName = TYPE_GUN
 var level := 1
 var selected := false
 var cell_size_provider: Callable
@@ -27,16 +43,28 @@ var attack_cooldown := 0.0
 var target_scan_remaining := 0.0
 var target: Node2D
 var aim_direction := Vector2.RIGHT
-var total_investment := BUILD_COST
+var total_investment := 100
 var has_participated := false
+var target_lock_time := 0.0
 
 
-func configure(
-	new_grid_cell: Vector2i,
-	new_cell_size_provider: Callable
-) -> void:
+static func get_build_cost(type: StringName) -> int:
+	return int(TYPE_DATA.get(type, TYPE_DATA[TYPE_GUN])["cost"])
+
+
+static func get_type_name(type: StringName) -> String:
+	return String(TYPE_DATA.get(type, TYPE_DATA[TYPE_GUN])["name"])
+
+
+static func get_base_range(type: StringName) -> float:
+	return float(TYPE_DATA.get(type, TYPE_DATA[TYPE_GUN])["stats"][0]["range_cells"])
+
+
+func configure(new_grid_cell: Vector2i, new_cell_size_provider: Callable, new_tower_type: StringName = TYPE_GUN) -> void:
 	grid_cell = new_grid_cell
 	cell_size_provider = new_cell_size_provider
+	tower_type = new_tower_type if TYPE_DATA.has(new_tower_type) else TYPE_GUN
+	total_investment = get_build_cost(tower_type)
 	queue_redraw()
 
 
@@ -44,11 +72,12 @@ func _process(delta: float) -> void:
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
 	target_scan_remaining = maxf(target_scan_remaining - delta, 0.0)
 	if not _is_valid_target(target) or not _is_target_in_range(target):
-		target = null
-	if target_scan_remaining <= 0.0:
+		_set_target(null)
+	if target == null and target_scan_remaining <= 0.0:
 		target_scan_remaining = TARGET_SCAN_INTERVAL
-		target = _select_first_target()
+		_set_target(_select_target())
 	if _is_valid_target(target):
+		target_lock_time += delta
 		var offset := target.global_position - global_position
 		if not offset.is_zero_approx():
 			aim_direction = offset.normalized()
@@ -57,29 +86,31 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+func _set_target(new_target: Node2D) -> void:
+	if target == new_target:
+		return
+	target = new_target
+	target_lock_time = 0.0
+
+
 func set_selected(value: bool) -> void:
 	selected = value
 	queue_redraw()
 
 
 func can_upgrade() -> bool:
-	return level < LEVEL_STATS.size()
+	return level < _get_level_stats_array().size()
 
 
 func get_next_upgrade_cost() -> int:
-	if not can_upgrade():
-		return 0
-	return UPGRADE_COSTS[level - 1]
+	return UPGRADE_COSTS[level - 1] if can_upgrade() else 0
 
 
 func upgrade(paid_cost: int) -> bool:
-	if not can_upgrade():
-		return false
-	var expected_cost := get_next_upgrade_cost()
-	if paid_cost != expected_cost:
+	if not can_upgrade() or paid_cost != get_next_upgrade_cost():
 		return false
 	level += 1
-	total_investment += expected_cost
+	total_investment += paid_cost
 	attack_cooldown = minf(attack_cooldown, get_attack_interval())
 	queue_redraw()
 	return true
@@ -90,21 +121,27 @@ func mark_participated() -> void:
 
 
 func get_sell_refund() -> int:
-	if not has_participated:
-		return total_investment
-	return floori(float(total_investment) * PARTICIPATED_SELL_RATIO)
+	return total_investment if not has_participated else floori(float(total_investment) * PARTICIPATED_SELL_RATIO)
+
+
+func _get_level_stats_array() -> Array:
+	return TYPE_DATA[tower_type]["stats"]
+
+
+func _get_stats() -> Dictionary:
+	return _get_level_stats_array()[level - 1]
 
 
 func get_damage() -> int:
-	return int(LEVEL_STATS[level - 1]["damage"])
+	return int(_get_stats()["damage"])
 
 
 func get_attack_interval() -> float:
-	return float(LEVEL_STATS[level - 1]["interval"])
+	return float(_get_stats()["interval"])
 
 
 func get_range_cells() -> float:
-	return float(LEVEL_STATS[level - 1]["range_cells"])
+	return float(_get_stats()["range_cells"])
 
 
 func get_range_pixels() -> float:
@@ -112,94 +149,102 @@ func get_range_pixels() -> float:
 
 
 func get_cell_size() -> float:
-	if cell_size_provider.is_valid():
-		return maxf(float(cell_size_provider.call()), 1.0)
-	return 48.0
+	return maxf(float(cell_size_provider.call()), 1.0) if cell_size_provider.is_valid() else 48.0
 
 
 func get_summary() -> String:
-	return "TOWER L%d  ·  %d DMG  ·  %.2fs  ·  %.1f RANGE" % [
-		level,
-		get_damage(),
-		get_attack_interval(),
-		get_range_cells(),
-	]
+	return "%s L%d  ·  %d DMG  ·  %.2fs  ·  %.1f RANGE  ·  CLOSEST LOCK" % [get_type_name(tower_type), level, get_damage(), get_attack_interval(), get_range_cells()]
 
 
-func _select_first_target() -> Node2D:
+func _select_target() -> Node2D:
+	return _select_best_cluster() if tower_type == TYPE_MORTAR else _select_closest_target()
+
+
+func _select_closest_target() -> Node2D:
 	var selected_target: Node2D
-	var greatest_progress := -INF
+	var closest_distance := INF
+	var tie_progress := -INF
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not _is_valid_target(candidate) or not _is_target_in_range(candidate):
 			continue
+		var distance := global_position.distance_squared_to(candidate.global_position)
 		var progress := float(candidate.get("route_progress"))
-		if selected_target == null or progress > greatest_progress:
+		if distance < closest_distance - 1.0 or (absf(distance - closest_distance) <= 1.0 and progress > tie_progress):
 			selected_target = candidate
-			greatest_progress = progress
+			closest_distance = distance
+			tie_progress = progress
+	return selected_target
+
+
+func _select_best_cluster() -> Node2D:
+	var candidates: Array[Node] = []
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if _is_valid_target(candidate) and _is_target_in_range(candidate):
+			candidates.append(candidate)
+	var selected_target: Node2D
+	var best_count := -1
+	var closest_distance := INF
+	var splash_range := _get_splash_pixels()
+	for candidate in candidates:
+		var nearby := 0
+		for other in candidates:
+			if candidate.global_position.distance_to(other.global_position) <= splash_range:
+				nearby += 1
+		var distance := global_position.distance_squared_to(candidate.global_position)
+		if nearby > best_count or (nearby == best_count and distance < closest_distance):
+			selected_target = candidate
+			best_count = nearby
+			closest_distance = distance
 	return selected_target
 
 
 func _is_valid_target(candidate) -> bool:
-	return (
-		candidate != null
-		and is_instance_valid(candidate)
-		and not candidate.is_queued_for_deletion()
-		and not bool(candidate.get("finished"))
-	)
+	return candidate != null and is_instance_valid(candidate) and not candidate.is_queued_for_deletion() and not bool(candidate.get("finished"))
 
 
 func _is_target_in_range(candidate: Node2D) -> bool:
-	return global_position.distance_squared_to(candidate.global_position) <= pow(
-		get_range_pixels(), 2.0
-	)
+	return global_position.distance_squared_to(candidate.global_position) <= pow(get_range_pixels(), 2.0)
+
+
+func _get_splash_pixels() -> float:
+	return float(TYPE_DATA[TYPE_MORTAR]["splash_cells"][level - 1]) * get_cell_size() if tower_type == TYPE_MORTAR else 0.0
 
 
 func _fire_at(current_target: Node2D) -> void:
 	mark_participated()
 	attack_cooldown = get_attack_interval()
+	if tower_type == TYPE_BEAM:
+		var ramp_step := mini(floori(target_lock_time / 0.8), 3)
+		var ramp_damage := int(_get_stats().get("ramp", 0)) * ramp_step
+		current_target.apply_damage(get_damage() + ramp_damage, &"energy", true, true)
+		return
 	var projectile := ProjectileScript.new() as Node2D
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = global_position + aim_direction * get_cell_size() * 0.22
-	projectile.setup(
-		current_target,
-		maxf(get_cell_size() * 11.0, 420.0),
-		get_damage()
-	)
+	projectile.setup(current_target, maxf(get_cell_size() * (7.0 if tower_type == TYPE_MORTAR else 11.0), 300.0), get_damage(), _get_splash_pixels())
 
 
 func _draw() -> void:
 	var cell_size := get_cell_size()
 	if selected:
 		draw_circle(Vector2.ZERO, get_range_pixels(), RANGE_COLOR)
-		draw_arc(
-			Vector2.ZERO,
-			get_range_pixels(),
-			0.0,
-			TAU,
-			96,
-			RANGE_EDGE_COLOR,
-			2.0,
-			true
-		)
+		draw_arc(Vector2.ZERO, get_range_pixels(), 0.0, TAU, 96, RANGE_EDGE_COLOR, 2.0, true)
 	var body_size := cell_size * 0.76
-	var body_rect := Rect2(
-		Vector2.ONE * -body_size * 0.5,
-		Vector2.ONE * body_size
-	)
-	draw_rect(body_rect, BODY_COLOR, true)
+	var body_rect := Rect2(Vector2.ONE * -body_size * 0.5, Vector2.ONE * body_size)
+	var body_color: Color = TYPE_DATA[tower_type]["color"]
+	draw_rect(body_rect, body_color, true)
 	draw_rect(body_rect, BODY_DARK, false, maxf(cell_size * 0.055, 2.0))
-	draw_circle(Vector2.ZERO, cell_size * 0.20, BODY_LIGHT)
-	draw_line(
-		Vector2.ZERO,
-		aim_direction * cell_size * 0.38,
-		BODY_DARK,
-		maxf(cell_size * 0.10, 4.0),
-		true
-	)
+	if tower_type == TYPE_MORTAR:
+		draw_circle(Vector2.ZERO, cell_size * 0.22, BODY_DARK)
+		draw_circle(Vector2.ZERO, cell_size * 0.12, BODY_LIGHT)
+	elif tower_type == TYPE_BEAM:
+		draw_circle(Vector2.ZERO, cell_size * 0.23, BODY_LIGHT)
+		draw_line(Vector2.ZERO, aim_direction * cell_size * 0.40, body_color.lightened(0.3), maxf(cell_size * 0.10, 4.0), true)
+		if _is_valid_target(target) and _is_target_in_range(target):
+			draw_line(Vector2.ZERO, to_local(target.global_position), Color(0.72, 0.52, 1.0, 0.75), maxf(cell_size * 0.045, 2.0), true)
+	else:
+		draw_circle(Vector2.ZERO, cell_size * 0.20, BODY_LIGHT)
+		draw_line(Vector2.ZERO, aim_direction * cell_size * 0.38, BODY_DARK, maxf(cell_size * 0.10, 4.0), true)
 	for pip_index in level:
 		var pip_x := (float(pip_index) - float(level - 1) * 0.5) * cell_size * 0.13
-		draw_circle(
-			Vector2(pip_x, body_size * 0.39),
-			maxf(cell_size * 0.025, 1.5),
-			BODY_DARK
-		)
+		draw_circle(Vector2(pip_x, body_size * 0.39), maxf(cell_size * 0.025, 1.5), BODY_DARK)

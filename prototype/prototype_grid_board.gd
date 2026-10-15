@@ -7,6 +7,7 @@ const TowerScript = preload("res://prototype/prototype_tower.gd")
 
 signal start_wave_requested
 signal enemy_resolved(leaked: bool, leak_damage: int)
+signal enemies_added(count: int)
 
 const GRID_SIZE := Vector2i(19, 10)
 const GRID_MARGIN := 18.0
@@ -26,6 +27,8 @@ enum PlacementMode {
 }
 
 const BUILD_TOWER: StringName = &"tower"
+const BUILD_MORTAR: StringName = &"mortar"
+const BUILD_BEAM: StringName = &"beam"
 const BUILD_WALL: StringName = &"wall"
 
 const ENTRANCE := Vector2i(0, 5)
@@ -81,6 +84,8 @@ var board_origin := Vector2.ZERO
 var cell_size := 48.0
 var title_font: Font
 var build_button_rect := Rect2()
+var mortar_button_rect := Rect2()
+var beam_button_rect := Rect2()
 var wall_button_rect := Rect2()
 var start_button_rect := Rect2()
 var upgrade_button_rect := Rect2()
@@ -201,7 +206,7 @@ func _draw_header() -> void:
 		heading_size,
 		COLOR_TEXT
 	)
-	var economy_text := "$%d  ·  INT +$%d%s  ·  POWER %d/%d  ·  WALLS %d/%d" % [
+	var economy_text := "$%d  ·  INT +$%d%s  ·  TOWERS %d/%d  ·  WALLS %d/%d" % [
 		int(economy_state.get("credits", 0)),
 		int(economy_state.get("interest", 0)),
 		" LOCKED" if bool(economy_state.get("interest_locked", false)) else "",
@@ -371,8 +376,8 @@ func _draw_placement_preview() -> void:
 	if router.dynamic_blocks.has(hovered_cell):
 		return
 	var center := _cell_center(hovered_cell)
-	if placement_kind == BUILD_TOWER:
-		var range_cells := float(TowerScript.LEVEL_STATS[0]["range_cells"])
+	if _is_tower_kind(placement_kind):
+		var range_cells := TowerScript.get_base_range(_tower_type_for_build_kind(placement_kind))
 		draw_circle(
 			center,
 			range_cells * cell_size,
@@ -384,14 +389,14 @@ func _draw_placement_preview() -> void:
 	var ghost_color := (
 		COLOR_WALL
 		if placement_kind == BUILD_WALL
-		else COLOR_TOWER
+		else Color(TowerScript.TYPE_DATA[_tower_type_for_build_kind(placement_kind)]["color"])
 	)
 	if not preview_is_valid:
 		ghost_color = Color("d52f2f")
 	ghost_color.a = 0.78
 	draw_rect(tower_rect, ghost_color, true)
 	draw_rect(tower_rect, COLOR_TOWER_BORDER, false, 2.0)
-	if placement_kind == BUILD_TOWER:
+	if _is_tower_kind(placement_kind):
 		draw_circle(center, cell_size * 0.15, Color(0.95, 0.92, 0.84, 0.86))
 	else:
 		draw_rect(tower_rect.grow(-cell_size * 0.14), COLOR_WALL_LIGHT, false, 2.0)
@@ -399,6 +404,7 @@ func _draw_placement_preview() -> void:
 
 func _draw_footer_controls() -> void:
 	var phase := StringName(combat_state.get("phase", &"build"))
+	var short_labels := compact_layout or safe_view_rect.size.x < 900.0
 	var start_label := (
 		"START WAVE"
 		if phase == &"build"
@@ -406,15 +412,25 @@ func _draw_footer_controls() -> void:
 	)
 	_draw_button(
 		build_button_rect,
-		"X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_TOWER else "TOWER $%d" % TowerScript.BUILD_COST,
+		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_TOWER else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_TOWER else ("G $%d" if short_labels else "GUN $%d") % TowerScript.get_build_cost(TowerScript.TYPE_GUN)),
 		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_TOWER)
 	)
 	_draw_button(
+		mortar_button_rect,
+		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_MORTAR else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_MORTAR else ("M $%d" if short_labels else "MORTAR $%d") % TowerScript.get_build_cost(TowerScript.TYPE_MORTAR)),
+		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_MORTAR)
+	)
+	_draw_button(
+		beam_button_rect,
+		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_BEAM else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_BEAM else ("B $%d" if short_labels else "BEAM $%d") % TowerScript.get_build_cost(TowerScript.TYPE_BEAM)),
+		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_BEAM)
+	)
+	_draw_button(
 		wall_button_rect,
-		"X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_WALL else "WALL %d/%d" % [
+		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_WALL else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_WALL else ("W %d/%d" if short_labels else "WALL %d/%d") % [
 			int(economy_state.get("used_walls", 0)),
 			int(economy_state.get("wall_limit", 0)),
-		],
+		]),
 		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_WALL)
 	)
 	_draw_button(start_button_rect, start_label, phase == &"build")
@@ -475,6 +491,12 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 		status_override = ""
 	if build_button_rect.has_point(screen_position):
 		_handle_placement_button(BUILD_TOWER)
+		return
+	if mortar_button_rect.has_point(screen_position):
+		_handle_placement_button(BUILD_MORTAR)
+		return
+	if beam_button_rect.has_point(screen_position):
+		_handle_placement_button(BUILD_BEAM)
 		return
 	if wall_button_rect.has_point(screen_position):
 		_handle_placement_button(BUILD_WALL)
@@ -549,9 +571,11 @@ func _try_place_building(cell: Vector2i) -> bool:
 		status_message = "Wall limit reached. Clear another wave or remove a wall."
 		queue_redraw()
 		return false
-	if placement_kind == BUILD_TOWER and not economy.can_build(TowerScript.BUILD_COST):
-		if not economy.can_afford(TowerScript.BUILD_COST):
-			status_message = "Need $%d to build this tower." % TowerScript.BUILD_COST
+	var tower_type := _tower_type_for_build_kind(placement_kind)
+	var tower_cost := TowerScript.get_build_cost(tower_type)
+	if _is_tower_kind(placement_kind) and not economy.can_build(tower_cost):
+		if not economy.can_afford(tower_cost):
+			status_message = "Need $%d to build this tower." % tower_cost
 		else:
 			status_message = "Tower capacity is full. Sell a tower to free one slot."
 		queue_redraw()
@@ -571,7 +595,7 @@ func _try_place_building(cell: Vector2i) -> bool:
 		_after_blocks_changed()
 		_refresh_local_economy_state()
 		return true
-	if not economy.try_build(TowerScript.BUILD_COST):
+	if not economy.try_build(tower_cost):
 		status_message = "The tower could not be purchased."
 		_refresh_local_economy_state()
 		queue_redraw()
@@ -581,7 +605,7 @@ func _try_place_building(cell: Vector2i) -> bool:
 	add_child(tower)
 	tower.z_index = 10
 	tower.position = _cell_center(cell)
-	tower.configure(cell, Callable(self, "get_cell_size"))
+	tower.configure(cell, Callable(self, "get_cell_size"), tower_type)
 	if StringName(combat_state.get("phase", &"build")) == &"active":
 		tower.mark_participated()
 	towers_by_cell[cell] = tower
@@ -597,7 +621,7 @@ func _can_begin_placement(kind: StringName) -> bool:
 		return false
 	if kind == BUILD_WALL:
 		return economy.can_build_wall()
-	return economy.can_build(TowerScript.BUILD_COST)
+	return economy.can_build(TowerScript.get_build_cost(_tower_type_for_build_kind(kind)))
 
 
 func _begin_precision_placement(kind: StringName = BUILD_TOWER) -> bool:
@@ -605,7 +629,7 @@ func _begin_precision_placement(kind: StringName = BUILD_TOWER) -> bool:
 		status_message = (
 			"Wall limit reached."
 			if kind == BUILD_WALL
-			else "Need $%d or one free Power." % TowerScript.BUILD_COST
+			else "Need $%d or one free tower slot." % TowerScript.get_build_cost(_tower_type_for_build_kind(kind))
 		)
 		queue_redraw()
 		return false
@@ -616,7 +640,7 @@ func _begin_precision_placement(kind: StringName = BUILD_TOWER) -> bool:
 	precision_cell = Vector2i(-1, -1)
 	_select_tower(null)
 	status_message = "Tap a cell, then tap it again to build %s." % (
-		"a wall" if kind == BUILD_WALL else "the tower"
+		"a wall" if kind == BUILD_WALL else TowerScript.get_type_name(_tower_type_for_build_kind(kind)).to_lower()
 	)
 	_clear_placement_preview()
 	return true
@@ -672,6 +696,10 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 func _get_build_kind_at(screen_position: Vector2) -> StringName:
 	if build_button_rect.has_point(screen_position):
 		return BUILD_TOWER
+	if mortar_button_rect.has_point(screen_position):
+		return BUILD_MORTAR
+	if beam_button_rect.has_point(screen_position):
+		return BUILD_BEAM
 	if wall_button_rect.has_point(screen_position):
 		return BUILD_WALL
 	return &""
@@ -714,13 +742,42 @@ func _handle_drag_motion(screen_position: Vector2, pointer_index: int) -> void:
 
 
 func _get_active_placement_button_rect() -> Rect2:
-	return wall_button_rect if placement_kind == BUILD_WALL else build_button_rect
+	match placement_kind:
+		BUILD_WALL:
+			return wall_button_rect
+		BUILD_MORTAR:
+			return mortar_button_rect
+		BUILD_BEAM:
+			return beam_button_rect
+		_:
+			return build_button_rect
+
+
+func _is_tower_kind(kind: StringName) -> bool:
+	return kind in [BUILD_TOWER, BUILD_MORTAR, BUILD_BEAM]
+
+
+func _tower_type_for_build_kind(kind: StringName) -> StringName:
+	match kind:
+		BUILD_MORTAR:
+			return TowerScript.TYPE_MORTAR
+		BUILD_BEAM:
+			return TowerScript.TYPE_BEAM
+		_:
+			return TowerScript.TYPE_GUN
 
 
 func _finish_placement_drag(screen_position: Vector2) -> void:
 	if placement_mode != PlacementMode.DRAGGING:
+		var should_cancel := (
+			placement_drag_armed
+			and screen_position.distance_to(placement_press_position) >= PLACEMENT_DRAG_THRESHOLD
+			and not _get_active_placement_button_rect().grow(8.0).has_point(screen_position)
+		)
 		placement_drag_armed = false
 		placement_pointer_index = -2
+		if should_cancel:
+			_cancel_placement("Placement canceled.")
 		return
 	placement_drag_over_cancel = (
 		_get_build_kind_at(screen_position) == placement_kind
@@ -810,6 +867,10 @@ func _get_active_route_states() -> Array[Dictionary]:
 
 
 func spawn_enemy(enemy_data: Dictionary) -> void:
+	_create_enemy(enemy_data)
+
+
+func _create_enemy(enemy_data: Dictionary, spawn_state: Dictionary = {}, spawn_position := Vector2.ZERO) -> void:
 	var enemy: Node2D = EnemyScript.new()
 	add_child(enemy)
 	enemy.z_index = 20
@@ -819,19 +880,35 @@ func spawn_enemy(enemy_data: Dictionary) -> void:
 		Callable(self, "_screen_to_cell")
 	)
 	enemy.setup_combat(
-		int(enemy_data.get("health", 18)),
-		float(enemy_data.get("speed_cells_per_second", 1.25)),
+		StringName(enemy_data.get("enemy_type", &"soldier")),
+		float(enemy_data.get("health_scale", 1.0)),
 		cell_size,
-		int(enemy_data.get("leak_damage", 1))
+		int(enemy_data.get("group_index", -1)),
+		int(enemy_data.get("index_in_group", 0))
 	)
+	if enemy_data.has("health"):
+		enemy.max_health = maxi(int(enemy_data["health"]), 1)
+		enemy.health = enemy.max_health
+	if enemy_data.has("speed_cells_per_second"):
+		enemy.base_speed_cells_per_second = float(enemy_data["speed_cells_per_second"])
+		enemy.current_speed_cells_per_second = enemy.base_speed_cells_per_second
+		enemy.speed_pixels_per_second = enemy.base_speed_cells_per_second * cell_size
+	if enemy_data.has("leak_damage"):
+		enemy.leak_damage = maxi(int(enemy_data["leak_damage"]), 1)
 	enemy.set_meta(
 		"speed_cells_per_second",
-		float(enemy_data.get("speed_cells_per_second", 1.25))
+		float(enemy.base_speed_cells_per_second)
 	)
+	enemy.set_meta("health_scale", float(enemy_data.get("health_scale", 1.0)))
 	enemy.reached_exit.connect(_on_enemy_reached_exit)
 	enemy.defeated.connect(_on_enemy_defeated)
 	active_followers.append(enemy)
-	if not enemy.begin():
+	var began: bool = (
+		enemy.begin_from_state(spawn_position, spawn_state)
+		if not spawn_state.is_empty()
+		else enemy.begin()
+	)
+	if not began:
 		active_followers.erase(enemy)
 		enemy.queue_free()
 		enemy_resolved.emit(false, 1)
@@ -852,9 +929,23 @@ func _on_enemy_reached_exit(enemy: Node2D) -> void:
 func _on_enemy_defeated(enemy: Node2D) -> void:
 	if not is_instance_valid(enemy):
 		return
+	var release_count := int(enemy.get_release_count())
+	var release_state: Dictionary = enemy.get_route_state() if release_count > 0 else {}
+	var release_position := enemy.position
+	var release_scale := float(enemy.get_meta("health_scale", 1.0))
+	var release_group := int(enemy.get("formation_id"))
+	if release_count > 0:
+		enemies_added.emit(release_count)
 	active_followers.erase(enemy)
 	enemy_resolved.emit(false, 0)
 	enemy.queue_free()
+	for child_index in release_count:
+		_create_enemy({
+			"enemy_type": &"soldier",
+			"health_scale": release_scale * 0.65,
+			"group_index": release_group,
+			"index_in_group": 100 + child_index,
+		}, release_state, release_position)
 	queue_redraw()
 
 
@@ -911,7 +1002,7 @@ func show_wave_reward(reward: Dictionary) -> void:
 	var power_increase := int(reward.get("power_increase", 0))
 	var wall_increase := int(reward.get("wall_increase", 0))
 	if power_increase > 0:
-		capacity_parts.append("POWER +%d" % power_increase)
+		capacity_parts.append("TOWER SLOT +%d" % power_increase)
 	if wall_increase > 0:
 		capacity_parts.append("WALL +%d" % wall_increase)
 	var capacity_suffix := (
@@ -1157,34 +1248,55 @@ func _recalculate_layout() -> void:
 	)
 	var footer_y := board_origin.y + board_size.y + 8.0
 	var button_height := 60.0 if compact_layout else 64.0
+	var base_widths := PackedFloat32Array([92.0, 108.0, 96.0, 96.0, 110.0, 88.0, 88.0])
+	var control_gap := 4.0 if compact_layout else 8.0
+	var available_control_width := safe_view_rect.size.x - GRID_MARGIN * 2.0
+	var base_total := 0.0
+	for width in base_widths:
+		base_total += width
+	var width_scale := minf((available_control_width - control_gap * 6.0) / base_total, 1.0)
+	for index in base_widths.size():
+		base_widths[index] *= width_scale
 	build_button_rect = Rect2(
 		safe_view_rect.position.x + GRID_MARGIN,
 		footer_y,
-		110.0,
+		base_widths[0],
+		button_height
+	)
+	mortar_button_rect = Rect2(
+		build_button_rect.end.x + control_gap,
+		footer_y,
+		base_widths[1],
+		button_height
+	)
+	beam_button_rect = Rect2(
+		mortar_button_rect.end.x + control_gap,
+		footer_y,
+		base_widths[2],
 		button_height
 	)
 	wall_button_rect = Rect2(
-		build_button_rect.end.x + 8.0,
+		beam_button_rect.end.x + control_gap,
 		footer_y,
-		100.0,
+		base_widths[3],
 		button_height
 	)
 	start_button_rect = Rect2(
-		wall_button_rect.end.x + 8.0,
+		wall_button_rect.end.x + control_gap,
 		footer_y,
-		110.0,
+		base_widths[4],
 		button_height
 	)
 	upgrade_button_rect = Rect2(
-		start_button_rect.end.x + 8.0,
+		start_button_rect.end.x + control_gap,
 		footer_y,
-		88.0,
+		base_widths[5],
 		button_height
 	)
 	sell_button_rect = Rect2(
-		upgrade_button_rect.end.x + 8.0,
+		upgrade_button_rect.end.x + control_gap,
 		footer_y,
-		88.0,
+		base_widths[6],
 		button_height
 	)
 

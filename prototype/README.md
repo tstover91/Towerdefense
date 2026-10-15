@@ -2,8 +2,8 @@
 
 This is the project's only gameplay scene and launches when the project runs.
 
-Run the project or `res://prototype/prototype_main.tscn` in Godot. Tap **Tower**
-or **Wall**, tap a grid cell to position the live route preview, then tap that
+Run the project or `res://prototype/prototype_main.tscn` in Godot. Tap **Gun**,
+**Mortar**, **Beam**, or **Wall**, tap a grid cell to position the live route preview, then tap that
 cell again to build. You can also drag directly from either build button and
 release to build immediately. Invalid drops cancel without spending anything.
 Tap an existing tower or wall to select it. Towers can be upgraded or sold;
@@ -16,14 +16,20 @@ If a square would force an active enemy to backtrack, it remains rejected for
 the rest of that placement gesture instead of changing while enemies move.
 
 Use **Start Wave** to play the twenty-wave combat run. Enemies arrive in planned
-groups, rounds finish as soon as all planned enemies are defeated or leak, and
-moving enemies adopt recalculated four-direction routes without teleporting.
-The economy starts with $500, three Power, and five Walls. Towers cost $100; upgrades
-cost $100, $300, and $800. There is no income per kill. Clearing a wave pays a
+formations, rounds finish as soon as all planned enemies are defeated or leak,
+and moving enemies adopt recalculated four-direction routes without teleporting.
+Direct-fire towers acquire the closest enemy and retain that target while it
+remains valid. The Gun supplies reliable direct damage, the Mortar selects and
+damages clusters, and the Beam ramps while it stays locked onto one target.
+Soldiers remain behind slower formation leaders, Runners break formation,
+Giants lead and absorb direct fire, and defeated Carriers release four Soldiers.
+The economy starts with $500, three tower slots, and five free Walls. Guns cost
+$100, Mortars cost $140, and Beams cost $180; upgrades cost $100, $300, and
+$800. There is no income per kill. Clearing a wave pays a
 base reward that starts at $120 and rises by $20 per wave, plus 5% interest on
 the credits held when the wave began. Interest is capped at half the wave's base
-reward. Each tower consumes one Power and each wall consumes one Wall. Capacity
-grows at scheduled milestones, reaching ten Power and eighteen Walls after
+reward. Each tower consumes one tower slot and each free wall consumes one Wall allowance. Capacity
+grows at scheduled milestones, reaching ten tower slots and eighteen Walls after
 wave 18. A tower sells for its full investment before
 participating in combat and 70% afterward.
 
@@ -45,3 +51,4 @@ these scripts through Godot after changing the prototype:
 - `res://tools/prototype_combat_loop_smoke.gd`
 - `res://tools/prototype_economy_smoke.gd`
 - `res://tools/prototype_combat_integration_smoke.gd`
+- `res://tools/prototype_phase1_combat_smoke.gd`

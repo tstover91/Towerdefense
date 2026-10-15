@@ -8,12 +8,14 @@ const PROJECTILE_RADIUS := 4.0
 var target: Node2D
 var speed := 420.0
 var damage := 1
+var splash_radius := 0.0
 
 
-func setup(new_target: Node2D, new_speed: float, new_damage: int) -> void:
+func setup(new_target: Node2D, new_speed: float, new_damage: int, new_splash_radius := 0.0) -> void:
 	target = new_target
 	speed = maxf(new_speed, 1.0)
 	damage = maxi(new_damage, 1)
+	splash_radius = maxf(new_splash_radius, 0.0)
 	queue_redraw()
 
 
@@ -27,7 +29,9 @@ func _physics_process(delta: float) -> void:
 		hit_radius += float(target.get_projectile_hit_radius())
 	var travel_distance := speed * delta
 	if offset.length() <= hit_radius + travel_distance:
-		if target.has_method("apply_damage"):
+		if splash_radius > 0.0:
+			_apply_splash(target.global_position)
+		elif target.has_method("apply_damage"):
 			target.apply_damage(damage, &"ballistic", false, true)
 		queue_free()
 		return
@@ -35,6 +39,14 @@ func _physics_process(delta: float) -> void:
 		var direction := offset.normalized()
 		global_position += direction * travel_distance
 		rotation = direction.angle()
+
+
+func _apply_splash(impact_position: Vector2) -> void:
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if not is_instance_valid(candidate) or bool(candidate.get("finished")):
+			continue
+		if candidate.global_position.distance_to(impact_position) <= splash_radius:
+			candidate.apply_damage(damage, &"explosive", false, true)
 
 
 func _is_valid_target() -> bool:
