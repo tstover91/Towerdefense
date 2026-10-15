@@ -37,6 +37,14 @@ func _run() -> void:
 			"%s keeps the entire board inside the safe viewport" % viewport_size
 		)
 		_assert(
+			board.safe_view_rect.encloses(board.build_button_rect),
+			"%s keeps the tower control inside the safe viewport" % viewport_size
+		)
+		_assert(
+			board.safe_view_rect.encloses(board.wall_button_rect),
+			"%s keeps the wall control inside the safe viewport" % viewport_size
+		)
+		_assert(
 			board.safe_view_rect.encloses(board.start_button_rect),
 			"%s keeps the start control inside the safe viewport" % viewport_size
 		)

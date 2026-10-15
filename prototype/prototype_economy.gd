@@ -2,16 +2,18 @@ class_name PrototypeEconomy
 extends RefCounted
 
 const STARTING_CREDITS := 500
-const STARTING_CAPACITY := 5
+const STARTING_POWER_LIMIT := 5
+const STARTING_WALL_LIMIT := 4
 const INTEREST_RATE := 0.05
 const INTEREST_REWARD_CAP_RATIO := 0.50
 const BASE_WAVE_REWARD := 120
 const WAVE_REWARD_INCREMENT := 20
-const CAPACITY_UNLOCK_WAVES: Array[int] = [2, 4, 6, 8]
 
 var credits := STARTING_CREDITS
-var used_capacity := 0
-var maximum_capacity := STARTING_CAPACITY
+var used_power := 0
+var power_limit := STARTING_POWER_LIMIT
+var used_walls := 0
+var wall_limit := STARTING_WALL_LIMIT
 var locked_interest := 0
 var locked_wave := 0
 var last_base_reward := 0
@@ -23,8 +25,15 @@ func can_afford(cost: int) -> bool:
 	return credits >= maxi(cost, 0)
 
 
-func can_build(cost: int) -> bool:
-	return can_afford(cost) and used_capacity < maximum_capacity
+func can_build(cost: int, power_cost := 1) -> bool:
+	return (
+		can_afford(cost)
+		and used_power + maxi(power_cost, 0) <= power_limit
+	)
+
+
+func can_build_wall() -> bool:
+	return used_walls < wall_limit
 
 
 func try_spend(cost: int) -> bool:
@@ -35,15 +44,27 @@ func try_spend(cost: int) -> bool:
 	return true
 
 
-func try_build(cost: int) -> bool:
-	if not can_build(cost) or not try_spend(cost):
+func try_build(cost: int, power_cost := 1) -> bool:
+	var safe_power_cost := maxi(power_cost, 0)
+	if not can_build(cost, safe_power_cost) or not try_spend(cost):
 		return false
-	used_capacity += 1
+	used_power += safe_power_cost
 	return true
 
 
-func release_capacity() -> void:
-	used_capacity = maxi(used_capacity - 1, 0)
+func release_power(amount := 1) -> void:
+	used_power = maxi(used_power - maxi(amount, 0), 0)
+
+
+func try_build_wall() -> bool:
+	if not can_build_wall():
+		return false
+	used_walls += 1
+	return true
+
+
+func release_wall() -> void:
+	used_walls = maxi(used_walls - 1, 0)
 
 
 func add_credits(amount: int) -> void:
@@ -75,7 +96,7 @@ func complete_wave(wave: int) -> Dictionary:
 		return {
 			"base_reward": 0,
 			"interest_reward": 0,
-			"capacity_increased": false,
+			"limits_increased": false,
 		}
 	rewarded_waves[wave] = true
 	var base_reward := get_wave_reward(wave)
@@ -83,15 +104,14 @@ func complete_wave(wave: int) -> Dictionary:
 	last_base_reward = base_reward
 	last_interest_reward = interest_reward
 	add_credits(base_reward + interest_reward)
-	var capacity_increased := CAPACITY_UNLOCK_WAVES.has(wave)
-	if capacity_increased:
-		maximum_capacity += 1
+	power_limit += 1
+	wall_limit += 1
 	locked_wave = 0
 	locked_interest = 0
 	return {
 		"base_reward": base_reward,
 		"interest_reward": interest_reward,
-		"capacity_increased": capacity_increased,
+		"limits_increased": true,
 	}
 
 
@@ -103,8 +123,10 @@ func get_state(next_wave: int, wave_active: bool) -> Dictionary:
 	)
 	return {
 		"credits": credits,
-		"used_capacity": used_capacity,
-		"maximum_capacity": maximum_capacity,
+		"used_power": used_power,
+		"power_limit": power_limit,
+		"used_walls": used_walls,
+		"wall_limit": wall_limit,
 		"interest": interest_display,
 		"interest_locked": wave_active and locked_wave == next_wave,
 		"next_wave_reward": get_wave_reward(next_wave),

@@ -2,20 +2,25 @@
 
 This is the project's only gameplay scene and launches when the project runs.
 
-Run the project or `res://prototype/prototype_main.tscn` in Godot. Tap an empty grid cell to
-place a blocking tower and tap an existing tower to select it. Use the footer
-controls to upgrade or sell the selected tower. Placement is rejected when it
-would block the entrance route or trap an active enemy.
+Run the project or `res://prototype/prototype_main.tscn` in Godot. Tap **Tower**
+or **Wall**, tap a grid cell to position the live route preview, then tap that
+cell again to build. You can also drag directly from either build button and
+release to build immediately. Invalid drops cancel without spending anything.
+Tap an existing tower or wall to select it. Towers can be upgraded or sold;
+walls can be removed to recover their Wall allowance. Placement is rejected
+when it would block a required waypoint route or trap an active enemy.
 
 Use **Start Wave** to play the ten-wave combat slice. Enemies arrive in planned
 groups, rounds finish as soon as all planned enemies are defeated or leak, and
 moving enemies adopt recalculated four-direction routes without teleporting.
-The economy starts with $500 and five tower slots. Towers cost $100; upgrades
+The economy starts with $500 and five Power. Towers cost $100; upgrades
 cost $100, $300, and $800. There is no income per kill. Clearing a wave pays a
 base reward that starts at $120 and rises by $20 per wave, plus 5% interest on
 the credits held when the wave began. Interest is capped at half the wave's base
-reward. Capacity increases after waves 2, 4, 6, and 8. A tower sells for its full
-investment before participating in combat and 70% afterward.
+reward. The run begins with five Power for towers and four single-tile Walls.
+Each tower consumes one Power and each wall consumes one Wall. Clearing every
+wave increases both limits by one. A tower sells for its full investment before
+participating in combat and 70% afterward.
 
 The prototype is landscape-only and uses a fixed 18 by 9 gameplay grid. Cell
 size is calculated uniformly from the device's safe viewport, so every device

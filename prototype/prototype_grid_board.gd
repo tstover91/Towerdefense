@@ -15,6 +15,17 @@ const BOTTOM_UI_HEIGHT := 62.0
 const COMPACT_TOP_UI_HEIGHT := 52.0
 const COMPACT_BOTTOM_UI_HEIGHT := 50.0
 const WAVE_REWARD_MESSAGE_DURATION_MSEC := 3500
+const PLACEMENT_DRAG_THRESHOLD := 12.0
+const PLACEMENT_FINGER_OFFSET_CELLS := 0.85
+
+enum PlacementMode {
+	NONE,
+	PRECISION,
+	DRAGGING,
+}
+
+const BUILD_TOWER: StringName = &"tower"
+const BUILD_WALL: StringName = &"wall"
 
 const ENTRANCE := Vector2i(0, 4)
 const WAYPOINTS: Array[Vector2i] = [
@@ -39,10 +50,13 @@ const COLOR_CELL_B := Color("d2d2c4")
 const COLOR_GRID := Color("5b5b55")
 const COLOR_PATH_SHADOW := Color(0.05, 0.05, 0.05, 0.72)
 const COLOR_PATH := Color("efb83d")
+const COLOR_PATH_EXISTING_PREVIEW := Color(0.94, 0.72, 0.24, 0.24)
 const COLOR_TOWER := Color("e84f3d")
 const COLOR_TOWER_BORDER := Color("171717")
 const COLOR_OBJECT := Color("4b4b48")
 const COLOR_OBJECT_DETAIL := Color("999990")
+const COLOR_WALL := Color("565653")
+const COLOR_WALL_LIGHT := Color("8e8e87")
 const COLOR_VALID := Color(0.20, 0.72, 0.42, 0.55)
 const COLOR_INVALID := Color(0.92, 0.18, 0.16, 0.60)
 const COLOR_TEXT := Color("f2efe4")
@@ -63,6 +77,8 @@ var preview_is_valid := false
 var board_origin := Vector2.ZERO
 var cell_size := 48.0
 var title_font: Font
+var build_button_rect := Rect2()
+var wall_button_rect := Rect2()
 var start_button_rect := Rect2()
 var upgrade_button_rect := Rect2()
 var sell_button_rect := Rect2()
@@ -74,13 +90,24 @@ var status_override := ""
 var status_override_expires_msec := 0
 var active_followers: Array[Node2D] = []
 var towers_by_cell: Dictionary = {}
+var walls_by_cell: Dictionary = {}
 var selected_tower: Node2D
+var selected_wall_cell := Vector2i(-1, -1)
 var last_touch_press_msec := -1000
+var placement_mode := PlacementMode.NONE
+var placement_kind: StringName = &""
+var precision_cell := Vector2i(-1, -1)
+var placement_pointer_index := -2
+var placement_press_position := Vector2.ZERO
+var placement_drag_armed := false
+var placement_drag_over_cancel := false
 var economy = null
 var economy_state: Dictionary = {
 	"credits": 500,
-	"used_capacity": 0,
-	"maximum_capacity": 5,
+	"used_power": 0,
+	"power_limit": 5,
+	"used_walls": 0,
+	"wall_limit": 4,
 	"interest": 25,
 	"interest_locked": false,
 }
@@ -118,22 +145,19 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if portrait_view:
 		return
-	if event is InputEventMouseMotion:
-		_update_preview(_screen_to_cell(event.position))
+	if event is InputEventScreenTouch:
+		_handle_touch_event(event)
 	elif event is InputEventScreenDrag:
-		_update_preview(_screen_to_cell(event.position))
+		_handle_drag_motion(event.position, event.index)
+	elif event is InputEventMouseMotion:
+		if placement_drag_armed and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			_handle_drag_motion(event.position, -1)
+		elif placement_mode == PlacementMode.PRECISION:
+			_update_preview(_screen_to_cell(event.position))
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if (
-			event.pressed
-			and (
-				not OS.has_feature("mobile")
-				or Time.get_ticks_msec() - last_touch_press_msec > 250
-			)
-		):
-			_handle_screen_press(event.position)
-	elif event is InputEventScreenTouch and event.pressed:
-		last_touch_press_msec = Time.get_ticks_msec()
-		_handle_screen_press(event.position)
+		if OS.has_feature("mobile") and Time.get_ticks_msec() - last_touch_press_msec <= 250:
+			return
+		_handle_mouse_button(event)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_SPACE:
 			_request_start_wave()
@@ -146,8 +170,13 @@ func _draw() -> void:
 		return
 	_draw_header()
 	_draw_board()
-	_draw_route(preview_route if preview_is_valid else displayed_route)
+	if placement_mode != PlacementMode.NONE and preview_is_valid:
+		_draw_route(displayed_route, COLOR_PATH_EXISTING_PREVIEW)
+		_draw_route(preview_route, COLOR_PATH)
+	else:
+		_draw_route(displayed_route, COLOR_PATH)
 	_draw_static_objects()
+	_draw_walls()
 	_draw_route_markers()
 	_draw_placement_preview()
 	_draw_footer_controls()
@@ -167,12 +196,14 @@ func _draw_header() -> void:
 		heading_size,
 		COLOR_TEXT
 	)
-	var economy_text := "$%d   ·   INT +$%d%s   ·   CAP %d/%d" % [
+	var economy_text := "$%d  ·  INT +$%d%s  ·  POWER %d/%d  ·  WALLS %d/%d" % [
 		int(economy_state.get("credits", 0)),
 		int(economy_state.get("interest", 0)),
 		" LOCKED" if bool(economy_state.get("interest_locked", false)) else "",
-		int(economy_state.get("used_capacity", 0)),
-		int(economy_state.get("maximum_capacity", 0)),
+		int(economy_state.get("used_power", 0)),
+		int(economy_state.get("power_limit", 0)),
+		int(economy_state.get("used_walls", 0)),
+		int(economy_state.get("wall_limit", 0)),
 	]
 	draw_string(
 		title_font,
@@ -267,14 +298,16 @@ func _draw_board() -> void:
 		)
 
 
-func _draw_route(route: Array[Vector2i]) -> void:
+func _draw_route(route: Array[Vector2i], path_color: Color) -> void:
 	if route.size() < 2:
 		return
 	var points := PackedVector2Array()
 	for cell in route:
 		points.append(_cell_center(cell))
-	draw_polyline(points, COLOR_PATH_SHADOW, maxf(cell_size * 0.24, 7.0), true)
-	draw_polyline(points, COLOR_PATH, maxf(cell_size * 0.10, 3.0), true)
+	var shadow_color := COLOR_PATH_SHADOW
+	shadow_color.a *= clampf(path_color.a * 1.5, 0.25, 1.0)
+	draw_polyline(points, shadow_color, maxf(cell_size * 0.24, 7.0), true)
+	draw_polyline(points, path_color, maxf(cell_size * 0.10, 3.0), true)
 
 
 func _draw_static_objects() -> void:
@@ -290,6 +323,17 @@ func _draw_static_objects() -> void:
 			2.0,
 			true
 		)
+
+
+func _draw_walls() -> void:
+	for cell in walls_by_cell:
+		var rect := _cell_rect(cell).grow(-cell_size * 0.10)
+		draw_rect(rect, COLOR_WALL, true)
+		draw_rect(rect, COLOR_TOWER_BORDER, false, maxf(cell_size * 0.05, 2.0))
+		var inset := rect.grow(-cell_size * 0.14)
+		draw_rect(inset, COLOR_WALL_LIGHT, false, maxf(cell_size * 0.04, 2.0))
+		if cell == selected_wall_cell:
+			draw_rect(rect.grow(3.0), COLOR_PATH, false, 3.0)
 
 
 func _draw_route_markers() -> void:
@@ -315,15 +359,37 @@ func _draw_route_markers() -> void:
 
 
 func _draw_placement_preview() -> void:
-	if not _is_gameplay_phase():
+	if placement_mode == PlacementMode.NONE or not _is_gameplay_phase():
 		return
 	if not router.is_inside_grid(hovered_cell):
 		return
 	if router.dynamic_blocks.has(hovered_cell):
 		return
-	var rect := _cell_rect(hovered_cell).grow(-cell_size * 0.06)
-	draw_rect(rect, COLOR_VALID if preview_is_valid else COLOR_INVALID, true)
-	draw_rect(rect, COLOR_TOWER_BORDER, false, 2.0)
+	var center := _cell_center(hovered_cell)
+	if placement_kind == BUILD_TOWER:
+		var range_cells := float(TowerScript.LEVEL_STATS[0]["range_cells"])
+		draw_circle(
+			center,
+			range_cells * cell_size,
+			Color(0.20, 0.72, 0.42, 0.10) if preview_is_valid else Color(0.92, 0.18, 0.16, 0.10)
+		)
+	var cell_rect := _cell_rect(hovered_cell).grow(-cell_size * 0.06)
+	draw_rect(cell_rect, COLOR_VALID if preview_is_valid else COLOR_INVALID, false, 3.0)
+	var tower_rect := _cell_rect(hovered_cell).grow(-cell_size * 0.14)
+	var ghost_color := (
+		COLOR_WALL
+		if placement_kind == BUILD_WALL
+		else COLOR_TOWER
+	)
+	if not preview_is_valid:
+		ghost_color = Color("d52f2f")
+	ghost_color.a = 0.78
+	draw_rect(tower_rect, ghost_color, true)
+	draw_rect(tower_rect, COLOR_TOWER_BORDER, false, 2.0)
+	if placement_kind == BUILD_TOWER:
+		draw_circle(center, cell_size * 0.15, Color(0.95, 0.92, 0.84, 0.86))
+	else:
+		draw_rect(tower_rect.grow(-cell_size * 0.14), COLOR_WALL_LIGHT, false, 2.0)
 
 
 func _draw_footer_controls() -> void:
@@ -332,6 +398,19 @@ func _draw_footer_controls() -> void:
 		"START WAVE"
 		if phase == &"build"
 		else ("RUNNING" if phase == &"active" else String(phase).to_upper())
+	)
+	_draw_button(
+		build_button_rect,
+		"X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_TOWER else "TOWER $%d" % TowerScript.BUILD_COST,
+		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_TOWER)
+	)
+	_draw_button(
+		wall_button_rect,
+		"X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_WALL else "WALL %d/%d" % [
+			int(economy_state.get("used_walls", 0)),
+			int(economy_state.get("wall_limit", 0)),
+		],
+		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_WALL)
 	)
 	_draw_button(start_button_rect, start_label, phase == &"build")
 	_draw_button(
@@ -342,7 +421,10 @@ func _draw_footer_controls() -> void:
 	_draw_button(
 		sell_button_rect,
 		_get_sell_button_label(),
-		is_instance_valid(selected_tower) and _is_gameplay_phase()
+		(
+			is_instance_valid(selected_tower)
+			or selected_wall_cell.x >= 0
+		) and _is_gameplay_phase()
 	)
 	var info_x := sell_button_rect.end.x + 16.0
 	var info_width := maxf(safe_view_rect.end.x - info_x - GRID_MARGIN, 0.0)
@@ -351,7 +433,7 @@ func _draw_footer_controls() -> void:
 		displayed_status = (
 			selected_tower.get_summary()
 			if is_instance_valid(selected_tower)
-			else status_message
+			else ("WALL · REMOVE TO RECOVER LIMIT" if selected_wall_cell.x >= 0 else status_message)
 		)
 	draw_string(
 		title_font,
@@ -386,46 +468,102 @@ func _draw_button(rect: Rect2, label: String, enabled := true) -> void:
 func _handle_screen_press(screen_position: Vector2) -> void:
 	if not status_override.is_empty():
 		status_override = ""
+	if build_button_rect.has_point(screen_position):
+		_handle_placement_button(BUILD_TOWER)
+		return
+	if wall_button_rect.has_point(screen_position):
+		_handle_placement_button(BUILD_WALL)
+		return
 	if start_button_rect.has_point(screen_position):
+		_cancel_placement()
 		_request_start_wave()
 		return
 	if upgrade_button_rect.has_point(screen_position):
+		_cancel_placement()
 		_upgrade_selected_tower()
 		return
 	if sell_button_rect.has_point(screen_position):
-		_sell_selected_tower()
+		_cancel_placement()
+		_remove_selected_building()
 		return
 	var cell := _screen_to_cell(screen_position)
 	if not router.is_inside_grid(cell):
 		return
-	if router.dynamic_blocks.has(cell):
-		_select_tower(towers_by_cell.get(cell))
+	if placement_mode == PlacementMode.PRECISION:
+		_handle_precision_cell_press(cell)
 		return
+	if router.dynamic_blocks.has(cell):
+		if towers_by_cell.has(cell):
+			_select_tower(towers_by_cell.get(cell))
+		elif walls_by_cell.has(cell):
+			_select_wall(cell)
+		return
+
+
+func _handle_placement_button(kind: StringName) -> bool:
+	if placement_mode != PlacementMode.NONE and placement_kind == kind:
+		_cancel_placement("Placement canceled.")
+		return false
+	if placement_mode != PlacementMode.NONE:
+		_cancel_placement()
+	return _begin_precision_placement(kind)
+
+
+func _handle_precision_cell_press(cell: Vector2i) -> void:
+	_update_preview(cell, true)
+	if precision_cell == cell and preview_is_valid:
+		_try_place_building(cell)
+		_cancel_placement()
+		return
+	precision_cell = cell
+	status_message = (
+		"Tap again to build."
+		if preview_is_valid
+		else "That cell cannot hold this tower."
+	)
+	queue_redraw()
+
+
+func _try_place_building(cell: Vector2i) -> bool:
 	if not _is_gameplay_phase():
 		status_message = "This run is finished."
 		queue_redraw()
-		return
+		return false
 	if economy == null:
 		status_message = "Economy is not configured."
 		queue_redraw()
-		return
-	if not economy.can_build(TowerScript.BUILD_COST):
+		return false
+	if placement_kind == BUILD_WALL and not economy.can_build_wall():
+		status_message = "Wall limit reached. Clear another wave or remove a wall."
+		queue_redraw()
+		return false
+	if placement_kind == BUILD_TOWER and not economy.can_build(TowerScript.BUILD_COST):
 		if not economy.can_afford(TowerScript.BUILD_COST):
 			status_message = "Need $%d to build this tower." % TowerScript.BUILD_COST
 		else:
 			status_message = "Tower capacity is full. Sell a tower to free one slot."
 		queue_redraw()
-		return
+		return false
 	var route_states := _get_active_route_states()
 	if not router.can_add_dynamic_block(cell, route_states):
 		status_message = "Blocked: that placement would trap a route or an active unit."
-		_update_preview(cell)
-		return
+		_update_preview(cell, true)
+		return false
+	if placement_kind == BUILD_WALL:
+		if not economy.try_build_wall():
+			return false
+		router.add_dynamic_block(cell)
+		walls_by_cell[cell] = true
+		_select_wall(cell)
+		status_message = "Wall placed. Every required route remains open."
+		_after_blocks_changed()
+		_refresh_local_economy_state()
+		return true
 	if not economy.try_build(TowerScript.BUILD_COST):
 		status_message = "The tower could not be purchased."
 		_refresh_local_economy_state()
 		queue_redraw()
-		return
+		return false
 	router.add_dynamic_block(cell)
 	var tower: Node2D = TowerScript.new()
 	add_child(tower)
@@ -439,21 +577,149 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 	status_message = "Tower placed. All entrance and active-unit routes remain open."
 	_after_blocks_changed()
 	_refresh_local_economy_state()
-	_update_preview(cell)
+	return true
 
 
-func _update_preview(cell: Vector2i) -> void:
+func _can_begin_placement(kind: StringName) -> bool:
+	if not _is_gameplay_phase() or economy == null:
+		return false
+	if kind == BUILD_WALL:
+		return economy.can_build_wall()
+	return economy.can_build(TowerScript.BUILD_COST)
+
+
+func _begin_precision_placement(kind: StringName = BUILD_TOWER) -> bool:
+	if not _can_begin_placement(kind):
+		status_message = (
+			"Wall limit reached."
+			if kind == BUILD_WALL
+			else "Need $%d or one free Power." % TowerScript.BUILD_COST
+		)
+		queue_redraw()
+		return false
+	placement_mode = PlacementMode.PRECISION
+	placement_kind = kind
+	precision_cell = Vector2i(-1, -1)
+	_select_tower(null)
+	status_message = "Tap a cell, then tap it again to build %s." % (
+		"a wall" if kind == BUILD_WALL else "the tower"
+	)
+	_clear_placement_preview()
+	return true
+
+
+func _cancel_placement(message := "") -> void:
+	placement_mode = PlacementMode.NONE
+	placement_kind = &""
+	precision_cell = Vector2i(-1, -1)
+	placement_drag_armed = false
+	placement_drag_over_cancel = false
+	placement_pointer_index = -2
+	_clear_placement_preview()
+	if not message.is_empty():
+		status_message = message
+		queue_redraw()
+
+
+func _handle_touch_event(event: InputEventScreenTouch) -> void:
+	last_touch_press_msec = Time.get_ticks_msec()
+	if event.pressed:
+		var pressed_kind := _get_build_kind_at(event.position)
+		if not pressed_kind.is_empty():
+			if _handle_placement_button(pressed_kind):
+				_arm_placement_drag(event.position, event.index)
+			return
+		_handle_screen_press(event.position)
+		return
+	if event.canceled:
+		_cancel_placement("Placement canceled.")
+		return
+	if placement_drag_armed and event.index == placement_pointer_index:
+		_finish_placement_drag(event.position)
+
+
+func _handle_mouse_button(event: InputEventMouseButton) -> void:
+	if event.pressed:
+		var pressed_kind := _get_build_kind_at(event.position)
+		if not pressed_kind.is_empty():
+			if _handle_placement_button(pressed_kind):
+				_arm_placement_drag(event.position, -1)
+			return
+		_handle_screen_press(event.position)
+		return
+	if placement_drag_armed and placement_pointer_index == -1:
+		_finish_placement_drag(event.position)
+
+
+func _get_build_kind_at(screen_position: Vector2) -> StringName:
+	if build_button_rect.has_point(screen_position):
+		return BUILD_TOWER
+	if wall_button_rect.has_point(screen_position):
+		return BUILD_WALL
+	return &""
+
+
+func _arm_placement_drag(screen_position: Vector2, pointer_index: int) -> void:
+	placement_drag_armed = true
+	placement_pointer_index = pointer_index
+	placement_press_position = screen_position
+
+
+func _handle_drag_motion(screen_position: Vector2, pointer_index: int) -> void:
+	if not placement_drag_armed or pointer_index != placement_pointer_index:
+		return
+	if (
+		placement_mode != PlacementMode.DRAGGING
+		and screen_position.distance_to(placement_press_position)
+		< PLACEMENT_DRAG_THRESHOLD
+	):
+		return
+	placement_mode = PlacementMode.DRAGGING
+	precision_cell = Vector2i(-1, -1)
+	placement_drag_over_cancel = (
+		_get_build_kind_at(screen_position) == placement_kind
+	)
+	if placement_drag_over_cancel:
+		_clear_placement_preview()
+		return
+	var preview_position := screen_position + Vector2.UP * cell_size * PLACEMENT_FINGER_OFFSET_CELLS
+	_update_preview(_screen_to_cell(preview_position))
+
+
+func _finish_placement_drag(screen_position: Vector2) -> void:
+	if placement_mode != PlacementMode.DRAGGING:
+		placement_drag_armed = false
+		placement_pointer_index = -2
+		return
+	placement_drag_over_cancel = (
+		_get_build_kind_at(screen_position) == placement_kind
+	)
+	var placed := false
+	if not placement_drag_over_cancel:
+		var preview_position := screen_position + Vector2.UP * cell_size * PLACEMENT_FINGER_OFFSET_CELLS
+		_update_preview(_screen_to_cell(preview_position), true)
+		if preview_is_valid:
+			placed = _try_place_building(hovered_cell)
+	_cancel_placement(
+		"" if placed else "Placement canceled."
+	)
+
+
+func _update_preview(cell: Vector2i, force := false) -> void:
+	if not force and cell == hovered_cell:
+		return
 	hovered_cell = cell
 	preview_is_valid = false
 	preview_route.clear()
 	if (
+		placement_mode != PlacementMode.NONE
+		and
 		_is_gameplay_phase()
 		and router.is_inside_grid(cell)
 		and not router.dynamic_blocks.has(cell)
 	):
 		preview_is_valid = (
-			economy != null
-			and economy.can_build(TowerScript.BUILD_COST)
+			_can_begin_placement(placement_kind)
 			and router.can_add_dynamic_block(
 			cell,
 			_get_active_route_states()
@@ -467,6 +733,13 @@ func _update_preview(cell: Vector2i) -> void:
 				0,
 				candidate_blocks
 			)
+	queue_redraw()
+
+
+func _clear_placement_preview() -> void:
+	hovered_cell = Vector2i(-1, -1)
+	preview_is_valid = false
+	preview_route.clear()
 	queue_redraw()
 
 
@@ -542,6 +815,8 @@ func _on_enemy_defeated(enemy: Node2D) -> void:
 
 func set_combat_state(new_state: Dictionary) -> void:
 	combat_state = new_state.duplicate(true)
+	if not _is_gameplay_phase():
+		_cancel_placement()
 	match StringName(combat_state.get("phase", &"build")):
 		&"build":
 			status_message = "Wave cleared. Build, upgrade, or start the next wave."
@@ -590,7 +865,7 @@ func show_wave_reward(reward: Dictionary) -> void:
 	status_override = "Wave reward $%d + interest $%d%s" % [
 		int(reward.get("base_reward", 0)),
 		int(reward.get("interest_reward", 0)),
-		" · CAPACITY +1" if bool(reward.get("capacity_increased", false)) else "",
+		" · POWER +1 · WALL +1" if bool(reward.get("limits_increased", false)) else "",
 	]
 	status_override_expires_msec = (
 		Time.get_ticks_msec() + WAVE_REWARD_MESSAGE_DURATION_MSEC
@@ -608,8 +883,17 @@ func _select_tower(tower: Node2D) -> void:
 	if is_instance_valid(selected_tower):
 		selected_tower.set_selected(false)
 	selected_tower = tower
+	selected_wall_cell = Vector2i(-1, -1)
 	if is_instance_valid(selected_tower):
 		selected_tower.set_selected(true)
+	queue_redraw()
+
+
+func _select_wall(cell: Vector2i) -> void:
+	if is_instance_valid(selected_tower):
+		selected_tower.set_selected(false)
+	selected_tower = null
+	selected_wall_cell = cell if walls_by_cell.has(cell) else Vector2i(-1, -1)
 	queue_redraw()
 
 
@@ -649,14 +933,40 @@ func _sell_selected_tower() -> void:
 	var refund := int(selected_tower.get_sell_refund())
 	towers_by_cell.erase(cell)
 	router.remove_dynamic_block(cell)
-	economy.release_capacity()
+	economy.release_power()
 	economy.add_credits(refund)
 	selected_tower.queue_free()
 	selected_tower = null
 	status_message = "Tower sold for $%d. Active enemies retained their positions." % refund
 	_after_blocks_changed()
 	_refresh_local_economy_state()
-	_update_preview(cell)
+	_clear_placement_preview()
+
+
+func _remove_selected_building() -> void:
+	if selected_wall_cell.x >= 0:
+		_remove_selected_wall()
+	else:
+		_sell_selected_tower()
+
+
+func _remove_selected_wall() -> void:
+	if (
+		not _is_gameplay_phase()
+		or selected_wall_cell.x < 0
+		or not walls_by_cell.has(selected_wall_cell)
+		or economy == null
+	):
+		return
+	var cell := selected_wall_cell
+	walls_by_cell.erase(cell)
+	router.remove_dynamic_block(cell)
+	economy.release_wall()
+	selected_wall_cell = Vector2i(-1, -1)
+	status_message = "Wall removed. One Wall is available again."
+	_after_blocks_changed()
+	_refresh_local_economy_state()
+	_clear_placement_preview()
 
 
 func _can_afford_selected_upgrade() -> bool:
@@ -679,6 +989,8 @@ func _get_upgrade_button_label() -> String:
 
 
 func _get_sell_button_label() -> String:
+	if selected_wall_cell.x >= 0:
+		return "REMOVE"
 	if not is_instance_valid(selected_tower):
 		return "SELL"
 	return "SELL $%d" % int(selected_tower.get_sell_refund())
@@ -788,22 +1100,34 @@ func _recalculate_layout() -> void:
 	)
 	var footer_y := board_origin.y + board_size.y + 12.0
 	var button_height := 32.0 if compact_layout else 38.0
-	start_button_rect = Rect2(
+	build_button_rect = Rect2(
 		safe_view_rect.position.x + GRID_MARGIN,
 		footer_y,
-		132.0,
+		110.0,
+		button_height
+	)
+	wall_button_rect = Rect2(
+		build_button_rect.end.x + 8.0,
+		footer_y,
+		100.0,
+		button_height
+	)
+	start_button_rect = Rect2(
+		wall_button_rect.end.x + 8.0,
+		footer_y,
+		110.0,
 		button_height
 	)
 	upgrade_button_rect = Rect2(
-		start_button_rect.end.x + 10.0,
+		start_button_rect.end.x + 8.0,
 		footer_y,
-		110.0,
+		88.0,
 		button_height
 	)
 	sell_button_rect = Rect2(
-		upgrade_button_rect.end.x + 10.0,
+		upgrade_button_rect.end.x + 8.0,
 		footer_y,
-		110.0,
+		88.0,
 		button_height
 	)
 
