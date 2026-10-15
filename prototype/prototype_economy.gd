@@ -2,12 +2,19 @@ class_name PrototypeEconomy
 extends RefCounted
 
 const STARTING_CREDITS := 500
-const STARTING_POWER_LIMIT := 5
-const STARTING_WALL_LIMIT := 4
+const STARTING_POWER_LIMIT := 3
+const STARTING_WALL_LIMIT := 5
 const INTEREST_RATE := 0.05
 const INTEREST_REWARD_CAP_RATIO := 0.50
 const BASE_WAVE_REWARD := 120
 const WAVE_REWARD_INCREMENT := 20
+const POWER_INCREASE_WAVES: Array[int] = [2, 4, 6, 9, 12, 15, 18]
+const WALL_INCREASE_WAVES: Array[int] = [
+	1, 2, 3, 4,
+	5, 6, 7, 9,
+	10, 12, 14,
+	16, 18,
+]
 
 var credits := STARTING_CREDITS
 var used_power := 0
@@ -97,6 +104,8 @@ func complete_wave(wave: int) -> Dictionary:
 			"base_reward": 0,
 			"interest_reward": 0,
 			"limits_increased": false,
+			"power_increase": 0,
+			"wall_increase": 0,
 		}
 	rewarded_waves[wave] = true
 	var base_reward := get_wave_reward(wave)
@@ -104,14 +113,18 @@ func complete_wave(wave: int) -> Dictionary:
 	last_base_reward = base_reward
 	last_interest_reward = interest_reward
 	add_credits(base_reward + interest_reward)
-	power_limit += 1
-	wall_limit += 1
+	var power_increase := 1 if POWER_INCREASE_WAVES.has(wave) else 0
+	var wall_increase := 1 if WALL_INCREASE_WAVES.has(wave) else 0
+	power_limit += power_increase
+	wall_limit += wall_increase
 	locked_wave = 0
 	locked_interest = 0
 	return {
 		"base_reward": base_reward,
 		"interest_reward": interest_reward,
-		"limits_increased": true,
+		"limits_increased": power_increase > 0 or wall_increase > 0,
+		"power_increase": power_increase,
+		"wall_increase": wall_increase,
 	}
 
 

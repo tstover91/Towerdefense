@@ -153,7 +153,7 @@ func _run() -> void:
 	_assert(game.round_controller._try_complete_wave(), "forced integration wave completes")
 	_assert(game.economy.credits == 582, "wave clear pays $120 plus the locked $22 interest")
 	_assert(
-		board.status_override == "Wave reward $120 + interest $22 · POWER +1 · WALL +1",
+		board.status_override == "Wave reward $120 + interest $22 · WALL +1",
 		"the coordinated wave reward is the final visible notification"
 	)
 

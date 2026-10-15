@@ -22,6 +22,16 @@ const WAVES: Array[Dictionary] = [
 	{"health": 72, "speed": 1.60, "groups": [{"count": 8, "interval": 0.32}, {"count": 8, "interval": 0.30, "gap": 0.72}]},
 	{"health": 82, "speed": 1.65, "groups": [{"count": 7, "interval": 0.30}, {"count": 7, "interval": 0.28, "gap": 0.68}, {"count": 5, "interval": 0.25, "gap": 0.72}]},
 	{"health": 95, "speed": 1.70, "groups": [{"count": 8, "interval": 0.28}, {"count": 8, "interval": 0.26, "gap": 0.65}, {"count": 8, "interval": 0.24, "gap": 0.65}]},
+	{"health": 112, "speed": 1.72, "groups": [{"count": 6, "interval": 0.28}, {"count": 6, "interval": 0.26, "gap": 0.70}, {"count": 6, "interval": 0.24, "gap": 0.70}]},
+	{"health": 130, "speed": 1.74, "groups": [{"count": 7, "interval": 0.27}, {"count": 7, "interval": 0.25, "gap": 0.68}, {"count": 6, "interval": 0.23, "gap": 0.68}]},
+	{"health": 150, "speed": 1.76, "groups": [{"count": 6, "interval": 0.26}, {"count": 6, "interval": 0.24, "gap": 0.65}, {"count": 6, "interval": 0.22, "gap": 0.65}]},
+	{"health": 175, "speed": 1.78, "groups": [{"count": 7, "interval": 0.25}, {"count": 7, "interval": 0.23, "gap": 0.62}, {"count": 7, "interval": 0.21, "gap": 0.62}]},
+	{"health": 240, "speed": 1.68, "groups": [{"count": 4, "interval": 0.42}, {"count": 4, "interval": 0.38, "gap": 0.90}, {"count": 4, "interval": 0.34, "gap": 0.90}]},
+	{"health": 220, "speed": 1.82, "groups": [{"count": 6, "interval": 0.24}, {"count": 6, "interval": 0.22, "gap": 0.60}, {"count": 6, "interval": 0.20, "gap": 0.60}]},
+	{"health": 255, "speed": 1.84, "groups": [{"count": 7, "interval": 0.23}, {"count": 7, "interval": 0.21, "gap": 0.58}, {"count": 6, "interval": 0.19, "gap": 0.58}]},
+	{"health": 290, "speed": 1.86, "groups": [{"count": 7, "interval": 0.22}, {"count": 7, "interval": 0.20, "gap": 0.56}, {"count": 7, "interval": 0.18, "gap": 0.56}]},
+	{"health": 330, "speed": 1.88, "groups": [{"count": 8, "interval": 0.21}, {"count": 8, "interval": 0.19, "gap": 0.54}, {"count": 8, "interval": 0.17, "gap": 0.54}]},
+	{"health": 480, "speed": 1.72, "groups": [{"count": 5, "interval": 0.38}, {"count": 5, "interval": 0.34, "gap": 0.85}, {"count": 5, "interval": 0.30, "gap": 0.85}]},
 ]
 
 var phase: StringName = PHASE_BUILD

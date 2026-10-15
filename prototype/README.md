@@ -15,19 +15,19 @@ through unused sides, allowing proper crossroads and perpendicular crossings.
 If a square would force an active enemy to backtrack, it remains rejected for
 the rest of that placement gesture instead of changing while enemies move.
 
-Use **Start Wave** to play the ten-wave combat slice. Enemies arrive in planned
+Use **Start Wave** to play the twenty-wave combat run. Enemies arrive in planned
 groups, rounds finish as soon as all planned enemies are defeated or leak, and
 moving enemies adopt recalculated four-direction routes without teleporting.
-The economy starts with $500 and five Power. Towers cost $100; upgrades
+The economy starts with $500, three Power, and five Walls. Towers cost $100; upgrades
 cost $100, $300, and $800. There is no income per kill. Clearing a wave pays a
 base reward that starts at $120 and rises by $20 per wave, plus 5% interest on
 the credits held when the wave began. Interest is capped at half the wave's base
-reward. The run begins with five Power for towers and four single-tile Walls.
-Each tower consumes one Power and each wall consumes one Wall. Clearing every
-wave increases both limits by one. A tower sells for its full investment before
+reward. Each tower consumes one Power and each wall consumes one Wall. Capacity
+grows at scheduled milestones, reaching ten Power and eighteen Walls after
+wave 18. A tower sells for its full investment before
 participating in combat and 70% afterward.
 
-The prototype is landscape-only and uses a fixed 18 by 9 gameplay grid. Cell
+The prototype is landscape-only and uses a fixed 19 by 10 gameplay grid. Cell
 size is calculated uniformly from the device's safe viewport, so every device
 receives the same number of gameplay tiles and every tile remains square. The
 layout accounts for notches and rounded screen corners, uses a compact HUD on

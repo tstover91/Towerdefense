@@ -15,7 +15,7 @@ func _init() -> void:
 	controller.state_changed.connect(_on_state_changed)
 	controller.wave_cleared.connect(_on_wave_cleared)
 	controller.enemy_spawn_requested.connect(_on_enemy_spawn_requested.bind(controller))
-	for expected_wave in range(1, 11):
+	for expected_wave in range(1, 21):
 		_assert(controller.start_next_wave(), "wave %d starts" % expected_wave)
 		_assert(controller.current_wave == expected_wave, "wave number advances")
 		var guard := 0
@@ -28,7 +28,7 @@ func _init() -> void:
 			lifecycle_events[-1] == "cleared:%d" % expected_wave,
 			"wave %d clear is the final lifecycle notification" % expected_wave
 		)
-	_assert(controller.phase == &"victory", "ten cleared waves produce victory")
+	_assert(controller.phase == &"victory", "twenty cleared waves produce victory")
 	_assert(total_spawned > 0, "planned waves spawn enemies")
 
 	var leak_controller: Node = RoundControllerScript.new()

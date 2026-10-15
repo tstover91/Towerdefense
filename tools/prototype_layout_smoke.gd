@@ -26,7 +26,7 @@ func _run() -> void:
 		get_root().size = viewport_size
 		board._recalculate_layout()
 		_assert(not board.portrait_view, "%s remains landscape" % viewport_size)
-		_assert(board.router.grid_size == Vector2i(18, 9), "%s keeps the 18x9 gameplay grid" % viewport_size)
+		_assert(board.router.grid_size == Vector2i(19, 10), "%s keeps the 19x10 gameplay grid" % viewport_size)
 		_assert(board.cell_size > 0.0, "%s produces a usable square cell" % viewport_size)
 		var board_rect := Rect2(
 			board.board_origin,

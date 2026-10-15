@@ -8,7 +8,7 @@ const TowerScript = preload("res://prototype/prototype_tower.gd")
 signal start_wave_requested
 signal enemy_resolved(leaked: bool, leak_damage: int)
 
-const GRID_SIZE := Vector2i(18, 9)
+const GRID_SIZE := Vector2i(19, 10)
 const GRID_MARGIN := 18.0
 const TOP_UI_HEIGHT := 68.0
 const BOTTOM_UI_HEIGHT := 88.0
@@ -28,20 +28,22 @@ enum PlacementMode {
 const BUILD_TOWER: StringName = &"tower"
 const BUILD_WALL: StringName = &"wall"
 
-const ENTRANCE := Vector2i(0, 4)
+const ENTRANCE := Vector2i(0, 5)
 const WAYPOINTS: Array[Vector2i] = [
 	Vector2i(5, 1),
-	Vector2i(9, 7),
-	Vector2i(13, 2),
+	Vector2i(10, 8),
+	Vector2i(14, 2),
 ]
-const EXIT_CELL := Vector2i(17, 4)
+const EXIT_CELL := Vector2i(18, 5)
 const STATIC_OBJECTS: Array[Vector2i] = [
 	Vector2i(2, 2),
 	Vector2i(3, 2),
 	Vector2i(7, 4),
 	Vector2i(11, 5),
 	Vector2i(12, 5),
-	Vector2i(15, 6),
+	Vector2i(15, 7),
+	Vector2i(4, 7),
+	Vector2i(17, 8),
 ]
 
 const COLOR_BACKGROUND := Color("131313")
@@ -108,16 +110,16 @@ var economy = null
 var economy_state: Dictionary = {
 	"credits": 500,
 	"used_power": 0,
-	"power_limit": 5,
+	"power_limit": 3,
 	"used_walls": 0,
-	"wall_limit": 4,
+	"wall_limit": 5,
 	"interest": 25,
 	"interest_locked": false,
 }
 var combat_state: Dictionary = {
 	"phase": &"build",
 	"displayed_wave": 1,
-	"max_waves": 10,
+	"max_waves": 20,
 	"lives": 20,
 	"active_enemies": 0,
 	"remaining_spawns": 0,
@@ -244,7 +246,7 @@ func _draw_header() -> void:
 func _draw_landscape_required() -> void:
 	var viewport_size := get_viewport_rect().size
 	var heading := "ROTATE TO LANDSCAPE"
-	var detail := "The gameplay grid always uses 18 × 9 tiles."
+	var detail := "The gameplay grid always uses 19 × 10 tiles."
 	var heading_size := title_font.get_string_size(
 		heading, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 26
 	)
@@ -871,7 +873,7 @@ func set_combat_state(new_state: Dictionary) -> void:
 			]
 		&"victory":
 			status_override = ""
-			status_message = "Prototype complete: all ten waves cleared."
+			status_message = "Prototype complete: all twenty waves cleared."
 		&"defeat":
 			status_override = ""
 			status_message = "Defeat: the route leaked too many enemies."
@@ -905,10 +907,22 @@ func mark_all_towers_participated() -> void:
 
 
 func show_wave_reward(reward: Dictionary) -> void:
+	var capacity_parts: Array[String] = []
+	var power_increase := int(reward.get("power_increase", 0))
+	var wall_increase := int(reward.get("wall_increase", 0))
+	if power_increase > 0:
+		capacity_parts.append("POWER +%d" % power_increase)
+	if wall_increase > 0:
+		capacity_parts.append("WALL +%d" % wall_increase)
+	var capacity_suffix := (
+		" · " + " · ".join(capacity_parts)
+		if not capacity_parts.is_empty()
+		else ""
+	)
 	status_override = "Wave reward $%d + interest $%d%s" % [
 		int(reward.get("base_reward", 0)),
 		int(reward.get("interest_reward", 0)),
-		" · POWER +1 · WALL +1" if bool(reward.get("limits_increased", false)) else "",
+		capacity_suffix,
 	]
 	status_override_expires_msec = (
 		Time.get_ticks_msec() + WAVE_REWARD_MESSAGE_DURATION_MSEC
