@@ -2,22 +2,20 @@ class_name PrototypeEconomy
 extends RefCounted
 
 const STARTING_CREDITS := 500
-const STARTING_POWER_LIMIT := 3
+const STARTING_POWER_LIMIT := 4
 const STARTING_WALL_LIMIT := 5
-const INTEREST_RATE := 0.05
-const INTEREST_REWARD_CAP_RATIO := 0.50
-# TDS pays both enemy bounties and a rising wave bonus. This prototype has no
-# per-kill income, so this reward deliberately combines those two income lanes.
-const BASE_WAVE_REWARD := 180
-const WAVE_REWARD_STEP := 28
-const WAVE_REWARD_EXPONENT := 1.03
-const POWER_INCREASE_WAVES: Array[int] = [2, 4, 6, 9, 12, 15, 18]
-const WALL_INCREASE_WAVES: Array[int] = [
-	1, 2, 3, 4,
-	5, 6, 7, 9,
-	10, 12, 14,
-	16, 18,
+const INTEREST_RATE := 0.03
+const INTEREST_REWARD_CAP_RATIO := 0.25
+# Guaranteed income arrives in distinct spending milestones instead of a
+# linear trickle. Kill income remains disabled while this baseline is tested.
+const WAVE_REWARDS: Array[int] = [
+	200, 300, 1000, 1000, 1000,
+	1200, 1300, 1500, 1500, 1550,
+	1600, 1650, 1700, 1700, 1800,
+	1900, 1950, 2050, 2100, 2200,
 ]
+const POWER_INCREASES := {2: 2, 3: 1, 5: 2, 8: 3, 13: 4, 18: 4, 20: 2}
+const WALL_INCREASES := {3: 2, 5: 1, 8: 2, 13: 2, 18: 2}
 
 var credits := STARTING_CREDITS
 var used_power := 0
@@ -82,11 +80,9 @@ func add_credits(amount: int) -> void:
 
 
 func get_wave_reward(wave: int) -> int:
-	var completed_waves := maxi(wave - 1, 0)
-	return floori(
-		float(BASE_WAVE_REWARD)
-		+ pow(float(completed_waves * WAVE_REWARD_STEP), WAVE_REWARD_EXPONENT)
-	)
+	if wave <= 0:
+		return 0
+	return WAVE_REWARDS[clampi(wave - 1, 0, WAVE_REWARDS.size() - 1)]
 
 
 func get_projected_interest(wave: int) -> int:
@@ -120,8 +116,8 @@ func complete_wave(wave: int) -> Dictionary:
 	last_base_reward = base_reward
 	last_interest_reward = interest_reward
 	add_credits(base_reward + interest_reward)
-	var power_increase := 1 if POWER_INCREASE_WAVES.has(wave) else 0
-	var wall_increase := 1 if WALL_INCREASE_WAVES.has(wave) else 0
+	var power_increase := int(POWER_INCREASES.get(wave, 0))
+	var wall_increase := int(WALL_INCREASES.get(wave, 0))
 	power_limit += power_increase
 	wall_limit += wall_increase
 	locked_wave = 0

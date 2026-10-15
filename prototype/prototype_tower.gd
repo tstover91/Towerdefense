@@ -1,6 +1,8 @@
 class_name PrototypeTower
 extends Node2D
 
+signal damage_dealt(tower_type: StringName, amount: int)
+
 const ProjectileScript = preload("res://prototype/prototype_projectile.gd")
 
 const TYPE_GUN: StringName = &"gun"
@@ -233,12 +235,18 @@ func _fire_at(current_target: Node2D) -> void:
 	if tower_type == TYPE_BEAM:
 		var ramp_step := mini(floori(target_lock_time / 0.8), 3)
 		var ramp_damage := int(_get_stats().get("ramp", 0)) * ramp_step
-		current_target.apply_damage(get_damage() + ramp_damage, &"energy", true, true)
+		var applied_damage := int(current_target.apply_damage(get_damage() + ramp_damage, &"energy", true, true))
+		record_damage(applied_damage)
 		return
 	var projectile := ProjectileScript.new() as Node2D
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = global_position + aim_direction * get_cell_size() * 0.22
-	projectile.setup(current_target, maxf(get_cell_size() * (7.0 if tower_type == TYPE_MORTAR else 11.0), 300.0), get_damage(), _get_splash_pixels())
+	projectile.setup(current_target, maxf(get_cell_size() * (7.0 if tower_type == TYPE_MORTAR else 11.0), 300.0), get_damage(), _get_splash_pixels(), self)
+
+
+func record_damage(amount: int) -> void:
+	if amount > 0:
+		damage_dealt.emit(tower_type, amount)
 
 
 func _draw() -> void:

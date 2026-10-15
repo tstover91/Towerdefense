@@ -8,6 +8,8 @@ const TowerScript = preload("res://prototype/prototype_tower.gd")
 signal start_wave_requested
 signal enemy_resolved(leaked: bool, leak_damage: int)
 signal enemies_added(count: int)
+signal enemy_spawned_for_stats(enemy_type: StringName, max_health: int)
+signal tower_damage_recorded(tower_type: StringName, amount: int)
 
 const GRID_SIZE := Vector2i(19, 10)
 const GRID_MARGIN := 18.0
@@ -116,10 +118,10 @@ var economy = null
 var economy_state: Dictionary = {
 	"credits": 500,
 	"used_power": 0,
-	"power_limit": 3,
+	"power_limit": 4,
 	"used_walls": 0,
 	"wall_limit": 5,
-	"interest": 25,
+	"interest": 15,
 	"interest_locked": false,
 }
 var combat_state: Dictionary = {
@@ -649,6 +651,7 @@ func _try_place_building(cell: Vector2i) -> bool:
 	tower.z_index = 10
 	tower.position = _cell_center(cell)
 	tower.configure(cell, Callable(self, "get_cell_size"), tower_type)
+	tower.damage_dealt.connect(_on_tower_damage_dealt)
 	if StringName(combat_state.get("phase", &"build")) == &"active":
 		tower.mark_participated()
 	towers_by_cell[cell] = tower
@@ -1017,7 +1020,13 @@ func _create_enemy(enemy_data: Dictionary, continuation: Dictionary = {}) -> voi
 		enemy.queue_free()
 		enemy_resolved.emit(false, 1)
 		status_message = "Enemy spawn failed because no route exists."
+	else:
+		enemy_spawned_for_stats.emit(StringName(enemy.enemy_type), int(enemy.max_health))
 	queue_redraw()
+
+
+func _on_tower_damage_dealt(tower_type: StringName, amount: int) -> void:
+	tower_damage_recorded.emit(tower_type, amount)
 
 
 func _on_enemy_reached_exit(enemy: Node2D) -> void:
@@ -1098,6 +1107,21 @@ func mark_all_towers_participated() -> void:
 		if is_instance_valid(tower):
 			tower.mark_participated()
 	_refresh_local_economy_state()
+
+
+func get_telemetry_snapshot() -> Dictionary:
+	var levels := [0, 0, 0, 0]
+	for tower in towers_by_cell.values():
+		if not is_instance_valid(tower):
+			continue
+		var level_index: int = clampi(int(tower.level) - 1, 0, levels.size() - 1)
+		levels[level_index] += 1
+	return {
+		"tower_count": towers_by_cell.size(),
+		"tower_levels": levels,
+		"wall_count": walls_by_cell.size(),
+		"route_steps": maxi(displayed_route.size() - 1, 0),
+	}
 
 
 func show_wave_reward(reward: Dictionary) -> void:

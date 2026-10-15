@@ -156,7 +156,7 @@ func _run() -> void:
 	_assert(board.displayed_route == original_route, "removing a wall restores the route")
 
 	game._on_start_wave_requested()
-	_assert(game.economy.locked_interest == 22, "wave start locks interest through the game coordinator")
+	_assert(game.economy.locked_interest == 13, "wave start locks 3% interest through the game coordinator")
 	board.spawn_enemy({
 		"health": 9999,
 		"speed_cells_per_second": 1.0,
@@ -184,16 +184,20 @@ func _run() -> void:
 	game.round_controller.schedule_index = game.round_controller.schedule.size()
 	game.round_controller.active_enemy_count = 0
 	_assert(game.round_controller._try_complete_wave(), "forced integration wave completes")
-	_assert(game.economy.credits == 642, "wave clear pays $180 plus the locked $22 interest")
+	_assert(game.economy.credits == 653, "wave clear pays $200 plus the locked $13 interest")
 	_assert(
-		board.status_override == "Wave reward $180 + interest $22 · WALL +1",
+		board.status_override == "Wave reward $200 + interest $13",
 		"the coordinated wave reward is the final visible notification"
 	)
 
 	board._handle_screen_press(board.build_button_rect.get_center())
 	board._handle_screen_press(board._cell_center(unused_cell))
 	board._handle_screen_press(board._cell_center(unused_cell))
-	_assert(game.economy.credits == 492, "building remains available between waves")
+	_assert(game.economy.credits == 503, "building remains available between waves")
+	_assert(game.run_stats.get_rows().size() == 1, "wave completion records one telemetry row")
+	var stats_row: Dictionary = game.run_stats.get_rows()[0]
+	_assert(int(stats_row["spawned_health"]) == 9999, "telemetry records effective spawned health")
+	_assert(int(stats_row["tower_count"]) == 0, "telemetry snapshots the end-of-wave tower count")
 	var terminal_tower_count: int = board.towers_by_cell.size()
 	board.spawn_enemy({
 		"health": 9999,
@@ -212,7 +216,7 @@ func _run() -> void:
 		board.towers_by_cell.size() == terminal_tower_count,
 		"build, upgrade, and sell transactions stop after the run"
 	)
-	_assert(game.economy.credits == 492, "terminal input cannot change the balance")
+	_assert(game.economy.credits == 503, "terminal input cannot change the balance")
 	_finish("PROTOTYPE_COMBAT_INTEGRATION_SMOKE_OK")
 
 

@@ -9,17 +9,19 @@ var target: Node2D
 var speed := 420.0
 var damage := 1
 var splash_radius := 0.0
+var source_tower: Node
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 
 
-func setup(new_target: Node2D, new_speed: float, new_damage: int, new_splash_radius := 0.0) -> void:
+func setup(new_target: Node2D, new_speed: float, new_damage: int, new_splash_radius := 0.0, new_source_tower: Node = null) -> void:
 	target = new_target
 	speed = maxf(new_speed, 1.0)
 	damage = maxi(new_damage, 1)
 	splash_radius = maxf(new_splash_radius, 0.0)
+	source_tower = new_source_tower
 	queue_redraw()
 
 
@@ -36,7 +38,7 @@ func _physics_process(delta: float) -> void:
 		if splash_radius > 0.0:
 			_apply_splash(target.global_position)
 		elif target.has_method("apply_damage"):
-			target.apply_damage(damage, &"ballistic", false, true)
+			_report_damage(int(target.apply_damage(damage, &"ballistic", false, true)))
 		queue_free()
 		return
 	if not offset.is_zero_approx():
@@ -46,11 +48,18 @@ func _physics_process(delta: float) -> void:
 
 
 func _apply_splash(impact_position: Vector2) -> void:
+	var total_applied := 0
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not is_instance_valid(candidate) or bool(candidate.get("finished")):
 			continue
 		if candidate.global_position.distance_to(impact_position) <= splash_radius:
-			candidate.apply_damage(damage, &"explosive", false, true)
+			total_applied += int(candidate.apply_damage(damage, &"explosive", false, true))
+	_report_damage(total_applied)
+
+
+func _report_damage(amount: int) -> void:
+	if amount > 0 and is_instance_valid(source_tower) and source_tower.has_method("record_damage"):
+		source_tower.record_damage(amount)
 
 
 func _is_valid_target() -> bool:
