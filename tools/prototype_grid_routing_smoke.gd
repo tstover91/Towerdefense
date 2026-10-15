@@ -48,12 +48,49 @@ func _init() -> void:
 	_assert(router.can_add_dynamic_block(Vector2i(5, 3), active_state), "opening another gap permits placement")
 
 	_test_live_reroute(grid_size, entrance, waypoints, exit_cell)
+	_test_active_enemy_rejoins_shared_route(grid_size, entrance, waypoints, exit_cell)
 	_test_retracing_is_rejected()
 	_test_perpendicular_crossing_is_allowed()
 	_test_frame_independent_movement()
 	_test_layout_remap()
 
 	_finish("PROTOTYPE_GRID_ROUTING_SMOKE_OK")
+
+
+func _test_active_enemy_rejoins_shared_route(
+	grid_size: Vector2i,
+	entrance: Vector2i,
+	waypoints: Array[Vector2i],
+	exit_cell: Vector2i
+) -> void:
+	var router: RefCounted = GridRouterScript.new()
+	router.configure(grid_size, entrance, waypoints, exit_cell)
+	var original_route: Array[Vector2i] = router.find_complete_route(entrance)
+	var block_cell := original_route[3]
+	var candidate_blocks: Dictionary = {block_cell: true}
+	var new_main_route: Array[Vector2i] = router.find_complete_route(
+		entrance,
+		0,
+		candidate_blocks
+	)
+	_assert(not new_main_route.is_empty(), "shared-route test has a valid changed main route")
+	var enemy_anchor := original_route[2]
+	var used_edges: Dictionary = {}
+	used_edges[router.get_edge_key(original_route[0], original_route[1])] = true
+	used_edges[router.get_edge_key(original_route[1], enemy_anchor)] = true
+	var enemy_route: Array[Vector2i] = router.find_route_to_main(
+		enemy_anchor,
+		0,
+		new_main_route,
+		candidate_blocks,
+		used_edges
+	)
+	_assert(not enemy_route.is_empty(), "active enemy receives a connector after the maze changes")
+	_assert(_shares_suffix(enemy_route, new_main_route), "active enemy connector merges into the shared main route")
+	_assert(_appears_in_order(enemy_route, [waypoints[0], waypoints[1], exit_cell]), "connector preserves every remaining waypoint")
+	_assert(_has_unique_edges(router, enemy_route), "connector route does not retrace itself")
+	for index in range(1, enemy_route.size()):
+		_assert(not used_edges.has(router.get_edge_key(enemy_route[index - 1], enemy_route[index])), "connector does not reuse an edge already travelled")
 
 
 func _test_retracing_is_rejected() -> void:
@@ -220,6 +257,20 @@ func _has_unique_edges(router: RefCounted, route: Array[Vector2i]) -> bool:
 			return false
 		used_edges[edge] = true
 	return true
+
+
+func _shares_suffix(route: Array[Vector2i], main_route: Array[Vector2i]) -> bool:
+	for route_index in route.size():
+		for main_index in main_route.size():
+			if route[route_index] != main_route[main_index]:
+				continue
+			var route_suffix: Array[Vector2i] = []
+			var main_suffix: Array[Vector2i] = []
+			route_suffix.assign(route.slice(route_index))
+			main_suffix.assign(main_route.slice(main_index))
+			if route_suffix == main_suffix:
+				return true
+	return false
 
 
 func _assert(condition: bool, description: String) -> void:

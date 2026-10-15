@@ -117,7 +117,8 @@ func can_add_dynamic_block(
 				return false
 	var candidate_blocks := dynamic_blocks.duplicate()
 	candidate_blocks[cell] = true
-	if find_complete_route(entrance, 0, candidate_blocks).is_empty():
+	var main_route := find_complete_route(entrance, 0, candidate_blocks)
+	if main_route.is_empty():
 		return false
 	for route_state in active_route_states:
 		var route_cell := Vector2i(route_state.get("cell", entrance))
@@ -126,14 +127,62 @@ func can_add_dynamic_block(
 		var state_used_edges = route_state.get("used_edges", {})
 		if state_used_edges is Dictionary:
 			used_edges = state_used_edges
-		if find_complete_route(
+		if find_route_to_main(
 			route_cell,
 			next_checkpoint_index,
+			main_route,
 			candidate_blocks,
 			used_edges
 		).is_empty():
 			return false
 	return true
+
+
+func find_route_to_main(
+	start: Vector2i,
+	next_checkpoint_index: int,
+	main_route: Array[Vector2i],
+	blocks_override: Dictionary = {},
+	used_edges_override: Dictionary = {}
+) -> Array[Vector2i]:
+	if main_route.is_empty() or not is_inside_grid(start):
+		return []
+	var active_blocks := (
+		blocks_override if not blocks_override.is_empty() else dynamic_blocks
+	)
+	if static_blocks.has(start) or active_blocks.has(start):
+		return []
+	var join_range := _get_join_index_range(main_route, next_checkpoint_index)
+	if join_range.x < 0:
+		return []
+	var best_route: Array[Vector2i] = []
+	var best_length := INF
+	for join_index in range(join_range.x, join_range.y + 1):
+		var suffix: Array[Vector2i] = []
+		suffix.assign(main_route.slice(join_index))
+		if _route_uses_any_edge(suffix, used_edges_override):
+			continue
+		var unavailable_edges := used_edges_override.duplicate()
+		_add_route_edges(suffix, unavailable_edges)
+		var connector := _find_path(
+			start,
+			main_route[join_index],
+			active_blocks,
+			unavailable_edges
+		)
+		if connector.is_empty():
+			continue
+		var combined: Array[Vector2i] = connector.duplicate()
+		if not combined.is_empty() and not suffix.is_empty() and combined[-1] == suffix[0]:
+			suffix.pop_front()
+		combined.append_array(suffix)
+		if not _route_has_unique_edges(combined, used_edges_override):
+			continue
+		var route_length := float(combined.size())
+		if route_length < best_length:
+			best_length = route_length
+			best_route = combined
+	return best_route
 
 
 func find_complete_route(
@@ -252,6 +301,42 @@ func get_edge_key(first: Vector2i, second: Vector2i) -> Vector4i:
 func _add_route_edges(route: Array[Vector2i], used_edges: Dictionary) -> void:
 	for index in range(1, route.size()):
 		used_edges[get_edge_key(route[index - 1], route[index])] = true
+
+
+func _get_join_index_range(main_route: Array[Vector2i], next_checkpoint_index: int) -> Vector2i:
+	if next_checkpoint_index < 0 or next_checkpoint_index >= get_checkpoint_count():
+		return Vector2i(-1, -1)
+	var marker_indices: Array[int] = []
+	var search_start := 0
+	for marker_index in get_checkpoint_count():
+		var found_index := -1
+		for route_index in range(search_start, main_route.size()):
+			if main_route[route_index] == get_checkpoint(marker_index):
+				found_index = route_index
+				break
+		if found_index < 0:
+			return Vector2i(-1, -1)
+		marker_indices.append(found_index)
+		search_start = found_index + 1
+	var segment_start := 0 if next_checkpoint_index == 0 else marker_indices[next_checkpoint_index - 1]
+	return Vector2i(segment_start, marker_indices[next_checkpoint_index])
+
+
+func _route_uses_any_edge(route: Array[Vector2i], unavailable_edges: Dictionary) -> bool:
+	for index in range(1, route.size()):
+		if unavailable_edges.has(get_edge_key(route[index - 1], route[index])):
+			return true
+	return false
+
+
+func _route_has_unique_edges(route: Array[Vector2i], unavailable_edges: Dictionary = {}) -> bool:
+	var route_edges := unavailable_edges.duplicate()
+	for index in range(1, route.size()):
+		var edge := get_edge_key(route[index - 1], route[index])
+		if route_edges.has(edge):
+			return false
+		route_edges[edge] = true
+	return true
 
 
 func _manhattan(first: Vector2i, second: Vector2i) -> float:

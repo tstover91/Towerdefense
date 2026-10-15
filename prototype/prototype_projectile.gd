@@ -11,6 +11,10 @@ var damage := 1
 var splash_radius := 0.0
 
 
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_PAUSABLE
+
+
 func setup(new_target: Node2D, new_speed: float, new_damage: int, new_splash_radius := 0.0) -> void:
 	target = new_target
 	speed = maxf(new_speed, 1.0)

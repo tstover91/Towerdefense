@@ -110,6 +110,15 @@ func reroute() -> bool:
 	return true
 
 
+func adopt_route_from_anchor(new_route: Array[Vector2i]) -> bool:
+	if not active or new_route.is_empty() or new_route[0] != get_route_anchor_cell():
+		return false
+	route.assign(new_route)
+	route_index = 0
+	queue_redraw()
+	return true
+
+
 func get_route_state() -> Dictionary:
 	var current_cell: Vector2i = Vector2i(
 		world_to_cell_provider.call(position)
@@ -126,6 +135,17 @@ func get_route_state() -> Dictionary:
 		"next_checkpoint_index": next_checkpoint_index,
 		"used_edges": _get_used_edges_with_active_step(anchor_cell),
 	}
+
+
+func get_route_distance_remaining() -> float:
+	if not active or route_index >= route.size():
+		return 0.0
+	var distance := position.distance_to(cell_center_provider.call(route[route_index]))
+	for index in range(route_index + 1, route.size()):
+		distance += cell_center_provider.call(route[index - 1]).distance_to(
+			cell_center_provider.call(route[index])
+		)
+	return distance
 
 
 func get_route_anchor_cell() -> Vector2i:

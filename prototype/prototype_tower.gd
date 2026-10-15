@@ -49,6 +49,12 @@ var has_participated := false
 var target_lock_time := 0.0
 
 
+func _ready() -> void:
+	# The board keeps processing placement input while SceneTree is paused.
+	# Towers must opt back into ordinary pausable combat processing.
+	process_mode = Node.PROCESS_MODE_PAUSABLE
+
+
 static func get_build_cost(type: StringName) -> int:
 	return int(TYPE_DATA.get(type, TYPE_DATA[TYPE_GUN])["cost"])
 
@@ -157,26 +163,27 @@ func get_cell_size() -> float:
 
 
 func get_summary() -> String:
-	return "%s L%d  ·  %d DMG  ·  %.2fs  ·  %.1f RANGE  ·  CLOSEST LOCK" % [get_type_name(tower_type), level, get_damage(), get_attack_interval(), get_range_cells()]
+	var targeting := "DENSEST · FIRST TIE" if tower_type == TYPE_MORTAR else "FIRST LOCK"
+	return "%s L%d  ·  %d DMG  ·  %.2fs  ·  %.1f RANGE  ·  %s" % [get_type_name(tower_type), level, get_damage(), get_attack_interval(), get_range_cells(), targeting]
 
 
 func _select_target() -> Node2D:
-	return _select_best_cluster() if tower_type == TYPE_MORTAR else _select_closest_target()
+	return _select_best_cluster() if tower_type == TYPE_MORTAR else _select_first_target()
 
 
-func _select_closest_target() -> Node2D:
+func _select_first_target() -> Node2D:
 	var selected_target: Node2D
+	var least_route_remaining := INF
 	var closest_distance := INF
-	var tie_progress := -INF
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not _is_valid_target(candidate) or not _is_target_in_range(candidate):
 			continue
 		var distance := global_position.distance_squared_to(candidate.global_position)
-		var progress := float(candidate.get("route_progress"))
-		if distance < closest_distance - 1.0 or (absf(distance - closest_distance) <= 1.0 and progress > tie_progress):
+		var route_remaining := _get_route_remaining(candidate)
+		if route_remaining < least_route_remaining - 0.01 or (is_equal_approx(route_remaining, least_route_remaining) and distance < closest_distance):
 			selected_target = candidate
+			least_route_remaining = route_remaining
 			closest_distance = distance
-			tie_progress = progress
 	return selected_target
 
 
@@ -187,19 +194,25 @@ func _select_best_cluster() -> Node2D:
 			candidates.append(candidate)
 	var selected_target: Node2D
 	var best_count := -1
-	var closest_distance := INF
+	var least_route_remaining := INF
 	var splash_range := _get_splash_pixels()
 	for candidate in candidates:
 		var nearby := 0
 		for other in candidates:
 			if candidate.global_position.distance_to(other.global_position) <= splash_range:
 				nearby += 1
-		var distance := global_position.distance_squared_to(candidate.global_position)
-		if nearby > best_count or (nearby == best_count and distance < closest_distance):
+		var route_remaining := _get_route_remaining(candidate)
+		if nearby > best_count or (nearby == best_count and route_remaining < least_route_remaining):
 			selected_target = candidate
 			best_count = nearby
-			closest_distance = distance
+			least_route_remaining = route_remaining
 	return selected_target
+
+
+func _get_route_remaining(candidate: Node2D) -> float:
+	if bool(candidate.get("active")) and candidate.has_method("get_route_distance_remaining"):
+		return float(candidate.get_route_distance_remaining())
+	return -float(candidate.get("route_progress"))
 
 
 func _is_valid_target(candidate) -> bool:

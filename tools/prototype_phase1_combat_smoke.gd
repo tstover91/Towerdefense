@@ -28,14 +28,16 @@ func _run() -> void:
 	gun.configure(Vector2i.ZERO, Callable(board, "get_cell_size"), TowerScript.TYPE_GUN)
 	var near_enemy: Node2D = _make_enemy(board, Vector2(340.0, 300.0), EnemyScript.TYPE_SOLDIER)
 	var far_enemy: Node2D = _make_enemy(board, Vector2(400.0, 300.0), EnemyScript.TYPE_SOLDIER)
+	near_enemy.route_progress = 2.0
+	far_enemy.route_progress = 5.0
 	gun._process(0.11)
-	_assert(gun.target == near_enemy, "gun acquires the closest enemy")
-	far_enemy.position = Vector2(320.0, 300.0)
+	_assert(gun.target == far_enemy, "gun acquires the enemy furthest along its route")
+	near_enemy.route_progress = 7.0
 	gun._process(0.11)
-	_assert(gun.target == near_enemy, "gun stays locked while its target remains valid")
-	near_enemy.position = Vector2(1000.0, 300.0)
+	_assert(gun.target == far_enemy, "gun stays locked while its first target remains valid")
+	far_enemy.position = Vector2(1000.0, 300.0)
 	gun._process(0.11)
-	_assert(gun.target == far_enemy, "gun retargets after its locked target leaves range")
+	_assert(gun.target == near_enemy, "gun retargets to the next enemy after its lock leaves range")
 
 	var beam: Node2D = TowerScript.new()
 	board.add_child(beam)

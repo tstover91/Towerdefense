@@ -56,7 +56,7 @@ const COLOR_CELL_B := Color("d2d2c4")
 const COLOR_GRID := Color("5b5b55")
 const COLOR_PATH_SHADOW := Color(0.05, 0.05, 0.05, 0.72)
 const COLOR_PATH := Color("efb83d")
-const COLOR_PATH_EXISTING_PREVIEW := Color(0.94, 0.72, 0.24, 0.24)
+const COLOR_PATH_CANDIDATE_PREVIEW := Color(0.20, 0.72, 0.42, 0.72)
 const COLOR_TOWER := Color("e84f3d")
 const COLOR_TOWER_BORDER := Color("171717")
 const COLOR_OBJECT := Color("4b4b48")
@@ -111,6 +111,7 @@ var placement_drag_armed := false
 var placement_drag_over_cancel := false
 var placement_started_msec := -1000
 var placement_rejection_reasons: Dictionary = {}
+var placement_pause_active := false
 var economy = null
 var economy_state: Dictionary = {
 	"credits": 500,
@@ -132,6 +133,8 @@ var combat_state: Dictionary = {
 
 
 func _ready() -> void:
+	# Placement must remain interactive while the rest of the combat tree is paused.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	if OS.has_feature("mobile"):
 		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 	router = GridRouterScript.new()
@@ -141,6 +144,10 @@ func _ready() -> void:
 	_recalculate_layout()
 	displayed_route = router.find_complete_route(ENTRANCE)
 	queue_redraw()
+
+
+func _exit_tree() -> void:
+	_set_placement_pause(false)
 
 
 func _process(_delta: float) -> void:
@@ -181,8 +188,10 @@ func _draw() -> void:
 	_draw_header()
 	_draw_board()
 	if placement_mode != PlacementMode.NONE and preview_is_valid:
-		_draw_route(displayed_route, COLOR_PATH_EXISTING_PREVIEW)
-		_draw_route(preview_route, COLOR_PATH)
+		# Previewing is visual only. Keep the committed route prominent so active
+		# enemies never appear to leave the path they are actually following.
+		_draw_route(displayed_route, COLOR_PATH)
+		_draw_route_preview(preview_route, COLOR_PATH_CANDIDATE_PREVIEW)
 	else:
 		_draw_route(displayed_route, COLOR_PATH)
 	_draw_static_objects()
@@ -229,7 +238,11 @@ func _draw_header() -> void:
 		int(combat_state.get("max_waves", 10)),
 	]
 	var lives_text := "LIVES %d" % int(combat_state.get("lives", 20))
-	var phase_text := String(combat_state.get("phase", &"build")).to_upper()
+	var phase_text := (
+		"PLACING · PAUSED"
+		if placement_pause_active
+		else String(combat_state.get("phase", &"build")).to_upper()
+	)
 	var summary := "%s   ·   %s   ·   %s" % [wave_text, lives_text, phase_text]
 	var summary_size := title_font.get_string_size(
 		summary, HORIZONTAL_ALIGNMENT_LEFT, -1.0, detail_size
@@ -318,6 +331,27 @@ func _draw_route(route: Array[Vector2i], path_color: Color) -> void:
 	shadow_color.a *= clampf(path_color.a * 1.5, 0.25, 1.0)
 	draw_polyline(points, shadow_color, maxf(cell_size * 0.24, 7.0), true)
 	draw_polyline(points, path_color, maxf(cell_size * 0.10, 3.0), true)
+
+
+func _draw_route_preview(route: Array[Vector2i], path_color: Color) -> void:
+	if route.size() < 2:
+		return
+	var line_width := maxf(cell_size * 0.055, 2.0)
+	for index in range(1, route.size()):
+		var start := _cell_center(route[index - 1])
+		var finish := _cell_center(route[index])
+		var segment := finish - start
+		var segment_length := segment.length()
+		if segment_length <= 0.01:
+			continue
+		var direction := segment / segment_length
+		var dash_length := cell_size * 0.28
+		var gap_length := cell_size * 0.16
+		var cursor := 0.0
+		while cursor < segment_length:
+			var dash_end := minf(cursor + dash_length, segment_length)
+			draw_line(start + direction * cursor, start + direction * dash_end, path_color, line_width, true)
+			cursor += dash_length + gap_length
 
 
 func _draw_static_objects() -> void:
@@ -585,6 +619,15 @@ func _try_place_building(cell: Vector2i) -> bool:
 		status_message = rejection_reason
 		_update_preview(cell, true)
 		return false
+	# Rebuild the complete plan at confirmation time. Placement is paused during
+	# active waves, so this plan and every enemy anchor remain stable through commit.
+	var candidate_blocks: Dictionary = router.dynamic_blocks.duplicate()
+	candidate_blocks[cell] = true
+	var route_plan := _build_route_plan(candidate_blocks)
+	if route_plan.is_empty():
+		status_message = "Blocked: an active enemy cannot rejoin the new path."
+		_update_preview(cell, true)
+		return false
 	if placement_kind == BUILD_WALL:
 		if not economy.try_build_wall():
 			return false
@@ -592,7 +635,7 @@ func _try_place_building(cell: Vector2i) -> bool:
 		walls_by_cell[cell] = true
 		_select_wall(cell)
 		status_message = "Wall placed. Every required route remains open."
-		_after_blocks_changed()
+		_after_blocks_changed(route_plan)
 		_refresh_local_economy_state()
 		return true
 	if not economy.try_build(tower_cost):
@@ -611,7 +654,7 @@ func _try_place_building(cell: Vector2i) -> bool:
 	towers_by_cell[cell] = tower
 	_select_tower(tower)
 	status_message = "Tower placed. All entrance and active-unit routes remain open."
-	_after_blocks_changed()
+	_after_blocks_changed(route_plan)
 	_refresh_local_economy_state()
 	return true
 
@@ -639,9 +682,11 @@ func _begin_precision_placement(kind: StringName = BUILD_TOWER) -> bool:
 	placement_rejection_reasons.clear()
 	precision_cell = Vector2i(-1, -1)
 	_select_tower(null)
-	status_message = "Tap a cell, then tap it again to build %s." % (
+	_set_placement_pause(true)
+	status_message = "%sTap a cell, then tap it again to build %s." % [
+		"COMBAT PAUSED · " if placement_pause_active else "",
 		"a wall" if kind == BUILD_WALL else TowerScript.get_type_name(_tower_type_for_build_kind(kind)).to_lower()
-	)
+	]
 	_clear_placement_preview()
 	return true
 
@@ -655,9 +700,29 @@ func _cancel_placement(message := "") -> void:
 	placement_pointer_index = -2
 	placement_rejection_reasons.clear()
 	_clear_placement_preview()
+	_set_placement_pause(false)
 	if not message.is_empty():
 		status_message = message
 		queue_redraw()
+
+
+func _set_placement_pause(should_pause: bool) -> void:
+	var tree := get_tree()
+	if tree == null:
+		placement_pause_active = false
+		return
+	if should_pause:
+		if placement_pause_active or StringName(combat_state.get("phase", &"build")) != &"active":
+			return
+		placement_pause_active = true
+		tree.paused = true
+		queue_redraw()
+		return
+	if not placement_pause_active:
+		return
+	placement_pause_active = false
+	tree.paused = false
+	queue_redraw()
 
 
 func _handle_touch_event(event: InputEventScreenTouch) -> void:
@@ -845,14 +910,53 @@ func _clear_placement_preview() -> void:
 	queue_redraw()
 
 
-func _after_blocks_changed() -> void:
-	displayed_route = router.find_complete_route(ENTRANCE)
+func _after_blocks_changed(route_plan: Dictionary = {}) -> void:
+	var active_plan := route_plan
+	if active_plan.is_empty():
+		active_plan = _build_route_plan(router.dynamic_blocks)
+	if not active_plan.is_empty():
+		displayed_route.assign(active_plan["main_route"])
+	else:
+		displayed_route = router.find_complete_route(ENTRANCE)
 	for follower in active_followers.duplicate():
 		if is_instance_valid(follower):
-			follower.reroute()
+			var follower_route: Array[Vector2i] = []
+			if not active_plan.is_empty():
+				var routes_by_id: Dictionary = active_plan["follower_routes"]
+				follower_route.assign(routes_by_id.get(follower.get_instance_id(), []))
+			if follower_route.is_empty() or not follower.adopt_route_from_anchor(follower_route):
+				follower.reroute()
 		else:
 			active_followers.erase(follower)
 	queue_redraw()
+
+
+func _build_route_plan(blocks: Dictionary) -> Dictionary:
+	var main_route: Array[Vector2i] = router.find_complete_route(ENTRANCE, 0, blocks)
+	if main_route.is_empty():
+		return {}
+	var follower_routes: Dictionary = {}
+	for follower in active_followers.duplicate():
+		if not is_instance_valid(follower):
+			active_followers.erase(follower)
+			continue
+		if not follower.active:
+			continue
+		var state: Dictionary = follower.get_route_state()
+		var connector_route: Array[Vector2i] = router.find_route_to_main(
+			Vector2i(state["cell"]),
+			int(state["next_checkpoint_index"]),
+			main_route,
+			blocks,
+			Dictionary(state["used_edges"])
+		)
+		if connector_route.is_empty():
+			return {}
+		follower_routes[follower.get_instance_id()] = connector_route
+	return {
+		"main_route": main_route,
+		"follower_routes": follower_routes,
+	}
 
 
 func _get_active_route_states() -> Array[Dictionary]:

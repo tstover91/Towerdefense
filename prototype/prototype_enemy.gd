@@ -58,6 +58,7 @@ func update_cell_scale(cell_size_pixels: float, _unused_speed := 0.0) -> void:
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_to_group("mobs")
 	queue_redraw()
 

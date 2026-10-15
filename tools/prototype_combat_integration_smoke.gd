@@ -83,6 +83,15 @@ func _run() -> void:
 		"speed_cells_per_second": 0.55,
 		"leak_damage": 1,
 	})
+	var preview_test_enemy: Node2D = board.active_followers[0]
+	var route_before_preview: Array[Vector2i] = preview_test_enemy.route.duplicate()
+	var blocks_before_preview: Dictionary = board.router.dynamic_blocks.duplicate()
+	board._begin_precision_placement()
+	board._update_preview(Vector2i(1, 5), true)
+	_assert(preview_test_enemy.route == route_before_preview, "live placement preview cannot reroute an active enemy")
+	_assert(board.router.dynamic_blocks == blocks_before_preview, "live placement preview cannot commit a temporary blocker")
+	board._cancel_placement()
+	board._select_tower(tower)
 	var frame_guard := 0
 	while resolved_enemy_count <= 0 and frame_guard < 360:
 		await process_frame
@@ -148,6 +157,30 @@ func _run() -> void:
 
 	game._on_start_wave_requested()
 	_assert(game.economy.locked_interest == 22, "wave start locks interest through the game coordinator")
+	board.spawn_enemy({
+		"health": 9999,
+		"speed_cells_per_second": 1.0,
+		"leak_damage": 1,
+	})
+	var pause_test_enemy: Node2D = board.active_followers[-1]
+	await process_frame
+	var paused_position := pause_test_enemy.position
+	var paused_wave_elapsed: float = game.round_controller.wave_elapsed
+	_assert(board._begin_precision_placement(), "placement can begin during an active wave")
+	_assert(paused, "active-wave placement pauses the SceneTree")
+	for paused_frame in 5:
+		await process_frame
+	_assert(pause_test_enemy.position.is_equal_approx(paused_position), "enemy movement freezes during placement")
+	_assert(is_equal_approx(game.round_controller.wave_elapsed, paused_wave_elapsed), "spawn timing freezes during placement")
+	board._cancel_placement()
+	_assert(not paused, "canceling placement resumes combat")
+	for resumed_frame in 3:
+		await process_frame
+	_assert(not pause_test_enemy.position.is_equal_approx(paused_position), "enemy movement resumes after placement")
+	pause_test_enemy.active = false
+	pause_test_enemy.finished = true
+	board.active_followers.erase(pause_test_enemy)
+	pause_test_enemy.queue_free()
 	game.round_controller.schedule_index = game.round_controller.schedule.size()
 	game.round_controller.active_enemy_count = 0
 	_assert(game.round_controller._try_complete_wave(), "forced integration wave completes")
