@@ -33,6 +33,19 @@ func _run() -> void:
 		int(board.placement_mode) == 1,
 		"raw viewport touch begins precision placement before GUI handling"
 	)
+	board._handle_placement_button(&"tower")
+	_assert(
+		int(board.placement_mode) == 1,
+		"a duplicate Android pointer press cannot immediately cancel placement"
+	)
+	board._cancel_placement()
+	board._begin_precision_placement()
+	board._arm_placement_drag(button_center, 0)
+	board._handle_drag_motion(button_center + Vector2(-80.0, 0.0), 0)
+	_assert(
+		int(board.placement_mode) == 1,
+		"footer movement outside the grid does not turn a tap into a drag"
+	)
 	board._cancel_placement()
 	board._begin_precision_placement()
 	board._arm_placement_drag(button_center, 0)

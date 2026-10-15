@@ -17,6 +17,7 @@ const COMPACT_BOTTOM_UI_HEIGHT := 80.0
 const WAVE_REWARD_MESSAGE_DURATION_MSEC := 3500
 const PLACEMENT_DRAG_THRESHOLD := 18.0
 const PLACEMENT_FINGER_OFFSET_CELLS := 0.85
+const DUPLICATE_POINTER_GUARD_MSEC := 250
 
 enum PlacementMode {
 	NONE,
@@ -101,6 +102,7 @@ var placement_pointer_index := -2
 var placement_press_position := Vector2.ZERO
 var placement_drag_armed := false
 var placement_drag_over_cancel := false
+var placement_started_msec := -1000
 var economy = null
 var economy_state: Dictionary = {
 	"credits": 500,
@@ -502,6 +504,10 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 
 func _handle_placement_button(kind: StringName) -> bool:
 	if placement_mode != PlacementMode.NONE and placement_kind == kind:
+		# Some Android hosts deliver the same contact as mouse first and touch
+		# second. Do not let that duplicate press instantly activate X CANCEL.
+		if Time.get_ticks_msec() - placement_started_msec <= DUPLICATE_POINTER_GUARD_MSEC:
+			return true
 		_cancel_placement("Placement canceled.")
 		return false
 	if placement_mode != PlacementMode.NONE:
@@ -599,6 +605,7 @@ func _begin_precision_placement(kind: StringName = BUILD_TOWER) -> bool:
 		return false
 	placement_mode = PlacementMode.PRECISION
 	placement_kind = kind
+	placement_started_msec = Time.get_ticks_msec()
 	precision_cell = Vector2i(-1, -1)
 	_select_tower(null)
 	status_message = "Tap a cell, then tap it again to build %s." % (
@@ -632,7 +639,10 @@ func _handle_touch_event(event: InputEventScreenTouch) -> void:
 		_handle_screen_press(event.position)
 		return
 	if event.canceled:
-		_cancel_placement("Placement canceled.")
+		# Android can cancel a pointer when its gesture ownership changes. Keep a
+		# precision selection active; the build button remains the explicit cancel.
+		placement_drag_armed = false
+		placement_pointer_index = -2
 		return
 	if placement_drag_armed and event.index == placement_pointer_index:
 		_finish_placement_drag(event.position)
@@ -673,6 +683,15 @@ func _handle_drag_motion(screen_position: Vector2, pointer_index: int) -> void:
 		if source_button.grow(8.0).has_point(screen_position):
 			return
 		if screen_position.distance_to(placement_press_position) < PLACEMENT_DRAG_THRESHOLD:
+			return
+		# A placement drag only begins after the pointer actually enters the board.
+		# This prevents Android navigation/editor gesture jitter in the footer from
+		# converting an ordinary button tap into an invalid drag-and-cancel.
+		var candidate_position := (
+			screen_position
+			+ Vector2.UP * cell_size * PLACEMENT_FINGER_OFFSET_CELLS
+		)
+		if not router.is_inside_grid(_screen_to_cell(candidate_position)):
 			return
 	placement_mode = PlacementMode.DRAGGING
 	precision_cell = Vector2i(-1, -1)
