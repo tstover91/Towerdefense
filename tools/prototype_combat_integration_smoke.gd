@@ -18,6 +18,15 @@ func _run() -> void:
 	await process_frame
 	var board: Node2D = game.get_node("GridBoard")
 	board.enemy_resolved.connect(_on_enemy_resolved)
+	var button_center: Vector2 = board.build_button_rect.get_center()
+	board._begin_precision_placement()
+	board._arm_placement_drag(button_center, 0)
+	var touch_jitter := button_center + Vector2(14.0, 0.0)
+	board._handle_drag_motion(touch_jitter, 0)
+	_assert(int(board.placement_mode) == 1, "touch jitter on the button remains a precision tap")
+	board._finish_placement_drag(touch_jitter)
+	_assert(int(board.placement_mode) == 1, "releasing a jittered tap does not cancel placement")
+	board._cancel_placement()
 	var original_route: Array[Vector2i] = board.displayed_route.duplicate()
 	var tower_cell: Vector2i = original_route[1]
 	board._handle_screen_press(board.build_button_rect.get_center())

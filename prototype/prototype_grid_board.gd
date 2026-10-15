@@ -11,11 +11,11 @@ signal enemy_resolved(leaked: bool, leak_damage: int)
 const GRID_SIZE := Vector2i(18, 9)
 const GRID_MARGIN := 18.0
 const TOP_UI_HEIGHT := 68.0
-const BOTTOM_UI_HEIGHT := 62.0
+const BOTTOM_UI_HEIGHT := 76.0
 const COMPACT_TOP_UI_HEIGHT := 52.0
-const COMPACT_BOTTOM_UI_HEIGHT := 50.0
+const COMPACT_BOTTOM_UI_HEIGHT := 68.0
 const WAVE_REWARD_MESSAGE_DURATION_MSEC := 3500
-const PLACEMENT_DRAG_THRESHOLD := 12.0
+const PLACEMENT_DRAG_THRESHOLD := 18.0
 const PLACEMENT_FINGER_OFFSET_CELLS := 0.85
 
 enum PlacementMode {
@@ -437,11 +437,11 @@ func _draw_footer_controls() -> void:
 		)
 	draw_string(
 		title_font,
-		Vector2(info_x, start_button_rect.position.y + 25.0),
+		Vector2(info_x, start_button_rect.get_center().y + 5.0),
 		displayed_status,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		info_width,
-		13,
+		14,
 		COLOR_MUTED_TEXT
 	)
 
@@ -452,7 +452,7 @@ func _draw_button(rect: Rect2, label: String, enabled := true) -> void:
 	draw_rect(rect, fill_color, true)
 	draw_rect(rect, COLOR_TOWER_BORDER, false, 3.0)
 	var text_size := title_font.get_string_size(
-		label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13
+		label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14
 	)
 	draw_string(
 		title_font,
@@ -460,7 +460,7 @@ func _draw_button(rect: Rect2, label: String, enabled := true) -> void:
 		label,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		-1.0,
-		13,
+		14,
 		label_color
 	)
 
@@ -668,12 +668,12 @@ func _arm_placement_drag(screen_position: Vector2, pointer_index: int) -> void:
 func _handle_drag_motion(screen_position: Vector2, pointer_index: int) -> void:
 	if not placement_drag_armed or pointer_index != placement_pointer_index:
 		return
-	if (
-		placement_mode != PlacementMode.DRAGGING
-		and screen_position.distance_to(placement_press_position)
-		< PLACEMENT_DRAG_THRESHOLD
-	):
-		return
+	if placement_mode != PlacementMode.DRAGGING:
+		var source_button := _get_active_placement_button_rect()
+		if source_button.grow(8.0).has_point(screen_position):
+			return
+		if screen_position.distance_to(placement_press_position) < PLACEMENT_DRAG_THRESHOLD:
+			return
 	placement_mode = PlacementMode.DRAGGING
 	precision_cell = Vector2i(-1, -1)
 	placement_drag_over_cancel = (
@@ -684,6 +684,10 @@ func _handle_drag_motion(screen_position: Vector2, pointer_index: int) -> void:
 		return
 	var preview_position := screen_position + Vector2.UP * cell_size * PLACEMENT_FINGER_OFFSET_CELLS
 	_update_preview(_screen_to_cell(preview_position))
+
+
+func _get_active_placement_button_rect() -> Rect2:
+	return wall_button_rect if placement_kind == BUILD_WALL else build_button_rect
 
 
 func _finish_placement_drag(screen_position: Vector2) -> void:
@@ -1098,8 +1102,8 @@ func _recalculate_layout() -> void:
 			+ maxf((available_height - board_size.y) * 0.5, 0.0)
 		)
 	)
-	var footer_y := board_origin.y + board_size.y + 12.0
-	var button_height := 32.0 if compact_layout else 38.0
+	var footer_y := board_origin.y + board_size.y + 8.0
+	var button_height := 48.0 if compact_layout else 52.0
 	build_button_rect = Rect2(
 		safe_view_rect.position.x + GRID_MARGIN,
 		footer_y,
