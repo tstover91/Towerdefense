@@ -27,6 +27,11 @@ Enemy pacing favors smaller, durable formations: Soldiers move at 0.9 tiles per
 second, Runners at 1.2, Giants at 0.6, and Carriers at 0.68. A Giant has over
 seven times a Soldier's base health, so tank-led groups behave more like a
 deliberate Clash-style push than a fast TD swarm.
+Separate formations arrive several seconds apart, while larger same-type groups
+are divided into two pushes. If the field clears early, the director advances
+the next push after a short 1.25-second breather rather than leaving dead time.
+The opening wave contains nine durable enemies, and formation sizes rise through
+the run so concentrated defenses cannot erase an entire round in one burst.
 The economy starts with $500, three tower slots, and five free Walls. Guns cost
 $100, Mortars cost $140, and Beams cost $180; upgrades cost $100, $300, and
 $800. There is no income per kill. Clearing a wave pays a

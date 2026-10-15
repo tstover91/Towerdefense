@@ -12,6 +12,8 @@ var failure_count := 0
 func _init() -> void:
 	var controller: Node = RoundControllerScript.new()
 	get_root().add_child(controller)
+	var opening_schedule: Array[Dictionary] = controller._build_schedule(RoundControllerScript.WAVES[0])
+	_assert(float(opening_schedule[-1]["time"]) >= 7.0, "opening wave is paced across multiple pushes")
 	controller.state_changed.connect(_on_state_changed)
 	controller.wave_cleared.connect(_on_wave_cleared)
 	controller.enemy_spawn_requested.connect(_on_enemy_spawn_requested.bind(controller))
@@ -62,7 +64,7 @@ func _init() -> void:
 		"spawn notifications immediately refresh the active counter"
 	)
 	_assert(
-		int(latest_counter_state.get("remaining_spawns", -1)) == 4,
+		int(latest_counter_state.get("remaining_spawns", -1)) == 8,
 		"spawn notifications immediately refresh the scheduled counter"
 	)
 	_finish("PROTOTYPE_COMBAT_LOOP_SMOKE_OK")

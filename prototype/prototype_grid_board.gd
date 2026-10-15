@@ -870,7 +870,7 @@ func spawn_enemy(enemy_data: Dictionary) -> void:
 	_create_enemy(enemy_data)
 
 
-func _create_enemy(enemy_data: Dictionary, spawn_state: Dictionary = {}, spawn_position := Vector2.ZERO) -> void:
+func _create_enemy(enemy_data: Dictionary, continuation: Dictionary = {}) -> void:
 	var enemy: Node2D = EnemyScript.new()
 	add_child(enemy)
 	enemy.z_index = 20
@@ -904,8 +904,8 @@ func _create_enemy(enemy_data: Dictionary, spawn_state: Dictionary = {}, spawn_p
 	enemy.defeated.connect(_on_enemy_defeated)
 	active_followers.append(enemy)
 	var began: bool = (
-		enemy.begin_from_state(spawn_position, spawn_state)
-		if not spawn_state.is_empty()
+		enemy.begin_from_continuation(continuation)
+		if not continuation.is_empty()
 		else enemy.begin()
 	)
 	if not began:
@@ -930,8 +930,7 @@ func _on_enemy_defeated(enemy: Node2D) -> void:
 	if not is_instance_valid(enemy):
 		return
 	var release_count := int(enemy.get_release_count())
-	var release_state: Dictionary = enemy.get_route_state() if release_count > 0 else {}
-	var release_position := enemy.position
+	var continuation: Dictionary = enemy.get_continuation_state() if release_count > 0 else {}
 	var release_scale := float(enemy.get_meta("health_scale", 1.0))
 	var release_group := int(enemy.get("formation_id"))
 	if release_count > 0:
@@ -945,7 +944,7 @@ func _on_enemy_defeated(enemy: Node2D) -> void:
 			"health_scale": release_scale * 0.65,
 			"group_index": release_group,
 			"index_in_group": 100 + child_index,
-		}, release_state, release_position)
+		}, continuation)
 	queue_redraw()
 
 

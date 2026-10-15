@@ -54,7 +54,7 @@ func _run() -> void:
 	splash_projectile.damage = 7
 	splash_projectile.splash_radius = 50.0
 	splash_projectile._apply_splash(splash_a.global_position)
-	_assert(splash_a.health == 35 and splash_b.health == 35, "mortar splash damages a nearby group")
+	_assert(splash_a.health == 58 and splash_b.health == 58, "mortar splash damages a nearby group")
 
 	var leader: Node2D = _make_enemy(board, Vector2(800.0, 300.0), EnemyScript.TYPE_GIANT, 44, 0)
 	var follower: Node2D = _make_enemy(board, Vector2(780.0, 300.0), EnemyScript.TYPE_SOLDIER, 44, 1)
@@ -71,14 +71,20 @@ func _run() -> void:
 
 	board.spawn_enemy({"enemy_type": EnemyScript.TYPE_CARRIER, "health": 1, "health_scale": 1.0, "group_index": 90})
 	var carrier: Node2D = board.active_followers[-1]
+	carrier._process(0.37)
+	var release_position := carrier.position
+	var release_route: Array[Vector2i] = carrier.route.duplicate()
+	var release_route_index: int = carrier.route_index
 	carrier.apply_damage(1)
-	await process_frame
 	_assert(released_count == 4, "carrier defeat registers four released soldiers")
 	var released_soldiers := 0
 	for enemy in board.active_followers:
 		if is_instance_valid(enemy) and enemy.enemy_type == EnemyScript.TYPE_SOLDIER and enemy.formation_id == 90:
 			released_soldiers += 1
+			_assert(enemy.position.is_equal_approx(release_position), "released soldiers begin at the carrier's exact position")
+			_assert(enemy.route == release_route and enemy.route_index == release_route_index, "released soldiers inherit the carrier's remaining route")
 	_assert(released_soldiers == 4, "carrier releases four active soldiers at its position")
+	await process_frame
 
 	_finish()
 

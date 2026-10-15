@@ -58,6 +58,38 @@ func begin_from_state(world_position: Vector2, route_state: Dictionary) -> bool:
 	return reroute()
 
 
+func get_continuation_state() -> Dictionary:
+	return {
+		"position": position,
+		"route": route.duplicate(),
+		"route_index": route_index,
+		"next_checkpoint_index": next_checkpoint_index,
+		"traversed_edges": traversed_edges.duplicate(),
+		"last_reached_cell": last_reached_cell,
+		"travel_direction": travel_direction,
+	}
+
+
+func begin_from_continuation(continuation: Dictionary) -> bool:
+	if router == null or not cell_center_provider.is_valid():
+		return false
+	var inherited_route: Array[Vector2i] = []
+	inherited_route.assign(continuation.get("route", []))
+	var inherited_index := int(continuation.get("route_index", 0))
+	if inherited_route.is_empty() or inherited_index < 0 or inherited_index >= inherited_route.size():
+		return false
+	position = Vector2(continuation.get("position", cell_center_provider.call(router.entrance)))
+	route = inherited_route
+	route_index = inherited_index
+	next_checkpoint_index = int(continuation.get("next_checkpoint_index", 0))
+	traversed_edges = Dictionary(continuation.get("traversed_edges", {})).duplicate()
+	last_reached_cell = Vector2i(continuation.get("last_reached_cell", router.entrance))
+	travel_direction = Vector2(continuation.get("travel_direction", Vector2.RIGHT))
+	active = true
+	queue_redraw()
+	return true
+
+
 func reroute() -> bool:
 	if not active or router == null:
 		return false
