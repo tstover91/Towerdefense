@@ -16,6 +16,8 @@ var next_checkpoint_index := 0
 var speed_pixels_per_second := 115.0
 var active := false
 var travel_direction := Vector2.RIGHT
+var traversed_edges: Dictionary = {}
+var last_reached_cell := Vector2i(-1, -1)
 
 
 func configure(
@@ -38,6 +40,8 @@ func begin() -> bool:
 	active = true
 	route.clear()
 	route_index = 0
+	traversed_edges.clear()
+	last_reached_cell = router.entrance
 	return reroute()
 
 
@@ -45,9 +49,12 @@ func reroute() -> bool:
 	if not active or router == null:
 		return false
 	var anchor_cell := get_route_anchor_cell()
+	var unavailable_edges := _get_used_edges_with_active_step(anchor_cell)
 	var new_route: Array[Vector2i] = router.find_complete_route(
 		anchor_cell,
-		next_checkpoint_index
+		next_checkpoint_index,
+		{},
+		unavailable_edges
 	)
 	if new_route.is_empty():
 		active = false
@@ -72,6 +79,7 @@ func get_route_state() -> Dictionary:
 		"cell": anchor_cell,
 		"occupied_cells": occupied_cells,
 		"next_checkpoint_index": next_checkpoint_index,
+		"used_edges": _get_used_edges_with_active_step(anchor_cell),
 	}
 
 
@@ -112,6 +120,9 @@ func _process(delta: float) -> void:
 				break
 		position = target_position
 		var arrived_cell := route[route_index]
+		if last_reached_cell.x >= 0 and last_reached_cell != arrived_cell:
+			traversed_edges[router.get_edge_key(last_reached_cell, arrived_cell)] = true
+		last_reached_cell = arrived_cell
 		route_index += 1
 		while (
 			next_checkpoint_index < router.get_checkpoint_count()
@@ -125,6 +136,13 @@ func _process(delta: float) -> void:
 		if movement_remaining <= 0.0:
 			break
 	queue_redraw()
+
+
+func _get_used_edges_with_active_step(anchor_cell: Vector2i) -> Dictionary:
+	var used_edges := traversed_edges.duplicate()
+	if last_reached_cell.x >= 0 and last_reached_cell != anchor_cell:
+		used_edges[router.get_edge_key(last_reached_cell, anchor_cell)] = true
+	return used_edges
 
 
 func _draw() -> void:

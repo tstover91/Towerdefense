@@ -122,10 +122,15 @@ func can_add_dynamic_block(
 	for route_state in active_route_states:
 		var route_cell := Vector2i(route_state.get("cell", entrance))
 		var next_checkpoint_index := int(route_state.get("next_checkpoint_index", 0))
+		var used_edges: Dictionary = {}
+		var state_used_edges = route_state.get("used_edges", {})
+		if state_used_edges is Dictionary:
+			used_edges = state_used_edges
 		if find_complete_route(
 			route_cell,
 			next_checkpoint_index,
-			candidate_blocks
+			candidate_blocks,
+			used_edges
 		).is_empty():
 			return false
 	return true
@@ -134,7 +139,8 @@ func can_add_dynamic_block(
 func find_complete_route(
 	start: Vector2i,
 	next_checkpoint_index: int = 0,
-	blocks_override: Dictionary = {}
+	blocks_override: Dictionary = {},
+	used_edges_override: Dictionary = {}
 ) -> Array[Vector2i]:
 	if not is_inside_grid(start):
 		return []
@@ -144,11 +150,13 @@ func find_complete_route(
 	if static_blocks.has(start) or active_blocks.has(start):
 		return []
 	var complete_route: Array[Vector2i] = []
+	var used_edges: Dictionary = used_edges_override.duplicate()
 	var cursor := start
 	for target in get_remaining_checkpoints(next_checkpoint_index):
-		var segment := _find_path(cursor, target, active_blocks)
+		var segment := _find_path(cursor, target, active_blocks, used_edges)
 		if segment.is_empty():
 			return []
+		_add_route_edges(segment, used_edges)
 		if not complete_route.is_empty():
 			segment.pop_front()
 		complete_route.append_array(segment)
@@ -159,7 +167,8 @@ func find_complete_route(
 func _find_path(
 	start: Vector2i,
 	goal: Vector2i,
-	active_dynamic_blocks: Dictionary
+	active_dynamic_blocks: Dictionary,
+	used_edges: Dictionary = {}
 ) -> Array[Vector2i]:
 	if start == goal:
 		return [start]
@@ -197,6 +206,7 @@ func _find_path(
 				not is_inside_grid(next_cell)
 				or static_blocks.has(next_cell)
 				or active_dynamic_blocks.has(next_cell)
+				or used_edges.has(get_edge_key(current_cell, next_cell))
 			):
 				continue
 			var next_state := Vector3i(next_cell.x, next_cell.y, direction_index)
@@ -231,6 +241,17 @@ func _find_path(
 		cursor_state = came_from[cursor_state]
 	reversed_route.reverse()
 	return reversed_route
+
+
+func get_edge_key(first: Vector2i, second: Vector2i) -> Vector4i:
+	if first.x < second.x or (first.x == second.x and first.y <= second.y):
+		return Vector4i(first.x, first.y, second.x, second.y)
+	return Vector4i(second.x, second.y, first.x, first.y)
+
+
+func _add_route_edges(route: Array[Vector2i], used_edges: Dictionary) -> void:
+	for index in range(1, route.size()):
+		used_edges[get_edge_key(route[index - 1], route[index])] = true
 
 
 func _manhattan(first: Vector2i, second: Vector2i) -> float:

@@ -47,10 +47,53 @@ func _init() -> void:
 	_assert(router.can_add_dynamic_block(Vector2i(5, 3), active_state), "opening another gap permits placement")
 
 	_test_live_reroute(grid_size, entrance, waypoints, exit_cell)
+	_test_retracing_is_rejected()
+	_test_perpendicular_crossing_is_allowed()
 	_test_frame_independent_movement()
 	_test_layout_remap()
 
 	_finish("PROTOTYPE_GRID_ROUTING_SMOKE_OK")
+
+
+func _test_retracing_is_rejected() -> void:
+	var router: RefCounted = GridRouterScript.new()
+	var waypoints: Array[Vector2i] = [Vector2i(4, 0)]
+	router.configure(
+		Vector2i(5, 1),
+		Vector2i(0, 0),
+		waypoints,
+		Vector2i(0, 0)
+	)
+	_assert(
+		router.find_complete_route(Vector2i(0, 0)).is_empty(),
+		"a later waypoint segment cannot retrace an earlier route edge"
+	)
+
+
+func _test_perpendicular_crossing_is_allowed() -> void:
+	var router: RefCounted = GridRouterScript.new()
+	var waypoints: Array[Vector2i] = [Vector2i(4, 2), Vector2i(2, 0)]
+	router.configure(
+		Vector2i(5, 5),
+		Vector2i(0, 2),
+		waypoints,
+		Vector2i(2, 4)
+	)
+	var route: Array[Vector2i] = router.find_complete_route(Vector2i(0, 2))
+	_assert(not route.is_empty(), "a route may cross a previously visited tile")
+	var crossing_visits := 0
+	for cell in route:
+		if cell == Vector2i(2, 2):
+			crossing_visits += 1
+	_assert(crossing_visits == 2, "the crossing tile is visited in both directions")
+	var used_edges: Dictionary = {}
+	var unique_edges := true
+	for index in range(1, route.size()):
+		var edge = router.get_edge_key(route[index - 1], route[index])
+		if used_edges.has(edge):
+			unique_edges = false
+		used_edges[edge] = true
+	_assert(unique_edges, "a crossing uses four distinct edges instead of retracing")
 
 
 func _test_live_reroute(

@@ -9,6 +9,9 @@ release to build immediately. Invalid drops cancel without spending anything.
 Tap an existing tower or wall to select it. Towers can be upgraded or sold;
 walls can be removed to recover their Wall allowance. Placement is rejected
 when it would block a required waypoint route or trap an active enemy.
+Later waypoint segments cannot reuse an earlier tile-to-tile connection, so
+enemies cannot retrace long sections of the route. A route may revisit a tile
+through unused sides, allowing proper crossroads and perpendicular crossings.
 
 Use **Start Wave** to play the ten-wave combat slice. Enemies arrive in planned
 groups, rounds finish as soon as all planned enemies are defeated or leak, and
