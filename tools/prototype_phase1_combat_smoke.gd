@@ -54,10 +54,12 @@ func _run() -> void:
 	splash_projectile.damage = 7
 	splash_projectile.splash_radius = 50.0
 	splash_projectile._apply_splash(splash_a.global_position)
-	_assert(splash_a.health == 13 and splash_b.health == 13, "mortar splash damages a nearby group")
+	_assert(splash_a.health == 35 and splash_b.health == 35, "mortar splash damages a nearby group")
 
 	var leader: Node2D = _make_enemy(board, Vector2(800.0, 300.0), EnemyScript.TYPE_GIANT, 44, 0)
 	var follower: Node2D = _make_enemy(board, Vector2(780.0, 300.0), EnemyScript.TYPE_SOLDIER, 44, 1)
+	_assert(leader.max_health >= follower.max_health * 7, "giants have tank-scale survivability")
+	_assert(is_equal_approx(leader.base_speed_cells_per_second / follower.base_speed_cells_per_second, 2.0 / 3.0), "giants move at two-thirds soldier speed")
 	leader.route_progress = 3.0
 	follower.route_progress = 2.6
 	follower._update_formation_speed()

@@ -8,10 +8,10 @@ const TYPE_RUNNER: StringName = &"runner"
 const TYPE_GIANT: StringName = &"giant"
 const TYPE_CARRIER: StringName = &"carrier"
 const TYPE_DATA := {
-	TYPE_SOLDIER: {"health": 20, "speed": 1.15, "leak": 1, "radius": 0.17, "color": Color("2b2b29")},
-	TYPE_RUNNER: {"health": 13, "speed": 1.85, "leak": 1, "radius": 0.14, "color": Color("d94f3d")},
-	TYPE_GIANT: {"health": 95, "speed": 0.88, "leak": 3, "radius": 0.27, "color": Color("3c5264")},
-	TYPE_CARRIER: {"health": 70, "speed": 0.96, "leak": 2, "radius": 0.24, "color": Color("75559a"), "releases": 4},
+	TYPE_SOLDIER: {"health": 42, "speed": 0.90, "leak": 1, "radius": 0.17, "color": Color("2b2b29")},
+	TYPE_RUNNER: {"health": 28, "speed": 1.20, "leak": 1, "radius": 0.14, "color": Color("d94f3d")},
+	TYPE_GIANT: {"health": 320, "speed": 0.60, "leak": 3, "radius": 0.27, "color": Color("3c5264")},
+	TYPE_CARRIER: {"health": 210, "speed": 0.68, "leak": 2, "radius": 0.24, "color": Color("75559a"), "releases": 4},
 }
 const BODY_INSET := Color("ece8da")
 const DAMAGE_FLASH_COLOR := Color("ef624d")
@@ -28,8 +28,8 @@ var leak_damage := 1
 var visual_radius := 10.0
 var damage_flash_remaining := 0.0
 var current_cell_size := 48.0
-var base_speed_cells_per_second := 1.15
-var current_speed_cells_per_second := 1.15
+var base_speed_cells_per_second := 0.90
+var current_speed_cells_per_second := 0.90
 var formation_id := -1
 var formation_index := 0
 var released_children := false

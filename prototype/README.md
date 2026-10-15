@@ -23,6 +23,10 @@ remains valid. The Gun supplies reliable direct damage, the Mortar selects and
 damages clusters, and the Beam ramps while it stays locked onto one target.
 Soldiers remain behind slower formation leaders, Runners break formation,
 Giants lead and absorb direct fire, and defeated Carriers release four Soldiers.
+Enemy pacing favors smaller, durable formations: Soldiers move at 0.9 tiles per
+second, Runners at 1.2, Giants at 0.6, and Carriers at 0.68. A Giant has over
+seven times a Soldier's base health, so tank-led groups behave more like a
+deliberate Clash-style push than a fast TD swarm.
 The economy starts with $500, three tower slots, and five free Walls. Guns cost
 $100, Mortars cost $140, and Beams cost $180; upgrades cost $100, $300, and
 $800. There is no income per kill. Clearing a wave pays a

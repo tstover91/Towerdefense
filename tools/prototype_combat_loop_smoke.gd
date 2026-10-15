@@ -62,7 +62,7 @@ func _init() -> void:
 		"spawn notifications immediately refresh the active counter"
 	)
 	_assert(
-		int(latest_counter_state.get("remaining_spawns", -1)) == 6,
+		int(latest_counter_state.get("remaining_spawns", -1)) == 4,
 		"spawn notifications immediately refresh the scheduled counter"
 	)
 	_finish("PROTOTYPE_COMBAT_LOOP_SMOKE_OK")
