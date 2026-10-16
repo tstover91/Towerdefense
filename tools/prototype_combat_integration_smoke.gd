@@ -12,6 +12,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	ProjectSettings.set_setting("prototype/map_seed_override", 1)
 	get_root().size = Vector2i(1152, 648)
 	var game: Node = PrototypeScene.instantiate()
 	get_root().add_child(game)

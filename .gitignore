@@ -21,3 +21,4 @@ mono_crash.*.json
 # Local headless verification output.
 /prototype_*_smoke.log
 /*_smoke.gd.log
+/random_*_smoke.log

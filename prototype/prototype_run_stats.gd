@@ -125,6 +125,8 @@ func finish_wave(
 		total_damage += int(amount)
 	var row := {
 		"wave": wave,
+		"map_seed": int(board_state.get("map_seed", 0)),
+		"initial_route_steps": int(board_state.get("initial_route_steps", 0)),
 		"outcome": outcome,
 		"duration_seconds": snappedf(duration, 0.01),
 		"base_reward": int(reward.get("base_reward", 0)),
@@ -277,7 +279,7 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 	if csv_file == null:
 		return false
 	var headers: Array[String] = [
-		"wave", "outcome", "duration_seconds", "base_reward", "interest_reward",
+		"wave", "map_seed", "initial_route_steps", "outcome", "duration_seconds", "base_reward", "interest_reward",
 		"starting_credits", "ending_credits", "tower_count", "level_1_towers",
 		"level_2_towers", "level_3_towers", "level_4_towers", "gun_count",
 		"mortar_count", "beam_count", "gun_investment", "mortar_investment",

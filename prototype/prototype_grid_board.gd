@@ -2,6 +2,7 @@ class_name PrototypeGridBoard
 extends Node2D
 
 const GridRouterScript = preload("res://prototype/grid_route_service.gd")
+const MapLayoutGeneratorScript = preload("res://prototype/prototype_map_layout_generator.gd")
 const EnemyScript = preload("res://prototype/prototype_enemy.gd")
 const TowerScript = preload("res://prototype/prototype_tower.gd")
 
@@ -13,6 +14,7 @@ signal enemy_resolved_for_stats(leaked: bool, leak_damage: int, progress_ratio: 
 signal tower_damage_recorded(tower_type: StringName, tower_level: int, amount: int)
 signal structure_action_recorded(action: StringName, tower_type: StringName, tower_level: int, amount: int)
 signal export_stats_requested
+signal new_map_requested
 
 const GRID_SIZE := Vector2i(19, 10)
 const GRID_MARGIN := 18.0
@@ -24,6 +26,7 @@ const WAVE_REWARD_MESSAGE_DURATION_MSEC := 3500
 const PLACEMENT_DRAG_THRESHOLD := 18.0
 const PLACEMENT_FINGER_OFFSET_CELLS := 0.85
 const DUPLICATE_POINTER_GUARD_MSEC := 250
+const MAP_SEED_OVERRIDE_SETTING := "prototype/map_seed_override"
 
 enum PlacementMode {
 	NONE,
@@ -36,13 +39,13 @@ const BUILD_MORTAR: StringName = &"mortar"
 const BUILD_BEAM: StringName = &"beam"
 const BUILD_WALL: StringName = &"wall"
 
-const ENTRANCE := Vector2i(0, 5)
-const WAYPOINTS: Array[Vector2i] = [
+const FALLBACK_ENTRANCE := Vector2i(0, 5)
+const FALLBACK_WAYPOINTS: Array[Vector2i] = [
 	Vector2i(5, 1),
 	Vector2i(10, 8),
 	Vector2i(14, 2),
 ]
-const EXIT_CELL := Vector2i(18, 5)
+const FALLBACK_EXIT_CELL := Vector2i(18, 5)
 const STATIC_OBJECTS: Array[Vector2i] = [
 	Vector2i(2, 2),
 	Vector2i(3, 2),
@@ -81,6 +84,11 @@ const MARKER_COLORS: Array[Color] = [
 ]
 
 var router = null
+var map_seed := 0
+var entrance := FALLBACK_ENTRANCE
+var waypoints: Array[Vector2i] = FALLBACK_WAYPOINTS.duplicate()
+var exit_cell := FALLBACK_EXIT_CELL
+var initial_route_steps := 0
 var displayed_route: Array[Vector2i] = []
 var preview_route: Array[Vector2i] = []
 var hovered_cell := Vector2i(-1, -1)
@@ -96,6 +104,7 @@ var start_button_rect := Rect2()
 var upgrade_button_rect := Rect2()
 var sell_button_rect := Rect2()
 var export_button_rect := Rect2()
+var new_map_button_rect := Rect2()
 var safe_view_rect := Rect2()
 var portrait_view := false
 var compact_layout := false
@@ -144,11 +153,22 @@ func _ready() -> void:
 	if OS.has_feature("mobile"):
 		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 	router = GridRouterScript.new()
-	router.configure(GRID_SIZE, ENTRANCE, WAYPOINTS, EXIT_CELL, STATIC_OBJECTS)
+	map_seed = _create_map_seed()
+	var layout: Dictionary = MapLayoutGeneratorScript.new().generate(
+		map_seed,
+		GRID_SIZE,
+		STATIC_OBJECTS
+	)
+	if not layout.is_empty():
+		entrance = Vector2i(layout["entrance"])
+		waypoints.assign(layout["waypoints"])
+		exit_cell = Vector2i(layout["exit_cell"])
+	router.configure(GRID_SIZE, entrance, waypoints, exit_cell, STATIC_OBJECTS)
 	title_font = ThemeDB.fallback_font
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
 	_recalculate_layout()
-	displayed_route = router.find_complete_route(ENTRANCE)
+	displayed_route = router.find_complete_route(entrance)
+	initial_route_steps = maxi(displayed_route.size() - 1, 0)
 	queue_redraw()
 
 
@@ -215,7 +235,7 @@ func _draw_header() -> void:
 	draw_string(
 		title_font,
 		Vector2(safe_view_rect.position.x + GRID_MARGIN, heading_y),
-		"GRID MAZE PROTOTYPE",
+		"GRID MAZE · SEED %d" % map_seed,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		-1.0,
 		heading_size,
@@ -488,7 +508,8 @@ func _draw_footer_controls() -> void:
 		) and _is_gameplay_phase()
 	)
 	_draw_button(export_button_rect, "STATS", true)
-	var info_x := export_button_rect.end.x + 16.0
+	_draw_button(new_map_button_rect, "NEW MAP", true)
+	var info_x := new_map_button_rect.end.x + 16.0
 	var info_width := maxf(safe_view_rect.end.x - info_x - GRID_MARGIN, 0.0)
 	var displayed_status := status_override
 	if displayed_status.is_empty():
@@ -557,6 +578,10 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 	if export_button_rect.has_point(screen_position):
 		_cancel_placement()
 		export_stats_requested.emit()
+		return
+	if new_map_button_rect.has_point(screen_position):
+		_cancel_placement()
+		new_map_requested.emit()
 		return
 	var cell := _screen_to_cell(screen_position)
 	if not router.is_inside_grid(cell):
@@ -896,7 +921,7 @@ func _update_preview(cell: Vector2i, force := false) -> void:
 			var candidate_blocks: Dictionary = router.dynamic_blocks.duplicate()
 			candidate_blocks[cell] = true
 			preview_route = router.find_complete_route(
-				ENTRANCE,
+				entrance,
 				0,
 				candidate_blocks
 			)
@@ -931,7 +956,7 @@ func _after_blocks_changed(route_plan: Dictionary = {}) -> void:
 	if not active_plan.is_empty():
 		displayed_route.assign(active_plan["main_route"])
 	else:
-		displayed_route = router.find_complete_route(ENTRANCE)
+		displayed_route = router.find_complete_route(entrance)
 	for follower in active_followers.duplicate():
 		if is_instance_valid(follower):
 			var follower_route: Array[Vector2i] = []
@@ -946,7 +971,7 @@ func _after_blocks_changed(route_plan: Dictionary = {}) -> void:
 
 
 func _build_route_plan(blocks: Dictionary) -> Dictionary:
-	var main_route: Array[Vector2i] = router.find_complete_route(ENTRANCE, 0, blocks)
+	var main_route: Array[Vector2i] = router.find_complete_route(entrance, 0, blocks)
 	if main_route.is_empty():
 		return {}
 	var follower_routes: Dictionary = {}
@@ -1152,6 +1177,8 @@ func get_telemetry_snapshot() -> Dictionary:
 		var type_level_key := "%s_l%d" % [type_key, int(tower.level)]
 		type_levels[type_level_key] = int(type_levels.get(type_level_key, 0)) + 1
 	return {
+		"map_seed": map_seed,
+		"initial_route_steps": initial_route_steps,
 		"tower_count": towers_by_cell.size(),
 		"tower_levels": levels,
 		"tower_type_counts": type_counts,
@@ -1160,6 +1187,19 @@ func get_telemetry_snapshot() -> Dictionary:
 		"wall_count": walls_by_cell.size(),
 		"route_steps": maxi(displayed_route.size() - 1, 0),
 	}
+
+
+func _create_map_seed() -> int:
+	var override_seed := int(ProjectSettings.get_setting(MAP_SEED_OVERRIDE_SETTING, 0))
+	if override_seed > 0:
+		return override_seed
+	var mixed_seed := (
+		int(Time.get_unix_time_from_system())
+		^ Time.get_ticks_usec()
+		^ randi()
+	)
+	var positive_seed := int(mixed_seed & 0x7fffffff)
+	return positive_seed if positive_seed > 0 else 1
 
 
 func show_wave_reward(reward: Dictionary) -> void:
@@ -1438,13 +1478,13 @@ func _recalculate_layout() -> void:
 	)
 	var footer_y := board_origin.y + board_size.y + 8.0
 	var button_height := 60.0 if compact_layout else 64.0
-	var base_widths := PackedFloat32Array([92.0, 108.0, 96.0, 96.0, 110.0, 88.0, 88.0, 72.0])
+	var base_widths := PackedFloat32Array([92.0, 108.0, 96.0, 96.0, 110.0, 88.0, 88.0, 72.0, 92.0])
 	var control_gap := 4.0 if compact_layout else 8.0
 	var available_control_width := safe_view_rect.size.x - GRID_MARGIN * 2.0
 	var base_total := 0.0
 	for width in base_widths:
 		base_total += width
-	var width_scale := minf((available_control_width - control_gap * 7.0) / base_total, 1.0)
+	var width_scale := minf((available_control_width - control_gap * 8.0) / base_total, 1.0)
 	for index in base_widths.size():
 		base_widths[index] *= width_scale
 	build_button_rect = Rect2(
@@ -1493,6 +1533,12 @@ func _recalculate_layout() -> void:
 		sell_button_rect.end.x + control_gap,
 		footer_y,
 		base_widths[7],
+		button_height
+	)
+	new_map_button_rect = Rect2(
+		export_button_rect.end.x + control_gap,
+		footer_y,
+		base_widths[8],
 		button_height
 	)
 

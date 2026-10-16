@@ -2,6 +2,12 @@
 
 This is the project's only gameplay scene and launches when the project runs.
 
+Each run generates a seeded entrance, exit, and three interior waypoints. Their
+order may turn away from the exit, creating deliberate backward and sideways
+route sections, but a route can never reuse the same tile-to-tile edge. The seed
+is shown in the header and included in exported telemetry.
+Use **New Map** to reset the run and immediately generate another layout.
+
 Run the project or `res://prototype/prototype_main.tscn` in Godot. Tap **Gun**,
 **Mortar**, **Beam**, or **Wall**, tap a grid cell to position the live route preview, then tap that
 cell again to build. You can also drag directly from either build button and
@@ -58,6 +64,7 @@ responsive layout, round lifecycle, economy rules, and end-to-end combat. Run
 these scripts through Godot after changing the prototype:
 
 - `res://tools/prototype_grid_routing_smoke.gd`
+- `res://tools/prototype_map_layout_smoke.gd`
 - `res://tools/prototype_layout_smoke.gd`
 - `res://tools/prototype_combat_loop_smoke.gd`
 - `res://tools/prototype_economy_smoke.gd`

@@ -18,6 +18,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	ProjectSettings.set_setting("prototype/map_seed_override", 1)
 	var board: Node2D = BoardScript.new()
 	get_root().add_child(board)
 	await process_frame
@@ -72,6 +73,11 @@ func _run() -> void:
 			board.safe_view_rect.encloses(board.export_button_rect)
 			and board.export_button_rect.size.y >= 60.0,
 			"%s keeps the stats export control mobile-sized and inside the safe viewport" % viewport_size
+		)
+		_assert(
+			board.safe_view_rect.encloses(board.new_map_button_rect)
+			and board.new_map_button_rect.size.y >= 60.0,
+			"%s keeps the new-map control mobile-sized and inside the safe viewport" % viewport_size
 		)
 	get_root().size = Vector2i(540, 960)
 	board._recalculate_layout()

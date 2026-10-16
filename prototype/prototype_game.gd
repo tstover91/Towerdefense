@@ -24,6 +24,7 @@ func _ready() -> void:
 	board.enemy_resolved_for_stats.connect(run_stats.record_enemy_resolved)
 	board.structure_action_recorded.connect(run_stats.record_structure_action)
 	board.export_stats_requested.connect(_on_export_stats_requested)
+	board.new_map_requested.connect(_on_new_map_requested)
 	round_controller.enemy_spawn_requested.connect(board.spawn_enemy)
 	round_controller.wave_cleared.connect(_on_wave_cleared)
 	round_controller.state_changed.connect(_on_combat_state_changed)
@@ -77,6 +78,12 @@ func _on_combat_state_changed(state: Dictionary) -> void:
 
 func _on_export_stats_requested() -> void:
 	board.show_stats_export_result(run_stats.export_reports_to_project())
+
+
+func _on_new_map_requested() -> void:
+	# Reload the prototype so the board, economy, wave state, and telemetry all
+	# begin together on the newly generated seed.
+	get_tree().call_deferred("reload_current_scene")
 
 
 func _refresh_economy_state() -> void:
