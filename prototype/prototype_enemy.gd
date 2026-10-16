@@ -33,6 +33,7 @@ var current_speed_cells_per_second := 0.90
 var formation_id := -1
 var formation_index := 0
 var released_children := false
+var stun_remaining := 0.0
 
 
 func setup_combat(new_type: StringName, health_scale: float, cell_size_pixels: float, new_formation_id := -1, new_formation_index := 0) -> void:
@@ -65,6 +66,11 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if finished:
+		return
+	stun_remaining = maxf(stun_remaining - delta, 0.0)
+	if stun_remaining > 0.0:
+		damage_flash_remaining = maxf(damage_flash_remaining - delta, 0.0)
+		queue_redraw()
 		return
 	_update_formation_speed()
 	var previous_position := position
@@ -118,6 +124,13 @@ func apply_damage_from_tower(requested_damage: int, damage_type: StringName, ign
 	return apply_damage(requested_damage, damage_type, ignores_armor, true, attack_context)
 
 
+func apply_stun(duration: float) -> void:
+	if finished or duration <= 0.0:
+		return
+	stun_remaining = maxf(stun_remaining, duration)
+	queue_redraw()
+
+
 func mark_leaked() -> void:
 	finished = true
 	active = false
@@ -156,6 +169,8 @@ func _draw() -> void:
 		draw_polyline(PackedVector2Array([points[0], points[1], points[2], points[3], points[0]]), Color("111111"), 3.0, true)
 		draw_circle(Vector2.ZERO, visual_radius * (0.25 if enemy_type == TYPE_RUNNER else 0.36), BODY_INSET)
 	var health_ratio := clampf(float(health) / float(max_health), 0.0, 1.0)
+	if stun_remaining > 0.0:
+		draw_arc(Vector2.ZERO, visual_radius * 1.22, 0.0, TAU, 16, BODY_INSET, 2.0, true)
 	var bar_size := Vector2(visual_radius * 2.4, 4.0)
 	var bar_position := Vector2(-bar_size.x * 0.5, -visual_radius - 9.0)
 	draw_rect(Rect2(bar_position, bar_size), HEALTH_BACKGROUND, true)

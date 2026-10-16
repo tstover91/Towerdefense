@@ -6,9 +6,12 @@ const OUTLINE_COLOR := Color("171717")
 const PROJECTILE_RADIUS := 4.0
 
 var target: Node2D
+var target_position := Vector2.ZERO
+var uses_fixed_target := false
 var speed := 420.0
 var damage := 1
 var splash_radius := 0.0
+var stun_duration := 0.0
 var source_tower: Node
 
 
@@ -18,6 +21,7 @@ func _ready() -> void:
 
 func setup(new_target: Node2D, new_speed: float, new_damage: int, new_splash_radius := 0.0, new_source_tower: Node = null) -> void:
 	target = new_target
+	uses_fixed_target = false
 	speed = maxf(new_speed, 1.0)
 	damage = maxi(new_damage, 1)
 	splash_radius = maxf(new_splash_radius, 0.0)
@@ -25,18 +29,31 @@ func setup(new_target: Node2D, new_speed: float, new_damage: int, new_splash_rad
 	queue_redraw()
 
 
+func setup_position(new_target_position: Vector2, new_speed: float, new_damage: int, new_splash_radius: float, new_source_tower: Node = null, new_stun_duration := 0.0) -> void:
+	target = null
+	target_position = new_target_position
+	uses_fixed_target = true
+	speed = maxf(new_speed, 1.0)
+	damage = maxi(new_damage, 1)
+	splash_radius = maxf(new_splash_radius, 0.0)
+	source_tower = new_source_tower
+	stun_duration = maxf(new_stun_duration, 0.0)
+	queue_redraw()
+
+
 func _physics_process(delta: float) -> void:
 	if not _is_valid_target():
 		queue_free()
 		return
-	var offset := target.global_position - global_position
+	var destination := target_position if uses_fixed_target else target.global_position
+	var offset := destination - global_position
 	var hit_radius := PROJECTILE_RADIUS
-	if target.has_method("get_projectile_hit_radius"):
+	if not uses_fixed_target and target.has_method("get_projectile_hit_radius"):
 		hit_radius += float(target.get_projectile_hit_radius())
 	var travel_distance := speed * delta
 	if offset.length() <= hit_radius + travel_distance:
 		if splash_radius > 0.0:
-			_apply_splash(target.global_position)
+			_apply_splash(destination)
 		elif target.has_method("apply_damage"):
 			_report_damage(int(target.apply_damage(damage, &"ballistic", false, true)))
 		queue_free()
@@ -54,6 +71,8 @@ func _apply_splash(impact_position: Vector2) -> void:
 			continue
 		if candidate.global_position.distance_to(impact_position) <= splash_radius:
 			total_applied += int(candidate.apply_damage(damage, &"explosive", false, true))
+			if stun_duration > 0.0 and candidate.has_method("apply_stun"):
+				candidate.apply_stun(stun_duration)
 	_report_damage(total_applied)
 
 
@@ -63,6 +82,8 @@ func _report_damage(amount: int) -> void:
 
 
 func _is_valid_target() -> bool:
+	if uses_fixed_target:
+		return true
 	return (
 		target != null
 		and is_instance_valid(target)

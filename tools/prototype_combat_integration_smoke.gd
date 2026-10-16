@@ -20,7 +20,7 @@ func _run() -> void:
 	await process_frame
 	var board: Node2D = game.get_node("GridBoard")
 	board.enemy_resolved.connect(_on_enemy_resolved)
-	var button_center: Vector2 = board.build_button_rect.get_center()
+	var button_center: Vector2 = board.gunslinger_button_rect.get_center()
 	var android_touch := InputEventScreenTouch.new()
 	android_touch.index = 0
 	android_touch.position = button_center
@@ -35,7 +35,7 @@ func _run() -> void:
 		int(board.placement_mode) == 1,
 		"raw viewport touch begins precision placement before GUI handling"
 	)
-	board._handle_placement_button(&"tower")
+	board._handle_placement_button(&"gunslinger")
 	_assert(
 		int(board.placement_mode) == 1,
 		"a duplicate Android pointer press cannot immediately cancel placement"
@@ -59,7 +59,7 @@ func _run() -> void:
 	board._cancel_placement()
 	var original_route: Array[Vector2i] = board.displayed_route.duplicate()
 	var tower_cell: Vector2i = original_route[1]
-	board._handle_screen_press(board.build_button_rect.get_center())
+	board._handle_screen_press(board.gunslinger_button_rect.get_center())
 	_assert(
 		int(board.placement_mode) == 1,
 		"tapping the tower button begins precision placement"
@@ -111,7 +111,7 @@ func _run() -> void:
 	_assert(game.economy.credits == 440, "participating tower sells for 70% of total investment")
 
 	var unused_cell := Vector2i(1, 5)
-	var drag_start: Vector2 = board.build_button_rect.get_center()
+	var drag_start: Vector2 = board.gunslinger_button_rect.get_center()
 	var drag_release: Vector2 = (
 		board._cell_center(unused_cell)
 		+ Vector2.DOWN * board.get_cell_size() * 0.85
@@ -165,15 +165,15 @@ func _run() -> void:
 		"leak_damage": 1,
 	})
 	var tracked_enemy: Node2D = board.active_followers[-1]
-	var tracked_beam: Node2D = TowerScript.new()
-	board.add_child(tracked_beam)
-	tracked_beam.configure(Vector2i.ZERO, Callable(board, "get_cell_size"), TowerScript.TYPE_BEAM)
-	tracked_beam.position = tracked_enemy.position
-	tracked_beam.damage_dealt.connect(board._on_tower_damage_dealt)
-	tracked_beam._fire_at(tracked_enemy)
+	var tracked_gunslinger: Node2D = TowerScript.new()
+	board.add_child(tracked_gunslinger)
+	tracked_gunslinger.configure(Vector2i.ZERO, Callable(board, "get_cell_size"), TowerScript.TYPE_GUNSLINGER)
+	tracked_gunslinger.position = tracked_enemy.position
+	tracked_gunslinger.damage_dealt.connect(board._on_tower_damage_dealt)
+	tracked_gunslinger._fire_at(tracked_enemy)
 	await process_frame
 	_assert(not is_instance_valid(tracked_enemy), "a lethal beam hit resolves its enemy immediately")
-	tracked_beam.queue_free()
+	tracked_gunslinger.queue_free()
 	board.spawn_enemy({
 		"health": 9999,
 		"speed_cells_per_second": 1.0,
@@ -208,7 +208,7 @@ func _run() -> void:
 		"the coordinated wave reward is the final visible notification"
 	)
 
-	board._handle_screen_press(board.build_button_rect.get_center())
+	board._handle_screen_press(board.gunslinger_button_rect.get_center())
 	board._handle_screen_press(board._cell_center(unused_cell))
 	board._handle_screen_press(board._cell_center(unused_cell))
 	_assert(game.economy.credits == 453, "building remains available between waves")
@@ -216,8 +216,8 @@ func _run() -> void:
 	var stats_row: Dictionary = game.run_stats.get_rows()[0]
 	_assert(int(stats_row["spawned_health"]) == 10001, "telemetry records effective spawned health")
 	_assert(int(stats_row["defeated_enemies"]) == 1, "telemetry includes an enemy killed on the final hit")
-	_assert(int(stats_row["beam_damage"]) == 2, "telemetry includes the killing beam damage")
-	_assert(int(stats_row["beam_l1_damage"]) == 2, "telemetry attributes damage to tower level")
+	_assert(int(stats_row["gunslinger_damage"]) == 2, "telemetry includes the killing Gunslinger damage")
+	_assert(int(stats_row["gunslinger_l1_damage"]) == 2, "telemetry attributes damage to tower level")
 	_assert(int(stats_row["tower_count"]) == 0, "telemetry snapshots the end-of-wave tower count")
 	var export_result: Dictionary = game.run_stats.export_reports_to_project()
 	game.board.show_stats_export_result(export_result)

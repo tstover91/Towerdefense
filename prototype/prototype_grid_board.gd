@@ -34,9 +34,10 @@ enum PlacementMode {
 	DRAGGING,
 }
 
-const BUILD_TOWER: StringName = &"tower"
-const BUILD_MORTAR: StringName = &"mortar"
-const BUILD_BEAM: StringName = &"beam"
+const BUILD_GUNSLINGER: StringName = &"gunslinger"
+const BUILD_ANTI_MATERIEL: StringName = &"anti_materiel"
+const BUILD_FLAMESPITTER: StringName = &"flamespitter"
+const BUILD_BOMBARDMENT: StringName = &"bombardment"
 const BUILD_WALL: StringName = &"wall"
 
 const FALLBACK_ENTRANCE := Vector2i(0, 5)
@@ -96,9 +97,10 @@ var preview_is_valid := false
 var board_origin := Vector2.ZERO
 var cell_size := 48.0
 var title_font: Font
-var build_button_rect := Rect2()
-var mortar_button_rect := Rect2()
-var beam_button_rect := Rect2()
+var gunslinger_button_rect := Rect2()
+var anti_materiel_button_rect := Rect2()
+var flamespitter_button_rect := Rect2()
+var bombardment_button_rect := Rect2()
 var wall_button_rect := Rect2()
 var start_button_rect := Rect2()
 var upgrade_button_rect := Rect2()
@@ -471,19 +473,24 @@ func _draw_footer_controls() -> void:
 		else ("RUNNING" if phase == &"active" else String(phase).to_upper())
 	)
 	_draw_button(
-		build_button_rect,
-		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_TOWER else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_TOWER else ("G $%d" if short_labels else "GUN $%d") % TowerScript.get_build_cost(TowerScript.TYPE_GUN)),
-		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_TOWER)
+		gunslinger_button_rect,
+		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_GUNSLINGER else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_GUNSLINGER else ("GS $%d" if short_labels else "GUNSLINGER $%d") % TowerScript.get_build_cost(TowerScript.TYPE_GUNSLINGER)),
+		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_GUNSLINGER)
 	)
 	_draw_button(
-		mortar_button_rect,
-		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_MORTAR else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_MORTAR else ("M $%d" if short_labels else "MORTAR $%d") % TowerScript.get_build_cost(TowerScript.TYPE_MORTAR)),
-		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_MORTAR)
+		anti_materiel_button_rect,
+		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_ANTI_MATERIEL else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_ANTI_MATERIEL else ("AM $%d" if short_labels else "ANTI-MAT $%d") % TowerScript.get_build_cost(TowerScript.TYPE_ANTI_MATERIEL)),
+		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_ANTI_MATERIEL)
 	)
 	_draw_button(
-		beam_button_rect,
-		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_BEAM else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_BEAM else ("B $%d" if short_labels else "BEAM $%d") % TowerScript.get_build_cost(TowerScript.TYPE_BEAM)),
-		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_BEAM)
+		flamespitter_button_rect,
+		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_FLAMESPITTER else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_FLAMESPITTER else ("FS $%d" if short_labels else "FLAMESPITTER $%d") % TowerScript.get_build_cost(TowerScript.TYPE_FLAMESPITTER)),
+		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_FLAMESPITTER)
+	)
+	_draw_button(
+		bombardment_button_rect,
+		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_BOMBARDMENT else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_BOMBARDMENT else ("BD $%d" if short_labels else "BOMBARD $%d") % TowerScript.get_build_cost(TowerScript.TYPE_BOMBARDMENT)),
+		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_BOMBARDMENT)
 	)
 	_draw_button(
 		wall_button_rect,
@@ -551,14 +558,17 @@ func _draw_button(rect: Rect2, label: String, enabled := true) -> void:
 func _handle_screen_press(screen_position: Vector2) -> void:
 	if not status_override.is_empty():
 		status_override = ""
-	if build_button_rect.has_point(screen_position):
-		_handle_placement_button(BUILD_TOWER)
+	if gunslinger_button_rect.has_point(screen_position):
+		_handle_placement_button(BUILD_GUNSLINGER)
 		return
-	if mortar_button_rect.has_point(screen_position):
-		_handle_placement_button(BUILD_MORTAR)
+	if anti_materiel_button_rect.has_point(screen_position):
+		_handle_placement_button(BUILD_ANTI_MATERIEL)
 		return
-	if beam_button_rect.has_point(screen_position):
-		_handle_placement_button(BUILD_BEAM)
+	if flamespitter_button_rect.has_point(screen_position):
+		_handle_placement_button(BUILD_FLAMESPITTER)
+		return
+	if bombardment_button_rect.has_point(screen_position):
+		_handle_placement_button(BUILD_BOMBARDMENT)
 		return
 	if wall_button_rect.has_point(screen_position):
 		_handle_placement_button(BUILD_WALL)
@@ -706,7 +716,7 @@ func _can_begin_placement(kind: StringName) -> bool:
 	return economy.can_build(TowerScript.get_build_cost(_tower_type_for_build_kind(kind)))
 
 
-func _begin_precision_placement(kind: StringName = BUILD_TOWER) -> bool:
+func _begin_precision_placement(kind: StringName = BUILD_GUNSLINGER) -> bool:
 	if not _can_begin_placement(kind):
 		status_message = (
 			"Wall limit reached."
@@ -798,12 +808,14 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 
 
 func _get_build_kind_at(screen_position: Vector2) -> StringName:
-	if build_button_rect.has_point(screen_position):
-		return BUILD_TOWER
-	if mortar_button_rect.has_point(screen_position):
-		return BUILD_MORTAR
-	if beam_button_rect.has_point(screen_position):
-		return BUILD_BEAM
+	if gunslinger_button_rect.has_point(screen_position):
+		return BUILD_GUNSLINGER
+	if anti_materiel_button_rect.has_point(screen_position):
+		return BUILD_ANTI_MATERIEL
+	if flamespitter_button_rect.has_point(screen_position):
+		return BUILD_FLAMESPITTER
+	if bombardment_button_rect.has_point(screen_position):
+		return BUILD_BOMBARDMENT
 	if wall_button_rect.has_point(screen_position):
 		return BUILD_WALL
 	return &""
@@ -849,26 +861,30 @@ func _get_active_placement_button_rect() -> Rect2:
 	match placement_kind:
 		BUILD_WALL:
 			return wall_button_rect
-		BUILD_MORTAR:
-			return mortar_button_rect
-		BUILD_BEAM:
-			return beam_button_rect
+		BUILD_ANTI_MATERIEL:
+			return anti_materiel_button_rect
+		BUILD_FLAMESPITTER:
+			return flamespitter_button_rect
+		BUILD_BOMBARDMENT:
+			return bombardment_button_rect
 		_:
-			return build_button_rect
+			return gunslinger_button_rect
 
 
 func _is_tower_kind(kind: StringName) -> bool:
-	return kind in [BUILD_TOWER, BUILD_MORTAR, BUILD_BEAM]
+	return kind in [BUILD_GUNSLINGER, BUILD_ANTI_MATERIEL, BUILD_FLAMESPITTER, BUILD_BOMBARDMENT]
 
 
 func _tower_type_for_build_kind(kind: StringName) -> StringName:
 	match kind:
-		BUILD_MORTAR:
-			return TowerScript.TYPE_MORTAR
-		BUILD_BEAM:
-			return TowerScript.TYPE_BEAM
+		BUILD_ANTI_MATERIEL:
+			return TowerScript.TYPE_ANTI_MATERIEL
+		BUILD_FLAMESPITTER:
+			return TowerScript.TYPE_FLAMESPITTER
+		BUILD_BOMBARDMENT:
+			return TowerScript.TYPE_BOMBARDMENT
 		_:
-			return TowerScript.TYPE_GUN
+			return TowerScript.TYPE_GUNSLINGER
 
 
 func _finish_placement_drag(screen_position: Vector2) -> void:
@@ -1160,10 +1176,10 @@ func mark_all_towers_participated() -> void:
 
 func get_telemetry_snapshot() -> Dictionary:
 	var levels := [0, 0, 0, 0]
-	var type_counts := {"gun": 0, "mortar": 0, "beam": 0}
-	var type_investment := {"gun": 0, "mortar": 0, "beam": 0}
+	var type_counts := {"gunslinger": 0, "anti_materiel": 0, "flamespitter": 0, "bombardment": 0}
+	var type_investment := {"gunslinger": 0, "anti_materiel": 0, "flamespitter": 0, "bombardment": 0}
 	var type_levels: Dictionary = {}
-	for tower_type in ["gun", "mortar", "beam"]:
+	for tower_type in ["gunslinger", "anti_materiel", "flamespitter", "bombardment"]:
 		for tower_level in range(1, 5):
 			type_levels["%s_l%d" % [tower_type, tower_level]] = 0
 	for tower in towers_by_cell.values():
@@ -1478,67 +1494,73 @@ func _recalculate_layout() -> void:
 	)
 	var footer_y := board_origin.y + board_size.y + 8.0
 	var button_height := 60.0 if compact_layout else 64.0
-	var base_widths := PackedFloat32Array([92.0, 108.0, 96.0, 96.0, 110.0, 88.0, 88.0, 72.0, 92.0])
+	var base_widths := PackedFloat32Array([112.0, 112.0, 112.0, 112.0, 88.0, 104.0, 78.0, 78.0, 68.0, 88.0])
 	var control_gap := 4.0 if compact_layout else 8.0
 	var available_control_width := safe_view_rect.size.x - GRID_MARGIN * 2.0
 	var base_total := 0.0
 	for width in base_widths:
 		base_total += width
-	var width_scale := minf((available_control_width - control_gap * 8.0) / base_total, 1.0)
+	var width_scale := minf((available_control_width - control_gap * 9.0) / base_total, 1.0)
 	for index in base_widths.size():
 		base_widths[index] *= width_scale
-	build_button_rect = Rect2(
+	gunslinger_button_rect = Rect2(
 		safe_view_rect.position.x + GRID_MARGIN,
 		footer_y,
 		base_widths[0],
 		button_height
 	)
-	mortar_button_rect = Rect2(
-		build_button_rect.end.x + control_gap,
+	anti_materiel_button_rect = Rect2(
+		gunslinger_button_rect.end.x + control_gap,
 		footer_y,
 		base_widths[1],
 		button_height
 	)
-	beam_button_rect = Rect2(
-		mortar_button_rect.end.x + control_gap,
+	flamespitter_button_rect = Rect2(
+		anti_materiel_button_rect.end.x + control_gap,
 		footer_y,
 		base_widths[2],
 		button_height
 	)
-	wall_button_rect = Rect2(
-		beam_button_rect.end.x + control_gap,
+	bombardment_button_rect = Rect2(
+		flamespitter_button_rect.end.x + control_gap,
 		footer_y,
 		base_widths[3],
+		button_height
+	)
+	wall_button_rect = Rect2(
+		bombardment_button_rect.end.x + control_gap,
+		footer_y,
+		base_widths[4],
 		button_height
 	)
 	start_button_rect = Rect2(
 		wall_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[4],
+		base_widths[5],
 		button_height
 	)
 	upgrade_button_rect = Rect2(
 		start_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[5],
+		base_widths[6],
 		button_height
 	)
 	sell_button_rect = Rect2(
 		upgrade_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[6],
+		base_widths[7],
 		button_height
 	)
 	export_button_rect = Rect2(
 		sell_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[7],
+		base_widths[8],
 		button_height
 	)
 	new_map_button_rect = Rect2(
 		export_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[8],
+		base_widths[9],
 		button_height
 	)
 

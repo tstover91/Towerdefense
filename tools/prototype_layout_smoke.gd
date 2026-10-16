@@ -38,22 +38,27 @@ func _run() -> void:
 			"%s keeps the entire board inside the safe viewport" % viewport_size
 		)
 		_assert(
-			board.safe_view_rect.encloses(board.build_button_rect),
+			board.safe_view_rect.encloses(board.gunslinger_button_rect),
 			"%s keeps the tower control inside the safe viewport" % viewport_size
 		)
 		_assert(
-			board.safe_view_rect.encloses(board.mortar_button_rect)
-			and board.safe_view_rect.encloses(board.beam_button_rect),
+			board.safe_view_rect.encloses(board.anti_materiel_button_rect),
 			"%s keeps every tower control inside the safe viewport" % viewport_size
+		)
+		_assert(
+			board.safe_view_rect.encloses(board.flamespitter_button_rect)
+			and board.safe_view_rect.encloses(board.bombardment_button_rect),
+			"%s keeps the Fire controls inside the safe viewport" % viewport_size
 		)
 		_assert(
 			board.safe_view_rect.encloses(board.wall_button_rect),
 			"%s keeps the wall control inside the safe viewport" % viewport_size
 		)
 		_assert(
-			board.build_button_rect.size.y >= 60.0
-			and board.mortar_button_rect.size.y >= 60.0
-			and board.beam_button_rect.size.y >= 60.0
+			board.gunslinger_button_rect.size.y >= 60.0
+			and board.anti_materiel_button_rect.size.y >= 60.0
+			and board.flamespitter_button_rect.size.y >= 60.0
+			and board.bombardment_button_rect.size.y >= 60.0
 			and board.wall_button_rect.size.y >= 60.0,
 			"%s gives build controls mobile-sized touch targets" % viewport_size
 		)

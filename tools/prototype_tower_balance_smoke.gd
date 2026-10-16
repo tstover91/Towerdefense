@@ -6,9 +6,10 @@ var failure_count := 0
 
 
 func _init() -> void:
-	_check_gun_curve()
-	_check_mortar_curve()
-	_check_beam_curve()
+	_check_gunslinger_curve()
+	_check_anti_materiel_curve()
+	_check_flamespitter_curve()
+	_check_bombardment_curve()
 	if failure_count > 0:
 		quit(1)
 		return
@@ -16,31 +17,45 @@ func _init() -> void:
 	quit(0)
 
 
-func _check_gun_curve() -> void:
-	var tower = _make_tower(TowerScript.TYPE_GUN)
-	_assert(TowerScript.get_build_cost(TowerScript.TYPE_GUN) == 150, "gun has the cheap starter price")
-	_assert(_range_curve(TowerScript.TYPE_GUN) == [2.5, 2.6, 2.8, 3.1], "gun keeps a compact general-purpose range")
-	_assert(_collect_upgrade_costs(tower) == [50, 300, 900], "gun upgrades use the small, medium, capstone price curve")
-	_assert(_dps_curve(TowerScript.TYPE_GUN) == [10.0, 13.33, 40.0, 100.0], "gun power is modest early and strongly backloaded")
+func _check_gunslinger_curve() -> void:
+	var tower = _make_tower(TowerScript.TYPE_GUNSLINGER)
+	_assert(TowerScript.get_build_cost(TowerScript.TYPE_GUNSLINGER) == 150, "Gunslinger has the cheap Steel starter price")
+	_assert(_range_curve(TowerScript.TYPE_GUNSLINGER) == [2.5, 2.6, 2.8, 3.1], "Gunslinger keeps compact general-purpose range")
+	_assert(_collect_upgrade_costs(tower) == [50, 300, 900], "Gunslinger uses the small, medium, capstone price curve")
+	_assert(_dps_curve(TowerScript.TYPE_GUNSLINGER) == [10.0, 13.33, 40.0, 100.0], "Gunslinger direct DPS is strongly backloaded")
+	_assert(_pierce_curve(TowerScript.TYPE_GUNSLINGER) == [0, 0, 1, 1], "Gunslinger gains one standard pierce on later levels")
 
 
-func _check_mortar_curve() -> void:
-	var tower = _make_tower(TowerScript.TYPE_MORTAR)
-	_assert(TowerScript.get_build_cost(TowerScript.TYPE_MORTAR) == 350, "mortar costs more than two base guns")
-	_assert(_range_curve(TowerScript.TYPE_MORTAR) == [3.3, 3.4, 3.6, 4.0], "mortar remains the longest-range tower without covering the board")
-	_assert(_collect_upgrade_costs(tower) == [150, 600, 1800], "mortar splash growth has an appropriately expensive capstone")
-	var curve := _dps_curve(TowerScript.TYPE_MORTAR)
-	_assert(curve[1] < curve[0] * 1.4, "mortar's first upgrade is intentionally modest")
-	_assert(curve[3] > curve[0] * 8.0, "mortar's final direct damage is a major jump before splash is counted")
+func _check_anti_materiel_curve() -> void:
+	var tower = _make_tower(TowerScript.TYPE_ANTI_MATERIEL)
+	_assert(TowerScript.get_build_cost(TowerScript.TYPE_ANTI_MATERIEL) == 350, "Anti-Materiel is the heavier Steel investment")
+	_assert(_range_curve(TowerScript.TYPE_ANTI_MATERIEL) == [3.3, 3.4, 3.6, 4.0], "Anti-Materiel has deliberate long-range placement")
+	_assert(_collect_upgrade_costs(tower) == [150, 600, 1800], "Anti-Materiel reserves most investment for its capstone")
+	_assert(_pierce_curve(TowerScript.TYPE_ANTI_MATERIEL) == [1, 1, 1, 1], "Anti-Materiel always hits exactly one enemy after its primary target")
+	_assert(_dps_curve(TowerScript.TYPE_ANTI_MATERIEL) == [12.73, 18.0, 41.67, 116.13], "Anti-Materiel tracks its investment curve without excessive late DPS")
+	_assert(TowerScript.get_piercing_damage(100, 1) == 70, "the first pierced enemy receives the shared 70 percent damage")
+	_assert(TowerScript.get_piercing_damage(100, 2) == 40, "shared pierce falloff reaches its 40 percent floor")
 
 
-func _check_beam_curve() -> void:
-	var tower = _make_tower(TowerScript.TYPE_BEAM)
-	_assert(TowerScript.get_build_cost(TowerScript.TYPE_BEAM) == 750, "beam is delayed as the endgame tower")
-	_assert(_range_curve(TowerScript.TYPE_BEAM) == [2.8, 2.9, 3.1, 3.4], "beam must be placed deliberately despite its endgame power")
-	_assert(_collect_upgrade_costs(tower) == [200, 700, 2700], "beam reserves most investment for its capstone")
-	var max_dps := _beam_max_dps_curve()
-	_assert(max_dps == [32.0, 40.0, 80.0, 200.0], "beam sustained DPS follows the accelerator-style curve")
+func _check_flamespitter_curve() -> void:
+	var tower = _make_tower(TowerScript.TYPE_FLAMESPITTER)
+	_assert(TowerScript.get_build_cost(TowerScript.TYPE_FLAMESPITTER) == 150, "Flamespitter has the Fire starter price")
+	_assert(_range_curve(TowerScript.TYPE_FLAMESPITTER) == [1.8, 1.9, 2.0, 2.2], "Flamespitter remains a short-range tower")
+	_assert(_collect_upgrade_costs(tower) == [50, 300, 900], "Flamespitter uses the starter upgrade curve")
+	_assert(_stat_curve(TowerScript.TYPE_FLAMESPITTER, "cone_degrees") == [60.0, 65.0, 82.0, 90.0], "Flamespitter's cone becomes meaningfully wider")
+	_assert(_stat_curve(TowerScript.TYPE_FLAMESPITTER, "target_limit") == [3.0, 4.0, 5.0, 6.0], "Flamespitter gains a controlled number of cone targets")
+	_assert(_float_curves_match(_flame_dps_curve(), [5.0, 6.98, 18.82, 41.67]), "Flamespitter trades single-target damage for capped crowd damage")
+
+
+func _check_bombardment_curve() -> void:
+	var tower = _make_tower(TowerScript.TYPE_BOMBARDMENT)
+	_assert(TowerScript.get_build_cost(TowerScript.TYPE_BOMBARDMENT) == 350, "Bombardment is the heavier Fire investment")
+	_assert(_collect_upgrade_costs(tower) == [150, 600, 1800], "Bombardment uses the heavy upgrade curve")
+	_assert(_stat_curve(TowerScript.TYPE_BOMBARDMENT, "shells") == [1.0, 1.0, 2.0, 3.0], "Bombardment gains its staggered barrage at later levels")
+	_assert(_stat_curve(TowerScript.TYPE_BOMBARDMENT, "stun") == [0.0, 0.0, 0.0, 0.4], "only level-four Bombardment receives a short stun")
+	var dps := _bombardment_dps_curve()
+	_assert(dps[1] < dps[0] * 1.5, "Bombardment's first upgrade remains modest")
+	_assert(dps[3] > dps[0] * 8.0, "Bombardment's three-shell capstone is a major power increase")
 
 
 func _make_tower(type: StringName):
@@ -80,17 +95,64 @@ func _range_curve(type: StringName) -> Array[float]:
 	return result
 
 
-func _beam_max_dps_curve() -> Array[float]:
-	var tower = _make_tower(TowerScript.TYPE_BEAM)
-	var result: Array[float] = []
+func _pierce_curve(type: StringName) -> Array[int]:
+	var tower = _make_tower(type)
+	var result: Array[int] = []
 	while true:
-		var stats: Dictionary = tower._get_stats()
-		var max_hit := tower.get_damage() + int(stats["ramp"]) * 3
-		result.append(snappedf(float(max_hit) / tower.get_attack_interval(), 0.01))
+		result.append(tower.get_pierce_count())
 		if not tower.can_upgrade():
 			break
 		tower.upgrade(tower.get_next_upgrade_cost())
 	return result
+
+
+func _stat_curve(type: StringName, stat_name: String) -> Array[float]:
+	var tower = _make_tower(type)
+	var result: Array[float] = []
+	while true:
+		result.append(float(tower._get_stats().get(stat_name, 0.0)))
+		if not tower.can_upgrade():
+			break
+		tower.upgrade(tower.get_next_upgrade_cost())
+	return result
+
+
+func _flame_dps_curve() -> Array[float]:
+	var tower = _make_tower(TowerScript.TYPE_FLAMESPITTER)
+	var result: Array[float] = []
+	while true:
+		var stats: Dictionary = tower._get_stats()
+		var damage := float(tower.get_damage())
+		if bool(stats.get("continuous", false)):
+			result.append(damage / float(stats["tick_interval"]))
+		else:
+			var ticks := int(stats["spray_ticks"])
+			var cycle_duration := float(maxi(ticks - 1, 0)) * float(stats["tick_interval"]) + float(stats["spray_gap"])
+			result.append(damage * float(ticks) / cycle_duration)
+		if not tower.can_upgrade():
+			break
+		tower.upgrade(tower.get_next_upgrade_cost())
+	return result
+
+
+func _bombardment_dps_curve() -> Array[float]:
+	var tower = _make_tower(TowerScript.TYPE_BOMBARDMENT)
+	var result: Array[float] = []
+	while true:
+		result.append(float(tower.get_damage() * tower.get_shell_count()) / tower.get_attack_interval())
+		if not tower.can_upgrade():
+			break
+		tower.upgrade(tower.get_next_upgrade_cost())
+	return result
+
+
+func _float_curves_match(actual: Array[float], expected: Array[float]) -> bool:
+	if actual.size() != expected.size():
+		return false
+	for index in actual.size():
+		if absf(actual[index] - expected[index]) > 0.01:
+			return false
+	return true
 
 
 func _assert(condition: bool, description: String) -> void:
