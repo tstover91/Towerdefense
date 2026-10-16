@@ -1,6 +1,7 @@
 extends SceneTree
 
 const PrototypeScene = preload("res://prototype/prototype_main.tscn")
+const TowerScript = preload("res://prototype/prototype_tower.gd")
 
 var resolved_enemy_count := 0
 var failure_count := 0
@@ -158,6 +159,21 @@ func _run() -> void:
 	game._on_start_wave_requested()
 	_assert(game.economy.locked_interest == 13, "wave start locks 3% interest through the game coordinator")
 	board.spawn_enemy({
+		"health": 2,
+		"speed_cells_per_second": 0.1,
+		"leak_damage": 1,
+	})
+	var tracked_enemy: Node2D = board.active_followers[-1]
+	var tracked_beam: Node2D = TowerScript.new()
+	board.add_child(tracked_beam)
+	tracked_beam.configure(Vector2i.ZERO, Callable(board, "get_cell_size"), TowerScript.TYPE_BEAM)
+	tracked_beam.position = tracked_enemy.position
+	tracked_beam.damage_dealt.connect(board._on_tower_damage_dealt)
+	tracked_beam._fire_at(tracked_enemy)
+	await process_frame
+	_assert(not is_instance_valid(tracked_enemy), "a lethal beam hit resolves its enemy immediately")
+	tracked_beam.queue_free()
+	board.spawn_enemy({
 		"health": 9999,
 		"speed_cells_per_second": 1.0,
 		"leak_damage": 1,
@@ -184,6 +200,7 @@ func _run() -> void:
 	game.round_controller.schedule_index = game.round_controller.schedule.size()
 	game.round_controller.active_enemy_count = 0
 	_assert(game.round_controller._try_complete_wave(), "forced integration wave completes")
+	await process_frame
 	_assert(game.economy.credits == 653, "wave clear pays $200 plus the locked $13 interest")
 	_assert(
 		board.status_override == "Wave reward $200 + interest $13",
@@ -196,15 +213,19 @@ func _run() -> void:
 	_assert(game.economy.credits == 503, "building remains available between waves")
 	_assert(game.run_stats.get_rows().size() == 1, "wave completion records one telemetry row")
 	var stats_row: Dictionary = game.run_stats.get_rows()[0]
-	_assert(int(stats_row["spawned_health"]) == 9999, "telemetry records effective spawned health")
+	_assert(int(stats_row["spawned_health"]) == 10001, "telemetry records effective spawned health")
+	_assert(int(stats_row["defeated_enemies"]) == 1, "telemetry includes an enemy killed on the final hit")
+	_assert(int(stats_row["beam_damage"]) == 2, "telemetry includes the killing beam damage")
+	_assert(int(stats_row["beam_l1_damage"]) == 2, "telemetry attributes damage to tower level")
 	_assert(int(stats_row["tower_count"]) == 0, "telemetry snapshots the end-of-wave tower count")
 	var export_result: Dictionary = game.run_stats.export_reports_to_project()
 	game.board.show_stats_export_result(export_result)
 	if not bool(export_result.get("success", false)):
 		push_error("Stats export failed: %s" % String(export_result.get("message", "unknown error")))
 	_assert(
-		FileAccess.file_exists("res://balance_reports/prototype_run_stats.csv")
-		and FileAccess.file_exists("res://balance_reports/prototype_run_stats.json"),
+		FileAccess.file_exists(ProjectSettings.globalize_path("res://balance_reports/prototype_run_stats.csv"))
+		and FileAccess.file_exists(ProjectSettings.globalize_path("res://balance_reports/prototype_run_stats.json"))
+		and FileAccess.file_exists(ProjectSettings.globalize_path("res://balance_reports/.gdignore")),
 		"the stats control exports both reports into the project folder"
 	)
 	var terminal_tower_count: int = board.towers_by_cell.size()

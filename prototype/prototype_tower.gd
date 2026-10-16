@@ -1,7 +1,7 @@
 class_name PrototypeTower
 extends Node2D
 
-signal damage_dealt(tower_type: StringName, amount: int)
+signal damage_dealt(tower_type: StringName, tower_level: int, amount: int)
 
 const ProjectileScript = preload("res://prototype/prototype_projectile.gd")
 
@@ -14,22 +14,22 @@ const TYPE_DATA := {
 	# Each price curve follows the same broad TDS shape: a cheap, modest first
 	# upgrade, a defining midgame jump, and an expensive late-game capstone.
 	TYPE_GUN: {"name": "GUN", "cost": 150, "upgrade_costs": [50, 300, 900], "color": Color("e84f3d"), "stats": [
-		{"damage": 8, "interval": 0.80, "range_cells": 3.2},
-		{"damage": 8, "interval": 0.60, "range_cells": 3.3},
-		{"damage": 18, "interval": 0.45, "range_cells": 3.6},
-		{"damage": 40, "interval": 0.40, "range_cells": 4.0},
+		{"damage": 8, "interval": 0.80, "range_cells": 2.5},
+		{"damage": 8, "interval": 0.60, "range_cells": 2.6},
+		{"damage": 18, "interval": 0.45, "range_cells": 2.8},
+		{"damage": 40, "interval": 0.40, "range_cells": 3.1},
 	]},
 	TYPE_MORTAR: {"name": "MORTAR", "cost": 350, "upgrade_costs": [150, 600, 1800], "color": Color("efb83d"), "splash_cells": [1.15, 1.20, 1.40, 1.70], "stats": [
-		{"damage": 20, "interval": 2.00, "range_cells": 4.2},
-		{"damage": 24, "interval": 1.80, "range_cells": 4.3},
-		{"damage": 55, "interval": 1.70, "range_cells": 4.6},
-		{"damage": 130, "interval": 1.55, "range_cells": 5.0},
+		{"damage": 20, "interval": 2.00, "range_cells": 3.3},
+		{"damage": 24, "interval": 1.80, "range_cells": 3.4},
+		{"damage": 55, "interval": 1.70, "range_cells": 3.6},
+		{"damage": 130, "interval": 1.55, "range_cells": 4.0},
 	]},
 	TYPE_BEAM: {"name": "BEAM", "cost": 750, "upgrade_costs": [200, 700, 2700], "color": Color("8c69d4"), "stats": [
-		{"damage": 2, "interval": 0.25, "range_cells": 3.6, "ramp": 2},
-		{"damage": 2, "interval": 0.20, "range_cells": 3.7, "ramp": 2},
-		{"damage": 4, "interval": 0.20, "range_cells": 4.0, "ramp": 4},
-		{"damage": 8, "interval": 0.16, "range_cells": 4.4, "ramp": 8},
+		{"damage": 2, "interval": 0.25, "range_cells": 2.8, "ramp": 2},
+		{"damage": 2, "interval": 0.20, "range_cells": 2.9, "ramp": 2},
+		{"damage": 4, "interval": 0.20, "range_cells": 3.1, "ramp": 4},
+		{"damage": 8, "interval": 0.16, "range_cells": 3.4, "ramp": 8},
 	]},
 }
 const BODY_DARK := Color("171717")
@@ -246,7 +246,7 @@ func _fire_at(current_target: Node2D) -> void:
 
 func record_damage(amount: int) -> void:
 	if amount > 0:
-		damage_dealt.emit(tower_type, amount)
+		damage_dealt.emit(tower_type, level, amount)
 
 
 func _draw() -> void:

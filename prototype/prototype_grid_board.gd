@@ -9,7 +9,9 @@ signal start_wave_requested
 signal enemy_resolved(leaked: bool, leak_damage: int)
 signal enemies_added(count: int)
 signal enemy_spawned_for_stats(enemy_type: StringName, max_health: int)
-signal tower_damage_recorded(tower_type: StringName, amount: int)
+signal enemy_resolved_for_stats(leaked: bool, leak_damage: int, progress_ratio: float)
+signal tower_damage_recorded(tower_type: StringName, tower_level: int, amount: int)
+signal structure_action_recorded(action: StringName, tower_type: StringName, tower_level: int, amount: int)
 signal export_stats_requested
 
 const GRID_SIZE := Vector2i(19, 10)
@@ -642,6 +644,7 @@ func _try_place_building(cell: Vector2i) -> bool:
 			return false
 		router.add_dynamic_block(cell)
 		walls_by_cell[cell] = true
+		structure_action_recorded.emit(&"wall_built", &"wall", 0, 0)
 		_select_wall(cell)
 		status_message = "Wall placed. Every required route remains open."
 		_after_blocks_changed(route_plan)
@@ -662,6 +665,7 @@ func _try_place_building(cell: Vector2i) -> bool:
 	if StringName(combat_state.get("phase", &"build")) == &"active":
 		tower.mark_participated()
 	towers_by_cell[cell] = tower
+	structure_action_recorded.emit(&"tower_built", tower.tower_type, tower.level, tower_cost)
 	_select_tower(tower)
 	status_message = "Tower placed. All entrance and active-unit routes remain open."
 	_after_blocks_changed(route_plan)
@@ -1009,6 +1013,8 @@ func _create_enemy(enemy_data: Dictionary, continuation: Dictionary = {}) -> voi
 		enemy.speed_pixels_per_second = enemy.base_speed_cells_per_second * cell_size
 	if enemy_data.has("leak_damage"):
 		enemy.leak_damage = maxi(int(enemy_data["leak_damage"]), 1)
+	if enemy_data.has("initial_route_progress"):
+		enemy.route_progress = maxf(float(enemy_data["initial_route_progress"]), 0.0)
 	enemy.set_meta(
 		"speed_cells_per_second",
 		float(enemy.base_speed_cells_per_second)
@@ -1032,15 +1038,22 @@ func _create_enemy(enemy_data: Dictionary, continuation: Dictionary = {}) -> voi
 	queue_redraw()
 
 
-func _on_tower_damage_dealt(tower_type: StringName, amount: int) -> void:
-	tower_damage_recorded.emit(tower_type, amount)
+func _on_tower_damage_dealt(tower_type: StringName, tower_level: int, amount: int) -> void:
+	tower_damage_recorded.emit(tower_type, tower_level, amount)
+
+
+func _get_enemy_progress_ratio(enemy: Node2D) -> float:
+	var route_steps := maxf(float(displayed_route.size() - 1), 1.0)
+	return clampf(float(enemy.get("route_progress")) / route_steps, 0.0, 1.0)
 
 
 func _on_enemy_reached_exit(enemy: Node2D) -> void:
 	if not is_instance_valid(enemy) or bool(enemy.get("finished")):
 		return
+	var progress_ratio := _get_enemy_progress_ratio(enemy)
 	enemy.mark_leaked()
 	active_followers.erase(enemy)
+	enemy_resolved_for_stats.emit(true, int(enemy.get("leak_damage")), progress_ratio)
 	enemy_resolved.emit(true, int(enemy.get("leak_damage")))
 	enemy.queue_free()
 	queue_redraw()
@@ -1053,9 +1066,12 @@ func _on_enemy_defeated(enemy: Node2D) -> void:
 	var continuation: Dictionary = enemy.get_continuation_state() if release_count > 0 else {}
 	var release_scale := float(enemy.get_meta("health_scale", 1.0))
 	var release_group := int(enemy.get("formation_id"))
+	var progress_ratio := _get_enemy_progress_ratio(enemy)
+	var inherited_progress := float(enemy.get("route_progress"))
 	if release_count > 0:
 		enemies_added.emit(release_count)
 	active_followers.erase(enemy)
+	enemy_resolved_for_stats.emit(false, 0, progress_ratio)
 	enemy_resolved.emit(false, 0)
 	enemy.queue_free()
 	for child_index in release_count:
@@ -1064,6 +1080,7 @@ func _on_enemy_defeated(enemy: Node2D) -> void:
 			"health_scale": release_scale * 0.65,
 			"group_index": release_group,
 			"index_in_group": 100 + child_index,
+			"initial_route_progress": inherited_progress,
 		}, continuation)
 	queue_redraw()
 
@@ -1118,14 +1135,28 @@ func mark_all_towers_participated() -> void:
 
 func get_telemetry_snapshot() -> Dictionary:
 	var levels := [0, 0, 0, 0]
+	var type_counts := {"gun": 0, "mortar": 0, "beam": 0}
+	var type_investment := {"gun": 0, "mortar": 0, "beam": 0}
+	var type_levels: Dictionary = {}
+	for tower_type in ["gun", "mortar", "beam"]:
+		for tower_level in range(1, 5):
+			type_levels["%s_l%d" % [tower_type, tower_level]] = 0
 	for tower in towers_by_cell.values():
 		if not is_instance_valid(tower):
 			continue
 		var level_index: int = clampi(int(tower.level) - 1, 0, levels.size() - 1)
 		levels[level_index] += 1
+		var type_key := String(tower.tower_type)
+		type_counts[type_key] = int(type_counts.get(type_key, 0)) + 1
+		type_investment[type_key] = int(type_investment.get(type_key, 0)) + int(tower.total_investment)
+		var type_level_key := "%s_l%d" % [type_key, int(tower.level)]
+		type_levels[type_level_key] = int(type_levels.get(type_level_key, 0)) + 1
 	return {
 		"tower_count": towers_by_cell.size(),
 		"tower_levels": levels,
+		"tower_type_counts": type_counts,
+		"tower_type_levels": type_levels,
+		"tower_type_investment": type_investment,
 		"wall_count": walls_by_cell.size(),
 		"route_steps": maxi(displayed_route.size() - 1, 0),
 	}
@@ -1205,6 +1236,12 @@ func _upgrade_selected_tower() -> void:
 		queue_redraw()
 		return
 	if selected_tower.upgrade(upgrade_cost):
+		structure_action_recorded.emit(
+			&"tower_upgraded",
+			selected_tower.tower_type,
+			selected_tower.level,
+			upgrade_cost
+		)
 		status_message = "Tower upgraded to level %d." % selected_tower.level
 	else:
 		economy.add_credits(upgrade_cost)
@@ -1222,10 +1259,13 @@ func _sell_selected_tower() -> void:
 		return
 	var cell: Vector2i = selected_tower.grid_cell
 	var refund := int(selected_tower.get_sell_refund())
+	var sold_type: StringName = selected_tower.tower_type
+	var sold_level: int = selected_tower.level
 	towers_by_cell.erase(cell)
 	router.remove_dynamic_block(cell)
 	economy.release_power()
 	economy.add_credits(refund)
+	structure_action_recorded.emit(&"tower_sold", sold_type, sold_level, refund)
 	selected_tower.queue_free()
 	selected_tower = null
 	status_message = "Tower sold for $%d. Active enemies retained their positions." % refund
@@ -1253,6 +1293,7 @@ func _remove_selected_wall() -> void:
 	walls_by_cell.erase(cell)
 	router.remove_dynamic_block(cell)
 	economy.release_wall()
+	structure_action_recorded.emit(&"wall_removed", &"wall", 0, 0)
 	selected_wall_cell = Vector2i(-1, -1)
 	status_message = "Wall removed. One Wall is available again."
 	_after_blocks_changed()

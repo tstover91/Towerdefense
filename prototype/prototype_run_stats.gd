@@ -16,6 +16,12 @@ var resolved_enemies := 0
 var leaks := 0
 var spawned_by_type: Dictionary = {}
 var damage_by_type: Dictionary = {}
+var damage_by_type_level: Dictionary = {}
+var max_enemy_progress := 0.0
+var enemies_reaching_75_percent := 0
+var enemies_reaching_90_percent := 0
+var pending_actions: Dictionary = _new_action_counts()
+var wave_actions: Dictionary = _new_action_counts()
 
 
 func begin_wave(wave: int, credits: int, lives: int) -> void:
@@ -28,8 +34,16 @@ func begin_wave(wave: int, credits: int, lives: int) -> void:
 	leaks = 0
 	spawned_by_type.clear()
 	damage_by_type.clear()
+	damage_by_type_level.clear()
+	max_enemy_progress = 0.0
+	enemies_reaching_75_percent = 0
+	enemies_reaching_90_percent = 0
+	wave_actions = pending_actions.duplicate(true)
+	pending_actions = _new_action_counts()
 	for tower_type in DAMAGE_TYPES:
 		damage_by_type[tower_type] = 0
+		for tower_level in range(1, 5):
+			damage_by_type_level["%s_l%d" % [tower_type, tower_level]] = 0
 
 
 func is_wave_active() -> bool:
@@ -44,19 +58,51 @@ func record_spawn(enemy_type: StringName, max_health: int) -> void:
 		spawned_by_type[key] = int(spawned_by_type.get(key, 0)) + 1
 
 
-func record_damage(tower_type: StringName, amount: int) -> void:
+func record_damage(tower_type: StringName, tower_level: int, amount: int) -> void:
 	if not is_wave_active() or amount <= 0:
 		return
 	var key := String(tower_type)
 	damage_by_type[key] = int(damage_by_type.get(key, 0)) + amount
+	var level_key := "%s_l%d" % [key, clampi(tower_level, 1, 4)]
+	damage_by_type_level[level_key] = int(damage_by_type_level.get(level_key, 0)) + amount
 
 
-func record_enemy_resolved(leaked: bool, _leak_damage: int) -> void:
+func record_enemy_resolved(leaked: bool, _leak_damage: int, progress_ratio: float) -> void:
 	if not is_wave_active():
 		return
 	resolved_enemies += 1
+	var safe_progress := clampf(progress_ratio, 0.0, 1.0)
+	max_enemy_progress = maxf(max_enemy_progress, safe_progress)
+	if safe_progress >= 0.75:
+		enemies_reaching_75_percent += 1
+	if safe_progress >= 0.90:
+		enemies_reaching_90_percent += 1
 	if leaked:
 		leaks += 1
+
+
+func record_structure_action(action: StringName, _tower_type: StringName, _tower_level: int, amount: int) -> void:
+	var target := wave_actions if is_wave_active() else pending_actions
+	var action_key := String(action)
+	if target.has(action_key):
+		target[action_key] = int(target[action_key]) + 1
+	match action:
+		&"tower_built", &"tower_upgraded":
+			target["credits_spent"] = int(target["credits_spent"]) + maxi(amount, 0)
+		&"tower_sold":
+			target["credits_refunded"] = int(target["credits_refunded"]) + maxi(amount, 0)
+
+
+func _new_action_counts() -> Dictionary:
+	return {
+		"tower_built": 0,
+		"tower_upgraded": 0,
+		"tower_sold": 0,
+		"wall_built": 0,
+		"wall_removed": 0,
+		"credits_spent": 0,
+		"credits_refunded": 0,
+	}
 
 
 func finish_wave(
@@ -71,6 +117,9 @@ func finish_wave(
 	if active_wave != wave:
 		return {}
 	var levels: Array = board_state.get("tower_levels", [0, 0, 0, 0])
+	var type_counts: Dictionary = board_state.get("tower_type_counts", {})
+	var type_levels: Dictionary = board_state.get("tower_type_levels", {})
+	var type_investment: Dictionary = board_state.get("tower_type_investment", {})
 	var total_damage := 0
 	for amount in damage_by_type.values():
 		total_damage += int(amount)
@@ -87,6 +136,12 @@ func finish_wave(
 		"level_2_towers": int(levels[1]) if levels.size() > 1 else 0,
 		"level_3_towers": int(levels[2]) if levels.size() > 2 else 0,
 		"level_4_towers": int(levels[3]) if levels.size() > 3 else 0,
+		"gun_count": int(type_counts.get("gun", 0)),
+		"mortar_count": int(type_counts.get("mortar", 0)),
+		"beam_count": int(type_counts.get("beam", 0)),
+		"gun_investment": int(type_investment.get("gun", 0)),
+		"mortar_investment": int(type_investment.get("mortar", 0)),
+		"beam_investment": int(type_investment.get("beam", 0)),
 		"power_used": int(economy_state.get("used_power", 0)),
 		"power_limit": int(economy_state.get("power_limit", 0)),
 		"wall_count": int(board_state.get("wall_count", 0)),
@@ -103,10 +158,25 @@ func finish_wave(
 		"gun_damage": int(damage_by_type.get("gun", 0)),
 		"mortar_damage": int(damage_by_type.get("mortar", 0)),
 		"beam_damage": int(damage_by_type.get("beam", 0)),
+		"max_enemy_progress_percent": snappedf(max_enemy_progress * 100.0, 0.1),
+		"enemies_reaching_75_percent": enemies_reaching_75_percent,
+		"enemies_reaching_90_percent": enemies_reaching_90_percent,
+		"towers_built": int(wave_actions.get("tower_built", 0)),
+		"towers_upgraded": int(wave_actions.get("tower_upgraded", 0)),
+		"towers_sold": int(wave_actions.get("tower_sold", 0)),
+		"walls_built": int(wave_actions.get("wall_built", 0)),
+		"walls_removed": int(wave_actions.get("wall_removed", 0)),
+		"credits_spent": int(wave_actions.get("credits_spent", 0)),
+		"credits_refunded": int(wave_actions.get("credits_refunded", 0)),
 		"leaks": leaks,
 		"lives_lost": maxi(starting_lives - lives_remaining, 0),
 		"lives_remaining": lives_remaining,
 	}
+	for tower_type in DAMAGE_TYPES:
+		for tower_level in range(1, 5):
+			var type_level_key := "%s_l%d" % [tower_type, tower_level]
+			row["%s_count" % type_level_key] = int(type_levels.get(type_level_key, 0))
+			row["%s_damage" % type_level_key] = int(damage_by_type_level.get(type_level_key, 0))
 	rows.append(row)
 	active_wave = 0
 	_write_reports()
@@ -133,6 +203,11 @@ func export_reports_to_project() -> Dictionary:
 			"success": false,
 			"message": "Could not create the balance_reports folder.",
 		}
+	var ignore_file := FileAccess.open(export_directory.path_join(".gdignore"), FileAccess.WRITE)
+	if ignore_file != null:
+		ignore_file.store_string("# Keep exported telemetry out of Godot's resource importer.\n")
+		ignore_file.close()
+	_remove_translation_import_artifacts(export_directory)
 	var copied_files := 0
 	for source_path_value in [CSV_PATH, JSON_PATH]:
 		var source_path := String(source_path_value)
@@ -167,9 +242,26 @@ func _copy_file(source_path: String, destination_path: String) -> bool:
 		return false
 	var destination := FileAccess.open(destination_path, FileAccess.WRITE)
 	if destination == null:
+		source.close()
 		return false
 	destination.store_buffer(source.get_buffer(source.get_length()))
+	destination.close()
+	source.close()
 	return true
+
+
+func _remove_translation_import_artifacts(export_directory: String) -> void:
+	var directory := DirAccess.open(export_directory)
+	if directory == null:
+		return
+	for file_name in directory.get_files():
+		var is_report_import := file_name == "prototype_run_stats.csv.import"
+		var is_report_translation := (
+			file_name.begins_with("prototype_run_stats.")
+			and file_name.ends_with(".translation")
+		)
+		if is_report_import or is_report_translation:
+			directory.remove(file_name)
 
 
 func _write_reports() -> void:
@@ -187,13 +279,29 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 	var headers: Array[String] = [
 		"wave", "outcome", "duration_seconds", "base_reward", "interest_reward",
 		"starting_credits", "ending_credits", "tower_count", "level_1_towers",
-		"level_2_towers", "level_3_towers", "level_4_towers", "power_used",
+		"level_2_towers", "level_3_towers", "level_4_towers", "gun_count",
+		"mortar_count", "beam_count", "gun_investment", "mortar_investment",
+		"beam_investment",
+	]
+	for tower_type in DAMAGE_TYPES:
+		for tower_level in range(1, 5):
+			headers.append("%s_l%d_count" % [tower_type, tower_level])
+	headers.append_array([
+		"power_used",
 		"power_limit", "wall_count", "wall_limit", "route_steps", "spawned_enemies",
 		"spawned_health", "defeated_enemies", "soldier_spawns", "runner_spawns",
 		"giant_spawns", "carrier_spawns",
-		"total_damage", "gun_damage", "mortar_damage", "beam_damage", "leaks",
-		"lives_lost", "lives_remaining",
-	]
+		"total_damage", "gun_damage", "mortar_damage", "beam_damage",
+	])
+	for tower_type in DAMAGE_TYPES:
+		for tower_level in range(1, 5):
+			headers.append("%s_l%d_damage" % [tower_type, tower_level])
+	headers.append_array([
+		"max_enemy_progress_percent", "enemies_reaching_75_percent",
+		"enemies_reaching_90_percent", "towers_built", "towers_upgraded",
+		"towers_sold", "walls_built", "walls_removed", "credits_spent",
+		"credits_refunded", "leaks", "lives_lost", "lives_remaining",
+	])
 	csv_file.store_csv_line(PackedStringArray(headers))
 	for row in rows:
 		var values := PackedStringArray()
