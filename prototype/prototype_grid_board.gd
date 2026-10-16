@@ -1164,6 +1164,8 @@ func get_telemetry_snapshot() -> Dictionary:
 
 func show_wave_reward(reward: Dictionary) -> void:
 	var capacity_parts: Array[String] = []
+	var base_reward := int(reward.get("base_reward", 0))
+	var interest_reward := int(reward.get("interest_reward", 0))
 	var power_increase := int(reward.get("power_increase", 0))
 	var wall_increase := int(reward.get("wall_increase", 0))
 	if power_increase > 0:
@@ -1175,11 +1177,15 @@ func show_wave_reward(reward: Dictionary) -> void:
 		if not capacity_parts.is_empty()
 		else ""
 	)
-	status_override = "Wave reward $%d + interest $%d%s" % [
-		int(reward.get("base_reward", 0)),
-		int(reward.get("interest_reward", 0)),
-		capacity_suffix,
-	]
+	status_override = (
+		"Victory."
+		if base_reward == 0 and interest_reward == 0 and capacity_parts.is_empty()
+		else "Wave reward $%d + interest $%d%s" % [
+			base_reward,
+			interest_reward,
+			capacity_suffix,
+		]
+	)
 	status_override_expires_msec = (
 		Time.get_ticks_msec() + WAVE_REWARD_MESSAGE_DURATION_MSEC
 	)

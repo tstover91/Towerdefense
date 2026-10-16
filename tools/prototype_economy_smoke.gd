@@ -14,7 +14,10 @@ func _init() -> void:
 	var total_base_income := 0
 	for wave in range(1, 21):
 		total_base_income += economy.get_wave_reward(wave)
-	_assert(total_base_income == 29200, "twenty waves provide the intended guaranteed-income budget")
+	_assert(total_base_income == 27000, "nineteen spendable rewards provide the intended guaranteed-income budget")
+	_assert(economy.get_wave_reward(3) == 450, "the triangular curve avoids an early income spike")
+	_assert(economy.get_wave_reward(19) == 2700, "the triangular curve reserves more income for late upgrades")
+	_assert(economy.get_wave_reward(20) == 0, "the completed run does not pay unusable income")
 	for wall_index in economy.wall_limit:
 		_assert(economy.try_build_wall(), "wall %d fits within the starting limit" % wall_index)
 	_assert(not economy.try_build_wall(), "the wall limit rejects one extra wall")
@@ -31,9 +34,9 @@ func _init() -> void:
 	_assert(economy.locked_interest == 12, "later spending does not alter locked interest")
 
 	var wave_one: Dictionary = economy.complete_wave(1)
-	_assert(int(wave_one["base_reward"]) == 200, "wave one pays its table reward")
+	_assert(int(wave_one["base_reward"]) == 150, "wave one pays its table reward")
 	_assert(int(wave_one["interest_reward"]) == 12, "wave one pays locked interest")
-	_assert(economy.credits == 512, "wave reward and interest reach the balance")
+	_assert(economy.credits == 462, "wave reward and interest reach the balance")
 	_assert(not bool(wave_one["limits_increased"]), "wave one does not raise a capacity")
 	_assert(int(wave_one["power_increase"]) == 0, "wave one does not add Power")
 	_assert(int(wave_one["wall_increase"]) == 0, "wave one adds no Walls")
@@ -41,7 +44,7 @@ func _init() -> void:
 	_assert(economy.wall_limit == 5, "Wall capacity remains five after wave one")
 	var duplicate_wave_one: Dictionary = economy.complete_wave(1)
 	_assert(int(duplicate_wave_one["base_reward"]) == 0, "a wave cannot pay twice")
-	_assert(economy.credits == 512, "duplicate completion leaves credits unchanged")
+	_assert(economy.credits == 462, "duplicate completion leaves credits unchanged")
 
 	economy.begin_wave(2)
 	var wave_two: Dictionary = economy.complete_wave(2)
@@ -56,7 +59,7 @@ func _init() -> void:
 	_assert(economy.wall_limit == 14, "Walls reach their final cap after wave eighteen")
 
 	economy.credits = 10000
-	_assert(economy.get_projected_interest(1) == 50, "interest caps at one quarter of the base reward")
+	_assert(economy.get_projected_interest(1) == 37, "interest caps at one quarter of the base reward")
 	economy.release_power()
 	_assert(economy.used_power == 0, "selling releases used Power")
 	for power_index in economy.power_limit:

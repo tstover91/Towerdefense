@@ -6,13 +6,13 @@ const STARTING_POWER_LIMIT := 4
 const STARTING_WALL_LIMIT := 5
 const INTEREST_RATE := 0.03
 const INTEREST_REWARD_CAP_RATIO := 0.25
-# Guaranteed income arrives in distinct spending milestones instead of a
-# linear trickle. Kill income remains disabled while this baseline is tested.
+# Per-wave rewards rise approximately linearly, producing a triangular
+# cumulative-income curve. Wave 20 pays nothing because the run is already over.
 const WAVE_REWARDS: Array[int] = [
-	200, 300, 1000, 1000, 1000,
-	1200, 1300, 1500, 1500, 1550,
-	1600, 1650, 1700, 1700, 1800,
-	1900, 1950, 2050, 2100, 2200,
+	150, 300, 450, 550, 700,
+	850, 1000, 1150, 1300, 1400,
+	1550, 1700, 1850, 2000, 2150,
+	2250, 2400, 2550, 2700, 0,
 ]
 const POWER_INCREASES := {2: 2, 3: 1, 5: 2, 8: 3, 13: 4, 18: 4, 20: 2}
 const WALL_INCREASES := {3: 2, 5: 1, 8: 2, 13: 2, 18: 2}

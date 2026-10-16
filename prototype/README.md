@@ -32,14 +32,15 @@ are divided into two pushes. If the field clears early, the director advances
 the next push after a short 1.25-second breather rather than leaving dead time.
 The opening wave contains nine durable enemies, and formation sizes rise through
 the run so concentrated defenses cannot erase an entire round in one burst.
-The economy starts with $500, three tower slots, and five free Walls. Guns cost
-$100, Mortars cost $140, and Beams cost $180; upgrades cost $100, $300, and
-$800. There is no income per kill. Clearing a wave pays a
-base reward that starts at $120 and rises by $20 per wave, plus 5% interest on
-the credits held when the wave began. Interest is capped at half the wave's base
-reward. Each tower consumes one tower slot and each free wall consumes one Wall allowance. Capacity
-grows at scheduled milestones, reaching ten tower slots and eighteen Walls after
-wave 18. A tower sells for its full investment before
+The economy starts with $500, four tower slots, and five free Walls. Guns cost
+$150, Mortars cost $350, and Beams cost $750. Their three upgrades use
+tower-specific prices that grow sharply toward the level-four capstone. There is
+no income per kill. Wave rewards rise from $150 to $2,700 on a triangular
+cumulative-income curve, with no unusable payout after wave 20. Each wave also
+pays 3% interest on credits held when it began, capped at one quarter of that
+wave's base reward. Each tower consumes one tower slot and each free wall
+consumes one Wall allowance. Capacity grows at scheduled milestones, reaching
+22 tower slots and 14 Walls after wave 20. A tower sells for its full investment before
 participating in combat and 70% afterward.
 
 The prototype is landscape-only and uses a fixed 19 by 10 gameplay grid. Cell

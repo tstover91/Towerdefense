@@ -201,16 +201,16 @@ func _run() -> void:
 	game.round_controller.active_enemy_count = 0
 	_assert(game.round_controller._try_complete_wave(), "forced integration wave completes")
 	await process_frame
-	_assert(game.economy.credits == 653, "wave clear pays $200 plus the locked $13 interest")
+	_assert(game.economy.credits == 603, "wave clear pays $150 plus the locked $13 interest")
 	_assert(
-		board.status_override == "Wave reward $200 + interest $13",
+		board.status_override == "Wave reward $150 + interest $13",
 		"the coordinated wave reward is the final visible notification"
 	)
 
 	board._handle_screen_press(board.build_button_rect.get_center())
 	board._handle_screen_press(board._cell_center(unused_cell))
 	board._handle_screen_press(board._cell_center(unused_cell))
-	_assert(game.economy.credits == 503, "building remains available between waves")
+	_assert(game.economy.credits == 453, "building remains available between waves")
 	_assert(game.run_stats.get_rows().size() == 1, "wave completion records one telemetry row")
 	var stats_row: Dictionary = game.run_stats.get_rows()[0]
 	_assert(int(stats_row["spawned_health"]) == 10001, "telemetry records effective spawned health")
@@ -246,7 +246,7 @@ func _run() -> void:
 		board.towers_by_cell.size() == terminal_tower_count,
 		"build, upgrade, and sell transactions stop after the run"
 	)
-	_assert(game.economy.credits == 503, "terminal input cannot change the balance")
+	_assert(game.economy.credits == 453, "terminal input cannot change the balance")
 	_finish("PROTOTYPE_COMBAT_INTEGRATION_SMOKE_OK")
 
 
