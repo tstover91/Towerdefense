@@ -8,6 +8,13 @@ order may turn away from the exit, creating deliberate backward and sideways
 route sections, but a route can never reuse the same tile-to-tile edge. The seed
 is shown in the header and included in exported telemetry.
 Use **New Map** to reset the run and immediately generate another layout.
+Generated layouts are screened for route turns, excessive crossings and
+clumping, usable building space, board coverage, and overpowered single-tower
+positions before they are shown to the player.
+
+Run `res://tools/prototype_map_quality_audit.gd` headlessly to audit 200
+deterministic seeds and print the minimum, average, and maximum for every map
+quality metric.
 
 Run the project or `res://prototype/prototype_main.tscn` in Godot. Tap **Gun**,
 **Mortar**, **Beam**, or **Wall**, tap a grid cell to position the live route preview, then tap that

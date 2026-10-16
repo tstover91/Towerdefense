@@ -2,6 +2,7 @@ class_name PrototypeMapLayoutGenerator
 extends RefCounted
 
 const GridRouterScript = preload("res://prototype/grid_route_service.gd")
+const QualityEvaluatorScript = preload("res://prototype/prototype_map_quality_evaluator.gd")
 const WAYPOINT_COUNT := 3
 const MAX_CANDIDATES := 64
 const MIN_ROUTE_STEPS := 50
@@ -16,6 +17,7 @@ func generate(seed: int, grid_size: Vector2i, static_objects: Array[Vector2i]) -
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var target_steps := rng.randi_range(53, 57)
+	var quality_evaluator: RefCounted = QualityEvaluatorScript.new()
 	var best_layout: Dictionary = {}
 	var best_score := -INF
 	for _candidate_index in MAX_CANDIDATES:
@@ -38,11 +40,19 @@ func generate(seed: int, grid_size: Vector2i, static_objects: Array[Vector2i]) -
 			continue
 		if not _route_visits_markers_once(route, entrance, waypoints, exit_cell):
 			continue
+		var quality: Dictionary = quality_evaluator.evaluate(
+			grid_size, route, entrance, waypoints, exit_cell, static_objects
+		)
+		if not quality_evaluator.is_acceptable(quality):
+			continue
 		var score := -absf(float(route_steps - target_steps))
 		# Prefer markers that use both dimensions without forcing every map into
 		# the same left-to-right shape.
 		var marker_bounds := _marker_bounds(entrance, waypoints, exit_cell)
 		score += float(marker_bounds.size.x + marker_bounds.size.y) * 0.12
+		score += float(quality["turns"]) * 0.10
+		score -= float(quality["close_revisits"]) * 0.025
+		score -= float(quality["best_coverage_ratio"]) * 2.0
 		if score > best_score:
 			best_score = score
 			best_layout = {
@@ -53,6 +63,7 @@ func generate(seed: int, grid_size: Vector2i, static_objects: Array[Vector2i]) -
 				"route": route,
 				"route_steps": route_steps,
 				"has_backward_leg": true,
+				"quality": quality,
 			}
 	return best_layout
 

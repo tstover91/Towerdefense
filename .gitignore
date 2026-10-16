@@ -22,3 +22,4 @@ mono_crash.*.json
 /prototype_*_smoke.log
 /*_smoke.gd.log
 /random_*_smoke.log
+/*_audit.log
