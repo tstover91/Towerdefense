@@ -2,7 +2,8 @@
 
 This is the project's only gameplay scene and launches when the project runs.
 
-Each run generates a seeded entrance, exit, and three interior waypoints. Their
+Each run generates a seeded entrance in the first column, an exit in the last
+column, and three interior waypoints. Their
 order may turn away from the exit, creating deliberate backward and sideways
 route sections, but a route can never reuse the same tile-to-tile edge. The seed
 is shown in the header and included in exported telemetry.

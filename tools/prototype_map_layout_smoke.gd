@@ -27,8 +27,8 @@ func _init() -> void:
 		waypoints.assign(layout["waypoints"])
 		var route: Array[Vector2i] = []
 		route.assign(layout["route"])
-		_assert(_is_border_cell(entrance), "entrance is on the border")
-		_assert(_is_border_cell(exit_cell), "exit is on the border")
+		_assert(entrance.x == 0, "entrance is in the first column")
+		_assert(exit_cell.x == GRID_SIZE.x - 1, "exit is in the last column")
 		_assert(waypoints.size() == 3, "layout contains three waypoints")
 		_assert(bool(layout["has_backward_leg"]), "waypoint order includes a leg away from the exit")
 		_assert(route.size() - 1 >= 50 and route.size() - 1 <= 60, "route length stays in the fairness envelope")
@@ -45,10 +45,6 @@ func _init() -> void:
 
 func _signature(layout: Dictionary) -> String:
 	return "%s|%s|%s" % [layout["entrance"], layout["waypoints"], layout["exit_cell"]]
-
-
-func _is_border_cell(cell: Vector2i) -> bool:
-	return cell.x == 0 or cell.y == 0 or cell.x == GRID_SIZE.x - 1 or cell.y == GRID_SIZE.y - 1
 
 
 func _has_unique_edges(route: Array[Vector2i]) -> bool:

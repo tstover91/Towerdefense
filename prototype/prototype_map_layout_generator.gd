@@ -19,8 +19,8 @@ func generate(seed: int, grid_size: Vector2i, static_objects: Array[Vector2i]) -
 	var best_layout: Dictionary = {}
 	var best_score := -INF
 	for _candidate_index in MAX_CANDIDATES:
-		var entrance := _random_border_cell(rng, grid_size)
-		var exit_cell := _random_border_cell(rng, grid_size)
+		var entrance := Vector2i(0, rng.randi_range(1, grid_size.y - 2))
+		var exit_cell := Vector2i(grid_size.x - 1, rng.randi_range(1, grid_size.y - 2))
 		if entrance == exit_cell or _manhattan(entrance, exit_cell) < MIN_ENDPOINT_DISTANCE:
 			continue
 		if static_objects.has(entrance) or static_objects.has(exit_cell):
@@ -55,18 +55,6 @@ func generate(seed: int, grid_size: Vector2i, static_objects: Array[Vector2i]) -
 				"has_backward_leg": true,
 			}
 	return best_layout
-
-
-func _random_border_cell(rng: RandomNumberGenerator, grid_size: Vector2i) -> Vector2i:
-	match rng.randi_range(0, 3):
-		0:
-			return Vector2i(0, rng.randi_range(1, grid_size.y - 2))
-		1:
-			return Vector2i(grid_size.x - 1, rng.randi_range(1, grid_size.y - 2))
-		2:
-			return Vector2i(rng.randi_range(1, grid_size.x - 2), 0)
-		_:
-			return Vector2i(rng.randi_range(1, grid_size.x - 2), grid_size.y - 1)
 
 
 func _random_waypoints(
