@@ -15,9 +15,9 @@ const SPAWN_INTERVAL_MULTIPLIER := 1.35
 const LARGE_GROUP_SPLIT_GAP := 3.5
 
 const WAVES: Array[Dictionary] = [
-	{"scale": 1.00, "groups": [{"type": &"soldier", "count": 5, "interval": 0.58}, {"type": &"soldier", "count": 4, "interval": 0.52, "gap": 1.10}]},
+	{"scale": 0.95, "groups": [{"type": &"soldier", "count": 5, "interval": 0.58}, {"type": &"soldier", "count": 4, "interval": 0.52, "gap": 1.10}]},
 	{"scale": 1.28, "groups": [{"type": &"soldier", "count": 6, "interval": 0.52}, {"type": &"runner", "count": 4, "interval": 0.46, "gap": 1.00}]},
-	{"scale": 1.54, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.48}, {"type": &"runner", "count": 5, "interval": 0.42, "gap": 1.10}]},
+	{"scale": 1.30, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.48}, {"type": &"runner", "count": 5, "interval": 0.42, "gap": 1.10}]},
 	{"scale": 1.82, "groups": [{"type": &"soldier", "count": 7, "interval": 0.44}, {"members": [&"carrier", &"soldier", &"soldier", &"soldier"], "interval": 0.50, "gap": 1.00}]},
 	{"scale": 2.17, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.45}, {"type": &"runner", "count": 6, "interval": 0.36, "gap": 1.10}]},
 	{"scale": 2.53, "groups": [{"type": &"soldier", "count": 8, "interval": 0.40}, {"type": &"carrier", "count": 2, "interval": 0.80, "gap": 1.00}]},
@@ -27,13 +27,13 @@ const WAVES: Array[Dictionary] = [
 	{"scale": 4.62, "groups": [{"type": &"carrier", "count": 3, "interval": 0.65}, {"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.38, "gap": 1.00}]},
 	{"scale": 5.16, "groups": [{"type": &"soldier", "count": 10, "interval": 0.34}, {"type": &"runner", "count": 8, "interval": 0.27, "gap": 0.85}]},
 	{"scale": 5.84, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.36}, {"type": &"carrier", "count": 3, "interval": 0.60, "gap": 0.95}]},
-	{"scale": 6.56, "groups": [{"type": &"runner", "count": 10, "interval": 0.25}, {"type": &"soldier", "count": 10, "interval": 0.32, "gap": 0.90}]},
+	{"scale": 6.56, "groups": [{"type": &"runner", "count": 10, "interval": 0.25}, {"members": [&"giant", &"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.38, "gap": 0.90}]},
 	{"scale": 7.43, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"carrier", &"soldier", &"soldier", &"soldier"], "interval": 0.38}, {"type": &"runner", "count": 8, "interval": 0.24, "gap": 0.90}]},
 	{"scale": 8.47, "groups": [{"type": &"giant", "count": 4, "interval": 0.70}, {"type": &"carrier", "count": 4, "interval": 0.58, "gap": 0.90}]},
-	{"scale": 9.29, "groups": [{"type": &"soldier", "count": 12, "interval": 0.30}, {"type": &"runner", "count": 12, "interval": 0.22, "gap": 0.82}]},
-	{"scale": 10.29, "groups": [{"members": [&"giant", &"soldier", &"soldier", &"soldier", &"carrier", &"soldier", &"soldier"], "interval": 0.34}, {"type": &"runner", "count": 10, "interval": 0.21, "gap": 0.85}]},
+	{"scale": 9.29, "groups": [{"members": [&"giant", &"giant", &"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.38}, {"type": &"runner", "count": 12, "interval": 0.22, "gap": 0.82}]},
+	{"scale": 10.29, "groups": [{"members": [&"giant", &"giant", &"carrier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.38}, {"type": &"runner", "count": 8, "interval": 0.23, "gap": 0.85}]},
 	{"scale": 11.32, "groups": [{"type": &"carrier", "count": 5, "interval": 0.52}, {"members": [&"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.32, "gap": 0.80}]},
-	{"scale": 12.54, "groups": [{"type": &"runner", "count": 14, "interval": 0.20}, {"type": &"soldier", "count": 14, "interval": 0.28, "gap": 0.78}]},
+	{"scale": 12.54, "groups": [{"type": &"runner", "count": 14, "interval": 0.20}, {"members": [&"giant", &"giant", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier", &"soldier"], "interval": 0.34, "gap": 0.78}]},
 	{"scale": 14.40, "groups": [{"members": [&"giant", &"giant", &"soldier", &"soldier", &"carrier", &"soldier", &"soldier"], "interval": 0.36}, {"type": &"carrier", "count": 5, "interval": 0.48, "gap": 0.85}, {"type": &"runner", "count": 12, "interval": 0.20, "gap": 0.85}]},
 ]
 

@@ -14,6 +14,12 @@ func _init() -> void:
 	get_root().add_child(controller)
 	var opening_schedule: Array[Dictionary] = controller._build_schedule(RoundControllerScript.WAVES[0])
 	_assert(float(opening_schedule[-1]["time"]) >= 7.0, "opening wave is paced across multiple pushes")
+	_assert(is_equal_approx(float(RoundControllerScript.WAVES[0]["scale"]), 0.95), "wave one has a forgiving health scale")
+	_assert(is_equal_approx(float(RoundControllerScript.WAVES[2]["scale"]), 1.30), "wave three no longer carries the opening difficulty spike")
+	_assert(_schedule_size(controller, 13) == 18 and _type_count(controller, 13, &"giant") == 2, "wave thirteen replaces filler soldiers with two durable enemies")
+	_assert(_schedule_size(controller, 16) == 21 and _type_count(controller, 16, &"giant") == 3, "wave sixteen raises pressure with fewer, tougher enemies")
+	_assert(_schedule_size(controller, 17) == 17 and _type_count(controller, 17, &"giant") == 2, "wave seventeen keeps a compact durable formation")
+	_assert(_schedule_size(controller, 19) == 24 and _type_count(controller, 19, &"giant") == 2, "wave nineteen avoids a large weak swarm")
 	controller.state_changed.connect(_on_state_changed)
 	controller.wave_cleared.connect(_on_wave_cleared)
 	controller.enemy_spawn_requested.connect(_on_enemy_spawn_requested.bind(controller))
@@ -81,6 +87,18 @@ func _on_state_changed(state: Dictionary) -> void:
 
 func _on_wave_cleared(wave: int) -> void:
 	lifecycle_events.append("cleared:%d" % wave)
+
+
+func _schedule_size(controller: Node, wave: int) -> int:
+	return controller._build_schedule(RoundControllerScript.WAVES[wave - 1]).size()
+
+
+func _type_count(controller: Node, wave: int, enemy_type: StringName) -> int:
+	var count := 0
+	for spawn_data in controller._build_schedule(RoundControllerScript.WAVES[wave - 1]):
+		if StringName(spawn_data["enemy_type"]) == enemy_type:
+			count += 1
+	return count
 
 
 func _assert(condition: bool, description: String) -> void:

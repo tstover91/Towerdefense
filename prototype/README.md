@@ -30,8 +30,9 @@ deliberate Clash-style push than a fast TD swarm.
 Separate formations arrive several seconds apart, while larger same-type groups
 are divided into two pushes. If the field clears early, the director advances
 the next push after a short 1.25-second breather rather than leaving dead time.
-The opening wave contains nine durable enemies, and formation sizes rise through
-the run so concentrated defenses cannot erase an entire round in one burst.
+The opening wave contains nine enemies at a forgiving health scale. Later waves
+replace part of the weak swarms with compact Giant-led formations, so durability
+continues rising without filling the board with additional bodies.
 The economy starts with $500, four tower slots, and five free Walls. Guns cost
 $150, Mortars cost $350, and Beams cost $750. Their three upgrades use
 tower-specific prices that grow sharply toward the level-four capstone. There is
