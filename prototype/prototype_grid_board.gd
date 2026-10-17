@@ -110,6 +110,8 @@ var new_map_button_rect := Rect2()
 var cancel_button_rect := Rect2()
 var selection_cancel_button_rect := Rect2()
 var selection_info_rect := Rect2()
+var change_build_button_rect := Rect2()
+var header_cancel_button_rect := Rect2()
 var safe_view_rect := Rect2()
 var portrait_view := false
 var compact_layout := false
@@ -262,19 +264,37 @@ func _draw_header() -> void:
 		int(economy_state.get("wall_limit", 0)),
 	]
 	ui_overlay.draw_string(title_font, left_card.position + Vector2(12.0, 21.0), economy_heading, HORIZONTAL_ALIGNMENT_LEFT, left_card.size.x - 24.0, 15, COLOR_TEXT)
-	ui_overlay.draw_string(title_font, left_card.position + Vector2(12.0, 41.0), capacity_text, HORIZONTAL_ALIGNMENT_LEFT, left_card.size.x - 24.0, 12, COLOR_MUTED_TEXT)
+	if placement_mode != PlacementMode.NONE and not build_menu_open:
+		ui_overlay.draw_string(title_font, left_card.position + Vector2(12.0, 41.0), _get_active_build_label(), HORIZONTAL_ALIGNMENT_LEFT, change_build_button_rect.position.x - left_card.position.x - 18.0, 12, COLOR_PATH)
+		_draw_header_action(change_build_button_rect, "CHANGE")
+		_draw_header_action(header_cancel_button_rect, "X")
+	else:
+		ui_overlay.draw_string(title_font, left_card.position + Vector2(12.0, 41.0), capacity_text, HORIZONTAL_ALIGNMENT_LEFT, left_card.size.x - 24.0, 12, COLOR_MUTED_TEXT)
 	var wave_text := "WAVE %d/%d" % [
 		int(combat_state.get("displayed_wave", 1)),
 		int(combat_state.get("max_waves", 10)),
 	]
 	var lives_text := "LIVES %d" % int(combat_state.get("lives", 20))
 	var phase_text := (
-		"PLACING · PAUSED"
-		if placement_pause_active
+		("PLACING · PAUSED" if placement_pause_active else "PLACING")
+		if placement_mode != PlacementMode.NONE
 		else String(combat_state.get("phase", &"build")).to_upper()
 	)
 	ui_overlay.draw_string(title_font, right_card.position + Vector2(12.0, 21.0), "%s  ·  %s" % [wave_text, lives_text], HORIZONTAL_ALIGNMENT_LEFT, right_card.size.x - 24.0, 15, COLOR_TEXT)
 	ui_overlay.draw_string(title_font, right_card.position + Vector2(12.0, 41.0), phase_text, HORIZONTAL_ALIGNMENT_LEFT, right_card.size.x - 24.0, 12, COLOR_MUTED_TEXT)
+
+
+func _draw_header_action(rect: Rect2, label: String) -> void:
+	ui_overlay.draw_rect(rect, Color("efeade"), true)
+	ui_overlay.draw_rect(rect, COLOR_TOWER_BORDER, false, 2.0)
+	var text_size := title_font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10)
+	ui_overlay.draw_string(title_font, rect.get_center() - Vector2(text_size.x * 0.5, -text_size.y * 0.32), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, COLOR_TOWER_BORDER)
+
+
+func _get_active_build_label() -> String:
+	if placement_kind == BUILD_WALL:
+		return "WALL ACTIVE"
+	return "%s ACTIVE" % TowerScript.get_type_name(_tower_type_for_build_kind(placement_kind))
 
 
 func _draw_landscape_required() -> void:
@@ -485,6 +505,10 @@ func _draw_footer_controls() -> void:
 		else:
 			_draw_button(upgrade_button_rect, _get_sell_button_label(), _is_gameplay_phase())
 			_draw_button(sell_button_rect, "X", true)
+	elif placement_mode != PlacementMode.NONE:
+		if placement_mode == PlacementMode.DRAGGING:
+			_draw_floating_panel(cancel_button_rect.grow(8.0))
+			_draw_button(cancel_button_rect, "X", true)
 	else:
 		_draw_button(build_button_rect, "BUILD", _is_gameplay_phase())
 		_draw_button(start_button_rect, start_label, phase == &"build")
@@ -581,6 +605,13 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 		if cancel_button_rect.has_point(screen_position):
 			_close_build_menu()
 			return
+	elif placement_mode != PlacementMode.NONE:
+		if change_build_button_rect.has_point(screen_position):
+			_open_build_menu()
+			return
+		if header_cancel_button_rect.has_point(screen_position):
+			_close_build_menu("Placement canceled.")
+			return
 	elif is_instance_valid(selected_tower) or selected_wall_cell.x >= 0:
 		if is_instance_valid(selected_tower):
 			if upgrade_button_rect.has_point(screen_position):
@@ -602,7 +633,7 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 	elif build_button_rect.has_point(screen_position):
 		_open_build_menu()
 		return
-	var main_rail_active := not build_menu_open and not is_instance_valid(selected_tower) and selected_wall_cell.x < 0
+	var main_rail_active := placement_mode == PlacementMode.NONE and not build_menu_open and not is_instance_valid(selected_tower) and selected_wall_cell.x < 0
 	if main_rail_active and start_button_rect.has_point(screen_position):
 		_cancel_placement()
 		_request_start_wave()
@@ -633,6 +664,8 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 
 func _handle_placement_button(kind: StringName) -> bool:
 	if placement_mode != PlacementMode.NONE and placement_kind == kind:
+		build_menu_open = false
+		queue_redraw()
 		return true
 	if placement_mode != PlacementMode.NONE:
 		_cancel_placement()
@@ -735,7 +768,6 @@ func _can_begin_placement(kind: StringName) -> bool:
 
 
 func _begin_precision_placement(kind: StringName = BUILD_GUNSLINGER) -> bool:
-	build_menu_open = true
 	if not _can_begin_placement(kind):
 		status_message = (
 			"Wall limit reached."
@@ -744,6 +776,7 @@ func _begin_precision_placement(kind: StringName = BUILD_GUNSLINGER) -> bool:
 		)
 		queue_redraw()
 		return false
+	build_menu_open = false
 	placement_mode = PlacementMode.PRECISION
 	placement_kind = kind
 	placement_rejection_reasons.clear()
@@ -769,6 +802,7 @@ func _continue_building(kind: StringName) -> void:
 	if _can_begin_placement(kind):
 		placement_mode = PlacementMode.PRECISION
 		placement_kind = kind
+		build_menu_open = false
 		_set_placement_pause(true)
 		status_message = "%s placed · choose another cell or another build option." % (
 			"Wall" if kind == BUILD_WALL else TowerScript.get_type_name(_tower_type_for_build_kind(kind)).capitalize()
@@ -776,6 +810,7 @@ func _continue_building(kind: StringName) -> void:
 	else:
 		placement_mode = PlacementMode.NONE
 		placement_kind = &""
+		build_menu_open = true
 		_set_placement_pause(false)
 		status_message = "Placed · choose another build option."
 	queue_redraw()
@@ -1546,6 +1581,12 @@ func _recalculate_layout() -> void:
 	if portrait_view:
 		return
 	compact_layout = safe_view_rect.size.y < 500.0
+	var header_inset := 10.0
+	var header_card_width := 272.0 if compact_layout else 300.0
+	var header_card_x := safe_view_rect.position.x + header_inset
+	var header_action_y := safe_view_rect.position.y + header_inset + 27.0
+	header_cancel_button_rect = Rect2(header_card_x + header_card_width - 42.0, header_action_y, 32.0, 20.0)
+	change_build_button_rect = Rect2(header_cancel_button_rect.position.x - 78.0, header_action_y, 72.0, 20.0)
 	var available_width := maxf(
 		safe_view_rect.size.x - GRID_MARGIN * 2.0,
 		1.0

@@ -48,6 +48,12 @@ func _run() -> void:
 		int(board.placement_mode) == 1,
 		"raw viewport touch begins precision placement before GUI handling"
 	)
+	_assert(not board.build_menu_open, "choosing a building collapses the picker before placement")
+	board._handle_screen_press(board.change_build_button_rect.get_center())
+	_assert(board.build_menu_open, "the header Change control reopens the picker")
+	_assert(int(board.placement_mode) == 1, "reopening the picker preserves the armed building type")
+	board._handle_screen_press(board.gunslinger_button_rect.get_center())
+	_assert(not board.build_menu_open, "choosing the armed type collapses the picker again")
 	board._handle_placement_button(&"gunslinger")
 	_assert(
 		int(board.placement_mode) == 1,
@@ -72,6 +78,7 @@ func _run() -> void:
 	board._cancel_placement()
 	var original_route: Array[Vector2i] = board.displayed_route.duplicate()
 	var tower_cell: Vector2i = original_route[1]
+	board._open_build_menu()
 	board._handle_screen_press(board.gunslinger_button_rect.get_center())
 	_assert(
 		int(board.placement_mode) == 1,
@@ -84,7 +91,7 @@ func _run() -> void:
 	board._handle_screen_press(board._cell_center(tower_cell))
 	_assert(board.towers_by_cell.has(tower_cell), "the second precision tap creates a combat tower")
 	_assert(int(board.placement_mode) == 1, "precision placement stays armed after building")
-	_assert(board.build_menu_open, "building keeps the build rail open for repeat placement")
+	_assert(not board.build_menu_open, "building keeps the picker collapsed so bottom cells remain usable")
 	_assert(not is_instance_valid(board.selected_tower), "repeat building does not open the tower selection rail")
 	_assert(board.displayed_route != original_route, "blocking a route cell changes the displayed path")
 	_assert(game.economy.credits == 350, "gun placement costs $150")
@@ -142,7 +149,7 @@ func _run() -> void:
 	board._finish_placement_drag(drag_release)
 	_assert(board.towers_by_cell.has(unused_cell), "releasing a valid drag builds immediately")
 	_assert(int(board.placement_mode) == 1, "drag placement stays armed for another build")
-	_assert(board.build_menu_open, "drag placement keeps the build rail open")
+	_assert(not board.build_menu_open, "drag placement keeps the picker collapsed")
 	_assert(game.economy.credits == 290, "a second gun costs $150")
 	board.show_wave_reward({
 		"base_reward": 180,
@@ -176,7 +183,7 @@ func _run() -> void:
 	_assert(game.economy.used_power == 0, "walls do not consume tower Power")
 	_assert(game.economy.credits == 440, "walls do not spend tower money")
 	_assert(int(board.placement_mode) == 1, "wall placement remains armed for building several walls")
-	_assert(board.build_menu_open, "wall placement does not return to the main rail")
+	_assert(not board.build_menu_open, "wall placement stays armed without reopening the picker")
 	board._close_build_menu()
 	board._select_wall(wall_cell)
 	board._remove_selected_building()
@@ -235,6 +242,7 @@ func _run() -> void:
 		"the coordinated wave reward is the final visible notification"
 	)
 
+	board._open_build_menu()
 	board._handle_screen_press(board.gunslinger_button_rect.get_center())
 	board._handle_screen_press(board._cell_center(unused_cell))
 	board._handle_screen_press(board._cell_center(unused_cell))

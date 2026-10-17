@@ -96,6 +96,11 @@ func _run() -> void:
 			and board.safe_view_rect.encloses(board.selection_cancel_button_rect),
 			"%s keeps both contextual close controls inside the safe viewport" % viewport_size
 		)
+		_assert(
+			board.safe_view_rect.encloses(board.change_build_button_rect)
+			and board.safe_view_rect.encloses(board.header_cancel_button_rect),
+			"%s keeps collapsed build-mode controls inside the HUD card" % viewport_size
+		)
 	get_root().size = Vector2i(540, 960)
 	board._recalculate_layout()
 	_assert(board.portrait_view, "portrait view is rejected instead of changing the grid")
