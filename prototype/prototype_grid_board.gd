@@ -21,7 +21,7 @@ const GRID_SIZE := Vector2i(19, 10)
 const GRID_MARGIN := 18.0
 const WAVE_REWARD_MESSAGE_DURATION_MSEC := 3500
 const PLACEMENT_DRAG_THRESHOLD := 18.0
-const PLACEMENT_FINGER_OFFSET_CELLS := 1.25
+const PLACEMENT_FINGER_OFFSET_CELLS := Vector2(-0.55, -1.25)
 const MAP_SEED_OVERRIDE_SETTING := "prototype/map_seed_override"
 
 enum PlacementMode {
@@ -483,18 +483,19 @@ func _draw_placement_preview() -> void:
 
 
 func _draw_footer_controls() -> void:
-	var deck_rect := Rect2(
-		Vector2(flamespitter_button_rect.position.x - 8.0, gunslinger_button_rect.position.y - 8.0),
-		Vector2(atomic_strike_button_rect.end.x - flamespitter_button_rect.position.x + 16.0, atomic_strike_button_rect.end.y - gunslinger_button_rect.position.y + 16.0)
-	)
-	_draw_floating_panel(deck_rect)
-	_draw_floating_panel(wall_button_rect.grow(8.0))
-	_draw_build_button(gunslinger_button_rect, BUILD_GUNSLINGER, "GUN")
-	_draw_build_button(anti_materiel_button_rect, BUILD_ANTI_MATERIEL, "ANTI")
-	_draw_build_button(flamespitter_button_rect, BUILD_FLAMESPITTER, "FLAME")
-	_draw_build_button(bombardment_button_rect, BUILD_BOMBARDMENT, "BOMB")
-	_draw_build_button(atomic_strike_button_rect, BUILD_ATOMIC_STRIKE, "ATOMIC")
-	_draw_build_button(wall_button_rect, BUILD_WALL, "WALL")
+	if placement_mode == PlacementMode.NONE:
+		var deck_rect := Rect2(
+			Vector2(flamespitter_button_rect.position.x - 8.0, gunslinger_button_rect.position.y - 8.0),
+			Vector2(atomic_strike_button_rect.end.x - flamespitter_button_rect.position.x + 16.0, atomic_strike_button_rect.end.y - gunslinger_button_rect.position.y + 16.0)
+		)
+		_draw_floating_panel(deck_rect)
+		_draw_floating_panel(wall_button_rect.grow(8.0))
+		_draw_build_button(gunslinger_button_rect, BUILD_GUNSLINGER, "GUN")
+		_draw_build_button(anti_materiel_button_rect, BUILD_ANTI_MATERIEL, "ANTI")
+		_draw_build_button(flamespitter_button_rect, BUILD_FLAMESPITTER, "FLAME")
+		_draw_build_button(bombardment_button_rect, BUILD_BOMBARDMENT, "BOMB")
+		_draw_build_button(atomic_strike_button_rect, BUILD_ATOMIC_STRIKE, "ATOMIC")
+		_draw_build_button(wall_button_rect, BUILD_WALL, "WALL")
 	if is_instance_valid(selected_tower) or selected_wall_cell.x >= 0:
 		_update_selection_panel_layout()
 		_draw_floating_panel(selection_panel_rect)
@@ -826,18 +827,12 @@ func _continue_building(kind: StringName) -> void:
 	placement_rejection_reasons.clear()
 	_clear_placement_preview()
 	_clear_structure_selection()
-	if _can_begin_placement(kind):
-		placement_mode = PlacementMode.PRECISION
-		placement_kind = kind
-		_set_placement_pause(true)
-		status_message = "%s placed · choose another cell or another build option." % (
-			"Wall" if kind == BUILD_WALL else TowerScript.get_type_name(_tower_type_for_build_kind(kind)).capitalize()
-		)
-	else:
-		placement_mode = PlacementMode.NONE
-		placement_kind = &""
-		_set_placement_pause(false)
-		status_message = "Placed · choose another build option."
+	placement_mode = PlacementMode.NONE
+	placement_kind = &""
+	_set_placement_pause(false)
+	status_message = "%s placed · choose another build option." % (
+		"Wall" if kind == BUILD_WALL else TowerScript.get_type_name(_tower_type_for_build_kind(kind)).capitalize()
+	)
 	queue_redraw()
 
 
@@ -919,6 +914,8 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 
 
 func _get_build_kind_at(screen_position: Vector2) -> StringName:
+	if placement_mode != PlacementMode.NONE:
+		return &""
 	if gunslinger_button_rect.has_point(screen_position):
 		return BUILD_GUNSLINGER
 	if anti_materiel_button_rect.has_point(screen_position):
@@ -954,10 +951,7 @@ func _handle_drag_motion(screen_position: Vector2, pointer_index: int) -> void:
 		# A placement drag only begins after the pointer actually enters the board.
 		# This prevents Android navigation/editor gesture jitter in the footer from
 		# converting an ordinary button tap into an invalid drag-and-cancel.
-		var candidate_position := (
-			screen_position
-			+ Vector2.UP * cell_size * PLACEMENT_FINGER_OFFSET_CELLS
-		)
+		var candidate_position := screen_position + PLACEMENT_FINGER_OFFSET_CELLS * cell_size
 		if not router.is_inside_grid(_screen_to_cell(candidate_position)):
 			return
 	placement_mode = PlacementMode.DRAGGING
@@ -966,7 +960,7 @@ func _handle_drag_motion(screen_position: Vector2, pointer_index: int) -> void:
 	if placement_drag_over_cancel:
 		_clear_placement_preview()
 		return
-	var preview_position := screen_position + Vector2.UP * cell_size * PLACEMENT_FINGER_OFFSET_CELLS
+	var preview_position := screen_position + PLACEMENT_FINGER_OFFSET_CELLS * cell_size
 	_update_preview(_screen_to_cell(preview_position))
 
 
@@ -1031,7 +1025,7 @@ func _finish_placement_drag(screen_position: Vector2) -> void:
 	var placed := false
 	var rejection_message := "Placement canceled."
 	if not placement_drag_over_cancel:
-		var preview_position := screen_position + Vector2.UP * cell_size * PLACEMENT_FINGER_OFFSET_CELLS
+		var preview_position := screen_position + PLACEMENT_FINGER_OFFSET_CELLS * cell_size
 		_update_preview(_screen_to_cell(preview_position), true)
 		if preview_is_valid:
 			placed = _try_place_building(hovered_cell)

@@ -35,12 +35,13 @@ func _run() -> void:
 		int(board.placement_mode) == 1,
 		"the permanent tower card begins precision placement"
 	)
-	_assert(board._get_build_kind_at(button_center) == &"gunslinger", "tower cards remain available while placement is armed")
-	board._handle_placement_button(&"gunslinger")
+	_assert(board._get_build_kind_at(button_center).is_empty(), "tower cards are unavailable while placement is armed")
+	board._handle_screen_press(board.header_cancel_button_rect.get_center())
 	_assert(
 		int(board.placement_mode) == 0,
-		"tapping the armed tower card cancels placement"
+		"the placement cancel restores the tower cards"
 	)
+	_assert(board._get_build_kind_at(button_center) == &"gunslinger", "tower cards return after canceling placement")
 	board._begin_precision_placement()
 	board._arm_placement_drag(button_center, 0)
 	board._handle_drag_motion(button_center + Vector2(80.0, 0.0), 0)
@@ -70,7 +71,7 @@ func _run() -> void:
 	_assert(board.preview_route != original_route, "the live preview shows the proposed reroute")
 	board._handle_screen_press(board._cell_center(tower_cell))
 	_assert(board.towers_by_cell.has(tower_cell), "the second precision tap creates a combat tower")
-	_assert(int(board.placement_mode) == 1, "precision placement stays armed after building")
+	_assert(int(board.placement_mode) == 0, "precision placement ends after building")
 	_assert(board._get_build_kind_at(button_center) == &"gunslinger", "tower cards return immediately after precision building")
 	_assert(not is_instance_valid(board.selected_tower), "repeat building does not open the tower selection rail")
 	_assert(board.displayed_route != original_route, "blocking a route cell changes the displayed path")
@@ -123,16 +124,17 @@ func _run() -> void:
 	var drag_start: Vector2 = board.gunslinger_button_rect.get_center()
 	var drag_release: Vector2 = (
 		board._cell_center(unused_cell)
-		+ Vector2.DOWN * board.get_cell_size() * 0.85
+		+ Vector2(0.55, 1.25) * board.get_cell_size()
 	)
 	board._begin_precision_placement()
 	board._arm_placement_drag(drag_start, 0)
 	board._handle_drag_motion(drag_release, 0)
 	_assert(board.preview_is_valid, "dragging shows a valid live route preview")
+	_assert(board.hovered_cell == unused_cell, "drag preview offsets above and left of the finger onto the intended cell")
 	_assert(not board.towers_by_cell.has(unused_cell), "drag preview does not commit early")
 	board._finish_placement_drag(drag_release)
 	_assert(board.towers_by_cell.has(unused_cell), "releasing a valid drag builds immediately")
-	_assert(int(board.placement_mode) == 1, "drag placement stays armed for another build")
+	_assert(int(board.placement_mode) == 0, "drag placement ends after a confirmed build")
 	_assert(board._get_build_kind_at(drag_start) == &"gunslinger", "tower cards remain available after drag placement")
 	_assert(game.economy.credits == 290, "a second gun costs $150")
 	board.show_wave_reward({
@@ -165,7 +167,7 @@ func _run() -> void:
 	_assert(game.economy.used_walls == 1, "placing a wall consumes one Wall")
 	_assert(game.economy.used_power == 0, "walls do not consume tower Power")
 	_assert(game.economy.credits == 440, "walls do not spend tower money")
-	_assert(int(board.placement_mode) == 1, "wall placement remains armed for building several walls")
+	_assert(int(board.placement_mode) == 0, "wall placement ends after the wall is confirmed")
 	_assert(board._get_build_kind_at(board.wall_button_rect.get_center()) == &"wall", "the wall card returns immediately after wall placement")
 	board._cancel_placement()
 	board._select_wall(wall_cell)
