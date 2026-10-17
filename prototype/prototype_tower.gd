@@ -285,6 +285,30 @@ func get_summary() -> String:
 	]
 
 
+func get_next_upgrade_summary() -> String:
+	if not can_upgrade():
+		return "MAX LEVEL · %d DMG · %.2fs · %.1f RANGE" % [
+			get_damage(), get_attack_interval(), get_range_cells(),
+		]
+	var current: Dictionary = _get_stats()
+	var next: Dictionary = _get_level_stats_array()[level]
+	var changes: Array[String] = []
+	if int(next["damage"]) != int(current["damage"]):
+		changes.append("DMG %d→%d" % [int(current["damage"]), int(next["damage"])])
+	if not is_equal_approx(float(next["interval"]), float(current["interval"])):
+		changes.append("RATE %.2f→%.2fs" % [float(current["interval"]), float(next["interval"])])
+	if not is_equal_approx(float(next["range_cells"]), float(current["range_cells"])):
+		changes.append("RANGE %.1f→%.1f" % [float(current["range_cells"]), float(next["range_cells"])])
+	for key in ["pierce", "target_limit", "shells"]:
+		if int(next.get(key, 0)) != int(current.get(key, 0)):
+			changes.append("%s %d→%d" % [String(key).to_upper(), int(current.get(key, 0)), int(next.get(key, 0))])
+	if float(next.get("stun", 0.0)) > float(current.get("stun", 0.0)):
+		changes.append("STUN %.1fs" % float(next["stun"]))
+	if float(next.get("hazard_duration", 0.0)) > float(current.get("hazard_duration", 0.0)):
+		changes.append("GROUND FIRE")
+	return "NEXT L%d · %s" % [level + 1, " · ".join(changes)]
+
+
 func _get_target_mode() -> StringName:
 	return StringName(TYPE_DATA[tower_type]["target_mode"])
 

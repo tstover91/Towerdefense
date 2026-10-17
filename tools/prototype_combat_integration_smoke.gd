@@ -20,8 +20,21 @@ func _run() -> void:
 	await process_frame
 	var board: Node2D = game.get_node("GridBoard")
 	board.enemy_resolved.connect(_on_enemy_resolved)
-	var button_center: Vector2 = board.gunslinger_button_rect.get_center()
+	var build_center: Vector2 = board.build_button_rect.get_center()
 	var android_touch := InputEventScreenTouch.new()
+	android_touch.index = 0
+	android_touch.position = build_center
+	android_touch.pressed = true
+	board._input(android_touch)
+	android_touch = InputEventScreenTouch.new()
+	android_touch.index = 0
+	android_touch.position = build_center
+	android_touch.pressed = false
+	board._input(android_touch)
+	_assert(board.build_menu_open, "the main Build button opens the contextual build rail")
+	_assert(int(board.placement_mode) == 0, "opening the build rail does not choose a building")
+	var button_center: Vector2 = board.gunslinger_button_rect.get_center()
+	android_touch = InputEventScreenTouch.new()
 	android_touch.index = 0
 	android_touch.position = button_center
 	android_touch.pressed = true
@@ -43,10 +56,10 @@ func _run() -> void:
 	board._cancel_placement()
 	board._begin_precision_placement()
 	board._arm_placement_drag(button_center, 0)
-	board._handle_drag_motion(button_center + Vector2(-80.0, 0.0), 0)
+	board._handle_drag_motion(button_center + Vector2(80.0, 0.0), 0)
 	_assert(
 		int(board.placement_mode) == 1,
-		"footer movement outside the grid does not turn a tap into a drag"
+		"movement across the floating build drawer does not turn a tap into a drag"
 	)
 	board._cancel_placement()
 	board._begin_precision_placement()
@@ -70,12 +83,16 @@ func _run() -> void:
 	_assert(board.preview_route != original_route, "the live preview shows the proposed reroute")
 	board._handle_screen_press(board._cell_center(tower_cell))
 	_assert(board.towers_by_cell.has(tower_cell), "the second precision tap creates a combat tower")
-	_assert(int(board.placement_mode) == 0, "precision placement ends after building")
+	_assert(int(board.placement_mode) == 1, "precision placement stays armed after building")
+	_assert(board.build_menu_open, "building keeps the build rail open for repeat placement")
+	_assert(not is_instance_valid(board.selected_tower), "repeat building does not open the tower selection rail")
 	_assert(board.displayed_route != original_route, "blocking a route cell changes the displayed path")
 	_assert(game.economy.credits == 350, "gun placement costs $150")
 	_assert(game.economy.used_power == 1, "tower placement consumes Power")
 	var tower: Node2D = board.towers_by_cell[tower_cell]
 	_assert(tower.level == 1, "new tower starts at level one")
+	board._close_build_menu()
+	board._select_tower(tower)
 	board._upgrade_selected_tower()
 	_assert(tower.level == 2, "selected tower upgrades")
 	_assert(game.economy.credits == 300, "the gun's modest level-two upgrade costs $50")
@@ -88,6 +105,7 @@ func _run() -> void:
 	var preview_test_enemy: Node2D = board.active_followers[0]
 	var route_before_preview: Array[Vector2i] = preview_test_enemy.route.duplicate()
 	var blocks_before_preview: Dictionary = board.router.dynamic_blocks.duplicate()
+	board._open_build_menu()
 	board._begin_precision_placement()
 	board._update_preview(Vector2i(1, 5), true)
 	_assert(preview_test_enemy.route == route_before_preview, "live placement preview cannot reroute an active enemy")
@@ -123,6 +141,8 @@ func _run() -> void:
 	_assert(not board.towers_by_cell.has(unused_cell), "drag preview does not commit early")
 	board._finish_placement_drag(drag_release)
 	_assert(board.towers_by_cell.has(unused_cell), "releasing a valid drag builds immediately")
+	_assert(int(board.placement_mode) == 1, "drag placement stays armed for another build")
+	_assert(board.build_menu_open, "drag placement keeps the build rail open")
 	_assert(game.economy.credits == 290, "a second gun costs $150")
 	board.show_wave_reward({
 		"base_reward": 180,
@@ -133,9 +153,12 @@ func _run() -> void:
 		board.status_override == "Wave reward $180 + interest $20",
 		"wave rewards remain visible while a tower is selected"
 	)
+	board._close_build_menu()
+	board._select_tower(board.towers_by_cell[unused_cell])
 	board._sell_selected_tower()
 	await process_frame
 	_assert(game.economy.credits == 440, "unused tower returns its full investment")
+	board._open_build_menu()
 	board._begin_precision_placement()
 	board._arm_placement_drag(drag_start, 0)
 	var invalid_release := Vector2(-100.0, -100.0)
@@ -152,6 +175,10 @@ func _run() -> void:
 	_assert(game.economy.used_walls == 1, "placing a wall consumes one Wall")
 	_assert(game.economy.used_power == 0, "walls do not consume tower Power")
 	_assert(game.economy.credits == 440, "walls do not spend tower money")
+	_assert(int(board.placement_mode) == 1, "wall placement remains armed for building several walls")
+	_assert(board.build_menu_open, "wall placement does not return to the main rail")
+	board._close_build_menu()
+	board._select_wall(wall_cell)
 	board._remove_selected_building()
 	_assert(not board.walls_by_cell.has(wall_cell), "removing a wall reopens its cell")
 	_assert(game.economy.used_walls == 0, "removing a wall restores its limit")

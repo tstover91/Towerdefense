@@ -38,6 +38,11 @@ func _run() -> void:
 			"%s keeps the entire board inside the safe viewport" % viewport_size
 		)
 		_assert(
+			board.safe_view_rect.encloses(board.build_button_rect)
+			and board.build_button_rect.size.y >= 60.0,
+			"%s keeps the main Build control mobile-sized and inside the safe viewport" % viewport_size
+		)
+		_assert(
 			board.safe_view_rect.encloses(board.gunslinger_button_rect),
 			"%s keeps the tower control inside the safe viewport" % viewport_size
 		)
@@ -85,6 +90,11 @@ func _run() -> void:
 			board.safe_view_rect.encloses(board.new_map_button_rect)
 			and board.new_map_button_rect.size.y >= 60.0,
 			"%s keeps the new-map control mobile-sized and inside the safe viewport" % viewport_size
+		)
+		_assert(
+			board.safe_view_rect.encloses(board.cancel_button_rect)
+			and board.safe_view_rect.encloses(board.selection_cancel_button_rect),
+			"%s keeps both contextual close controls inside the safe viewport" % viewport_size
 		)
 	get_root().size = Vector2i(540, 960)
 	board._recalculate_layout()
