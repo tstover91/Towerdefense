@@ -21,7 +21,7 @@ const GRID_SIZE := Vector2i(19, 10)
 const GRID_MARGIN := 18.0
 const WAVE_REWARD_MESSAGE_DURATION_MSEC := 3500
 const PLACEMENT_DRAG_THRESHOLD := 18.0
-const PLACEMENT_FINGER_OFFSET_CELLS := 0.85
+const PLACEMENT_FINGER_OFFSET_CELLS := 1.25
 const MAP_SEED_OVERRIDE_SETTING := "prototype/map_seed_override"
 
 enum PlacementMode {
@@ -95,7 +95,6 @@ var board_origin := Vector2.ZERO
 var cell_size := 48.0
 var title_font: Font
 var ui_overlay: Node2D
-var build_button_rect := Rect2()
 var gunslinger_button_rect := Rect2()
 var anti_materiel_button_rect := Rect2()
 var flamespitter_button_rect := Rect2()
@@ -108,9 +107,7 @@ var sell_button_rect := Rect2()
 var export_button_rect := Rect2()
 var new_map_button_rect := Rect2()
 var cancel_button_rect := Rect2()
-var selection_cancel_button_rect := Rect2()
 var selection_info_rect := Rect2()
-var change_build_button_rect := Rect2()
 var header_cancel_button_rect := Rect2()
 var tools_button_rect := Rect2()
 var wave_progress_rect := Rect2()
@@ -126,7 +123,6 @@ var towers_by_cell: Dictionary = {}
 var walls_by_cell: Dictionary = {}
 var selected_tower: Node2D
 var selected_wall_cell := Vector2i(-1, -1)
-var build_menu_open := false
 var tools_menu_open := false
 var last_touch_press_msec := -1000
 var placement_mode := PlacementMode.NONE
@@ -286,12 +282,11 @@ func _draw_header() -> void:
 	var phase := StringName(combat_state.get("phase", &"build"))
 	_draw_button(start_button_rect, "START", phase == &"build")
 	_draw_header_action(tools_button_rect, "TOOLS")
-	if placement_mode != PlacementMode.NONE and not build_menu_open:
+	if placement_mode != PlacementMode.NONE:
 		var placement_card := Rect2(resource_rect.position.x, resource_rect.end.y + 5.0, resource_rect.size.x, 30.0)
 		ui_overlay.draw_rect(placement_card, Color(0.055, 0.055, 0.055, 0.94), true)
 		ui_overlay.draw_rect(placement_card, COLOR_PATH, false, 2.0)
-		ui_overlay.draw_string(title_font, placement_card.position + Vector2(8.0, 20.0), _get_active_build_label(), HORIZONTAL_ALIGNMENT_LEFT, change_build_button_rect.position.x - placement_card.position.x - 12.0, 10, COLOR_PATH)
-		_draw_header_action(change_build_button_rect, "CHANGE")
+		ui_overlay.draw_string(title_font, placement_card.position + Vector2(8.0, 20.0), _get_active_build_label(), HORIZONTAL_ALIGNMENT_LEFT, header_cancel_button_rect.position.x - placement_card.position.x - 12.0, 10, COLOR_PATH)
 		_draw_header_action(header_cancel_button_rect, "X")
 	if tools_menu_open:
 		_draw_floating_panel(Rect2(export_button_rect.position - Vector2(6.0, 6.0), Vector2(export_button_rect.size.x + 12.0, new_map_button_rect.end.y - export_button_rect.position.y + 12.0)))
@@ -488,33 +483,30 @@ func _draw_placement_preview() -> void:
 
 
 func _draw_footer_controls() -> void:
-	if build_menu_open:
-		_draw_floating_panel(Rect2(gunslinger_button_rect.position - Vector2(8.0, 8.0), Vector2(atomic_strike_button_rect.end.x - gunslinger_button_rect.position.x + 16.0, gunslinger_button_rect.size.y + 16.0)))
-		_draw_floating_panel(wall_button_rect.grow(8.0))
-		_draw_build_button(gunslinger_button_rect, BUILD_GUNSLINGER, "GUN")
-		_draw_build_button(anti_materiel_button_rect, BUILD_ANTI_MATERIEL, "ANTI")
-		_draw_build_button(flamespitter_button_rect, BUILD_FLAMESPITTER, "FLAME")
-		_draw_build_button(bombardment_button_rect, BUILD_BOMBARDMENT, "BOMB")
-		_draw_build_button(atomic_strike_button_rect, BUILD_ATOMIC_STRIKE, "ATOMIC")
-		_draw_build_button(wall_button_rect, BUILD_WALL, "WALL")
-		_draw_button(cancel_button_rect, "X", true)
-	elif is_instance_valid(selected_tower) or selected_wall_cell.x >= 0:
+	var deck_rect := Rect2(
+		Vector2(flamespitter_button_rect.position.x - 8.0, gunslinger_button_rect.position.y - 8.0),
+		Vector2(atomic_strike_button_rect.end.x - flamespitter_button_rect.position.x + 16.0, atomic_strike_button_rect.end.y - gunslinger_button_rect.position.y + 16.0)
+	)
+	_draw_floating_panel(deck_rect)
+	_draw_floating_panel(wall_button_rect.grow(8.0))
+	_draw_build_button(gunslinger_button_rect, BUILD_GUNSLINGER, "GUN")
+	_draw_build_button(anti_materiel_button_rect, BUILD_ANTI_MATERIEL, "ANTI")
+	_draw_build_button(flamespitter_button_rect, BUILD_FLAMESPITTER, "FLAME")
+	_draw_build_button(bombardment_button_rect, BUILD_BOMBARDMENT, "BOMB")
+	_draw_build_button(atomic_strike_button_rect, BUILD_ATOMIC_STRIKE, "ATOMIC")
+	_draw_build_button(wall_button_rect, BUILD_WALL, "WALL")
+	if is_instance_valid(selected_tower) or selected_wall_cell.x >= 0:
 		_update_selection_panel_layout()
 		_draw_floating_panel(selection_panel_rect)
 		_draw_selection_info()
 		if is_instance_valid(selected_tower):
 			_draw_button(upgrade_button_rect, _get_upgrade_button_label(), _can_afford_selected_upgrade())
 			_draw_button(sell_button_rect, _get_sell_button_label(), _is_gameplay_phase())
-			_draw_button(selection_cancel_button_rect, "X", true)
 		else:
 			_draw_button(upgrade_button_rect, _get_sell_button_label(), _is_gameplay_phase())
-			_draw_button(sell_button_rect, "X", true)
-	elif placement_mode != PlacementMode.NONE:
-		if placement_mode == PlacementMode.DRAGGING:
-			_draw_floating_panel(cancel_button_rect.grow(8.0))
-			_draw_button(cancel_button_rect, "X", true)
-	else:
-		_draw_button(build_button_rect, "BUILD", _is_gameplay_phase())
+	if placement_mode == PlacementMode.DRAGGING:
+		_draw_floating_panel(cancel_button_rect.grow(8.0))
+		_draw_button(cancel_button_rect, "X", true)
 	var displayed_status := status_override
 	if displayed_status.is_empty():
 		displayed_status = (
@@ -522,7 +514,7 @@ func _draw_footer_controls() -> void:
 			if is_instance_valid(selected_tower) or selected_wall_cell.x >= 0
 			else status_message
 		)
-	if not displayed_status.is_empty() and (build_menu_open or not status_override.is_empty()):
+	if not displayed_status.is_empty() and (placement_mode != PlacementMode.NONE or not status_override.is_empty()):
 		_draw_status_toast(displayed_status)
 
 
@@ -537,7 +529,7 @@ func _draw_status_toast(message: String) -> void:
 	var toast_width := minf(text_width + 28.0, max_width)
 	var toast_height := 32.0
 	var toast_rect := Rect2(
-		Vector2(safe_view_rect.get_center().x - toast_width * 0.5, build_button_rect.position.y - toast_height - 12.0),
+		Vector2(safe_view_rect.get_center().x - toast_width * 0.5, gunslinger_button_rect.position.y - toast_height - 12.0),
 		Vector2(toast_width, toast_height)
 	)
 	ui_overlay.draw_rect(toast_rect, Color(0.055, 0.055, 0.055, 0.92), true)
@@ -610,13 +602,10 @@ func _update_selection_panel_layout() -> void:
 	var action_y := selection_info_rect.end.y + gap
 	if is_instance_valid(selected_tower):
 		upgrade_button_rect = Rect2(selection_info_rect.position.x, action_y, selection_info_rect.size.x, action_height)
-		var close_width := 48.0
-		sell_button_rect = Rect2(selection_info_rect.position.x, upgrade_button_rect.end.y + gap, selection_info_rect.size.x - close_width - gap, action_height)
-		selection_cancel_button_rect = Rect2(sell_button_rect.end.x + gap, sell_button_rect.position.y, close_width, action_height)
+		sell_button_rect = Rect2(selection_info_rect.position.x, upgrade_button_rect.end.y + gap, selection_info_rect.size.x, action_height)
 	else:
-		upgrade_button_rect = Rect2(selection_info_rect.position.x, action_y, selection_info_rect.size.x - 54.0, action_height)
-		sell_button_rect = Rect2(upgrade_button_rect.end.x + gap, action_y, 48.0, action_height)
-		selection_cancel_button_rect = sell_button_rect
+		upgrade_button_rect = Rect2(selection_info_rect.position.x, action_y, selection_info_rect.size.x, action_height)
+		sell_button_rect = Rect2()
 
 
 func _get_selected_detail_text() -> String:
@@ -649,6 +638,19 @@ func _draw_button(rect: Rect2, label: String, enabled := true, selected := false
 func _handle_screen_press(screen_position: Vector2) -> void:
 	if not status_override.is_empty():
 		status_override = ""
+	if is_instance_valid(selected_tower) or selected_wall_cell.x >= 0:
+		_update_selection_panel_layout()
+		if selection_panel_rect.has_point(screen_position):
+			if is_instance_valid(selected_tower):
+				if upgrade_button_rect.has_point(screen_position):
+					_upgrade_selected_tower()
+				elif sell_button_rect.has_point(screen_position):
+					_remove_selected_building()
+			else:
+				if upgrade_button_rect.has_point(screen_position):
+					_remove_selected_building()
+			return
+		_clear_structure_selection()
 	if tools_button_rect.has_point(screen_position):
 		tools_menu_open = not tools_menu_open
 		queue_redraw()
@@ -666,53 +668,19 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 		return
 	if start_button_rect.has_point(screen_position):
 		if StringName(combat_state.get("phase", &"build")) == &"build":
-			_close_build_menu()
+			_cancel_placement()
 			_clear_structure_selection()
 			_request_start_wave()
 		return
-	if build_menu_open:
-		var pressed_kind := _get_build_kind_at(screen_position)
-		if not pressed_kind.is_empty():
-			_handle_placement_button(pressed_kind)
-			return
-		if cancel_button_rect.has_point(screen_position):
-			_close_build_menu()
-			return
-	elif placement_mode != PlacementMode.NONE:
-		if change_build_button_rect.has_point(screen_position):
-			_open_build_menu()
-			return
+	if placement_mode != PlacementMode.NONE:
 		if header_cancel_button_rect.has_point(screen_position):
-			_close_build_menu("Placement canceled.")
+			_cancel_placement("Placement canceled.")
 			return
-	elif is_instance_valid(selected_tower) or selected_wall_cell.x >= 0:
-		_update_selection_panel_layout()
-		if is_instance_valid(selected_tower):
-			if upgrade_button_rect.has_point(screen_position):
-				_upgrade_selected_tower()
-				return
-			if sell_button_rect.has_point(screen_position):
-				_remove_selected_building()
-				return
-			if selection_cancel_button_rect.has_point(screen_position):
-				_clear_structure_selection()
-				return
-		else:
-			if upgrade_button_rect.has_point(screen_position):
-				_remove_selected_building()
-				return
-			if sell_button_rect.has_point(screen_position):
-				_clear_structure_selection()
-				return
-	elif build_button_rect.has_point(screen_position):
-		_open_build_menu()
-		return
 	var cell := _screen_to_cell(screen_position)
 	if not router.is_inside_grid(cell):
 		return
 	if router.dynamic_blocks.has(cell):
 		_cancel_placement()
-		build_menu_open = false
 		if towers_by_cell.has(cell):
 			_select_tower(towers_by_cell.get(cell))
 		elif walls_by_cell.has(cell):
@@ -725,9 +693,8 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 
 func _handle_placement_button(kind: StringName) -> bool:
 	if placement_mode != PlacementMode.NONE and placement_kind == kind:
-		build_menu_open = false
-		queue_redraw()
-		return true
+		_cancel_placement("Placement canceled.")
+		return false
 	if placement_mode != PlacementMode.NONE:
 		_cancel_placement()
 	return _begin_precision_placement(kind)
@@ -837,7 +804,6 @@ func _begin_precision_placement(kind: StringName = BUILD_GUNSLINGER) -> bool:
 		)
 		queue_redraw()
 		return false
-	build_menu_open = false
 	placement_mode = PlacementMode.PRECISION
 	placement_kind = kind
 	placement_rejection_reasons.clear()
@@ -863,7 +829,6 @@ func _continue_building(kind: StringName) -> void:
 	if _can_begin_placement(kind):
 		placement_mode = PlacementMode.PRECISION
 		placement_kind = kind
-		build_menu_open = false
 		_set_placement_pause(true)
 		status_message = "%s placed · choose another cell or another build option." % (
 			"Wall" if kind == BUILD_WALL else TowerScript.get_type_name(_tower_type_for_build_kind(kind)).capitalize()
@@ -871,24 +836,8 @@ func _continue_building(kind: StringName) -> void:
 	else:
 		placement_mode = PlacementMode.NONE
 		placement_kind = &""
-		build_menu_open = true
 		_set_placement_pause(false)
 		status_message = "Placed · choose another build option."
-	queue_redraw()
-
-
-func _open_build_menu() -> void:
-	if not _is_gameplay_phase():
-		return
-	_clear_structure_selection()
-	build_menu_open = true
-	status_message = "Tap once for precision placement, or drag a build option onto the grid."
-	queue_redraw()
-
-
-func _close_build_menu(message := "") -> void:
-	_cancel_placement(message)
-	build_menu_open = false
 	queue_redraw()
 
 
@@ -939,6 +888,7 @@ func _handle_touch_event(event: InputEventScreenTouch) -> void:
 	if event.pressed:
 		var pressed_kind := _get_build_kind_at(event.position)
 		if not pressed_kind.is_empty():
+			_clear_structure_selection()
 			if _handle_placement_button(pressed_kind):
 				_arm_placement_drag(event.position, event.index)
 			return
@@ -958,6 +908,7 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 	if event.pressed:
 		var pressed_kind := _get_build_kind_at(event.position)
 		if not pressed_kind.is_empty():
+			_clear_structure_selection()
 			if _handle_placement_button(pressed_kind):
 				_arm_placement_drag(event.position, -1)
 			return
@@ -968,8 +919,6 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 
 
 func _get_build_kind_at(screen_position: Vector2) -> StringName:
-	if not build_menu_open:
-		return &""
 	if gunslinger_button_rect.has_point(screen_position):
 		return BUILD_GUNSLINGER
 	if anti_materiel_button_rect.has_point(screen_position):
@@ -1038,13 +987,11 @@ func _get_active_placement_button_rect() -> Rect2:
 
 
 func _get_build_panel_rect() -> Rect2:
-	return Rect2(
-		gunslinger_button_rect.position - Vector2(8.0, 8.0),
-		Vector2(
-			cancel_button_rect.end.x - gunslinger_button_rect.position.x + 16.0,
-			gunslinger_button_rect.size.y + 16.0
-		)
-	)
+	var panel_left := minf(flamespitter_button_rect.position.x, wall_button_rect.position.x) - 8.0
+	var panel_top := minf(gunslinger_button_rect.position.y, wall_button_rect.position.y) - 8.0
+	var panel_right := maxf(atomic_strike_button_rect.end.x, maxf(wall_button_rect.end.x, cancel_button_rect.end.x)) + 8.0
+	var panel_bottom := maxf(atomic_strike_button_rect.end.y, wall_button_rect.end.y) + 8.0
+	return Rect2(Vector2(panel_left, panel_top), Vector2(panel_right - panel_left, panel_bottom - panel_top))
 
 
 func _is_tower_kind(kind: StringName) -> bool:
@@ -1068,7 +1015,7 @@ func _tower_type_for_build_kind(kind: StringName) -> StringName:
 func _finish_placement_drag(screen_position: Vector2) -> void:
 	if placement_mode != PlacementMode.DRAGGING:
 		if placement_drag_armed and cancel_button_rect.has_point(screen_position):
-			_close_build_menu("Placement canceled.")
+			_cancel_placement("Placement canceled.")
 			return
 		var should_cancel := (
 			placement_drag_armed
@@ -1091,7 +1038,7 @@ func _finish_placement_drag(screen_position: Vector2) -> void:
 		elif placement_rejection_reasons.has(hovered_cell):
 			rejection_message = String(placement_rejection_reasons[hovered_cell])
 	if placement_drag_over_cancel:
-		_close_build_menu("Placement canceled.")
+		_cancel_placement("Placement canceled.")
 	elif placed:
 		_continue_building(placement_kind)
 	else:
@@ -1312,7 +1259,6 @@ func set_combat_state(new_state: Dictionary) -> void:
 	combat_state = new_state.duplicate(true)
 	if not _is_gameplay_phase():
 		_cancel_placement()
-		build_menu_open = false
 	match StringName(combat_state.get("phase", &"build")):
 		&"build":
 			status_message = "Wave cleared. Build, upgrade, or start the next wave."
@@ -1647,7 +1593,6 @@ func _recalculate_layout() -> void:
 	var resource_width := 140.0 if compact_layout else 176.0
 	var header_action_y := safe_view_rect.position.y + header_inset + 59.0
 	header_cancel_button_rect = Rect2(resource_x + resource_width - 36.0, header_action_y, 36.0, 24.0)
-	change_build_button_rect = Rect2(header_cancel_button_rect.position.x - 70.0, header_action_y, 64.0, 24.0)
 	var available_width := maxf(
 		safe_view_rect.size.x - GRID_MARGIN * 2.0,
 		1.0
@@ -1668,9 +1613,6 @@ func _recalculate_layout() -> void:
 		floorf(safe_view_rect.position.x + (safe_view_rect.size.x - board_size.x) * 0.5),
 		floorf(safe_view_rect.position.y + (safe_view_rect.size.y - board_size.y) * 0.5)
 	)
-	var button_height := 60.0
-	var footer_y := safe_view_rect.end.y - GRID_MARGIN - button_height
-	build_button_rect = Rect2(safe_view_rect.position.x + GRID_MARGIN, footer_y, 112.0, button_height)
 	var start_width := 102.0 if compact_layout else 112.0
 	start_button_rect = Rect2(safe_view_rect.end.x - header_inset - start_width, safe_view_rect.position.y + header_inset, start_width, 54.0)
 	tools_button_rect = Rect2(start_button_rect.position.x - 56.0, start_button_rect.position.y, 50.0, 34.0)
@@ -1679,19 +1621,21 @@ func _recalculate_layout() -> void:
 	var wave_width := 150.0 if compact_layout else 184.0
 	wave_progress_rect = Rect2(Vector2(safe_view_rect.get_center().x - wave_width * 0.5, safe_view_rect.position.y + 57.0), Vector2(wave_width, 5.0))
 
-	# Temporary card deck. It occupies the lower edge only while the player is choosing.
+	# Permanent compact deck: two cards above three, with the wall separate.
 	var control_gap := 5.0 if compact_layout else 7.0
-	var card_width := clampf((safe_view_rect.size.x - GRID_MARGIN * 2.0 - 118.0) / 6.4, 62.0, 80.0)
-	var card_height := 72.0 if compact_layout else 78.0
-	var card_y := safe_view_rect.end.y - GRID_MARGIN - card_height
-	var card_x := safe_view_rect.position.x + GRID_MARGIN
-	gunslinger_button_rect = Rect2(card_x, card_y, card_width, card_height)
-	anti_materiel_button_rect = Rect2(gunslinger_button_rect.end.x + control_gap, card_y, card_width, card_height)
-	flamespitter_button_rect = Rect2(anti_materiel_button_rect.end.x + control_gap, card_y, card_width, card_height)
-	bombardment_button_rect = Rect2(flamespitter_button_rect.end.x + control_gap, card_y, card_width, card_height)
-	atomic_strike_button_rect = Rect2(bombardment_button_rect.end.x + control_gap, card_y, card_width, card_height)
-	wall_button_rect = Rect2(atomic_strike_button_rect.end.x + 22.0, card_y, card_width, card_height)
-	cancel_button_rect = Rect2(wall_button_rect.end.x + control_gap, card_y + card_height - 60.0, 52.0, 60.0)
+	var card_width := 68.0 if compact_layout else 78.0
+	var card_height := 60.0 if compact_layout else 70.0
+	var bottom_y := safe_view_rect.end.y - GRID_MARGIN - card_height
+	var top_y := bottom_y - control_gap - card_height
+	var deck_x := safe_view_rect.position.x + GRID_MARGIN
+	flamespitter_button_rect = Rect2(deck_x, bottom_y, card_width, card_height)
+	bombardment_button_rect = Rect2(flamespitter_button_rect.end.x + control_gap, bottom_y, card_width, card_height)
+	atomic_strike_button_rect = Rect2(bombardment_button_rect.end.x + control_gap, bottom_y, card_width, card_height)
+	var top_x := deck_x + (card_width + control_gap) * 0.5
+	gunslinger_button_rect = Rect2(top_x, top_y, card_width, card_height)
+	anti_materiel_button_rect = Rect2(gunslinger_button_rect.end.x + control_gap, top_y, card_width, card_height)
+	wall_button_rect = Rect2(safe_view_rect.get_center().x - card_width * 0.5, bottom_y, card_width, card_height)
+	cancel_button_rect = Rect2(wall_button_rect.end.x + control_gap, bottom_y + card_height - 52.0, 48.0, 52.0)
 
 	_update_selection_panel_layout()
 

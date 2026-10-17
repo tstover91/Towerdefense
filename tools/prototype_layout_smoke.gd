@@ -38,11 +38,6 @@ func _run() -> void:
 			"%s keeps the entire board inside the safe viewport" % viewport_size
 		)
 		_assert(
-			board.safe_view_rect.encloses(board.build_button_rect)
-			and board.build_button_rect.size.y >= 60.0,
-			"%s keeps the main Build control mobile-sized and inside the safe viewport" % viewport_size
-		)
-		_assert(
 			board.safe_view_rect.encloses(board.gunslinger_button_rect),
 			"%s keeps the tower control inside the safe viewport" % viewport_size
 		)
@@ -68,6 +63,17 @@ func _run() -> void:
 			and board.atomic_strike_button_rect.size.y >= 60.0
 			and board.wall_button_rect.size.y >= 60.0,
 			"%s gives build controls mobile-sized touch targets" % viewport_size
+		)
+		_assert(
+			board.gunslinger_button_rect.position.y < board.flamespitter_button_rect.position.y
+			and is_equal_approx(board.gunslinger_button_rect.position.y, board.anti_materiel_button_rect.position.y)
+			and is_equal_approx(board.flamespitter_button_rect.position.y, board.bombardment_button_rect.position.y)
+			and is_equal_approx(board.bombardment_button_rect.position.y, board.atomic_strike_button_rect.position.y),
+			"%s lays out two tower cards above three tower cards" % viewport_size
+		)
+		_assert(
+			is_equal_approx(board.wall_button_rect.get_center().x, board.safe_view_rect.get_center().x),
+			"%s centers the independent wall card" % viewport_size
 		)
 		_assert(
 			board.safe_view_rect.encloses(board.start_button_rect),
@@ -97,18 +103,16 @@ func _run() -> void:
 			"%s keeps the new-map control mobile-sized and inside the safe viewport" % viewport_size
 		)
 		_assert(
-			board.safe_view_rect.encloses(board.cancel_button_rect)
-			and board.safe_view_rect.encloses(board.selection_cancel_button_rect),
-			"%s keeps both contextual close controls inside the safe viewport" % viewport_size
+			board.safe_view_rect.encloses(board.cancel_button_rect),
+			"%s keeps the drag-cancel control inside the safe viewport" % viewport_size
 		)
 		_assert(
 			board.safe_view_rect.encloses(board.selection_panel_rect),
 			"%s keeps the local structure panel inside the safe viewport" % viewport_size
 		)
 		_assert(
-			board.safe_view_rect.encloses(board.change_build_button_rect)
-			and board.safe_view_rect.encloses(board.header_cancel_button_rect),
-			"%s keeps collapsed build-mode controls inside the HUD card" % viewport_size
+			board.safe_view_rect.encloses(board.header_cancel_button_rect),
+			"%s keeps the active-placement cancel control inside the HUD card" % viewport_size
 		)
 	get_root().size = Vector2i(540, 960)
 	board._recalculate_layout()
