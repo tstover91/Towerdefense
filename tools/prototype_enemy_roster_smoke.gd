@@ -7,12 +7,13 @@ var requested_summons := 0
 
 
 func _init() -> void:
-	_run.call_deferred()
+	_run()
 
 
 func _run() -> void:
 	var host := Node2D.new()
 	get_root().add_child(host)
+	await process_frame
 
 	var soldier := _make_enemy(host, EnemyScript.TYPE_SOLDIER, 1)
 	var runner := _make_enemy(host, EnemyScript.TYPE_RUNNER, 2)

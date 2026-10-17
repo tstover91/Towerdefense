@@ -11,7 +11,7 @@ var run_stats: RefCounted
 
 
 func _ready() -> void:
-	round_controller = RoundControllerScript.new()
+	round_controller = RoundControllerScript.new(int(board.map_seed))
 	economy = EconomyScript.new()
 	run_stats = RunStatsScript.new()
 	add_child(round_controller)
@@ -36,7 +36,12 @@ func _on_start_wave_requested() -> void:
 	var next_wave: int = int(round_controller.completed_waves) + 1
 	if round_controller.start_next_wave():
 		economy.begin_wave(next_wave)
-		run_stats.begin_wave(next_wave, economy.credits, round_controller.lives)
+		run_stats.begin_wave(
+			next_wave,
+			economy.credits,
+			round_controller.lives,
+			round_controller.get_wave_plan(next_wave)
+		)
 		board.mark_all_towers_participated()
 		_refresh_economy_state()
 
@@ -93,7 +98,7 @@ func _refresh_economy_state() -> void:
 		if round_controller.phase == &"active"
 		else mini(
 			int(round_controller.completed_waves) + 1,
-			RoundControllerScript.WAVES.size()
+			RoundControllerScript.MAX_WAVES
 		)
 	)
 	var state: Dictionary = economy.get_state(

@@ -14,7 +14,7 @@ var failure_count := 0
 
 
 func _init() -> void:
-	call_deferred("_run")
+	_run()
 
 
 func _run() -> void:

@@ -20,11 +20,22 @@ var damage_by_type_level: Dictionary = {}
 var max_enemy_progress := 0.0
 var enemies_reaching_75_percent := 0
 var enemies_reaching_90_percent := 0
+var planned_threat := 0
+var spent_threat := 0
+var spawned_director_threat := 0
+var wave_style := ""
+var run_enemy_roster := ""
+var debut_enemy_types := ""
 var pending_actions: Dictionary = _new_action_counts()
 var wave_actions: Dictionary = _new_action_counts()
 
 
-func begin_wave(wave: int, credits: int, lives: int) -> void:
+func begin_wave(
+	wave: int,
+	credits: int,
+	lives: int,
+	wave_plan: Dictionary = {}
+) -> void:
 	active_wave = wave
 	starting_credits = credits
 	starting_lives = lives
@@ -38,6 +49,12 @@ func begin_wave(wave: int, credits: int, lives: int) -> void:
 	max_enemy_progress = 0.0
 	enemies_reaching_75_percent = 0
 	enemies_reaching_90_percent = 0
+	planned_threat = int(wave_plan.get("threat_budget", 0))
+	spent_threat = int(wave_plan.get("threat_spent", 0))
+	spawned_director_threat = 0
+	wave_style = String(wave_plan.get("style", ""))
+	run_enemy_roster = _join_names(Array(wave_plan.get("run_roster", [])))
+	debut_enemy_types = _join_names(Array(wave_plan.get("debut_enemies", [])))
 	wave_actions = pending_actions.duplicate(true)
 	pending_actions = _new_action_counts()
 	for tower_type in DAMAGE_TYPES:
@@ -50,10 +67,15 @@ func is_wave_active() -> bool:
 	return active_wave > 0
 
 
-func record_spawn(enemy_type: StringName, max_health: int) -> void:
+func record_spawn(
+	enemy_type: StringName,
+	max_health: int,
+	director_threat := 0
+) -> void:
 	if is_wave_active():
 		spawned_health += maxi(max_health, 0)
 		spawned_enemies += 1
+		spawned_director_threat += maxi(director_threat, 0)
 		var key := String(enemy_type)
 		spawned_by_type[key] = int(spawned_by_type.get(key, 0)) + 1
 
@@ -105,6 +127,13 @@ func _new_action_counts() -> Dictionary:
 	}
 
 
+func _join_names(values: Array) -> String:
+	var names := PackedStringArray()
+	for value in values:
+		names.append(String(value))
+	return "|".join(names)
+
+
 func finish_wave(
 	wave: int,
 	duration: float,
@@ -128,6 +157,12 @@ func finish_wave(
 		"map_seed": int(board_state.get("map_seed", 0)),
 		"initial_route_steps": int(board_state.get("initial_route_steps", 0)),
 		"outcome": outcome,
+		"wave_style": wave_style,
+		"planned_threat": planned_threat,
+		"spent_threat": spent_threat,
+		"spawned_director_threat": spawned_director_threat,
+		"run_enemy_roster": run_enemy_roster,
+		"debut_enemy_types": debut_enemy_types,
 		"duration_seconds": snappedf(duration, 0.01),
 		"base_reward": int(reward.get("base_reward", 0)),
 		"interest_reward": int(reward.get("interest_reward", 0)),
@@ -292,7 +327,9 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 	if csv_file == null:
 		return false
 	var headers: Array[String] = [
-		"wave", "map_seed", "initial_route_steps", "outcome", "duration_seconds", "base_reward", "interest_reward",
+		"wave", "map_seed", "initial_route_steps", "outcome", "wave_style",
+		"planned_threat", "spent_threat", "spawned_director_threat",
+		"run_enemy_roster", "debut_enemy_types", "duration_seconds", "base_reward", "interest_reward",
 		"starting_credits", "ending_credits", "tower_count", "level_1_towers",
 		"level_2_towers", "level_3_towers", "level_4_towers", "gunslinger_count",
 		"anti_materiel_count", "flamespitter_count", "bombardment_count", "atomic_strike_count",

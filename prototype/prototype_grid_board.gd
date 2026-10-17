@@ -10,7 +10,7 @@ const UIOverlayScript = preload("res://prototype/prototype_ui_overlay.gd")
 signal start_wave_requested
 signal enemy_resolved(leaked: bool, leak_damage: int)
 signal enemies_added(count: int)
-signal enemy_spawned_for_stats(enemy_type: StringName, max_health: int)
+signal enemy_spawned_for_stats(enemy_type: StringName, max_health: int, director_threat: int)
 signal enemy_resolved_for_stats(leaked: bool, leak_damage: int, progress_ratio: float)
 signal tower_damage_recorded(tower_type: StringName, tower_level: int, amount: int)
 signal structure_action_recorded(action: StringName, tower_type: StringName, tower_level: int, amount: int)
@@ -1199,7 +1199,11 @@ func _create_enemy(enemy_data: Dictionary, continuation: Dictionary = {}) -> voi
 		enemy_resolved.emit(false, 1)
 		status_message = "Enemy spawn failed because no route exists."
 	else:
-		enemy_spawned_for_stats.emit(StringName(enemy.enemy_type), int(enemy.max_health))
+		enemy_spawned_for_stats.emit(
+			StringName(enemy.enemy_type),
+			int(enemy.max_health),
+			maxi(int(enemy_data.get("director_threat", 0)), 0)
+		)
 	queue_redraw()
 
 

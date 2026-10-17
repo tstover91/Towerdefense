@@ -8,7 +8,7 @@ var failure_count := 0
 
 
 func _init() -> void:
-	call_deferred("_run")
+	_run()
 
 
 func _run() -> void:
@@ -233,6 +233,14 @@ func _run() -> void:
 	_assert(game.economy.credits == 453, "building remains available between waves")
 	_assert(game.run_stats.get_rows().size() == 1, "wave completion records one telemetry row")
 	var stats_row: Dictionary = game.run_stats.get_rows()[0]
+	_assert(int(stats_row["planned_threat"]) == 8, "telemetry records the director's wave budget")
+	_assert(int(stats_row["spent_threat"]) == 8, "telemetry records the threat committed to formations")
+	_assert(not String(stats_row["wave_style"]).is_empty(), "telemetry records the wave formation style")
+	_assert(not String(stats_row["run_enemy_roster"]).is_empty(), "telemetry records the run's limited enemy roster")
+	_assert(
+		int(stats_row["spawned_director_threat"]) <= int(stats_row["spent_threat"]),
+		"spawn telemetry cannot exceed the planned wave threat"
+	)
 	_assert(int(stats_row["spawned_health"]) == 10001, "telemetry records effective spawned health")
 	_assert(int(stats_row["defeated_enemies"]) == 1, "telemetry includes an enemy killed on the final hit")
 	_assert(int(stats_row["gunslinger_damage"]) == 2, "telemetry includes the killing Gunslinger damage")
