@@ -14,6 +14,8 @@ var failure_count := 0
 func _init() -> void:
 	var generator: RefCounted = GeneratorScript.new()
 	var signatures: Dictionary = {}
+	var layouts_with_backward_legs := 0
+	var layouts_without_backward_legs := 0
 	for seed in range(1, 41):
 		var layout: Dictionary = generator.generate(seed, GRID_SIZE, STATIC_OBJECTS)
 		_assert(not layout.is_empty(), "seed %d produces a valid layout" % seed)
@@ -30,8 +32,12 @@ func _init() -> void:
 		_assert(entrance.x == 0, "entrance is in the first column")
 		_assert(exit_cell.x == GRID_SIZE.x - 1, "exit is in the last column")
 		_assert(waypoints.size() == 3, "layout contains three waypoints")
-		_assert(bool(layout["has_backward_leg"]), "waypoint order includes a leg away from the exit")
-		_assert(route.size() - 1 >= 50 and route.size() - 1 <= 60, "route length stays in the fairness envelope")
+		_assert(_respects_backward_limit(entrance, waypoints), "no waypoint sits more than two columns behind the previous marker")
+		if bool(layout["has_backward_leg"]):
+			layouts_with_backward_legs += 1
+		else:
+			layouts_without_backward_legs += 1
+		_assert(route.size() - 1 >= 36 and route.size() - 1 <= 48, "route length stays in the shorter fairness envelope")
 		_assert(_has_unique_edges(route), "generated route never retraces an edge")
 		var ordered_targets: Array[Vector2i] = waypoints.duplicate()
 		ordered_targets.append(exit_cell)
@@ -40,11 +46,22 @@ func _init() -> void:
 		_assert(_segments_are_balanced(route, ordered_targets), "each route leg stays between 6 and 20 tiles")
 		signatures[_signature(layout)] = true
 	_assert(signatures.size() >= 32, "different seeds produce meaningfully varied marker layouts")
+	_assert(layouts_with_backward_legs > 0, "some generated maps retain short backward legs")
+	_assert(layouts_without_backward_legs > 0, "backward legs are no longer mandatory")
 	_finish("PROTOTYPE_MAP_LAYOUT_SMOKE_OK")
 
 
 func _signature(layout: Dictionary) -> String:
 	return "%s|%s|%s" % [layout["entrance"], layout["waypoints"], layout["exit_cell"]]
+
+
+func _respects_backward_limit(entrance: Vector2i, waypoints: Array[Vector2i]) -> bool:
+	var previous := entrance
+	for waypoint in waypoints:
+		if waypoint.x < previous.x - 2:
+			return false
+		previous = waypoint
+	return true
 
 
 func _has_unique_edges(route: Array[Vector2i]) -> bool:

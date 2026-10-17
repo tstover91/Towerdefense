@@ -5,8 +5,9 @@ const GridRouterScript = preload("res://prototype/grid_route_service.gd")
 const QualityEvaluatorScript = preload("res://prototype/prototype_map_quality_evaluator.gd")
 const WAYPOINT_COUNT := 3
 const MAX_CANDIDATES := 64
-const MIN_ROUTE_STEPS := 50
-const MAX_ROUTE_STEPS := 60
+const MIN_ROUTE_STEPS := 36
+const MAX_ROUTE_STEPS := 48
+const MAX_BACKWARD_COLUMNS := 2
 const MIN_ENDPOINT_DISTANCE := 10
 const MIN_MARKER_DISTANCE := 4
 const MIN_SEGMENT_STEPS := 6
@@ -16,7 +17,7 @@ const MAX_SEGMENT_STEPS := 20
 func generate(seed: int, grid_size: Vector2i, static_objects: Array[Vector2i]) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
-	var target_steps := rng.randi_range(53, 57)
+	var target_steps := rng.randi_range(39, 45)
 	var quality_evaluator: RefCounted = QualityEvaluatorScript.new()
 	var best_layout: Dictionary = {}
 	var best_score := -INF
@@ -28,7 +29,7 @@ func generate(seed: int, grid_size: Vector2i, static_objects: Array[Vector2i]) -
 		if static_objects.has(entrance) or static_objects.has(exit_cell):
 			continue
 		var waypoints := _random_waypoints(rng, grid_size, static_objects, entrance, exit_cell)
-		if waypoints.size() != WAYPOINT_COUNT or not _has_backward_leg(entrance, waypoints, exit_cell):
+		if waypoints.size() != WAYPOINT_COUNT or not _respects_backward_limit(entrance, waypoints):
 			continue
 		var router: RefCounted = GridRouterScript.new()
 		router.configure(grid_size, entrance, waypoints, exit_cell, static_objects)
@@ -62,7 +63,7 @@ func generate(seed: int, grid_size: Vector2i, static_objects: Array[Vector2i]) -
 				"exit_cell": exit_cell,
 				"route": route,
 				"route_steps": route_steps,
-				"has_backward_leg": true,
+				"has_backward_leg": _has_backward_leg(entrance, waypoints),
 				"quality": quality,
 			}
 	return best_layout
@@ -85,6 +86,9 @@ func _random_waypoints(
 		)
 		if static_objects.has(cell) or result.has(cell):
 			continue
+		var previous := entrance if result.is_empty() else result[-1]
+		if cell.x < previous.x - MAX_BACKWARD_COLUMNS:
+			continue
 		var all_markers: Array[Vector2i] = [entrance, exit_cell]
 		all_markers.append_array(result)
 		var too_close := false
@@ -105,15 +109,21 @@ func _random_waypoints(
 	return result
 
 
-func _has_backward_leg(entrance: Vector2i, waypoints: Array[Vector2i], exit_cell: Vector2i) -> bool:
+func _respects_backward_limit(entrance: Vector2i, waypoints: Array[Vector2i]) -> bool:
 	var previous := entrance
-	var previous_distance := _manhattan(previous, exit_cell)
 	for waypoint in waypoints:
-		var distance := _manhattan(waypoint, exit_cell)
-		if distance >= previous_distance + 2:
+		if waypoint.x < previous.x - MAX_BACKWARD_COLUMNS:
+			return false
+		previous = waypoint
+	return true
+
+
+func _has_backward_leg(entrance: Vector2i, waypoints: Array[Vector2i]) -> bool:
+	var previous := entrance
+	for waypoint in waypoints:
+		if waypoint.x < previous.x:
 			return true
 		previous = waypoint
-		previous_distance = distance
 	return false
 
 
