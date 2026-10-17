@@ -1186,6 +1186,7 @@ func _create_enemy(enemy_data: Dictionary, continuation: Dictionary = {}) -> voi
 	enemy.set_meta("health_scale", float(enemy_data.get("health_scale", 1.0)))
 	enemy.reached_exit.connect(_on_enemy_reached_exit)
 	enemy.defeated.connect(_on_enemy_defeated)
+	enemy.summon_requested.connect(_on_enemy_summon_requested)
 	active_followers.append(enemy)
 	var began: bool = (
 		enemy.begin_from_continuation(continuation)
@@ -1227,6 +1228,7 @@ func _on_enemy_defeated(enemy: Node2D) -> void:
 	if not is_instance_valid(enemy):
 		return
 	var release_count := int(enemy.get_release_count())
+	var release_type := StringName(enemy.get_release_type())
 	var continuation: Dictionary = enemy.get_continuation_state() if release_count > 0 else {}
 	var release_scale := float(enemy.get_meta("health_scale", 1.0))
 	var release_group := int(enemy.get("formation_id"))
@@ -1240,13 +1242,33 @@ func _on_enemy_defeated(enemy: Node2D) -> void:
 	enemy.queue_free()
 	for child_index in release_count:
 		_create_enemy({
-			"enemy_type": &"soldier",
-			"health_scale": release_scale * 0.65,
+			"enemy_type": release_type,
+			"health_scale": release_scale,
 			"group_index": release_group,
 			"index_in_group": 100 + child_index,
 			"initial_route_progress": inherited_progress,
 		}, continuation)
 	queue_redraw()
+
+
+func _on_enemy_summon_requested(summoner: Node2D, enemy_type: StringName, count: int) -> void:
+	if not is_instance_valid(summoner) or count <= 0:
+		return
+	var continuation: Dictionary = summoner.get_continuation_state()
+	var inherited_progress := float(summoner.get("route_progress"))
+	var release_group := int(summoner.get("formation_id"))
+	enemies_added.emit(count)
+	for child_index in count:
+		var child_count_before := active_followers.size()
+		_create_enemy({
+			"enemy_type": enemy_type,
+			"health_scale": float(summoner.get_meta("health_scale", 1.0)),
+			"group_index": release_group,
+			"index_in_group": 200 + int(summoner.get("summons_created")) + child_index,
+			"initial_route_progress": inherited_progress,
+		}, continuation)
+		if active_followers.size() > child_count_before:
+			active_followers[-1].set_meta("summoner_id", summoner.get_instance_id())
 
 
 func set_combat_state(new_state: Dictionary) -> void:

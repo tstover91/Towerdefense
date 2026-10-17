@@ -14,12 +14,16 @@ func _init() -> void:
 	get_root().add_child(controller)
 	var opening_schedule: Array[Dictionary] = controller._build_schedule(RoundControllerScript.WAVES[0])
 	_assert(float(opening_schedule[-1]["time"]) >= 7.0, "opening wave is paced across multiple pushes")
-	_assert(is_equal_approx(float(RoundControllerScript.WAVES[0]["scale"]), 0.95), "wave one has a forgiving health scale")
-	_assert(is_equal_approx(float(RoundControllerScript.WAVES[2]["scale"]), 1.30), "wave three no longer carries the opening difficulty spike")
-	_assert(_schedule_size(controller, 13) == 18 and _type_count(controller, 13, &"giant") == 2, "wave thirteen replaces filler soldiers with two durable enemies")
-	_assert(_schedule_size(controller, 16) == 21 and _type_count(controller, 16, &"giant") == 3, "wave sixteen raises pressure with fewer, tougher enemies")
-	_assert(_schedule_size(controller, 17) == 17 and _type_count(controller, 17, &"giant") == 2, "wave seventeen keeps a compact durable formation")
-	_assert(_schedule_size(controller, 19) == 24 and _type_count(controller, 19, &"giant") == 2, "wave nineteen avoids a large weak swarm")
+	for wave_data in RoundControllerScript.WAVES:
+		_assert(is_equal_approx(float(wave_data["scale"]), 1.0), "unit-test waves use fixed base health")
+	_assert(_type_count(controller, 3, &"giant") == 0, "wave three avoids an early tank spike")
+	_assert(_type_count(controller, 4, &"giant") == 1, "wave four introduces the Giant")
+	_assert(_type_count(controller, 5, &"armored") == 3, "wave five introduces armor")
+	_assert(_type_count(controller, 7, &"shielded") == 3, "wave seven introduces shields")
+	_assert(_type_count(controller, 8, &"healer") == 1, "wave eight introduces healing")
+	_assert(_type_count(controller, 9, &"witch") == 1, "wave nine introduces summoning")
+	_assert(_type_count(controller, 13, &"golem") == 1, "wave thirteen introduces one unsupported Golem")
+	_assert(_type_count(controller, 20, &"golem") == 2, "wave twenty tests two separated Golem pushes")
 	controller.state_changed.connect(_on_state_changed)
 	controller.wave_cleared.connect(_on_wave_cleared)
 	controller.enemy_spawn_requested.connect(_on_enemy_spawn_requested.bind(controller))
@@ -70,7 +74,7 @@ func _init() -> void:
 		"spawn notifications immediately refresh the active counter"
 	)
 	_assert(
-		int(latest_counter_state.get("remaining_spawns", -1)) == 8,
+		int(latest_counter_state.get("remaining_spawns", -1)) == 7,
 		"spawn notifications immediately refresh the scheduled counter"
 	)
 	_finish("PROTOTYPE_COMBAT_LOOP_SMOKE_OK")
