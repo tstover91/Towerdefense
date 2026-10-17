@@ -45,6 +45,7 @@ var schedule: Array[Dictionary] = []
 var schedule_index := 0
 var wave_elapsed := 0.0
 var active_enemy_count := 0
+var resolved_enemy_count := 0
 
 
 func _ready() -> void:
@@ -59,6 +60,7 @@ func start_next_wave() -> bool:
 	schedule_index = 0
 	wave_elapsed = 0.0
 	active_enemy_count = 0
+	resolved_enemy_count = 0
 	phase = PHASE_ACTIVE
 	_emit_state()
 	return true
@@ -68,6 +70,7 @@ func notify_enemy_resolved(leaked: bool, leak_damage := 1) -> void:
 	if phase != PHASE_ACTIVE:
 		return
 	active_enemy_count = maxi(active_enemy_count - 1, 0)
+	resolved_enemy_count += 1
 	if leaked:
 		lives = maxi(lives - maxi(leak_damage, 1), 0)
 		if lives <= 0:
@@ -152,6 +155,8 @@ func _build_schedule(wave_data: Dictionary) -> Array[Dictionary]:
 
 
 func get_state() -> Dictionary:
+	var remaining_spawns := maxi(schedule.size() - schedule_index, 0)
+	var wave_total := resolved_enemy_count + active_enemy_count + remaining_spawns
 	return {
 		"phase": phase,
 		"completed_waves": completed_waves,
@@ -164,7 +169,12 @@ func get_state() -> Dictionary:
 		"max_waves": WAVES.size(),
 		"lives": lives,
 		"active_enemies": active_enemy_count,
-		"remaining_spawns": maxi(schedule.size() - schedule_index, 0),
+		"remaining_spawns": remaining_spawns,
+		"wave_progress": (
+			float(resolved_enemy_count) / float(wave_total)
+			if wave_total > 0
+			else (1.0 if completed_waves > 0 else 0.0)
+		),
 	}
 
 

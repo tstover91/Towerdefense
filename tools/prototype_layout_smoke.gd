@@ -74,6 +74,11 @@ func _run() -> void:
 			"%s keeps the start control inside the safe viewport" % viewport_size
 		)
 		_assert(
+			board.safe_view_rect.encloses(board.tools_button_rect)
+			and board.safe_view_rect.encloses(board.wave_progress_rect),
+			"%s keeps the compact tools and wave controls inside the safe viewport" % viewport_size
+		)
+		_assert(
 			board.safe_view_rect.encloses(board.upgrade_button_rect),
 			"%s keeps the upgrade control inside the safe viewport" % viewport_size
 		)
@@ -95,6 +100,10 @@ func _run() -> void:
 			board.safe_view_rect.encloses(board.cancel_button_rect)
 			and board.safe_view_rect.encloses(board.selection_cancel_button_rect),
 			"%s keeps both contextual close controls inside the safe viewport" % viewport_size
+		)
+		_assert(
+			board.safe_view_rect.encloses(board.selection_panel_rect),
+			"%s keeps the local structure panel inside the safe viewport" % viewport_size
 		)
 		_assert(
 			board.safe_view_rect.encloses(board.change_build_button_rect)
