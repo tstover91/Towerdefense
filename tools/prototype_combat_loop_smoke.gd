@@ -14,8 +14,12 @@ func _init() -> void:
 	get_root().add_child(controller)
 	var opening_schedule: Array[Dictionary] = controller._build_schedule(RoundControllerScript.WAVES[0])
 	_assert(float(opening_schedule[-1]["time"]) >= 7.0, "opening wave is paced across multiple pushes")
-	for wave_data in RoundControllerScript.WAVES:
-		_assert(is_equal_approx(float(wave_data["scale"]), 1.0), "unit-test waves use fixed base health")
+	for wave_index in RoundControllerScript.WAVES.size():
+		var expected_scale := _expected_enemy_scale(wave_index)
+		_assert(
+			is_equal_approx(float(RoundControllerScript.WAVES[wave_index]["scale"]), expected_scale),
+			"wave %d uses its discrete enemy level" % (wave_index + 1)
+		)
 	_assert(_type_count(controller, 3, &"giant") == 0, "wave three avoids an early tank spike")
 	_assert(_type_count(controller, 4, &"giant") == 1, "wave four introduces the Giant")
 	_assert(_type_count(controller, 5, &"armored") == 3, "wave five introduces armor")
@@ -78,6 +82,16 @@ func _init() -> void:
 		"spawn notifications immediately refresh the scheduled counter"
 	)
 	_finish("PROTOTYPE_COMBAT_LOOP_SMOKE_OK")
+
+
+func _expected_enemy_scale(wave_index: int) -> float:
+	if wave_index < 5:
+		return 1.0
+	if wave_index < 10:
+		return 1.15
+	if wave_index < 15:
+		return 1.35
+	return 1.60
 
 
 func _on_enemy_spawn_requested(_enemy_data: Dictionary, controller: Node) -> void:

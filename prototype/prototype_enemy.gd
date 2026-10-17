@@ -60,12 +60,14 @@ var maximum_shield_charges := 0
 var healing_tick_remaining := 0.0
 var summon_remaining := 0.0
 var summons_created := 0
+var combat_scale := 1.0
 
 
 func setup_combat(new_type: StringName, health_scale: float, cell_size_pixels: float, new_formation_id := -1, new_formation_index := 0) -> void:
 	enemy_type = new_type if TYPE_DATA.has(new_type) else TYPE_SOLDIER
 	var data: Dictionary = TYPE_DATA[enemy_type]
-	max_health = maxi(roundi(float(data["health"]) * maxf(health_scale, 0.1)), 1)
+	combat_scale = maxf(health_scale, 0.1)
+	max_health = maxi(roundi(float(data["health"]) * combat_scale), 1)
 	health = max_health
 	base_speed_cells_per_second = float(data["speed"])
 	current_speed_cells_per_second = base_speed_cells_per_second
@@ -165,7 +167,7 @@ func apply_damage(requested_damage: int, _damage_type: StringName = &"ballistic"
 
 func _process_healing(delta: float) -> void:
 	var data: Dictionary = TYPE_DATA[enemy_type]
-	var healing_per_second := float(data.get("healing_per_second", 0.0))
+	var healing_per_second := float(data.get("healing_per_second", 0.0)) * combat_scale
 	if healing_per_second <= 0.0:
 		return
 	healing_tick_remaining -= delta

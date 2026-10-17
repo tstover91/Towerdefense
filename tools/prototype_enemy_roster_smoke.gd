@@ -36,6 +36,12 @@ func _run() -> void:
 	wounded.health -= 100
 	healer._process_healing(0.25)
 	_assert(wounded.health == wounded.max_health - 90, "Healer restores ten health per quarter-second tick")
+	var scaled_wounded := _make_enemy(host, EnemyScript.TYPE_SOLDIER, 11, 1.60)
+	var scaled_healer := _make_enemy(host, EnemyScript.TYPE_HEALER, 11, 1.60)
+	_assert(scaled_wounded.max_health == 104, "late-wave scaling raises Soldier health by sixty percent")
+	scaled_wounded.health -= 30
+	scaled_healer._process_healing(0.25)
+	_assert(scaled_wounded.health == scaled_wounded.max_health - 14, "late-wave scaling raises healing output by sixty percent")
 
 	var witch := _make_enemy(host, EnemyScript.TYPE_WITCH, 20)
 	witch.summon_requested.connect(_on_summon_requested)
@@ -57,11 +63,11 @@ func _run() -> void:
 	quit(0)
 
 
-func _make_enemy(host: Node2D, enemy_type: StringName, formation_id: int) -> Node2D:
+func _make_enemy(host: Node2D, enemy_type: StringName, formation_id: int, health_scale := 1.0) -> Node2D:
 	var enemy: Node2D = EnemyScript.new()
 	host.add_child(enemy)
 	enemy.position = Vector2(100.0, 100.0)
-	enemy.setup_combat(enemy_type, 1.0, 48.0, formation_id, 0)
+	enemy.setup_combat(enemy_type, health_scale, 48.0, formation_id, 0)
 	return enemy
 
 
