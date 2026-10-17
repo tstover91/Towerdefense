@@ -9,6 +9,7 @@ const TYPE_GUNSLINGER: StringName = &"gunslinger"
 const TYPE_ANTI_MATERIEL: StringName = &"anti_materiel"
 const TYPE_FLAMESPITTER: StringName = &"flamespitter"
 const TYPE_BOMBARDMENT: StringName = &"bombardment"
+const TYPE_ATOMIC_STRIKE: StringName = &"atomic_strike"
 
 const TARGET_FIRST: StringName = &"first"
 const TARGET_HIGHEST_HP: StringName = &"highest_hp"
@@ -81,6 +82,21 @@ const TYPE_DATA := {
 			{"damage": 24, "interval": 1.80, "range_cells": 3.4, "pierce": 0, "splash_cells": 1.05, "shells": 1, "stun": 0.0},
 			{"damage": 38, "interval": 2.10, "range_cells": 3.5, "pierce": 0, "splash_cells": 1.10, "shells": 2, "stun": 0.0},
 			{"damage": 70, "interval": 2.40, "range_cells": 3.7, "pierce": 0, "splash_cells": 1.20, "shells": 3, "stun": 0.40},
+		],
+	},
+	TYPE_ATOMIC_STRIKE: {
+		"name": "ATOMIC STRIKE",
+		"cost": 500,
+		"upgrade_costs": [200, 800, 2400],
+		"color": Color("f06a24"),
+		"target_mode": TARGET_DENSEST,
+		"locks_target": false,
+		"ignores_armor": false,
+		"stats": [
+			{"damage": 40, "interval": 5.00, "range_cells": 3.4, "pierce": 0, "splash_cells": 1.10, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
+			{"damage": 55, "interval": 4.80, "range_cells": 3.5, "pierce": 0, "splash_cells": 1.20, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
+			{"damage": 130, "interval": 4.50, "range_cells": 3.7, "pierce": 0, "splash_cells": 1.35, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
+			{"damage": 300, "interval": 4.20, "range_cells": 4.0, "pierce": 0, "splash_cells": 1.50, "hazard_duration": 3.0, "hazard_tick": 0.5, "hazard_damage": 4},
 		],
 	},
 }
@@ -259,6 +275,10 @@ func get_summary() -> String:
 		behavior_text = " · %.0f° CONE · HITS %d" % [get_cone_degrees(), get_target_limit()]
 	elif tower_type == TYPE_BOMBARDMENT:
 		behavior_text = " · %d SHELL%s" % [get_shell_count(), "S" if get_shell_count() != 1 else ""]
+	elif tower_type == TYPE_ATOMIC_STRIKE:
+		behavior_text = " · %.1f BLAST" % get_splash_cells()
+		if float(_get_stats().get("hazard_duration", 0.0)) > 0.0:
+			behavior_text += " · GROUND FIRE"
 	return "%s L%d  ·  %d DMG  ·  %.2fs  ·  %.1f RANGE%s  ·  %s" % [
 		get_type_name(tower_type), level, get_damage(), get_attack_interval(),
 		get_range_cells(), behavior_text, targeting,
@@ -360,6 +380,9 @@ func _fire_at(current_target: Node2D) -> void:
 		return
 	if tower_type == TYPE_BOMBARDMENT:
 		_start_bombardment_salvo(current_target.global_position)
+		return
+	if tower_type == TYPE_ATOMIC_STRIKE:
+		_start_atomic_strike(current_target.global_position)
 		return
 	attack_cooldown = get_attack_interval()
 	var target_position := current_target.global_position
@@ -481,6 +504,25 @@ func _launch_bombardment_shell() -> void:
 	bombardment_shell_timer = BOMBARDMENT_SHELL_STAGGER
 
 
+func _start_atomic_strike(impact_position: Vector2) -> void:
+	attack_cooldown = get_attack_interval()
+	var projectile := ProjectileScript.new() as Node2D
+	get_tree().current_scene.add_child(projectile)
+	projectile.global_position = global_position + aim_direction * get_cell_size() * 0.18
+	projectile.setup_position(
+		impact_position,
+		maxf(get_cell_size() * 4.0, 190.0),
+		get_damage(),
+		get_splash_cells() * get_cell_size(),
+		self,
+		0.0,
+		float(_get_stats().get("hazard_duration", 0.0)),
+		float(_get_stats().get("hazard_tick", 0.5)),
+		int(_get_stats().get("hazard_damage", 0)),
+		get_splash_cells() * get_cell_size()
+	)
+
+
 func _apply_hit(enemy: Node2D, damage: int) -> int:
 	if not _is_valid_target(enemy) or not enemy.has_method("apply_damage"):
 		return 0
@@ -561,6 +603,11 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, cell_size * 0.23, BODY_DARK)
 		draw_circle(Vector2.ZERO, cell_size * 0.14, BODY_LIGHT)
 		draw_line(Vector2.ZERO, aim_direction * cell_size * 0.38, BODY_DARK, maxf(cell_size * 0.13, 4.0), true)
+	elif tower_type == TYPE_ATOMIC_STRIKE:
+		draw_circle(Vector2.ZERO, cell_size * 0.23, BODY_DARK)
+		draw_circle(Vector2.ZERO, cell_size * 0.13, body_color.lightened(0.35))
+		draw_line(Vector2.ZERO, aim_direction * cell_size * 0.42, BODY_LIGHT, maxf(cell_size * 0.11, 4.0), true)
+		draw_circle(aim_direction * cell_size * 0.38, cell_size * 0.07, BODY_DARK)
 	else:
 		draw_circle(Vector2.ZERO, cell_size * 0.20, BODY_LIGHT)
 		var side := aim_direction.orthogonal() * cell_size * 0.09

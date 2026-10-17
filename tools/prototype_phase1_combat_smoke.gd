@@ -4,6 +4,7 @@ const PrototypeScene = preload("res://prototype/prototype_main.tscn")
 const TowerScript = preload("res://prototype/prototype_tower.gd")
 const EnemyScript = preload("res://prototype/prototype_enemy.gd")
 const ProjectileScript = preload("res://prototype/prototype_projectile.gd")
+const GroundHazardScript = preload("res://prototype/prototype_ground_hazard.gd")
 
 var failure_count := 0
 var released_count := 0
@@ -99,6 +100,33 @@ func _run() -> void:
 	splash_projectile._apply_splash(splash_a.global_position)
 	_assert(splash_a.health == 58 and splash_b.health == 58, "Bombardment splash damages a nearby group")
 	_assert(splash_a.stun_remaining == 0.4 and splash_b.stun_remaining == 0.4, "Bombardment's final shell applies its short stun to the blast")
+	_assert(splash_a.stun_fatigue_tier == 1, "an accepted stun advances the enemy's stun-fatigue tier")
+
+	var fatigue_enemy: Node2D = _make_enemy(board, Vector2(760.0, 360.0), EnemyScript.TYPE_SOLDIER)
+	fatigue_enemy.apply_stun(1.0)
+	_assert(is_equal_approx(fatigue_enemy.stun_remaining, 1.0), "the first stun has full duration")
+	fatigue_enemy._process_stun_effects(1.0)
+	fatigue_enemy.apply_stun(1.0)
+	_assert(is_equal_approx(fatigue_enemy.stun_remaining, 0.65), "the second accepted stun uses the 65-percent fatigue tier")
+	fatigue_enemy._process_stun_effects(0.65)
+	fatigue_enemy.apply_stun(1.0)
+	_assert(is_equal_approx(fatigue_enemy.stun_remaining, 0.40), "the third accepted stun uses the 40-percent fatigue tier")
+	fatigue_enemy._process_stun_effects(0.10)
+	var tier_before_overlap: int = fatigue_enemy.stun_fatigue_tier
+	fatigue_enemy.apply_stun(0.10)
+	_assert(fatigue_enemy.stun_fatigue_tier == tier_before_overlap, "a stun that cannot extend the current effect does not add another fatigue tier")
+	_assert(is_zero_approx(fatigue_enemy.stun_fatigue_recovery_elapsed), "every eligible stun hit resets the fatigue recovery clock")
+	fatigue_enemy._process_stun_effects(4.99)
+	_assert(fatigue_enemy.stun_fatigue_tier == tier_before_overlap, "stun fatigue does not recover before five uninterrupted seconds")
+	fatigue_enemy._process_stun_effects(0.01)
+	_assert(fatigue_enemy.stun_fatigue_tier == tier_before_overlap - 1, "stun fatigue recovers by one tier after five uninterrupted seconds")
+
+	var boss_enemy: Node2D = _make_enemy(board, Vector2(810.0, 360.0), EnemyScript.TYPE_GIANT)
+	boss_enemy.traits.append(&"boss")
+	boss_enemy.apply_stun(1.0)
+	_assert(is_zero_approx(boss_enemy.stun_remaining), "bosses ignore stuns that are not explicitly allowed to affect them")
+	boss_enemy.apply_stun(1.0, true)
+	_assert(is_equal_approx(boss_enemy.stun_remaining, 0.5), "eligible boss stuns begin at half duration")
 
 	var bombardment: Node2D = TowerScript.new()
 	board.add_child(bombardment)
@@ -119,6 +147,39 @@ func _run() -> void:
 		_assert(barrage_projectiles[2].stun_duration == 0.4, "only the final barrage shell carries the level-four stun")
 	for barrage_projectile in barrage_projectiles:
 		barrage_projectile.queue_free()
+	await process_frame
+
+	var atomic_strike: Node2D = TowerScript.new()
+	board.add_child(atomic_strike)
+	atomic_strike.position = Vector2(880.0, 150.0)
+	atomic_strike.configure(Vector2i.ZERO, Callable(board, "get_cell_size"), TowerScript.TYPE_ATOMIC_STRIKE)
+	for upgrade_index in 3:
+		atomic_strike.upgrade(atomic_strike.get_next_upgrade_cost())
+	var atomic_impact := Vector2(1000.0, 150.0)
+	var atomic_primary: Node2D = _make_enemy(board, atomic_impact, EnemyScript.TYPE_GIANT)
+	var atomic_nearby: Node2D = _make_enemy(board, atomic_impact + Vector2(30.0, 0.0), EnemyScript.TYPE_GIANT)
+	atomic_strike._start_atomic_strike(atomic_impact)
+	var atomic_projectile: Node2D
+	for child in game.get_children():
+		if child.get_script() == ProjectileScript and float(child.ground_hazard_duration) > 0.0:
+			atomic_projectile = child as Node2D
+			break
+	_assert(is_instance_valid(atomic_projectile), "level-four Atomic Strike launches a ground-fire payload")
+	if is_instance_valid(atomic_projectile):
+		_assert(atomic_projectile.damage == 300 and atomic_projectile.stun_duration == 0.0, "Atomic Strike carries one unstunning direct blast")
+		atomic_projectile._resolve_impact(atomic_impact)
+		_assert(atomic_primary.health == 180 and atomic_nearby.health == 180, "Atomic Strike deals full splash damage to its impact group")
+		var ground_hazard: Node2D
+		for child in game.get_children():
+			if child.get_script() == GroundHazardScript:
+				ground_hazard = child as Node2D
+				break
+		_assert(is_instance_valid(ground_hazard), "level-four Atomic Strike leaves ground fire at its locked impact point")
+		if is_instance_valid(ground_hazard):
+			ground_hazard._apply_tick()
+			_assert(atomic_primary.health == 176 and atomic_nearby.health == 176, "ground fire damages every enemy standing inside without attaching a status")
+			ground_hazard.queue_free()
+		atomic_projectile.queue_free()
 
 	var leader: Node2D = _make_enemy(board, Vector2(800.0, 300.0), EnemyScript.TYPE_GIANT, 44, 0)
 	var follower: Node2D = _make_enemy(board, Vector2(780.0, 300.0), EnemyScript.TYPE_SOLDIER, 44, 1)

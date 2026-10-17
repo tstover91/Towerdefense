@@ -1,6 +1,8 @@
 class_name PrototypeProjectile
 extends Node2D
 
+const GroundHazardScript = preload("res://prototype/prototype_ground_hazard.gd")
+
 const BODY_COLOR := Color("efb83d")
 const OUTLINE_COLOR := Color("171717")
 const PROJECTILE_RADIUS := 4.0
@@ -13,6 +15,10 @@ var damage := 1
 var splash_radius := 0.0
 var stun_duration := 0.0
 var source_tower: Node
+var ground_hazard_duration := 0.0
+var ground_hazard_tick_interval := 0.5
+var ground_hazard_damage := 0
+var ground_hazard_radius := 0.0
 
 
 func _ready() -> void:
@@ -29,7 +35,18 @@ func setup(new_target: Node2D, new_speed: float, new_damage: int, new_splash_rad
 	queue_redraw()
 
 
-func setup_position(new_target_position: Vector2, new_speed: float, new_damage: int, new_splash_radius: float, new_source_tower: Node = null, new_stun_duration := 0.0) -> void:
+func setup_position(
+	new_target_position: Vector2,
+	new_speed: float,
+	new_damage: int,
+	new_splash_radius: float,
+	new_source_tower: Node = null,
+	new_stun_duration := 0.0,
+	new_ground_hazard_duration := 0.0,
+	new_ground_hazard_tick_interval := 0.5,
+	new_ground_hazard_damage := 0,
+	new_ground_hazard_radius := 0.0
+) -> void:
 	target = null
 	target_position = new_target_position
 	uses_fixed_target = true
@@ -38,6 +55,10 @@ func setup_position(new_target_position: Vector2, new_speed: float, new_damage: 
 	splash_radius = maxf(new_splash_radius, 0.0)
 	source_tower = new_source_tower
 	stun_duration = maxf(new_stun_duration, 0.0)
+	ground_hazard_duration = maxf(new_ground_hazard_duration, 0.0)
+	ground_hazard_tick_interval = maxf(new_ground_hazard_tick_interval, 0.01)
+	ground_hazard_damage = maxi(new_ground_hazard_damage, 0)
+	ground_hazard_radius = maxf(new_ground_hazard_radius, 0.0)
 	queue_redraw()
 
 
@@ -52,16 +73,21 @@ func _physics_process(delta: float) -> void:
 		hit_radius += float(target.get_projectile_hit_radius())
 	var travel_distance := speed * delta
 	if offset.length() <= hit_radius + travel_distance:
-		if splash_radius > 0.0:
-			_apply_splash(destination)
-		elif target.has_method("apply_damage"):
-			_report_damage(int(target.apply_damage(damage, &"ballistic", false, true)))
+		_resolve_impact(destination)
 		queue_free()
 		return
 	if not offset.is_zero_approx():
 		var direction := offset.normalized()
 		global_position += direction * travel_distance
 		rotation = direction.angle()
+
+
+func _resolve_impact(impact_position: Vector2) -> void:
+	if splash_radius > 0.0:
+		_apply_splash(impact_position)
+	elif is_instance_valid(target) and target.has_method("apply_damage"):
+		_report_damage(int(target.apply_damage(damage, &"ballistic", false, true)))
+	_spawn_ground_hazard(impact_position)
 
 
 func _apply_splash(impact_position: Vector2) -> void:
@@ -74,6 +100,21 @@ func _apply_splash(impact_position: Vector2) -> void:
 			if stun_duration > 0.0 and candidate.has_method("apply_stun"):
 				candidate.apply_stun(stun_duration)
 	_report_damage(total_applied)
+
+
+func _spawn_ground_hazard(impact_position: Vector2) -> void:
+	if ground_hazard_duration <= 0.0 or ground_hazard_damage <= 0:
+		return
+	var hazard := GroundHazardScript.new() as Node2D
+	get_tree().current_scene.add_child(hazard)
+	hazard.global_position = impact_position
+	hazard.setup(
+		ground_hazard_radius if ground_hazard_radius > 0.0 else splash_radius,
+		ground_hazard_duration,
+		ground_hazard_tick_interval,
+		ground_hazard_damage,
+		source_tower
+	)
 
 
 func _report_damage(amount: int) -> void:

@@ -10,6 +10,7 @@ func _init() -> void:
 	_check_anti_materiel_curve()
 	_check_flamespitter_curve()
 	_check_bombardment_curve()
+	_check_atomic_strike_curve()
 	if failure_count > 0:
 		quit(1)
 		return
@@ -56,6 +57,17 @@ func _check_bombardment_curve() -> void:
 	var dps := _bombardment_dps_curve()
 	_assert(dps[1] < dps[0] * 1.5, "Bombardment's first upgrade remains modest")
 	_assert(dps[3] > dps[0] * 8.0, "Bombardment's three-shell capstone is a major power increase")
+
+
+func _check_atomic_strike_curve() -> void:
+	var tower = _make_tower(TowerScript.TYPE_ATOMIC_STRIKE)
+	_assert(TowerScript.get_build_cost(TowerScript.TYPE_ATOMIC_STRIKE) == 500, "Atomic Strike starts as the expensive Steel-Fire hybrid")
+	_assert(_collect_upgrade_costs(tower) == [200, 800, 2400], "Atomic Strike follows the hybrid investment curve")
+	_assert(_range_curve(TowerScript.TYPE_ATOMIC_STRIKE) == [3.4, 3.5, 3.7, 4.0], "Atomic Strike gains deliberate late range")
+	_assert(_stat_curve(TowerScript.TYPE_ATOMIC_STRIKE, "splash_cells") == [1.1, 1.2, 1.35, 1.5], "Atomic Strike grows one controlled blast")
+	_assert(_dps_curve(TowerScript.TYPE_ATOMIC_STRIKE) == [8.0, 11.46, 28.89, 71.43], "Atomic Strike backloads its direct blast damage")
+	_assert(_stat_curve(TowerScript.TYPE_ATOMIC_STRIKE, "hazard_duration") == [0.0, 0.0, 0.0, 3.0], "only level-four Atomic Strike leaves ground fire")
+	_assert(not bool(TowerScript.TYPE_DATA[TowerScript.TYPE_ATOMIC_STRIKE]["ignores_armor"]), "Atomic Strike does not bypass armor")
 
 
 func _make_tower(type: StringName):

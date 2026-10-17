@@ -7,6 +7,9 @@ const TYPE_SOLDIER: StringName = &"soldier"
 const TYPE_RUNNER: StringName = &"runner"
 const TYPE_GIANT: StringName = &"giant"
 const TYPE_CARRIER: StringName = &"carrier"
+const STUN_FATIGUE_MULTIPLIERS := [1.0, 0.65, 0.40, 0.25, 0.10]
+const STUN_FATIGUE_RECOVERY_INTERVAL := 5.0
+const BOSS_STUN_DURATION_MULTIPLIER := 0.50
 const TYPE_DATA := {
 	TYPE_SOLDIER: {"health": 65, "speed": 0.90, "leak": 1, "radius": 0.17, "color": Color("2b2b29")},
 	TYPE_RUNNER: {"health": 42, "speed": 1.20, "leak": 1, "radius": 0.14, "color": Color("d94f3d")},
@@ -34,6 +37,8 @@ var formation_id := -1
 var formation_index := 0
 var released_children := false
 var stun_remaining := 0.0
+var stun_fatigue_tier := 0
+var stun_fatigue_recovery_elapsed := 0.0
 
 
 func setup_combat(new_type: StringName, health_scale: float, cell_size_pixels: float, new_formation_id := -1, new_formation_index := 0) -> void:
@@ -49,6 +54,9 @@ func setup_combat(new_type: StringName, health_scale: float, cell_size_pixels: f
 	current_cell_size = maxf(cell_size_pixels, 1.0)
 	speed_pixels_per_second = base_speed_cells_per_second * current_cell_size
 	visual_radius = maxf(current_cell_size * float(data["radius"]), 6.0)
+	stun_remaining = 0.0
+	stun_fatigue_tier = 0
+	stun_fatigue_recovery_elapsed = 0.0
 
 
 func update_cell_scale(cell_size_pixels: float, _unused_speed := 0.0) -> void:
@@ -67,7 +75,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if finished:
 		return
-	stun_remaining = maxf(stun_remaining - delta, 0.0)
+	_process_stun_effects(delta)
 	if stun_remaining > 0.0:
 		damage_flash_remaining = maxf(damage_flash_remaining - delta, 0.0)
 		queue_redraw()
@@ -124,10 +132,35 @@ func apply_damage_from_tower(requested_damage: int, damage_type: StringName, ign
 	return apply_damage(requested_damage, damage_type, ignores_armor, true, attack_context)
 
 
-func apply_stun(duration: float) -> void:
+func _process_stun_effects(delta: float) -> void:
+	stun_remaining = maxf(stun_remaining - delta, 0.0)
+	if stun_fatigue_tier <= 0:
+		stun_fatigue_recovery_elapsed = 0.0
+		return
+	stun_fatigue_recovery_elapsed += delta
+	while stun_fatigue_tier > 0 and stun_fatigue_recovery_elapsed >= STUN_FATIGUE_RECOVERY_INTERVAL:
+		stun_fatigue_recovery_elapsed -= STUN_FATIGUE_RECOVERY_INTERVAL
+		stun_fatigue_tier -= 1
+	if stun_fatigue_tier <= 0:
+		stun_fatigue_recovery_elapsed = 0.0
+
+
+func apply_stun(duration: float, affects_bosses := false, _attack_context = null) -> void:
 	if finished or duration <= 0.0:
 		return
-	stun_remaining = maxf(stun_remaining, duration)
+	var is_boss := traits.has(&"boss")
+	if is_boss and not affects_bosses:
+		return
+	# Any eligible stun hit delays fatigue recovery, including one that is too
+	# short to extend the stun already affecting this enemy.
+	stun_fatigue_recovery_elapsed = 0.0
+	var multiplier_index := mini(stun_fatigue_tier, STUN_FATIGUE_MULTIPLIERS.size() - 1)
+	var boss_multiplier := BOSS_STUN_DURATION_MULTIPLIER if is_boss else 1.0
+	var effective_duration: float = duration * boss_multiplier * STUN_FATIGUE_MULTIPLIERS[multiplier_index]
+	if effective_duration <= stun_remaining:
+		return
+	stun_remaining = effective_duration
+	stun_fatigue_tier = mini(stun_fatigue_tier + 1, STUN_FATIGUE_MULTIPLIERS.size() - 1)
 	queue_redraw()
 
 

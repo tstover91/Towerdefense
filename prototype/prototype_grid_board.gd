@@ -38,6 +38,7 @@ const BUILD_GUNSLINGER: StringName = &"gunslinger"
 const BUILD_ANTI_MATERIEL: StringName = &"anti_materiel"
 const BUILD_FLAMESPITTER: StringName = &"flamespitter"
 const BUILD_BOMBARDMENT: StringName = &"bombardment"
+const BUILD_ATOMIC_STRIKE: StringName = &"atomic_strike"
 const BUILD_WALL: StringName = &"wall"
 
 const FALLBACK_ENTRANCE := Vector2i(0, 5)
@@ -101,6 +102,7 @@ var gunslinger_button_rect := Rect2()
 var anti_materiel_button_rect := Rect2()
 var flamespitter_button_rect := Rect2()
 var bombardment_button_rect := Rect2()
+var atomic_strike_button_rect := Rect2()
 var wall_button_rect := Rect2()
 var start_button_rect := Rect2()
 var upgrade_button_rect := Rect2()
@@ -493,6 +495,11 @@ func _draw_footer_controls() -> void:
 		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_BOMBARDMENT)
 	)
 	_draw_button(
+		atomic_strike_button_rect,
+		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_ATOMIC_STRIKE else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_ATOMIC_STRIKE else ("AS $%d" if short_labels else "ATOMIC $%d") % TowerScript.get_build_cost(TowerScript.TYPE_ATOMIC_STRIKE)),
+		placement_mode != PlacementMode.NONE or _can_begin_placement(BUILD_ATOMIC_STRIKE)
+	)
+	_draw_button(
 		wall_button_rect,
 		"X" if short_labels and placement_mode != PlacementMode.NONE and placement_kind == BUILD_WALL else ("X CANCEL" if placement_mode != PlacementMode.NONE and placement_kind == BUILD_WALL else ("W %d/%d" if short_labels else "WALL %d/%d") % [
 			int(economy_state.get("used_walls", 0)),
@@ -569,6 +576,9 @@ func _handle_screen_press(screen_position: Vector2) -> void:
 		return
 	if bombardment_button_rect.has_point(screen_position):
 		_handle_placement_button(BUILD_BOMBARDMENT)
+		return
+	if atomic_strike_button_rect.has_point(screen_position):
+		_handle_placement_button(BUILD_ATOMIC_STRIKE)
 		return
 	if wall_button_rect.has_point(screen_position):
 		_handle_placement_button(BUILD_WALL)
@@ -816,6 +826,8 @@ func _get_build_kind_at(screen_position: Vector2) -> StringName:
 		return BUILD_FLAMESPITTER
 	if bombardment_button_rect.has_point(screen_position):
 		return BUILD_BOMBARDMENT
+	if atomic_strike_button_rect.has_point(screen_position):
+		return BUILD_ATOMIC_STRIKE
 	if wall_button_rect.has_point(screen_position):
 		return BUILD_WALL
 	return &""
@@ -867,12 +879,14 @@ func _get_active_placement_button_rect() -> Rect2:
 			return flamespitter_button_rect
 		BUILD_BOMBARDMENT:
 			return bombardment_button_rect
+		BUILD_ATOMIC_STRIKE:
+			return atomic_strike_button_rect
 		_:
 			return gunslinger_button_rect
 
 
 func _is_tower_kind(kind: StringName) -> bool:
-	return kind in [BUILD_GUNSLINGER, BUILD_ANTI_MATERIEL, BUILD_FLAMESPITTER, BUILD_BOMBARDMENT]
+	return kind in [BUILD_GUNSLINGER, BUILD_ANTI_MATERIEL, BUILD_FLAMESPITTER, BUILD_BOMBARDMENT, BUILD_ATOMIC_STRIKE]
 
 
 func _tower_type_for_build_kind(kind: StringName) -> StringName:
@@ -883,6 +897,8 @@ func _tower_type_for_build_kind(kind: StringName) -> StringName:
 			return TowerScript.TYPE_FLAMESPITTER
 		BUILD_BOMBARDMENT:
 			return TowerScript.TYPE_BOMBARDMENT
+		BUILD_ATOMIC_STRIKE:
+			return TowerScript.TYPE_ATOMIC_STRIKE
 		_:
 			return TowerScript.TYPE_GUNSLINGER
 
@@ -1176,10 +1192,10 @@ func mark_all_towers_participated() -> void:
 
 func get_telemetry_snapshot() -> Dictionary:
 	var levels := [0, 0, 0, 0]
-	var type_counts := {"gunslinger": 0, "anti_materiel": 0, "flamespitter": 0, "bombardment": 0}
-	var type_investment := {"gunslinger": 0, "anti_materiel": 0, "flamespitter": 0, "bombardment": 0}
+	var type_counts := {"gunslinger": 0, "anti_materiel": 0, "flamespitter": 0, "bombardment": 0, "atomic_strike": 0}
+	var type_investment := {"gunslinger": 0, "anti_materiel": 0, "flamespitter": 0, "bombardment": 0, "atomic_strike": 0}
 	var type_levels: Dictionary = {}
-	for tower_type in ["gunslinger", "anti_materiel", "flamespitter", "bombardment"]:
+	for tower_type in ["gunslinger", "anti_materiel", "flamespitter", "bombardment", "atomic_strike"]:
 		for tower_level in range(1, 5):
 			type_levels["%s_l%d" % [tower_type, tower_level]] = 0
 	for tower in towers_by_cell.values():
@@ -1494,13 +1510,13 @@ func _recalculate_layout() -> void:
 	)
 	var footer_y := board_origin.y + board_size.y + 8.0
 	var button_height := 60.0 if compact_layout else 64.0
-	var base_widths := PackedFloat32Array([112.0, 112.0, 112.0, 112.0, 88.0, 104.0, 78.0, 78.0, 68.0, 88.0])
+	var base_widths := PackedFloat32Array([112.0, 112.0, 112.0, 112.0, 112.0, 88.0, 104.0, 78.0, 78.0, 68.0, 88.0])
 	var control_gap := 4.0 if compact_layout else 8.0
 	var available_control_width := safe_view_rect.size.x - GRID_MARGIN * 2.0
 	var base_total := 0.0
 	for width in base_widths:
 		base_total += width
-	var width_scale := minf((available_control_width - control_gap * 9.0) / base_total, 1.0)
+	var width_scale := minf((available_control_width - control_gap * float(base_widths.size() - 1)) / base_total, 1.0)
 	for index in base_widths.size():
 		base_widths[index] *= width_scale
 	gunslinger_button_rect = Rect2(
@@ -1527,40 +1543,46 @@ func _recalculate_layout() -> void:
 		base_widths[3],
 		button_height
 	)
-	wall_button_rect = Rect2(
+	atomic_strike_button_rect = Rect2(
 		bombardment_button_rect.end.x + control_gap,
 		footer_y,
 		base_widths[4],
 		button_height
 	)
+	wall_button_rect = Rect2(
+		atomic_strike_button_rect.end.x + control_gap,
+		footer_y,
+		base_widths[5],
+		button_height
+	)
 	start_button_rect = Rect2(
 		wall_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[5],
+		base_widths[6],
 		button_height
 	)
 	upgrade_button_rect = Rect2(
 		start_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[6],
+		base_widths[7],
 		button_height
 	)
 	sell_button_rect = Rect2(
 		upgrade_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[7],
+		base_widths[8],
 		button_height
 	)
 	export_button_rect = Rect2(
 		sell_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[8],
+		base_widths[9],
 		button_height
 	)
 	new_map_button_rect = Rect2(
 		export_button_rect.end.x + control_gap,
 		footer_y,
-		base_widths[9],
+		base_widths[10],
 		button_height
 	)
 

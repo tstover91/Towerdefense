@@ -4,7 +4,7 @@ extends RefCounted
 const CSV_PATH := "user://prototype_run_stats.csv"
 const JSON_PATH := "user://prototype_run_stats.json"
 const EXPORT_DIRECTORY := "res://balance_reports"
-const DAMAGE_TYPES: Array[String] = ["gunslinger", "anti_materiel", "flamespitter", "bombardment"]
+const DAMAGE_TYPES: Array[String] = ["gunslinger", "anti_materiel", "flamespitter", "bombardment", "atomic_strike"]
 
 var rows: Array[Dictionary] = []
 var active_wave := 0
@@ -142,10 +142,12 @@ func finish_wave(
 		"anti_materiel_count": int(type_counts.get("anti_materiel", 0)),
 		"flamespitter_count": int(type_counts.get("flamespitter", 0)),
 		"bombardment_count": int(type_counts.get("bombardment", 0)),
+		"atomic_strike_count": int(type_counts.get("atomic_strike", 0)),
 		"gunslinger_investment": int(type_investment.get("gunslinger", 0)),
 		"anti_materiel_investment": int(type_investment.get("anti_materiel", 0)),
 		"flamespitter_investment": int(type_investment.get("flamespitter", 0)),
 		"bombardment_investment": int(type_investment.get("bombardment", 0)),
+		"atomic_strike_investment": int(type_investment.get("atomic_strike", 0)),
 		"power_used": int(economy_state.get("used_power", 0)),
 		"power_limit": int(economy_state.get("power_limit", 0)),
 		"wall_count": int(board_state.get("wall_count", 0)),
@@ -163,6 +165,7 @@ func finish_wave(
 		"anti_materiel_damage": int(damage_by_type.get("anti_materiel", 0)),
 		"flamespitter_damage": int(damage_by_type.get("flamespitter", 0)),
 		"bombardment_damage": int(damage_by_type.get("bombardment", 0)),
+		"atomic_strike_damage": int(damage_by_type.get("atomic_strike", 0)),
 		"max_enemy_progress_percent": snappedf(max_enemy_progress * 100.0, 0.1),
 		"enemies_reaching_75_percent": enemies_reaching_75_percent,
 		"enemies_reaching_90_percent": enemies_reaching_90_percent,
@@ -285,9 +288,9 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 		"wave", "map_seed", "initial_route_steps", "outcome", "duration_seconds", "base_reward", "interest_reward",
 		"starting_credits", "ending_credits", "tower_count", "level_1_towers",
 		"level_2_towers", "level_3_towers", "level_4_towers", "gunslinger_count",
-		"anti_materiel_count", "flamespitter_count", "bombardment_count",
+		"anti_materiel_count", "flamespitter_count", "bombardment_count", "atomic_strike_count",
 		"gunslinger_investment", "anti_materiel_investment",
-		"flamespitter_investment", "bombardment_investment",
+		"flamespitter_investment", "bombardment_investment", "atomic_strike_investment",
 	]
 	for tower_type in DAMAGE_TYPES:
 		for tower_level in range(1, 5):
@@ -298,7 +301,7 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 		"spawned_health", "defeated_enemies", "soldier_spawns", "runner_spawns",
 		"giant_spawns", "carrier_spawns",
 		"total_damage", "gunslinger_damage", "anti_materiel_damage",
-		"flamespitter_damage", "bombardment_damage",
+		"flamespitter_damage", "bombardment_damage", "atomic_strike_damage",
 	])
 	for tower_type in DAMAGE_TYPES:
 		for tower_level in range(1, 5):
