@@ -26,6 +26,9 @@ var spawned_director_threat := 0
 var wave_style := ""
 var run_enemy_roster := ""
 var debut_enemy_types := ""
+var planned_parent_count := 0
+var expected_child_count := 0
+var planned_total_count := 0
 var pending_actions: Dictionary = _new_action_counts()
 var wave_actions: Dictionary = _new_action_counts()
 
@@ -55,6 +58,9 @@ func begin_wave(
 	wave_style = String(wave_plan.get("style", ""))
 	run_enemy_roster = _join_names(Array(wave_plan.get("run_roster", [])))
 	debut_enemy_types = _join_names(Array(wave_plan.get("debut_enemies", [])))
+	planned_parent_count = int(wave_plan.get("planned_parent_count", 0))
+	expected_child_count = int(wave_plan.get("expected_child_count", 0))
+	planned_total_count = int(wave_plan.get("planned_total_count", 0))
 	wave_actions = pending_actions.duplicate(true)
 	pending_actions = _new_action_counts()
 	for tower_type in DAMAGE_TYPES:
@@ -163,6 +169,9 @@ func finish_wave(
 		"spawned_director_threat": spawned_director_threat,
 		"run_enemy_roster": run_enemy_roster,
 		"debut_enemy_types": debut_enemy_types,
+		"planned_parent_count": planned_parent_count,
+		"expected_child_count": expected_child_count,
+		"planned_total_count": planned_total_count,
 		"duration_seconds": snappedf(duration, 0.01),
 		"base_reward": int(reward.get("base_reward", 0)),
 		"interest_reward": int(reward.get("interest_reward", 0)),
@@ -194,9 +203,12 @@ func finish_wave(
 		"soldier_spawns": int(spawned_by_type.get("soldier", 0)),
 		"runner_spawns": int(spawned_by_type.get("runner", 0)),
 		"giant_spawns": int(spawned_by_type.get("giant", 0)),
+		"juggernaut_spawns": int(spawned_by_type.get("juggernaut", 0)),
 		"carrier_spawns": int(spawned_by_type.get("carrier", 0)),
 		"armored_spawns": int(spawned_by_type.get("armored", 0)),
+		"heavy_armored_spawns": int(spawned_by_type.get("heavy_armored", 0)),
 		"shielded_spawns": int(spawned_by_type.get("shielded", 0)),
+		"barrier_guard_spawns": int(spawned_by_type.get("barrier_guard", 0)),
 		"healer_spawns": int(spawned_by_type.get("healer", 0)),
 		"witch_spawns": int(spawned_by_type.get("witch", 0)),
 		"swarmling_spawns": int(spawned_by_type.get("swarmling", 0)),
@@ -329,7 +341,9 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 	var headers: Array[String] = [
 		"wave", "map_seed", "initial_route_steps", "outcome", "wave_style",
 		"planned_threat", "spent_threat", "spawned_director_threat",
-		"run_enemy_roster", "debut_enemy_types", "duration_seconds", "base_reward", "interest_reward",
+		"run_enemy_roster", "debut_enemy_types", "planned_parent_count",
+		"expected_child_count", "planned_total_count", "duration_seconds",
+		"base_reward", "interest_reward",
 		"starting_credits", "ending_credits", "tower_count", "level_1_towers",
 		"level_2_towers", "level_3_towers", "level_4_towers", "gunslinger_count",
 		"anti_materiel_count", "flamespitter_count", "bombardment_count", "atomic_strike_count",
@@ -343,7 +357,9 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 		"power_used",
 		"power_limit", "wall_count", "wall_limit", "route_steps", "spawned_enemies",
 		"spawned_health", "defeated_enemies", "soldier_spawns", "runner_spawns",
-		"giant_spawns", "carrier_spawns", "armored_spawns", "shielded_spawns",
+		"giant_spawns", "juggernaut_spawns", "carrier_spawns",
+		"armored_spawns", "heavy_armored_spawns", "shielded_spawns",
+		"barrier_guard_spawns",
 		"healer_spawns", "witch_spawns", "swarmling_spawns", "golem_spawns",
 		"golemite_spawns",
 		"total_damage", "gunslinger_damage", "anti_materiel_damage",

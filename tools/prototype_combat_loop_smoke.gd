@@ -84,11 +84,24 @@ func _init() -> void:
 
 func _validate_run_plan(controller: Node) -> void:
 	var roster: Array[StringName] = controller.get_run_roster()
-	_assert(roster.size() == 7, "each run uses seven parent enemy types")
+	_assert(roster.size() == 9, "each run uses nine parent enemy types across three tiers")
 	_assert(
 		roster.has(&"armored") != roster.has(&"shielded"),
 		"each run selects exactly one defensive family"
 	)
+	_assert(
+		roster.has(&"heavy_armored") != roster.has(&"barrier_guard"),
+		"each run selects the matching advanced defensive family"
+	)
+	_assert(
+		roster.has(&"armored") == roster.has(&"heavy_armored"),
+		"Armored runs progress into Heavy Armored"
+	)
+	_assert(
+		roster.has(&"shielded") == roster.has(&"barrier_guard"),
+		"Shielded runs progress into Barrier Guards"
+	)
+	_assert(roster.has(&"juggernaut"), "every run gains an advanced Giant")
 	_assert(
 		roster.has(&"healer") != roster.has(&"witch"),
 		"each run selects exactly one support family"
@@ -134,6 +147,19 @@ func _validate_run_plan(controller: Node) -> void:
 		)
 		if wave >= 13:
 			_assert(&"golem" in scheduled_types, "late waves retain a heavy anchor")
+		_assert(
+			int(plan.get("planned_parent_count", -1)) == scheduled_types.size(),
+			"wave %d records its planned parent count" % wave
+		)
+		_assert(
+			int(plan.get("planned_total_count", -1))
+			== scheduled_types.size() + int(plan.get("expected_child_count", -1)),
+			"wave %d records expected released and summoned children" % wave
+		)
+		_assert(
+			int(plan.get("planned_total_count", 0)) <= _population_limit(wave),
+			"wave %d remains within its expected population target" % wave
+		)
 		previous_budget = budget
 
 
@@ -164,6 +190,11 @@ func _validate_seeded_variation() -> void:
 				int(plan.get("threat_spent", 0)) == int(plan.get("threat_budget", -1)),
 				"seed %d spends every wave budget exactly" % seed
 			)
+			_assert(
+				int(plan.get("planned_total_count", 0))
+				<= _population_limit(int(plan.get("wave", 0))),
+				"seed %d respects expected population limits" % seed
+			)
 			if int(plan.get("wave", 0)) >= 13:
 				var parent_count := 0
 				for group_value in Array(plan.get("groups", [])):
@@ -191,8 +222,22 @@ func _expected_enemy_scale(wave: int) -> float:
 	if wave <= 10:
 		return 1.15
 	if wave <= 15:
-		return 1.35
-	return 1.60
+		return 1.40
+	if wave <= 19:
+		return 1.75
+	return 2.10
+
+
+func _population_limit(wave: int) -> int:
+	if wave <= 5:
+		return 16
+	if wave <= 10:
+		return 24
+	if wave <= 15:
+		return 30
+	if wave <= 19:
+		return 32
+	return 35
 
 
 func _join_names(values: Array[StringName]) -> String:

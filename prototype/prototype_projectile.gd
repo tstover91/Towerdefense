@@ -6,6 +6,8 @@ const GroundHazardScript = preload("res://prototype/prototype_ground_hazard.gd")
 const BODY_COLOR := Color("efb83d")
 const OUTLINE_COLOR := Color("171717")
 const PROJECTILE_RADIUS := 4.0
+const FULL_SPLASH_DAMAGE_RADIUS_RATIO := 0.50
+const OUTER_SPLASH_DAMAGE_RATIO := 0.50
 
 var target: Node2D
 var target_position := Vector2.ZERO
@@ -92,11 +94,16 @@ func _resolve_impact(impact_position: Vector2) -> void:
 
 func _apply_splash(impact_position: Vector2) -> void:
 	var total_applied := 0
+	var full_damage_radius := splash_radius * FULL_SPLASH_DAMAGE_RADIUS_RATIO
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not is_instance_valid(candidate) or bool(candidate.get("finished")):
 			continue
-		if candidate.global_position.distance_to(impact_position) <= splash_radius:
-			total_applied += int(candidate.apply_damage(damage, &"explosive", false, true))
+		var distance_to_impact: float = candidate.global_position.distance_to(impact_position)
+		if distance_to_impact <= splash_radius:
+			var applied_damage := damage
+			if distance_to_impact > full_damage_radius:
+				applied_damage = maxi(int(ceil(float(damage) * OUTER_SPLASH_DAMAGE_RATIO)), 1)
+			total_applied += int(candidate.apply_damage(applied_damage, &"explosive", false, true))
 			if stun_duration > 0.0 and candidate.has_method("apply_stun"):
 				candidate.apply_stun(stun_duration)
 	_report_damage(total_applied)

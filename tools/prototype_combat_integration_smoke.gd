@@ -237,6 +237,9 @@ func _run() -> void:
 	_assert(int(stats_row["spent_threat"]) == 8, "telemetry records the threat committed to formations")
 	_assert(not String(stats_row["wave_style"]).is_empty(), "telemetry records the wave formation style")
 	_assert(not String(stats_row["run_enemy_roster"]).is_empty(), "telemetry records the run's limited enemy roster")
+	_assert(int(stats_row["planned_parent_count"]) == 8, "telemetry records planned parent enemies")
+	_assert(int(stats_row["expected_child_count"]) == 0, "opening telemetry expects no spawned children")
+	_assert(int(stats_row["planned_total_count"]) == 8, "telemetry records expected total population")
 	_assert(
 		int(stats_row["spawned_director_threat"]) <= int(stats_row["spent_threat"]),
 		"spawn telemetry cannot exceed the planned wave threat"

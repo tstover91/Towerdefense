@@ -7,9 +7,12 @@ signal summon_requested(summoner: Node2D, enemy_type: StringName, count: int)
 const TYPE_SOLDIER: StringName = &"soldier"
 const TYPE_RUNNER: StringName = &"runner"
 const TYPE_GIANT: StringName = &"giant"
+const TYPE_JUGGERNAUT: StringName = &"juggernaut"
 const TYPE_CARRIER: StringName = &"carrier"
 const TYPE_ARMORED: StringName = &"armored"
+const TYPE_HEAVY_ARMORED: StringName = &"heavy_armored"
 const TYPE_SHIELDED: StringName = &"shielded"
+const TYPE_BARRIER_GUARD: StringName = &"barrier_guard"
 const TYPE_HEALER: StringName = &"healer"
 const TYPE_WITCH: StringName = &"witch"
 const TYPE_SWARMLING: StringName = &"swarmling"
@@ -22,9 +25,12 @@ const TYPE_DATA := {
 	TYPE_SOLDIER: {"health": 65, "speed": 0.90, "leak": 1, "radius": 0.17, "color": Color("2b2b29")},
 	TYPE_RUNNER: {"health": 42, "speed": 1.20, "leak": 1, "radius": 0.14, "color": Color("d94f3d")},
 	TYPE_GIANT: {"health": 480, "speed": 0.60, "leak": 3, "radius": 0.27, "color": Color("3c5264")},
+	TYPE_JUGGERNAUT: {"health": 1100, "speed": 0.52, "leak": 4, "radius": 0.31, "color": Color("263f52")},
 	TYPE_CARRIER: {"health": 320, "speed": 0.68, "leak": 2, "radius": 0.24, "color": Color("75559a"), "releases": 4, "release_type": TYPE_SOLDIER},
 	TYPE_ARMORED: {"health": 200, "speed": 0.72, "leak": 2, "radius": 0.21, "color": Color("68737c"), "armor": 5},
+	TYPE_HEAVY_ARMORED: {"health": 520, "speed": 0.58, "leak": 3, "radius": 0.25, "color": Color("48545e"), "armor": 10},
 	TYPE_SHIELDED: {"health": 130, "speed": 0.78, "leak": 2, "radius": 0.20, "color": Color("397f91"), "shield_charges": 3},
+	TYPE_BARRIER_GUARD: {"health": 320, "speed": 0.64, "leak": 3, "radius": 0.24, "color": Color("245f73"), "shield_charges": 6},
 	TYPE_HEALER: {"health": 420, "speed": 0.65, "leak": 2, "radius": 0.21, "color": Color("d8c764"), "healing_per_second": 40.0, "healing_range_cells": 2.25},
 	TYPE_WITCH: {"health": 180, "speed": 0.60, "leak": 2, "radius": 0.21, "color": Color("79549a"), "summon_type": TYPE_SWARMLING, "summon_count": 2, "first_summon": 2.5, "summon_interval": 5.0, "summon_living_limit": 6, "summon_total_limit": 10},
 	TYPE_SWARMLING: {"health": 18, "speed": 0.95, "leak": 1, "radius": 0.11, "color": Color("a784be")},
@@ -283,7 +289,7 @@ func get_release_type() -> StringName:
 
 func _draw() -> void:
 	var body_color: Color = DAMAGE_FLASH_COLOR if damage_flash_remaining > 0.0 else TYPE_DATA[enemy_type]["color"]
-	if enemy_type in [TYPE_GIANT, TYPE_GOLEM, TYPE_GOLEMITE]:
+	if enemy_type in [TYPE_GIANT, TYPE_JUGGERNAUT, TYPE_GOLEM, TYPE_GOLEMITE]:
 		draw_circle(Vector2.ZERO, visual_radius, body_color)
 		draw_arc(Vector2.ZERO, visual_radius, 0.0, TAU, 24, Color("111111"), 3.0, true)
 		draw_rect(Rect2(Vector2(-visual_radius * 0.58, -visual_radius * 0.28), Vector2(visual_radius * 1.16, visual_radius * 0.56)), BODY_INSET, true)

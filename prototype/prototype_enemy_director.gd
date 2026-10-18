@@ -26,17 +26,30 @@ const ENEMY_RULES := {
 	},
 	EnemyScript.TYPE_GIANT: {
 		"role": ROLE_TANK, "cost": 7, "weight": 42.0,
+		"successor": EnemyScript.TYPE_JUGGERNAUT,
+	},
+	EnemyScript.TYPE_JUGGERNAUT: {
+		"role": ROLE_TANK, "cost": 16, "weight": 34.0,
 		"successor": EnemyScript.TYPE_GOLEM,
 	},
 	EnemyScript.TYPE_ARMORED: {
 		"role": ROLE_TANK, "cost": 4, "weight": 32.0,
+		"successor": EnemyScript.TYPE_HEAVY_ARMORED,
+	},
+	EnemyScript.TYPE_HEAVY_ARMORED: {
+		"role": ROLE_TANK, "cost": 12, "weight": 30.0,
 	},
 	EnemyScript.TYPE_SHIELDED: {
 		"role": ROLE_TANK, "cost": 5, "weight": 28.0,
+		"successor": EnemyScript.TYPE_BARRIER_GUARD,
+	},
+	EnemyScript.TYPE_BARRIER_GUARD: {
+		"role": ROLE_TANK, "cost": 12, "weight": 28.0,
 	},
 	# Costs include the four Soldiers released when the Carrier is defeated.
 	EnemyScript.TYPE_CARRIER: {
 		"role": ROLE_PRESSURE, "cost": 9, "weight": 20.0,
+		"expected_children": 4,
 	},
 	EnemyScript.TYPE_HEALER: {
 		"role": ROLE_SUPPORT, "cost": 10, "weight": 16.0,
@@ -44,10 +57,12 @@ const ENEMY_RULES := {
 	# Cost includes the Witch's expected Swarmling output.
 	EnemyScript.TYPE_WITCH: {
 		"role": ROLE_SUPPORT, "cost": 8, "weight": 18.0,
+		"expected_children": 6,
 	},
 	# Cost includes both Golemites. Split children spend no additional budget.
 	EnemyScript.TYPE_GOLEM: {
 		"role": ROLE_TANK, "cost": 55, "weight": 10.0,
+		"expected_children": 2,
 	},
 }
 const STYLE_RULES := {
@@ -92,8 +107,9 @@ func generate_run(seed: int) -> Array[Dictionary]:
 		var style := _choose_wave_style(wave, previous_style)
 		if wave == MAX_WAVES:
 			style = &"layered_assault"
-		wave_plans.append(_build_wave_plan(wave, style))
-		previous_style = style
+		var plan := _build_wave_plan(wave, style, previous_style)
+		wave_plans.append(plan)
+		previous_style = StringName(plan.get("style", style))
 	return wave_plans.duplicate(true)
 
 
@@ -115,7 +131,14 @@ func _build_roster() -> void:
 	]
 	var defense := defense_choices[rng.randi_range(0, defense_choices.size() - 1)]
 	var support := support_choices[rng.randi_range(0, support_choices.size() - 1)]
+	var advanced_defense := (
+		EnemyScript.TYPE_HEAVY_ARMORED
+		if defense == EnemyScript.TYPE_ARMORED
+		else EnemyScript.TYPE_BARRIER_GUARD
+	)
+	roster.append(EnemyScript.TYPE_JUGGERNAUT)
 	roster.append(defense)
+	roster.append(advanced_defense)
 	roster.append(support)
 	debut_plan = {
 		EnemyScript.TYPE_SOLDIER: 1,
@@ -124,11 +147,49 @@ func _build_roster() -> void:
 		defense: 5,
 		EnemyScript.TYPE_CARRIER: 7,
 		support: 8,
+		EnemyScript.TYPE_JUGGERNAUT: 9,
+		advanced_defense: 12,
 		EnemyScript.TYPE_GOLEM: 13,
 	}
 
 
-func _build_wave_plan(wave: int, style: StringName) -> Dictionary:
+func _build_wave_plan(
+	wave: int, style: StringName, previous_style: StringName
+) -> Dictionary:
+	var best_plan: Dictionary = {}
+	var styles: Array[StringName] = [style]
+	var available := get_available_enemies(wave)
+	if available.any(
+		func(enemy: StringName) -> bool: return get_enemy_role(enemy) == ROLE_TANK
+	):
+		if &"convoy" not in styles:
+			styles.append(&"convoy")
+	if wave >= 10 and &"layered_assault" not in styles:
+		styles.append(&"layered_assault")
+	if &"steady" not in styles:
+		styles.append(&"steady")
+	# Try every other viable recipe before allowing a repeated wave shape.
+	if previous_style in styles and styles.size() > 1:
+		styles.erase(previous_style)
+		styles.append(previous_style)
+	for candidate_style in styles:
+		for _attempt in 64:
+			var candidate := _build_wave_plan_attempt(wave, candidate_style)
+			if (
+				best_plan.is_empty()
+				or int(candidate.get("planned_total_count", 1 << 30))
+				< int(best_plan.get("planned_total_count", 1 << 30))
+			):
+				best_plan = candidate
+			if (
+				int(candidate.get("threat_spent", 0)) == int(candidate.get("threat_budget", -1))
+				and int(candidate.get("planned_total_count", 0)) <= get_population_limit(wave)
+			):
+				return candidate
+	return best_plan
+
+
+func _build_wave_plan_attempt(wave: int, style: StringName) -> Dictionary:
 	var budget := THREAT_BUDGETS[wave - 1]
 	var remaining := budget
 	var groups: Array[Dictionary] = []
@@ -183,6 +244,8 @@ func _build_wave_plan(wave: int, style: StringName) -> Dictionary:
 		remaining -= group_cost
 		attempts = 0
 
+	var planned_parent_count := _count_parent_enemies(groups)
+	var expected_child_count := _count_expected_children(groups)
 	return {
 		"wave": wave,
 		"scale": get_health_scale(wave),
@@ -193,6 +256,9 @@ func _build_wave_plan(wave: int, style: StringName) -> Dictionary:
 		"available_enemies": available,
 		"debut_enemies": debuts,
 		"run_roster": roster.duplicate(),
+		"planned_parent_count": planned_parent_count,
+		"expected_child_count": expected_child_count,
+		"planned_total_count": planned_parent_count + expected_child_count,
 	}
 
 
@@ -246,7 +312,9 @@ func _build_steady(
 ) -> Array[StringName]:
 	var group: Array[StringName] = []
 	var remaining := max_cost
-	var desired_size := rng.randi_range(4, 7)
+	var desired_size := rng.randi_range(4, 6) if wave >= 8 else rng.randi_range(4, 7)
+	if wave >= 13:
+		desired_size = rng.randi_range(3, 5)
 	while group.size() < desired_size:
 		var role := _choose_role(wave, available, remaining, group)
 		var enemy := _choose_enemy_for_roles([role], available, wave, remaining, group)
@@ -293,7 +361,7 @@ func _build_convoy(
 		return _build_steady(available, wave, max_cost)
 	group.append(tank)
 	remaining -= get_enemy_cost(tank)
-	var desired_size := rng.randi_range(4, 7)
+	var desired_size := rng.randi_range(3, 5) if wave >= 13 else rng.randi_range(4, 7)
 	while group.size() < desired_size:
 		var escort := _choose_enemy_for_roles(
 			[ROLE_FODDER, ROLE_PRESSURE], available, wave, remaining, group
@@ -337,7 +405,8 @@ func _build_support_column(
 		remaining -= get_enemy_cost(front_escort)
 	group.append(support)
 	remaining -= get_enemy_cost(support)
-	while group.size() < 6:
+	var desired_size := 4 if wave >= 13 else 5
+	while group.size() < desired_size:
 		var escort := _choose_enemy_for_roles(
 			[ROLE_FODDER, ROLE_PRESSURE], available, wave, remaining, group
 		)
@@ -356,7 +425,7 @@ func _build_layered_assault(
 	var finishers: Array[StringName] = []
 	var current: Array[StringName] = []
 	var remaining := max_cost
-	var desired_size := rng.randi_range(6, 9)
+	var desired_size := rng.randi_range(5, 7) if wave >= 13 else rng.randi_range(6, 9)
 	for role in [ROLE_FODDER, ROLE_PRESSURE, ROLE_TANK]:
 		var enemy := _choose_enemy_for_roles([role], available, wave, remaining, current)
 		if enemy.is_empty():
@@ -582,6 +651,12 @@ func _get_spawn_weight(enemy: StringName, wave: int) -> float:
 	var debut := int(debut_plan.get(enemy, wave))
 	if wave == debut:
 		weight *= 1.25
+	if enemy == EnemyScript.TYPE_SOLDIER and wave >= 8:
+		weight *= lerpf(
+			1.0,
+			0.12,
+			clampf(float(wave - 8) / 6.0, 0.0, 1.0)
+		)
 	if enemy == EnemyScript.TYPE_GOLEM and wave >= debut:
 		weight *= lerpf(
 			1.0,
@@ -649,8 +724,22 @@ func get_health_scale(wave: int) -> float:
 	if wave <= 10:
 		return 1.15
 	if wave <= 15:
-		return 1.35
-	return 1.60
+		return 1.40
+	if wave <= 19:
+		return 1.75
+	return 2.10
+
+
+func get_population_limit(wave: int) -> int:
+	if wave <= 5:
+		return 16
+	if wave <= 10:
+		return 24
+	if wave <= 15:
+		return 30
+	if wave <= 19:
+		return 32
+	return 35
 
 
 func get_enemy_cost(enemy: StringName) -> int:
@@ -691,6 +780,22 @@ func _count_supports_in_groups(groups: Array[Dictionary]) -> int:
 		for enemy_value in Array(group.get("members", [])):
 			if get_enemy_role(StringName(enemy_value)) == ROLE_SUPPORT:
 				count += 1
+	return count
+
+
+func _count_parent_enemies(groups: Array[Dictionary]) -> int:
+	var count := 0
+	for group in groups:
+		count += Array(group.get("members", [])).size()
+	return count
+
+
+func _count_expected_children(groups: Array[Dictionary]) -> int:
+	var count := 0
+	for group in groups:
+		for enemy_value in Array(group.get("members", [])):
+			var enemy := StringName(enemy_value)
+			count += int(ENEMY_RULES.get(enemy, {}).get("expected_children", 0))
 	return count
 
 

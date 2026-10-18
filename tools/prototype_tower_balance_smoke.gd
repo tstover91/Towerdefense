@@ -23,7 +23,7 @@ func _check_gunslinger_curve() -> void:
 	_assert(TowerScript.get_build_cost(TowerScript.TYPE_GUNSLINGER) == 150, "Gunslinger has the cheap Steel starter price")
 	_assert(_range_curve(TowerScript.TYPE_GUNSLINGER) == [2.5, 2.6, 2.8, 3.1], "Gunslinger keeps compact general-purpose range")
 	_assert(_collect_upgrade_costs(tower) == [50, 300, 900], "Gunslinger uses the small, medium, capstone price curve")
-	_assert(_dps_curve(TowerScript.TYPE_GUNSLINGER) == [10.0, 13.33, 40.0, 100.0], "Gunslinger direct DPS is strongly backloaded")
+	_assert(_dps_curve(TowerScript.TYPE_GUNSLINGER) == [10.0, 13.33, 40.0, 90.0], "Gunslinger capstone keeps a controlled late power spike")
 	_assert(_pierce_curve(TowerScript.TYPE_GUNSLINGER) == [0, 0, 1, 1], "Gunslinger gains one standard pierce on later levels")
 
 
@@ -65,7 +65,7 @@ func _check_atomic_strike_curve() -> void:
 	_assert(_collect_upgrade_costs(tower) == [200, 800, 2400], "Atomic Strike follows the hybrid investment curve")
 	_assert(_range_curve(TowerScript.TYPE_ATOMIC_STRIKE) == [3.4, 3.5, 3.7, 4.0], "Atomic Strike gains deliberate late range")
 	_assert(_stat_curve(TowerScript.TYPE_ATOMIC_STRIKE, "splash_cells") == [1.1, 1.2, 1.35, 1.5], "Atomic Strike grows one controlled blast")
-	_assert(_dps_curve(TowerScript.TYPE_ATOMIC_STRIKE) == [8.0, 11.46, 28.89, 71.43], "Atomic Strike backloads its direct blast damage")
+	_assert(_dps_curve(TowerScript.TYPE_ATOMIC_STRIKE) == [8.0, 11.46, 26.67, 64.29], "Atomic Strike backloads its direct blast damage without overwhelming groups")
 	_assert(_stat_curve(TowerScript.TYPE_ATOMIC_STRIKE, "hazard_duration") == [0.0, 0.0, 0.0, 3.0], "only level-four Atomic Strike leaves ground fire")
 	_assert(not bool(TowerScript.TYPE_DATA[TowerScript.TYPE_ATOMIC_STRIKE]["ignores_armor"]), "Atomic Strike does not bypass armor")
 

@@ -94,11 +94,12 @@ func _run() -> void:
 	var splash_b: Node2D = _make_enemy(board, Vector2(730.0, 300.0), EnemyScript.TYPE_SOLDIER)
 	var splash_projectile: Node2D = ProjectileScript.new()
 	board.add_child(splash_projectile)
-	splash_projectile.damage = 7
+	splash_projectile.damage = 8
 	splash_projectile.splash_radius = 50.0
 	splash_projectile.stun_duration = 0.4
 	splash_projectile._apply_splash(splash_a.global_position)
-	_assert(splash_a.health == 58 and splash_b.health == 58, "Bombardment splash damages a nearby group")
+	_assert(splash_a.health == 57, "explosions deal full damage inside the central half-radius")
+	_assert(splash_b.health == 61, "explosions deal half damage in the outer half-radius")
 	_assert(splash_a.stun_remaining == 0.4 and splash_b.stun_remaining == 0.4, "Bombardment's final shell applies its short stun to the blast")
 	_assert(splash_a.stun_fatigue_tier == 1, "an accepted stun advances the enemy's stun-fatigue tier")
 
@@ -157,7 +158,7 @@ func _run() -> void:
 		atomic_strike.upgrade(atomic_strike.get_next_upgrade_cost())
 	var atomic_impact := Vector2(1000.0, 150.0)
 	var atomic_primary: Node2D = _make_enemy(board, atomic_impact, EnemyScript.TYPE_GIANT)
-	var atomic_nearby: Node2D = _make_enemy(board, atomic_impact + Vector2(30.0, 0.0), EnemyScript.TYPE_GIANT)
+	var atomic_nearby: Node2D = _make_enemy(board, atomic_impact + Vector2(45.0, 0.0), EnemyScript.TYPE_GIANT)
 	atomic_strike._start_atomic_strike(atomic_impact)
 	var atomic_projectile: Node2D
 	for child in game.get_children():
@@ -166,9 +167,10 @@ func _run() -> void:
 			break
 	_assert(is_instance_valid(atomic_projectile), "level-four Atomic Strike launches a ground-fire payload")
 	if is_instance_valid(atomic_projectile):
-		_assert(atomic_projectile.damage == 300 and atomic_projectile.stun_duration == 0.0, "Atomic Strike carries one unstunning direct blast")
+		_assert(atomic_projectile.damage == 270 and atomic_projectile.stun_duration == 0.0, "Atomic Strike carries one controlled unstunning blast")
 		atomic_projectile._resolve_impact(atomic_impact)
-		_assert(atomic_primary.health == 180 and atomic_nearby.health == 180, "Atomic Strike deals full splash damage to its impact group")
+		_assert(atomic_primary.health == 210, "Atomic Strike deals full damage near its impact center")
+		_assert(atomic_nearby.health == 345, "Atomic Strike deals half damage near the outside of its blast")
 		var ground_hazard: Node2D
 		for child in game.get_children():
 			if child.get_script() == GroundHazardScript:
@@ -177,7 +179,7 @@ func _run() -> void:
 		_assert(is_instance_valid(ground_hazard), "level-four Atomic Strike leaves ground fire at its locked impact point")
 		if is_instance_valid(ground_hazard):
 			ground_hazard._apply_tick()
-			_assert(atomic_primary.health == 176 and atomic_nearby.health == 176, "ground fire damages every enemy standing inside without attaching a status")
+			_assert(atomic_primary.health == 206 and atomic_nearby.health == 341, "ground fire damages every enemy standing inside without attaching a status")
 			ground_hazard.queue_free()
 		atomic_projectile.queue_free()
 

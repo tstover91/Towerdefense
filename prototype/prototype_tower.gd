@@ -36,7 +36,7 @@ const TYPE_DATA := {
 			{"damage": 8, "interval": 0.80, "range_cells": 2.5, "pierce": 0},
 			{"damage": 8, "interval": 0.60, "range_cells": 2.6, "pierce": 0},
 			{"damage": 18, "interval": 0.45, "range_cells": 2.8, "pierce": 1},
-			{"damage": 40, "interval": 0.40, "range_cells": 3.1, "pierce": 1},
+			{"damage": 36, "interval": 0.40, "range_cells": 3.1, "pierce": 1},
 		],
 	},
 	TYPE_ANTI_MATERIEL: {
@@ -95,8 +95,8 @@ const TYPE_DATA := {
 		"stats": [
 			{"damage": 40, "interval": 5.00, "range_cells": 3.4, "pierce": 0, "splash_cells": 1.10, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
 			{"damage": 55, "interval": 4.80, "range_cells": 3.5, "pierce": 0, "splash_cells": 1.20, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
-			{"damage": 130, "interval": 4.50, "range_cells": 3.7, "pierce": 0, "splash_cells": 1.35, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
-			{"damage": 300, "interval": 4.20, "range_cells": 4.0, "pierce": 0, "splash_cells": 1.50, "hazard_duration": 3.0, "hazard_tick": 0.5, "hazard_damage": 4},
+			{"damage": 120, "interval": 4.50, "range_cells": 3.7, "pierce": 0, "splash_cells": 1.35, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
+			{"damage": 270, "interval": 4.20, "range_cells": 4.0, "pierce": 0, "splash_cells": 1.50, "hazard_duration": 3.0, "hazard_tick": 0.5, "hazard_damage": 4},
 		],
 	},
 }

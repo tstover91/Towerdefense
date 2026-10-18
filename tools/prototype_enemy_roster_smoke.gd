@@ -18,19 +18,27 @@ func _run() -> void:
 	var soldier := _make_enemy(host, EnemyScript.TYPE_SOLDIER, 1)
 	var runner := _make_enemy(host, EnemyScript.TYPE_RUNNER, 2)
 	var giant := _make_enemy(host, EnemyScript.TYPE_GIANT, 3)
+	var juggernaut := _make_enemy(host, EnemyScript.TYPE_JUGGERNAUT, 3)
 	_assert(soldier.max_health == 65, "Soldier establishes the fixed-health baseline")
 	_assert(runner.max_health == 42, "Runner remains below Soldier durability")
 	_assert(giant.max_health == 480, "Giant remains near 7.4 Soldier health")
+	_assert(juggernaut.max_health == 1100, "Juggernaut supplies the middle durability tier")
 
 	var armored := _make_enemy(host, EnemyScript.TYPE_ARMORED, 4)
 	_assert(armored.apply_damage(8) == 3, "armor removes five damage from a rapid hit")
 	_assert(armored.apply_damage(28, &"ballistic", true) == 28, "piercing damage bypasses armor")
+	var heavy_armored := _make_enemy(host, EnemyScript.TYPE_HEAVY_ARMORED, 4)
+	_assert(heavy_armored.apply_damage(18) == 8, "Heavy Armored doubles the flat armor check")
 
 	var shielded := _make_enemy(host, EnemyScript.TYPE_SHIELDED, 5)
 	for _hit in 3:
 		_assert(shielded.apply_damage(180) == 0, "each shield charge negates one complete heavy hit")
 	_assert(shielded.shield_charges == 0, "three hits exhaust the personal shield")
 	_assert(shielded.apply_damage(8) == 8, "health takes damage after the shield is exhausted")
+	var barrier_guard := _make_enemy(host, EnemyScript.TYPE_BARRIER_GUARD, 5)
+	for _hit in 6:
+		_assert(barrier_guard.apply_damage(180) == 0, "Barrier Guard requires six attacks to break its shield")
+	_assert(barrier_guard.shield_charges == 0, "six hits exhaust the advanced shield")
 
 	var wounded := _make_enemy(host, EnemyScript.TYPE_GIANT, 10)
 	var healer := _make_enemy(host, EnemyScript.TYPE_HEALER, 10)
