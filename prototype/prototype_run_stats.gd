@@ -36,6 +36,9 @@ var planned_total_count := 0
 var active_enemy_count := 0
 var peak_active_enemies := 0
 var last_spawn_time := 0.0
+var exposure_enemy_seconds := 0.0
+var exposure_tower_range_seconds := 0.0
+var exposure_primary_dps_seconds := 0.0
 var pending_actions: Dictionary = _new_action_counts()
 var wave_actions: Dictionary = _new_action_counts()
 
@@ -75,6 +78,9 @@ func begin_wave(
 	active_enemy_count = 0
 	peak_active_enemies = 0
 	last_spawn_time = 0.0
+	exposure_enemy_seconds = 0.0
+	exposure_tower_range_seconds = 0.0
+	exposure_primary_dps_seconds = 0.0
 	wave_actions = pending_actions.duplicate(true)
 	pending_actions = _new_action_counts()
 	for tower_type in DAMAGE_TYPES:
@@ -118,6 +124,18 @@ func record_damage(
 	damage_by_type_level[level_key] = int(damage_by_type_level.get(level_key, 0)) + amount
 	var quarter := mini(int(clampf(progress_ratio, 0.0, 1.0) * 4.0), 3)
 	damage_by_route_quarter[quarter] += amount
+
+
+func record_combat_exposure(
+	enemy_seconds: float,
+	tower_range_seconds: float,
+	primary_dps_seconds: float
+) -> void:
+	if not is_wave_active():
+		return
+	exposure_enemy_seconds += maxf(enemy_seconds, 0.0)
+	exposure_tower_range_seconds += maxf(tower_range_seconds, 0.0)
+	exposure_primary_dps_seconds += maxf(primary_dps_seconds, 0.0)
 
 
 func record_enemy_resolved(leaked: bool, _leak_damage: int, progress_ratio: float) -> void:
@@ -213,6 +231,11 @@ func finish_wave(
 	for progress in resolved_progresses:
 		if progress >= median_death_progress + 0.10:
 			beyond_death_cluster += 1
+	var average_towers_in_range := 0.0
+	var average_primary_dps_in_range := 0.0
+	if exposure_enemy_seconds > 0.0:
+		average_towers_in_range = exposure_tower_range_seconds / exposure_enemy_seconds
+		average_primary_dps_in_range = exposure_primary_dps_seconds / exposure_enemy_seconds
 	var row := {
 		"wave": wave,
 		"map_seed": int(board_state.get("map_seed", 0)),
@@ -231,6 +254,11 @@ func finish_wave(
 		"last_spawn_time_seconds": snappedf(last_spawn_time, 0.01),
 		"clear_after_last_spawn_seconds": snappedf(maxf(duration - last_spawn_time, 0.0), 0.01),
 		"peak_active_enemies": peak_active_enemies,
+		"enemy_seconds": snappedf(exposure_enemy_seconds, 0.01),
+		"tower_range_seconds": snappedf(exposure_tower_range_seconds, 0.01),
+		"primary_dps_seconds_in_range": snappedf(exposure_primary_dps_seconds, 0.01),
+		"average_towers_in_range": snappedf(average_towers_in_range, 0.01),
+		"average_primary_dps_in_range": snappedf(average_primary_dps_in_range, 0.01),
 		"base_reward": int(reward.get("base_reward", 0)),
 		"interest_reward": int(reward.get("interest_reward", 0)),
 		"starting_credits": starting_credits,
@@ -415,6 +443,8 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 		"run_enemy_roster", "debut_enemy_types", "planned_parent_count",
 		"expected_child_count", "planned_total_count", "duration_seconds",
 		"last_spawn_time_seconds", "clear_after_last_spawn_seconds", "peak_active_enemies",
+		"enemy_seconds", "tower_range_seconds", "primary_dps_seconds_in_range",
+		"average_towers_in_range", "average_primary_dps_in_range",
 		"base_reward", "interest_reward",
 		"starting_credits", "ending_credits", "tower_count", "level_1_towers",
 		"level_2_towers", "level_3_towers", "level_4_towers", "level_5_towers", "gunslinger_count",

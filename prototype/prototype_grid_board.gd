@@ -13,6 +13,7 @@ signal enemies_added(count: int)
 signal enemy_spawned_for_stats(enemy_type: StringName, max_health: int, director_threat: int)
 signal enemy_resolved_for_stats(leaked: bool, leak_damage: int, progress_ratio: float)
 signal tower_damage_recorded(tower_type: StringName, tower_level: int, amount: int, progress_ratio: float)
+signal combat_exposure_recorded(enemy_seconds: float, tower_range_seconds: float, primary_dps_seconds: float)
 signal structure_action_recorded(action: StringName, tower_type: StringName, tower_level: int, amount: int)
 signal export_stats_requested
 signal new_map_requested
@@ -187,13 +188,45 @@ func _exit_tree() -> void:
 	_set_placement_pause(false)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if (
 		not status_override.is_empty()
 		and Time.get_ticks_msec() >= status_override_expires_msec
 	):
 		status_override = ""
 		queue_redraw()
+	_record_combat_exposure(delta)
+
+
+func _record_combat_exposure(delta: float) -> void:
+	if (
+		delta <= 0.0
+		or placement_pause_active
+		or StringName(combat_state.get("phase", &"build")) != &"active"
+	):
+		return
+	var enemy_seconds := 0.0
+	var tower_range_seconds := 0.0
+	var primary_dps_seconds := 0.0
+	for enemy in active_followers:
+		if (
+			not is_instance_valid(enemy)
+			or not bool(enemy.get("active"))
+			or bool(enemy.get("finished"))
+		):
+			continue
+		enemy_seconds += delta
+		for tower in towers_by_cell.values():
+			if not is_instance_valid(tower) or not tower.covers_position(enemy.global_position):
+				continue
+			tower_range_seconds += delta
+			primary_dps_seconds += float(tower.get_primary_dps()) * delta
+	if enemy_seconds > 0.0:
+		combat_exposure_recorded.emit(
+			enemy_seconds,
+			tower_range_seconds,
+			primary_dps_seconds
+		)
 
 
 func _input(event: InputEvent) -> void:

@@ -21,6 +21,7 @@ func _ready() -> void:
 	board.enemies_added.connect(round_controller.notify_enemies_added)
 	board.enemy_spawned_for_stats.connect(_on_enemy_spawned_for_stats)
 	board.tower_damage_recorded.connect(run_stats.record_damage)
+	board.combat_exposure_recorded.connect(run_stats.record_combat_exposure)
 	board.enemy_resolved_for_stats.connect(run_stats.record_enemy_resolved)
 	board.structure_action_recorded.connect(run_stats.record_structure_action)
 	board.export_stats_requested.connect(_on_export_stats_requested)

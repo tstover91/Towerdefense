@@ -199,20 +199,32 @@ func _run() -> void:
 		"leak_damage": 1,
 	})
 	var pause_test_enemy: Node2D = board.active_followers[-1]
+	var coverage_test_cell := Vector2i(-1, -1)
+	var coverage_test_tower: Node2D = TowerScript.new()
+	board.add_child(coverage_test_tower)
+	coverage_test_tower.configure(coverage_test_cell, Callable(board, "get_cell_size"), TowerScript.TYPE_GUNSLINGER)
+	coverage_test_tower.position = pause_test_enemy.position
+	board.towers_by_cell[coverage_test_cell] = coverage_test_tower
 	await process_frame
+	_assert(game.run_stats.exposure_primary_dps_seconds > 0.0, "active-wave telemetry integrates tower DPS while an enemy is in range")
 	var paused_position := pause_test_enemy.position
 	var paused_wave_elapsed: float = game.round_controller.wave_elapsed
 	_assert(board._begin_precision_placement(), "placement can begin during an active wave")
 	_assert(paused, "active-wave placement pauses the SceneTree")
+	var exposure_before_pause: float = game.run_stats.exposure_primary_dps_seconds
 	for paused_frame in 5:
 		await process_frame
 	_assert(pause_test_enemy.position.is_equal_approx(paused_position), "enemy movement freezes during placement")
 	_assert(is_equal_approx(game.round_controller.wave_elapsed, paused_wave_elapsed), "spawn timing freezes during placement")
+	_assert(is_equal_approx(game.run_stats.exposure_primary_dps_seconds, exposure_before_pause), "paused placement does not inflate combat exposure")
 	board._cancel_placement()
 	_assert(not paused, "canceling placement resumes combat")
 	for resumed_frame in 3:
 		await process_frame
 	_assert(not pause_test_enemy.position.is_equal_approx(paused_position), "enemy movement resumes after placement")
+	_assert(game.run_stats.exposure_primary_dps_seconds > exposure_before_pause, "combat exposure resumes with enemy movement")
+	board.towers_by_cell.erase(coverage_test_cell)
+	coverage_test_tower.queue_free()
 	pause_test_enemy.active = false
 	pause_test_enemy.finished = true
 	board.active_followers.erase(pause_test_enemy)
@@ -263,6 +275,8 @@ func _run() -> void:
 	)
 	_assert(defeated_quarter_total == int(stats_row["defeated_enemies"]), "death quarters preserve defeated count")
 	_assert(int(stats_row["peak_active_enemies"]) >= 1, "telemetry records peak active enemies")
+	_assert(float(stats_row["primary_dps_seconds_in_range"]) > 0.0, "telemetry records potential primary damage exposure")
+	_assert(float(stats_row["average_towers_in_range"]) > 0.0, "telemetry reports average overlapping tower coverage")
 	_assert(
 		float(stats_row["p90_death_progress_percent"])
 		>= float(stats_row["median_death_progress_percent"]),

@@ -168,10 +168,10 @@ func _run() -> void:
 			break
 	_assert(is_instance_valid(atomic_projectile), "level-five Atomic Strike launches a ground-fire payload")
 	if is_instance_valid(atomic_projectile):
-		_assert(atomic_projectile.damage == 270 and atomic_projectile.stun_duration == 0.0, "Atomic Strike carries one controlled unstunning blast")
+		_assert(atomic_projectile.damage == 170 and atomic_projectile.stun_duration == 0.0, "Atomic Strike carries one controlled unstunning blast")
 		atomic_projectile._resolve_impact(atomic_impact)
-		_assert(atomic_primary.health == 210, "Atomic Strike deals full damage near its impact center")
-		_assert(atomic_nearby.health == 345, "Atomic Strike deals half damage near the outside of its blast")
+		_assert(atomic_primary.health == 310, "Atomic Strike deals full damage near its impact center")
+		_assert(atomic_nearby.health == 395, "Atomic Strike deals half damage near the outside of its blast")
 		var ground_hazard: Node2D
 		for child in game.get_children():
 			if child.get_script() == GroundHazardScript:
@@ -180,7 +180,7 @@ func _run() -> void:
 		_assert(is_instance_valid(ground_hazard), "level-five Atomic Strike leaves ground fire at its locked impact point")
 		if is_instance_valid(ground_hazard):
 			ground_hazard._apply_tick()
-			_assert(atomic_primary.health == 206 and atomic_nearby.health == 341, "ground fire damages every enemy standing inside without attaching a status")
+			_assert(atomic_primary.health == 306 and atomic_nearby.health == 391, "ground fire damages every enemy standing inside without attaching a status")
 			ground_hazard.queue_free()
 		atomic_projectile.queue_free()
 

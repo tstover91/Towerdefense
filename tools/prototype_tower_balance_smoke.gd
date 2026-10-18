@@ -56,7 +56,7 @@ func _check_bombardment_curve() -> void:
 	_assert(_stat_curve(TowerScript.TYPE_BOMBARDMENT, "stun") == [0.0, 0.0, 0.0, 0.0, 0.4], "only level-five Bombardment receives a short stun")
 	var dps := _bombardment_dps_curve()
 	_assert(dps[1] < dps[0] * 1.5, "Bombardment's first upgrade remains modest")
-	_assert(_float_curves_match(dps, [10.0, 13.33, 26.0, 52.38, 87.5]), "Bombardment redistributes its existing maximum barrage power")
+	_assert(_float_curves_match(dps, [6.0, 8.33, 15.5, 33.33, 53.75]), "Bombardment pays for unlimited splash with lower primary DPS")
 
 
 func _check_atomic_strike_curve() -> void:
@@ -65,7 +65,7 @@ func _check_atomic_strike_curve() -> void:
 	_assert(_collect_upgrade_costs(tower) == [200, 800, 2000, 3500], "Atomic Strike follows the five-level hybrid price curve")
 	_assert(_range_curve(TowerScript.TYPE_ATOMIC_STRIKE) == [3.4, 3.5, 3.6, 3.8, 4.0], "Atomic Strike gains deliberate late range")
 	_assert(_stat_curve(TowerScript.TYPE_ATOMIC_STRIKE, "splash_cells") == [1.1, 1.2, 1.3, 1.4, 1.5], "Atomic Strike grows one controlled blast")
-	_assert(_dps_curve(TowerScript.TYPE_ATOMIC_STRIKE) == [8.0, 11.46, 21.11, 40.0, 64.29], "Atomic Strike redistributes its existing maximum blast power")
+	_assert(_float_curves_match(_dps_curve(TowerScript.TYPE_ATOMIC_STRIKE), [4.0, 5.42, 10.67, 22.22, 40.48]), "Atomic Strike pays for its large blast and ground fire with low primary DPS")
 	_assert(_stat_curve(TowerScript.TYPE_ATOMIC_STRIKE, "hazard_duration") == [0.0, 0.0, 0.0, 0.0, 3.0], "only level-five Atomic Strike leaves ground fire")
 	_assert(not bool(TowerScript.TYPE_DATA[TowerScript.TYPE_ATOMIC_STRIKE]["ignores_armor"]), "Atomic Strike does not bypass armor")
 

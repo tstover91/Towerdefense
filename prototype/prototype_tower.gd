@@ -81,11 +81,11 @@ const TYPE_DATA := {
 		"locks_target": false,
 		"ignores_armor": false,
 		"stats": [
-			{"damage": 20, "interval": 2.00, "range_cells": 3.2, "pierce": 0, "splash_cells": 0.90, "shells": 1, "stun": 0.0},
-			{"damage": 24, "interval": 1.80, "range_cells": 3.3, "pierce": 0, "splash_cells": 1.00, "shells": 1, "stun": 0.0},
-			{"damage": 52, "interval": 2.00, "range_cells": 3.4, "pierce": 0, "splash_cells": 1.05, "shells": 1, "stun": 0.0},
-			{"damage": 55, "interval": 2.10, "range_cells": 3.5, "pierce": 0, "splash_cells": 1.10, "shells": 2, "stun": 0.0},
-			{"damage": 70, "interval": 2.40, "range_cells": 3.7, "pierce": 0, "splash_cells": 1.20, "shells": 3, "stun": 0.40},
+			{"damage": 12, "interval": 2.00, "range_cells": 3.2, "pierce": 0, "splash_cells": 0.90, "shells": 1, "stun": 0.0},
+			{"damage": 15, "interval": 1.80, "range_cells": 3.3, "pierce": 0, "splash_cells": 1.00, "shells": 1, "stun": 0.0},
+			{"damage": 31, "interval": 2.00, "range_cells": 3.4, "pierce": 0, "splash_cells": 1.05, "shells": 1, "stun": 0.0},
+			{"damage": 35, "interval": 2.10, "range_cells": 3.5, "pierce": 0, "splash_cells": 1.10, "shells": 2, "stun": 0.0},
+			{"damage": 43, "interval": 2.40, "range_cells": 3.7, "pierce": 0, "splash_cells": 1.20, "shells": 3, "stun": 0.40},
 		],
 	},
 	TYPE_ATOMIC_STRIKE: {
@@ -97,11 +97,11 @@ const TYPE_DATA := {
 		"locks_target": false,
 		"ignores_armor": false,
 		"stats": [
-			{"damage": 40, "interval": 5.00, "range_cells": 3.4, "pierce": 0, "splash_cells": 1.10, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
-			{"damage": 55, "interval": 4.80, "range_cells": 3.5, "pierce": 0, "splash_cells": 1.20, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
-			{"damage": 95, "interval": 4.50, "range_cells": 3.6, "pierce": 0, "splash_cells": 1.30, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
-			{"damage": 180, "interval": 4.50, "range_cells": 3.8, "pierce": 0, "splash_cells": 1.40, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
-			{"damage": 270, "interval": 4.20, "range_cells": 4.0, "pierce": 0, "splash_cells": 1.50, "hazard_duration": 3.0, "hazard_tick": 0.5, "hazard_damage": 4},
+			{"damage": 20, "interval": 5.00, "range_cells": 3.4, "pierce": 0, "splash_cells": 1.10, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
+			{"damage": 26, "interval": 4.80, "range_cells": 3.5, "pierce": 0, "splash_cells": 1.20, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
+			{"damage": 48, "interval": 4.50, "range_cells": 3.6, "pierce": 0, "splash_cells": 1.30, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
+			{"damage": 100, "interval": 4.50, "range_cells": 3.8, "pierce": 0, "splash_cells": 1.40, "hazard_duration": 0.0, "hazard_tick": 0.5, "hazard_damage": 0},
+			{"damage": 170, "interval": 4.20, "range_cells": 4.0, "pierce": 0, "splash_cells": 1.50, "hazard_duration": 3.0, "hazard_tick": 0.5, "hazard_damage": 4},
 		],
 	},
 }
@@ -258,6 +258,27 @@ func get_target_limit() -> int:
 
 func get_shell_count() -> int:
 	return int(_get_stats().get("shells", 1))
+
+
+func get_primary_dps() -> float:
+	var stats := _get_stats()
+	if tower_type == TYPE_FLAMESPITTER:
+		var tick_interval := maxf(float(stats.get("tick_interval", get_attack_interval())), 0.001)
+		if bool(stats.get("continuous", false)):
+			return float(get_damage()) / tick_interval
+		var ticks := int(stats.get("spray_ticks", 1))
+		var cycle_duration := (
+			float(maxi(ticks - 1, 0)) * tick_interval
+			+ float(stats.get("spray_gap", 0.0))
+		)
+		return float(get_damage() * ticks) / maxf(cycle_duration, 0.001)
+	if tower_type == TYPE_BOMBARDMENT:
+		return float(get_damage() * get_shell_count()) / maxf(get_attack_interval(), 0.001)
+	return float(get_damage()) / maxf(get_attack_interval(), 0.001)
+
+
+func covers_position(world_position: Vector2) -> bool:
+	return global_position.distance_squared_to(world_position) <= pow(get_range_pixels(), 2.0)
 
 
 func get_range_pixels() -> float:
