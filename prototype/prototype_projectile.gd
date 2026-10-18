@@ -88,12 +88,11 @@ func _resolve_impact(impact_position: Vector2) -> void:
 	if splash_radius > 0.0:
 		_apply_splash(impact_position)
 	elif is_instance_valid(target) and target.has_method("apply_damage"):
-		_report_damage(int(target.apply_damage(damage, &"ballistic", false, true)))
+		_report_damage(int(target.apply_damage(damage, &"ballistic", false, true)), target)
 	_spawn_ground_hazard(impact_position)
 
 
 func _apply_splash(impact_position: Vector2) -> void:
-	var total_applied := 0
 	var full_damage_radius := splash_radius * FULL_SPLASH_DAMAGE_RADIUS_RATIO
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not is_instance_valid(candidate) or bool(candidate.get("finished")):
@@ -103,10 +102,10 @@ func _apply_splash(impact_position: Vector2) -> void:
 			var applied_damage := damage
 			if distance_to_impact > full_damage_radius:
 				applied_damage = maxi(int(ceil(float(damage) * OUTER_SPLASH_DAMAGE_RATIO)), 1)
-			total_applied += int(candidate.apply_damage(applied_damage, &"explosive", false, true))
+			var damage_dealt := int(candidate.apply_damage(applied_damage, &"explosive", false, true))
+			_report_damage(damage_dealt, candidate)
 			if stun_duration > 0.0 and candidate.has_method("apply_stun"):
 				candidate.apply_stun(stun_duration)
-	_report_damage(total_applied)
 
 
 func _spawn_ground_hazard(impact_position: Vector2) -> void:
@@ -124,9 +123,9 @@ func _spawn_ground_hazard(impact_position: Vector2) -> void:
 	)
 
 
-func _report_damage(amount: int) -> void:
+func _report_damage(amount: int, enemy: Node2D = null) -> void:
 	if amount > 0 and is_instance_valid(source_tower) and source_tower.has_method("record_damage"):
-		source_tower.record_damage(amount)
+		source_tower.record_damage(amount, enemy)
 
 
 func _is_valid_target() -> bool:

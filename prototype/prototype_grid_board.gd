@@ -12,7 +12,7 @@ signal enemy_resolved(leaked: bool, leak_damage: int)
 signal enemies_added(count: int)
 signal enemy_spawned_for_stats(enemy_type: StringName, max_health: int, director_threat: int)
 signal enemy_resolved_for_stats(leaked: bool, leak_damage: int, progress_ratio: float)
-signal tower_damage_recorded(tower_type: StringName, tower_level: int, amount: int)
+signal tower_damage_recorded(tower_type: StringName, tower_level: int, amount: int, progress_ratio: float)
 signal structure_action_recorded(action: StringName, tower_type: StringName, tower_level: int, amount: int)
 signal export_stats_requested
 signal new_map_requested
@@ -1207,8 +1207,15 @@ func _create_enemy(enemy_data: Dictionary, continuation: Dictionary = {}) -> voi
 	queue_redraw()
 
 
-func _on_tower_damage_dealt(tower_type: StringName, tower_level: int, amount: int) -> void:
-	tower_damage_recorded.emit(tower_type, tower_level, amount)
+func _on_tower_damage_dealt(
+	tower_type: StringName,
+	tower_level: int,
+	amount: int,
+	route_progress: float
+) -> void:
+	var route_steps := maxf(float(displayed_route.size() - 1), 1.0)
+	var progress_ratio := clampf(route_progress / route_steps, 0.0, 1.0)
+	tower_damage_recorded.emit(tower_type, tower_level, amount, progress_ratio)
 
 
 func _get_enemy_progress_ratio(enemy: Node2D) -> float:

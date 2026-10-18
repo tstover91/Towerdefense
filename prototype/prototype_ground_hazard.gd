@@ -42,14 +42,13 @@ func _process(delta: float) -> void:
 
 
 func _apply_tick() -> void:
-	var total_applied := 0
 	for candidate in get_tree().get_nodes_in_group("mobs"):
 		if not is_instance_valid(candidate) or bool(candidate.get("finished")):
 			continue
 		if candidate.global_position.distance_to(global_position) <= radius:
-			total_applied += int(candidate.apply_damage(damage, &"fire", false, true))
-	if total_applied > 0 and is_instance_valid(source_tower) and source_tower.has_method("record_damage"):
-		source_tower.record_damage(total_applied)
+			var damage_dealt := int(candidate.apply_damage(damage, &"fire", false, true))
+			if damage_dealt > 0 and is_instance_valid(source_tower) and source_tower.has_method("record_damage"):
+				source_tower.record_damage(damage_dealt, candidate)
 
 
 func _draw() -> void:

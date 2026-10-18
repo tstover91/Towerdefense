@@ -248,6 +248,34 @@ func _run() -> void:
 	_assert(int(stats_row["defeated_enemies"]) == 1, "telemetry includes an enemy killed on the final hit")
 	_assert(int(stats_row["gunslinger_damage"]) == 2, "telemetry includes the killing Gunslinger damage")
 	_assert(int(stats_row["gunslinger_l1_damage"]) == 2, "telemetry attributes damage to tower level")
+	var route_damage_total := (
+		int(stats_row["damage_route_q1"])
+		+ int(stats_row["damage_route_q2"])
+		+ int(stats_row["damage_route_q3"])
+		+ int(stats_row["damage_route_q4"])
+	)
+	_assert(route_damage_total == int(stats_row["total_damage"]), "route quarters preserve total damage")
+	var defeated_quarter_total := (
+		int(stats_row["defeated_route_q1"])
+		+ int(stats_row["defeated_route_q2"])
+		+ int(stats_row["defeated_route_q3"])
+		+ int(stats_row["defeated_route_q4"])
+	)
+	_assert(defeated_quarter_total == int(stats_row["defeated_enemies"]), "death quarters preserve defeated count")
+	_assert(int(stats_row["peak_active_enemies"]) >= 1, "telemetry records peak active enemies")
+	_assert(
+		float(stats_row["p90_death_progress_percent"])
+		>= float(stats_row["median_death_progress_percent"]),
+		"death progress percentiles remain ordered"
+	)
+	_assert(
+		is_equal_approx(
+			float(stats_row["last_spawn_time_seconds"])
+			+ float(stats_row["clear_after_last_spawn_seconds"]),
+			float(stats_row["duration_seconds"])
+		),
+		"post-spawn clear time accounts for the remainder of the wave"
+	)
 	_assert(int(stats_row["tower_count"]) == 0, "telemetry snapshots the end-of-wave tower count")
 	var export_result: Dictionary = game.run_stats.export_reports_to_project()
 	game.board.show_stats_export_result(export_result)

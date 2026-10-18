@@ -17,6 +17,10 @@ var leaks := 0
 var spawned_by_type: Dictionary = {}
 var damage_by_type: Dictionary = {}
 var damage_by_type_level: Dictionary = {}
+var damage_by_route_quarter: Array[int] = [0, 0, 0, 0]
+var defeated_progresses: Array[float] = []
+var resolved_progresses: Array[float] = []
+var defeated_by_route_quarter: Array[int] = [0, 0, 0, 0]
 var max_enemy_progress := 0.0
 var enemies_reaching_75_percent := 0
 var enemies_reaching_90_percent := 0
@@ -29,6 +33,9 @@ var debut_enemy_types := ""
 var planned_parent_count := 0
 var expected_child_count := 0
 var planned_total_count := 0
+var active_enemy_count := 0
+var peak_active_enemies := 0
+var last_spawn_time := 0.0
 var pending_actions: Dictionary = _new_action_counts()
 var wave_actions: Dictionary = _new_action_counts()
 
@@ -49,6 +56,10 @@ func begin_wave(
 	spawned_by_type.clear()
 	damage_by_type.clear()
 	damage_by_type_level.clear()
+	damage_by_route_quarter = [0, 0, 0, 0]
+	defeated_progresses.clear()
+	resolved_progresses.clear()
+	defeated_by_route_quarter = [0, 0, 0, 0]
 	max_enemy_progress = 0.0
 	enemies_reaching_75_percent = 0
 	enemies_reaching_90_percent = 0
@@ -61,6 +72,9 @@ func begin_wave(
 	planned_parent_count = int(wave_plan.get("planned_parent_count", 0))
 	expected_child_count = int(wave_plan.get("expected_child_count", 0))
 	planned_total_count = int(wave_plan.get("planned_total_count", 0))
+	active_enemy_count = 0
+	peak_active_enemies = 0
+	last_spawn_time = 0.0
 	wave_actions = pending_actions.duplicate(true)
 	pending_actions = _new_action_counts()
 	for tower_type in DAMAGE_TYPES:
@@ -76,30 +90,43 @@ func is_wave_active() -> bool:
 func record_spawn(
 	enemy_type: StringName,
 	max_health: int,
-	director_threat := 0
+	director_threat := 0,
+	spawn_time := 0.0
 ) -> void:
 	if is_wave_active():
 		spawned_health += maxi(max_health, 0)
 		spawned_enemies += 1
 		spawned_director_threat += maxi(director_threat, 0)
+		active_enemy_count += 1
+		peak_active_enemies = maxi(peak_active_enemies, active_enemy_count)
+		last_spawn_time = maxf(last_spawn_time, spawn_time)
 		var key := String(enemy_type)
 		spawned_by_type[key] = int(spawned_by_type.get(key, 0)) + 1
 
 
-func record_damage(tower_type: StringName, tower_level: int, amount: int) -> void:
+func record_damage(
+	tower_type: StringName,
+	tower_level: int,
+	amount: int,
+	progress_ratio := 0.0
+) -> void:
 	if not is_wave_active() or amount <= 0:
 		return
 	var key := String(tower_type)
 	damage_by_type[key] = int(damage_by_type.get(key, 0)) + amount
 	var level_key := "%s_l%d" % [key, clampi(tower_level, 1, 5)]
 	damage_by_type_level[level_key] = int(damage_by_type_level.get(level_key, 0)) + amount
+	var quarter := mini(int(clampf(progress_ratio, 0.0, 1.0) * 4.0), 3)
+	damage_by_route_quarter[quarter] += amount
 
 
 func record_enemy_resolved(leaked: bool, _leak_damage: int, progress_ratio: float) -> void:
 	if not is_wave_active():
 		return
 	resolved_enemies += 1
+	active_enemy_count = maxi(active_enemy_count - 1, 0)
 	var safe_progress := clampf(progress_ratio, 0.0, 1.0)
+	resolved_progresses.append(safe_progress)
 	max_enemy_progress = maxf(max_enemy_progress, safe_progress)
 	if safe_progress >= 0.75:
 		enemies_reaching_75_percent += 1
@@ -107,6 +134,23 @@ func record_enemy_resolved(leaked: bool, _leak_damage: int, progress_ratio: floa
 		enemies_reaching_90_percent += 1
 	if leaked:
 		leaks += 1
+	else:
+		defeated_progresses.append(safe_progress)
+		var quarter := mini(int(safe_progress * 4.0), 3)
+		defeated_by_route_quarter[quarter] += 1
+
+
+func _percentile(values: Array[float], percentile: float) -> float:
+	if values.is_empty():
+		return 0.0
+	var sorted_values := values.duplicate()
+	sorted_values.sort()
+	var position := clampf(percentile, 0.0, 1.0) * float(sorted_values.size() - 1)
+	var lower_index := floori(position)
+	var upper_index := ceili(position)
+	if lower_index == upper_index:
+		return sorted_values[lower_index]
+	return lerpf(sorted_values[lower_index], sorted_values[upper_index], position - lower_index)
 
 
 func record_structure_action(action: StringName, _tower_type: StringName, _tower_level: int, amount: int) -> void:
@@ -158,6 +202,17 @@ func finish_wave(
 	var total_damage := 0
 	for amount in damage_by_type.values():
 		total_damage += int(amount)
+	var average_death_progress := 0.0
+	for progress in defeated_progresses:
+		average_death_progress += progress
+	if not defeated_progresses.is_empty():
+		average_death_progress /= float(defeated_progresses.size())
+	var median_death_progress := _percentile(defeated_progresses, 0.5)
+	var p90_death_progress := _percentile(defeated_progresses, 0.9)
+	var beyond_death_cluster := 0
+	for progress in resolved_progresses:
+		if progress >= median_death_progress + 0.10:
+			beyond_death_cluster += 1
 	var row := {
 		"wave": wave,
 		"map_seed": int(board_state.get("map_seed", 0)),
@@ -173,6 +228,9 @@ func finish_wave(
 		"expected_child_count": expected_child_count,
 		"planned_total_count": planned_total_count,
 		"duration_seconds": snappedf(duration, 0.01),
+		"last_spawn_time_seconds": snappedf(last_spawn_time, 0.01),
+		"clear_after_last_spawn_seconds": snappedf(maxf(duration - last_spawn_time, 0.0), 0.01),
+		"peak_active_enemies": peak_active_enemies,
 		"base_reward": int(reward.get("base_reward", 0)),
 		"interest_reward": int(reward.get("interest_reward", 0)),
 		"starting_credits": starting_credits,
@@ -221,6 +279,18 @@ func finish_wave(
 		"flamespitter_damage": int(damage_by_type.get("flamespitter", 0)),
 		"bombardment_damage": int(damage_by_type.get("bombardment", 0)),
 		"atomic_strike_damage": int(damage_by_type.get("atomic_strike", 0)),
+		"damage_route_q1": damage_by_route_quarter[0],
+		"damage_route_q2": damage_by_route_quarter[1],
+		"damage_route_q3": damage_by_route_quarter[2],
+		"damage_route_q4": damage_by_route_quarter[3],
+		"defeated_route_q1": defeated_by_route_quarter[0],
+		"defeated_route_q2": defeated_by_route_quarter[1],
+		"defeated_route_q3": defeated_by_route_quarter[2],
+		"defeated_route_q4": defeated_by_route_quarter[3],
+		"average_death_progress_percent": snappedf(average_death_progress * 100.0, 0.1),
+		"median_death_progress_percent": snappedf(median_death_progress * 100.0, 0.1),
+		"p90_death_progress_percent": snappedf(p90_death_progress * 100.0, 0.1),
+		"enemies_10_percent_beyond_median_death": beyond_death_cluster,
 		"max_enemy_progress_percent": snappedf(max_enemy_progress * 100.0, 0.1),
 		"enemies_reaching_75_percent": enemies_reaching_75_percent,
 		"enemies_reaching_90_percent": enemies_reaching_90_percent,
@@ -344,6 +414,7 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 		"planned_threat", "spent_threat", "spawned_director_threat",
 		"run_enemy_roster", "debut_enemy_types", "planned_parent_count",
 		"expected_child_count", "planned_total_count", "duration_seconds",
+		"last_spawn_time_seconds", "clear_after_last_spawn_seconds", "peak_active_enemies",
 		"base_reward", "interest_reward",
 		"starting_credits", "ending_credits", "tower_count", "level_1_towers",
 		"level_2_towers", "level_3_towers", "level_4_towers", "level_5_towers", "gunslinger_count",
@@ -370,6 +441,10 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 		for tower_level in range(1, 6):
 			headers.append("%s_l%d_damage" % [tower_type, tower_level])
 	headers.append_array([
+		"damage_route_q1", "damage_route_q2", "damage_route_q3", "damage_route_q4",
+		"defeated_route_q1", "defeated_route_q2", "defeated_route_q3", "defeated_route_q4",
+		"average_death_progress_percent", "median_death_progress_percent",
+		"p90_death_progress_percent", "enemies_10_percent_beyond_median_death",
 		"max_enemy_progress_percent", "enemies_reaching_75_percent",
 		"enemies_reaching_90_percent", "towers_built", "towers_upgraded",
 		"towers_sold", "walls_built", "walls_removed", "credits_spent",

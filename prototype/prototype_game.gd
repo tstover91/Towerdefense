@@ -19,7 +19,7 @@ func _ready() -> void:
 	board.start_wave_requested.connect(_on_start_wave_requested)
 	board.enemy_resolved.connect(round_controller.notify_enemy_resolved)
 	board.enemies_added.connect(round_controller.notify_enemies_added)
-	board.enemy_spawned_for_stats.connect(run_stats.record_spawn)
+	board.enemy_spawned_for_stats.connect(_on_enemy_spawned_for_stats)
 	board.tower_damage_recorded.connect(run_stats.record_damage)
 	board.enemy_resolved_for_stats.connect(run_stats.record_enemy_resolved)
 	board.structure_action_recorded.connect(run_stats.record_structure_action)
@@ -83,6 +83,19 @@ func _on_combat_state_changed(state: Dictionary) -> void:
 
 func _on_export_stats_requested() -> void:
 	board.show_stats_export_result(run_stats.export_reports_to_project())
+
+
+func _on_enemy_spawned_for_stats(
+	enemy_type: StringName,
+	max_health: int,
+	director_threat: int
+) -> void:
+	run_stats.record_spawn(
+		enemy_type,
+		max_health,
+		director_threat,
+		float(round_controller.wave_elapsed)
+	)
 
 
 func _on_new_map_requested() -> void:

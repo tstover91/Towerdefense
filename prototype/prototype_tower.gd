@@ -1,7 +1,7 @@
 class_name PrototypeTower
 extends Node2D
 
-signal damage_dealt(tower_type: StringName, tower_level: int, amount: int)
+signal damage_dealt(tower_type: StringName, tower_level: int, amount: int, route_progress: float)
 
 const ProjectileScript = preload("res://prototype/prototype_projectile.gd")
 
@@ -416,11 +416,15 @@ func _fire_at(current_target: Node2D) -> void:
 	attack_cooldown = get_attack_interval()
 	var target_position := current_target.global_position
 	var pierce_targets := _find_pierce_targets_after(current_target, target_position)
-	var total_applied := _apply_hit(current_target, get_damage())
+	var applied_damage := _apply_hit(current_target, get_damage())
+	record_damage(applied_damage, current_target)
 	for hit_index in mini(get_pierce_count(), pierce_targets.size()):
 		var pierce_target: Node2D = pierce_targets[hit_index]
-		total_applied += _apply_hit(pierce_target, get_piercing_damage(get_damage(), hit_index + 1))
-	record_damage(total_applied)
+		applied_damage = _apply_hit(
+			pierce_target,
+			get_piercing_damage(get_damage(), hit_index + 1)
+		)
+		record_damage(applied_damage, pierce_target)
 	shot_trace_end = target_position
 	if not pierce_targets.is_empty() and get_pierce_count() > 0:
 		shot_trace_end = pierce_targets[mini(get_pierce_count(), pierce_targets.size()) - 1].global_position
@@ -477,7 +481,6 @@ func _finish_flame_spray() -> void:
 
 
 func _apply_flame_tick() -> void:
-	var total_applied := 0
 	var minimum_dot := cos(deg_to_rad(get_cone_degrees() * 0.5))
 	var cone_targets: Array[Node2D] = []
 	for candidate in get_tree().get_nodes_in_group("mobs"):
@@ -494,8 +497,9 @@ func _apply_flame_tick() -> void:
 		return a.get_instance_id() < b.get_instance_id()
 	)
 	for hit_index in mini(get_target_limit(), cone_targets.size()):
-		total_applied += int(cone_targets[hit_index].apply_damage(get_damage(), &"fire", false, true))
-	record_damage(total_applied)
+		var hit_target := cone_targets[hit_index]
+		var applied_damage := int(hit_target.apply_damage(get_damage(), &"fire", false, true))
+		record_damage(applied_damage, hit_target)
 
 
 func _start_bombardment_salvo(impact_position: Vector2) -> void:
@@ -600,9 +604,12 @@ static func get_piercing_damage(base_damage: int, hit_number: int) -> int:
 	return maxi(roundi(float(base_damage) * multiplier), 1)
 
 
-func record_damage(amount: int) -> void:
+func record_damage(amount: int, enemy: Node2D = null) -> void:
 	if amount > 0:
-		damage_dealt.emit(tower_type, level, amount)
+		var route_progress := 0.0
+		if is_instance_valid(enemy):
+			route_progress = maxf(float(enemy.get("route_progress")), 0.0)
+		damage_dealt.emit(tower_type, level, amount, route_progress)
 
 
 func _draw() -> void:
