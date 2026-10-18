@@ -65,13 +65,14 @@ func _run() -> void:
 	piercing_gunslinger.configure(Vector2i.ZERO, Callable(board, "get_cell_size"), TowerScript.TYPE_GUNSLINGER)
 	piercing_gunslinger.upgrade(piercing_gunslinger.get_next_upgrade_cost())
 	piercing_gunslinger.upgrade(piercing_gunslinger.get_next_upgrade_cost())
+	piercing_gunslinger.upgrade(piercing_gunslinger.get_next_upgrade_cost())
 	var gunslinger_before: Node2D = _make_enemy(board, Vector2(330.0, 400.0), EnemyScript.TYPE_SOLDIER)
 	var gunslinger_primary: Node2D = _make_enemy(board, Vector2(360.0, 400.0), EnemyScript.TYPE_SOLDIER)
 	var gunslinger_after: Node2D = _make_enemy(board, Vector2(390.0, 400.0), EnemyScript.TYPE_SOLDIER)
 	piercing_gunslinger._fire_at(gunslinger_primary)
-	_assert(gunslinger_primary.health == 47, "Gunslinger deals full damage to its selected primary target")
+	_assert(gunslinger_primary.health == 43, "Gunslinger deals full damage to its selected primary target")
 	_assert(gunslinger_before.health == 65, "Gunslinger primary-impact pierce ignores enemies before its target")
-	_assert(gunslinger_after.health == 52, "Gunslinger pierces the next enemy after its target")
+	_assert(gunslinger_after.health == 50, "Gunslinger pierces the next enemy after its target")
 
 	var flamespitter: Node2D = TowerScript.new()
 	board.add_child(flamespitter)
@@ -133,7 +134,7 @@ func _run() -> void:
 	board.add_child(bombardment)
 	bombardment.position = Vector2(850.0, 450.0)
 	bombardment.configure(Vector2i.ZERO, Callable(board, "get_cell_size"), TowerScript.TYPE_BOMBARDMENT)
-	for upgrade_index in 3:
+	for upgrade_index in 4:
 		bombardment.upgrade(bombardment.get_next_upgrade_cost())
 	bombardment._start_bombardment_salvo(Vector2(900.0, 450.0))
 	bombardment._launch_bombardment_shell()
@@ -142,10 +143,10 @@ func _run() -> void:
 	for child in game.get_children():
 		if child.get_script() == ProjectileScript:
 			barrage_projectiles.append(child as Node2D)
-	_assert(barrage_projectiles.size() == 3, "level-four Bombardment launches a three-shell barrage")
+	_assert(barrage_projectiles.size() == 3, "level-five Bombardment launches a three-shell barrage")
 	if barrage_projectiles.size() == 3:
 		_assert(barrage_projectiles[0].stun_duration == 0.0 and barrage_projectiles[1].stun_duration == 0.0, "the first two barrage shells do not stun")
-		_assert(barrage_projectiles[2].stun_duration == 0.4, "only the final barrage shell carries the level-four stun")
+		_assert(barrage_projectiles[2].stun_duration == 0.4, "only the final barrage shell carries the level-five stun")
 	for barrage_projectile in barrage_projectiles:
 		barrage_projectile.queue_free()
 	await process_frame
@@ -154,7 +155,7 @@ func _run() -> void:
 	board.add_child(atomic_strike)
 	atomic_strike.position = Vector2(880.0, 150.0)
 	atomic_strike.configure(Vector2i.ZERO, Callable(board, "get_cell_size"), TowerScript.TYPE_ATOMIC_STRIKE)
-	for upgrade_index in 3:
+	for upgrade_index in 4:
 		atomic_strike.upgrade(atomic_strike.get_next_upgrade_cost())
 	var atomic_impact := Vector2(1000.0, 150.0)
 	var atomic_primary: Node2D = _make_enemy(board, atomic_impact, EnemyScript.TYPE_GIANT)
@@ -165,7 +166,7 @@ func _run() -> void:
 		if child.get_script() == ProjectileScript and float(child.ground_hazard_duration) > 0.0:
 			atomic_projectile = child as Node2D
 			break
-	_assert(is_instance_valid(atomic_projectile), "level-four Atomic Strike launches a ground-fire payload")
+	_assert(is_instance_valid(atomic_projectile), "level-five Atomic Strike launches a ground-fire payload")
 	if is_instance_valid(atomic_projectile):
 		_assert(atomic_projectile.damage == 270 and atomic_projectile.stun_duration == 0.0, "Atomic Strike carries one controlled unstunning blast")
 		atomic_projectile._resolve_impact(atomic_impact)
@@ -176,7 +177,7 @@ func _run() -> void:
 			if child.get_script() == GroundHazardScript:
 				ground_hazard = child as Node2D
 				break
-		_assert(is_instance_valid(ground_hazard), "level-four Atomic Strike leaves ground fire at its locked impact point")
+		_assert(is_instance_valid(ground_hazard), "level-five Atomic Strike leaves ground fire at its locked impact point")
 		if is_instance_valid(ground_hazard):
 			ground_hazard._apply_tick()
 			_assert(atomic_primary.health == 206 and atomic_nearby.health == 341, "ground fire damages every enemy standing inside without attaching a status")

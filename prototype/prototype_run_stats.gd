@@ -65,7 +65,7 @@ func begin_wave(
 	pending_actions = _new_action_counts()
 	for tower_type in DAMAGE_TYPES:
 		damage_by_type[tower_type] = 0
-		for tower_level in range(1, 5):
+		for tower_level in range(1, 6):
 			damage_by_type_level["%s_l%d" % [tower_type, tower_level]] = 0
 
 
@@ -91,7 +91,7 @@ func record_damage(tower_type: StringName, tower_level: int, amount: int) -> voi
 		return
 	var key := String(tower_type)
 	damage_by_type[key] = int(damage_by_type.get(key, 0)) + amount
-	var level_key := "%s_l%d" % [key, clampi(tower_level, 1, 4)]
+	var level_key := "%s_l%d" % [key, clampi(tower_level, 1, 5)]
 	damage_by_type_level[level_key] = int(damage_by_type_level.get(level_key, 0)) + amount
 
 
@@ -151,7 +151,7 @@ func finish_wave(
 ) -> Dictionary:
 	if active_wave != wave:
 		return {}
-	var levels: Array = board_state.get("tower_levels", [0, 0, 0, 0])
+	var levels: Array = board_state.get("tower_levels", [0, 0, 0, 0, 0])
 	var type_counts: Dictionary = board_state.get("tower_type_counts", {})
 	var type_levels: Dictionary = board_state.get("tower_type_levels", {})
 	var type_investment: Dictionary = board_state.get("tower_type_investment", {})
@@ -182,6 +182,7 @@ func finish_wave(
 		"level_2_towers": int(levels[1]) if levels.size() > 1 else 0,
 		"level_3_towers": int(levels[2]) if levels.size() > 2 else 0,
 		"level_4_towers": int(levels[3]) if levels.size() > 3 else 0,
+		"level_5_towers": int(levels[4]) if levels.size() > 4 else 0,
 		"gunslinger_count": int(type_counts.get("gunslinger", 0)),
 		"anti_materiel_count": int(type_counts.get("anti_materiel", 0)),
 		"flamespitter_count": int(type_counts.get("flamespitter", 0)),
@@ -235,7 +236,7 @@ func finish_wave(
 		"lives_remaining": lives_remaining,
 	}
 	for tower_type in DAMAGE_TYPES:
-		for tower_level in range(1, 5):
+		for tower_level in range(1, 6):
 			var type_level_key := "%s_l%d" % [tower_type, tower_level]
 			row["%s_count" % type_level_key] = int(type_levels.get(type_level_key, 0))
 			row["%s_damage" % type_level_key] = int(damage_by_type_level.get(type_level_key, 0))
@@ -345,13 +346,13 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 		"expected_child_count", "planned_total_count", "duration_seconds",
 		"base_reward", "interest_reward",
 		"starting_credits", "ending_credits", "tower_count", "level_1_towers",
-		"level_2_towers", "level_3_towers", "level_4_towers", "gunslinger_count",
+		"level_2_towers", "level_3_towers", "level_4_towers", "level_5_towers", "gunslinger_count",
 		"anti_materiel_count", "flamespitter_count", "bombardment_count", "atomic_strike_count",
 		"gunslinger_investment", "anti_materiel_investment",
 		"flamespitter_investment", "bombardment_investment", "atomic_strike_investment",
 	]
 	for tower_type in DAMAGE_TYPES:
-		for tower_level in range(1, 5):
+		for tower_level in range(1, 6):
 			headers.append("%s_l%d_count" % [tower_type, tower_level])
 	headers.append_array([
 		"power_used",
@@ -366,7 +367,7 @@ func _write_reports_to_paths(csv_path: String, json_path: String) -> bool:
 		"flamespitter_damage", "bombardment_damage", "atomic_strike_damage",
 	])
 	for tower_type in DAMAGE_TYPES:
-		for tower_level in range(1, 5):
+		for tower_level in range(1, 6):
 			headers.append("%s_l%d_damage" % [tower_type, tower_level])
 	headers.append_array([
 		"max_enemy_progress_percent", "enemies_reaching_75_percent",

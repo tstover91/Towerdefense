@@ -1324,12 +1324,12 @@ func mark_all_towers_participated() -> void:
 
 
 func get_telemetry_snapshot() -> Dictionary:
-	var levels := [0, 0, 0, 0]
+	var levels := [0, 0, 0, 0, 0]
 	var type_counts := {"gunslinger": 0, "anti_materiel": 0, "flamespitter": 0, "bombardment": 0, "atomic_strike": 0}
 	var type_investment := {"gunslinger": 0, "anti_materiel": 0, "flamespitter": 0, "bombardment": 0, "atomic_strike": 0}
 	var type_levels: Dictionary = {}
 	for tower_type in ["gunslinger", "anti_materiel", "flamespitter", "bombardment", "atomic_strike"]:
-		for tower_level in range(1, 5):
+		for tower_level in range(1, 6):
 			type_levels["%s_l%d" % [tower_type, tower_level]] = 0
 	for tower in towers_by_cell.values():
 		if not is_instance_valid(tower):
