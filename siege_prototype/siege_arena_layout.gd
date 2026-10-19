@@ -48,8 +48,8 @@ func get_initial_blueprint() -> Array[Dictionary]:
 
 func get_run_initial_blueprint() -> Array[Dictionary]:
 	return [
-		{"id": &"command_core", "kind": &"command_core", "level": 1, "cell": Vector2i(36, 20), "footprint": Vector2i(4, 4)},
-		{"id": &"cannon_1", "kind": &"cannon", "level": 1, "cell": Vector2i(29, 20), "footprint": Vector2i(3, 3)},
+		{"id": &"command_core", "kind": &"command_core", "level": 2, "cell": Vector2i(36, 20), "footprint": Vector2i(4, 4)},
+		{"id": &"cannon_1", "kind": &"cannon", "level": 2, "cell": Vector2i(29, 20), "footprint": Vector2i(3, 3)},
 	]
 
 

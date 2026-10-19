@@ -109,23 +109,25 @@ These are behavioral emulations because Supercell does not publish its internal
 pathfinding weights. Combat numbers remain the exact TH6 snapshot; no hidden
 damage, health, range, or speed modifiers were introduced.
 
-## Phase 7 six-round run
+## Phase 7 four-round run
 
-The Siege Lab now starts a complete TH1-to-TH3 run rather than dropping directly
+The Siege Lab now starts a complete TH2-to-TH3 run rather than dropping directly
 into the TH6 benchmark. Each Town Hall has an A battle at roughly 75% of its
-Clash army capacity and a B battle at 100%, for six rounds total. The wave roster,
+Clash army capacity and a B battle at 100%, for four rounds total. The wave roster,
 unit level, building unlocks, building level caps, health, damage, cadence,
 range, footprints, and movement speed all use the current Clash values recorded
 in `CLASH_REFERENCE.md`.
 
 Between attacks the player may reposition the whole base, buy an unlocked
 defense or wall, and upgrade a selected structure to the current Town Hall cap.
-Bolts are a deliberately condensed prototype currency; Clash prices and timers
-are not used. Wall inventories are also condensed to 0/12/20 at TH1/2/3 so the
+Gold is a deliberately condensed prototype economy; Clash prices and timers
+are not used. New level-one Walls are free, matching current Clash, while their
+upgrades and all defense construction/upgrades use Gold. Wall inventories are
+condensed to 12/20 at TH2/3 so the
 prototype remains practical on a phone. The Command Core advances for free after
 each B battle, but every defense and wall keeps the level the player purchased.
 
-An attack captures a safe precombat snapshot. Holding earns bolts and advances
+An attack captures a safe precombat snapshot. Holding earns Gold and advances
 one battle. Losing earns nothing, loses nothing, and reconstructs that snapshot
 for an immediate retry. Run `res://tools/siege_run_progression_smoke.gd` to
 validate round progression, rollback, housing budgets, level caps, and exact

@@ -3,9 +3,9 @@ extends RefCounted
 
 const LAST_TOWN_HALL := 3
 
-var town_hall := 1
+var town_hall := 2
 var battle_index := 0
-var currency := 4
+var currency := 16
 var completed := false
 var blueprint: Array[Dictionary] = []
 var precombat_blueprint: Array[Dictionary] = []
@@ -42,7 +42,7 @@ func spend(amount: int) -> bool:
 
 
 func get_round_number() -> int:
-	return (town_hall - 1) * 2 + battle_index + 1
+	return (town_hall - 2) * 2 + battle_index + 1
 
 
 func get_battle_letter() -> String:

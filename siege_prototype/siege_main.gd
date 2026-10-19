@@ -45,7 +45,7 @@ func _new_run() -> void:
 	build_cycle_index = 0
 	$HUD/BottomBar/AttackButton.disabled = false
 	_set_build_controls_enabled(true)
-	_on_status_changed("TH1 begins · tap the Cannon, upgrade it for 3 bolts, then start battle A")
+	_on_status_changed("TH2 begins · build defenses and free level-1 Walls, then start battle A")
 	_refresh_hud()
 
 
@@ -67,7 +67,7 @@ func _cycle_build() -> void:
 		return
 	var kinds: Array[StringName] = TierCatalogScript.get_unlocked_build_kinds(run_state.town_hall)
 	if kinds.is_empty():
-		_on_status_changed("No additional defenses unlock at TH1")
+		_on_status_changed("No additional defense slots are currently unlocked")
 		return
 	for offset in kinds.size():
 		var index := (build_cycle_index + offset) % kinds.size()
@@ -117,11 +117,11 @@ func _upgrade_selected() -> void:
 		return
 	var cost := StructureCatalogScript.get_upgrade_cost(structure.kind, next_level)
 	if cost < 0 or not run_state.spend(cost):
-		_on_status_changed("Need %d bolts for level %d" % [cost, next_level])
+		_on_status_changed("Need %d Gold for level %d" % [cost, next_level])
 		return
 	$SiegeBoard.upgrade_structure(structure.structure_id, next_level)
 	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
-	_on_status_changed("%s upgraded to level %d for %d bolts" % [String(structure.definition.get("display_name", structure.kind)), next_level, cost])
+	_on_status_changed("%s upgraded to level %d for %d Gold" % [String(structure.definition.get("display_name", structure.kind)), next_level, cost])
 	_refresh_hud()
 
 
@@ -164,12 +164,12 @@ func _on_wave_finished(result: StringName) -> void:
 			_upgrade_command_core_in_blueprint(run_state.blueprint, run_state.town_hall)
 		$SiegeBoard.load_blueprint(run_state.blueprint)
 		if run_state.completed:
-			_on_status_changed("RUN COMPLETE · TH1-TH3 survived · %d bolts banked" % run_state.currency)
+			_on_status_changed("RUN COMPLETE · TH2-TH3 survived · %d Gold banked" % run_state.currency)
 		else:
-			_on_status_changed("Defense held · +%d bolts · prepare TH%d-%s" % [reward, run_state.town_hall, run_state.get_battle_letter()])
+			_on_status_changed("Defense held · +%d Gold · prepare TH%d-%s" % [reward, run_state.town_hall, run_state.get_battle_letter()])
 	else:
 		$SiegeBoard.load_blueprint(run_state.record_defeat())
-		_on_status_changed("Base destroyed · no bolts lost · layout restored for a safe retry")
+		_on_status_changed("Base destroyed · no Gold lost · layout restored for a safe retry")
 	$HUD/BottomBar/AttackButton.disabled = run_state.completed
 	_set_build_controls_enabled(not run_state.completed)
 	_refresh_hud()
@@ -196,8 +196,8 @@ func _set_build_controls_enabled(enabled: bool) -> void:
 
 func _refresh_hud() -> void:
 	var budget := TierCatalogScript.get_army_budget(run_state.town_hall, run_state.battle_index)
-	$HUD/TopBar/PhaseBadge.text = "TH%d · %s\nROUND %d / 6" % [run_state.town_hall, run_state.get_battle_letter(), run_state.get_round_number()]
-	$HUD/TopBar/Currency.text = "%d BOLTS\n%d HOUSING" % [run_state.currency, budget]
+	$HUD/TopBar/PhaseBadge.text = "TH%d · %s\nROUND %d / 4" % [run_state.town_hall, run_state.get_battle_letter(), run_state.get_round_number()]
+	$HUD/TopBar/Currency.text = "%d GOLD\n%d HOUSING" % [run_state.currency, budget]
 	$HUD/BottomBar/AttackButton.text = "ATTACK %s" % run_state.get_battle_letter()
 
 

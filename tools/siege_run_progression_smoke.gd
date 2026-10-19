@@ -23,6 +23,7 @@ func _run() -> void:
 	_assert(TierCatalogScript.get_count_cap(1, &"wall") == 0, "TH1 has no walls")
 	_assert(TierCatalogScript.get_count_cap(2, &"wall") == 12, "the TH2 run condenses walls to twelve")
 	_assert(TierCatalogScript.get_count_cap(3, &"wall") == 20, "the TH3 run condenses walls to twenty")
+	_assert(StructureCatalogScript.get_build_cost(&"wall") == 0, "new level-one Walls are free to place like current Clash")
 	_assert(TierCatalogScript.get_level_cap(3, &"cannon") == 4, "TH3 Cannons cap at Clash level four")
 	_assert(is_equal_approx(StructureCatalogScript.get_max_health(&"command_core", 1), 400.0), "TH1 uses current exact Town Hall HP")
 	_assert(is_equal_approx(StructureCatalogScript.get_max_health(&"command_core", 2), 800.0), "TH2 uses current exact Town Hall HP")
@@ -38,22 +39,23 @@ func _run() -> void:
 	var starting_currency: int = state.currency
 	var defeat_blueprint: Array[Dictionary] = state.record_defeat()
 	_assert(state.currency == starting_currency and defeat_blueprint == blueprint, "defeat safely restores the precombat base without currency loss")
-	for round_index in 6:
+	_assert(state.town_hall == 2 and state.get_round_number() == 1, "the run skips TH1 and opens at TH2-A")
+	for round_index in 4:
 		state.begin_combat(blueprint)
 		state.record_victory(TierCatalogScript.get_reward(state.town_hall, state.battle_index), blueprint)
-		if round_index < 5:
+		if round_index < 3:
 			_assert(state.get_round_number() == round_index + 2, "victory advances exactly one round")
-	_assert(state.completed and state.town_hall == 3 and state.battle_index == 1, "six victories complete the TH1-TH3 run")
+	_assert(state.completed and state.town_hall == 3 and state.battle_index == 1, "four victories complete the TH2-TH3 run")
 
 	var board: Node2D = BoardScript.new()
 	get_root().add_child(board)
 	await process_frame
 	board.load_blueprint(blueprint)
 	var cannon: Node2D = board.get_structure(&"cannon_1")
-	_assert(cannon.level == 1 and is_equal_approx(cannon.max_health, 300.0), "run blueprint creates a level-one Cannon")
-	_assert(board.upgrade_structure(&"cannon_1", 2), "board accepts an explicit structure upgrade")
-	_assert(cannon.level == 2 and is_equal_approx(cannon.max_health, 360.0), "upgrading applies the exact level-two stat line")
-	_assert(int(board.get_blueprint_snapshot()[1]["level"]) == 2, "upgraded level persists in the base blueprint")
+	_assert(cannon.level == 2 and is_equal_approx(cannon.max_health, 360.0), "TH2 begins with the carried-over level-two Cannon")
+	_assert(board.upgrade_structure(&"cannon_1", 3), "board accepts an explicit structure upgrade")
+	_assert(cannon.level == 3 and is_equal_approx(cannon.max_health, 420.0), "upgrading applies the exact level-three stat line")
+	_assert(int(board.get_blueprint_snapshot()[1]["level"]) == 3, "upgraded level persists in the base blueprint")
 	board.queue_free()
 	await process_frame
 
@@ -64,18 +66,18 @@ func _run() -> void:
 	var main_board: Node2D = main.get_node("SiegeBoard")
 	main_board.selected_structure_id = &"cannon_1"
 	main._upgrade_selected()
-	_assert(main.run_state.currency == 1, "the HUD upgrade action spends condensed currency")
-	_assert(main_board.get_structure(&"cannon_1").level == 2, "the HUD upgrade action applies the next level")
-	main.run_state.begin_combat(main_board.capture_current_blueprint())
-	main._on_wave_finished(&"defenders")
-	main.run_state.begin_combat(main_board.capture_current_blueprint())
-	main._on_wave_finished(&"defenders")
-	_assert(main.run_state.town_hall == 2 and main.run_state.battle_index == 0, "two HUD victories advance to TH2-A")
+	_assert(main.run_state.currency == 12, "the HUD upgrade action spends condensed Gold")
+	_assert(main_board.get_structure(&"cannon_1").level == 3, "the HUD upgrade action applies the TH2 level cap")
 	main._cycle_build()
 	_assert(main.pending_purchase_kind == &"cannon", "TH2 build cycling offers the newly unlocked second Cannon")
 	_assert(main_board.try_add_structure(&"cannon", Vector2i(20, 20), 1), "the offered Cannon can be placed on an empty footprint")
-	_assert(main.run_state.currency == 8, "placing the Cannon deducts its five-bolt build price once")
-	_assert(main_board.get_structure_count(&"cannon") == 2, "the TH2 base now contains both allowed Cannons (found %d)" % main_board.get_structure_count(&"cannon"))
+	_assert(main.run_state.currency == 7, "placing the Cannon deducts its five-Gold prototype price once")
+	_assert(main_board.get_structure_count(&"cannon") == 2, "the TH2 base now contains both allowed Cannons")
+	main.run_state.begin_combat(main_board.capture_current_blueprint())
+	main._on_wave_finished(&"defenders")
+	main.run_state.begin_combat(main_board.capture_current_blueprint())
+	main._on_wave_finished(&"defenders")
+	_assert(main.run_state.town_hall == 3 and main.run_state.battle_index == 0, "two HUD victories advance from TH2 to TH3-A")
 	main.queue_free()
 	_finish("SIEGE_RUN_PROGRESSION_SMOKE_OK")
 

@@ -172,7 +172,7 @@ const RUN_BUILD_COSTS := {
 	&"cannon": 5,
 	&"archer_tower": 6,
 	&"mortar": 8,
-	&"wall": 1,
+	&"wall": 0,
 }
 
 
