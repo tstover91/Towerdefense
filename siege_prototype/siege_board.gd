@@ -6,6 +6,7 @@ const StructureCatalogScript = preload("res://siege_prototype/siege_structure_ca
 const StructureScript = preload("res://siege_prototype/siege_structure.gd")
 
 signal structure_topology_changed
+signal view_transform_changed
 
 const COLOR_BACKGROUND := Color("131313")
 const COLOR_BOARD_SHADOW := Color(0.0, 0.0, 0.0, 0.42)
@@ -24,19 +25,27 @@ const COLOR_HOVER := Color(0.20, 0.72, 0.42, 0.42)
 
 const PAGE_MARGIN := 28.0
 const HEADER_HEIGHT := 92.0
-const FOOTER_HEIGHT := 48.0
+const FOOTER_HEIGHT := 78.0
+const MIN_VIEW_ZOOM := 0.82
+const MAX_VIEW_ZOOM := 2.5
+const INITIAL_VIEW_ZOOM := 1.08
+const WHEEL_ZOOM_STEP := 1.12
 
 var arena_layout: RefCounted
 var board_origin := Vector2.ZERO
 var board_rect := Rect2()
 var safe_view_rect := Rect2()
 var cell_size := 48.0
+var fit_cell_size := 48.0
+var view_zoom := INITIAL_VIEW_ZOOM
 var portrait_view := false
 var hovered_cell := Vector2i(-1, -1)
 var title_font: Font
 var structures: Array[Node2D] = []
 var structures_by_id: Dictionary = {}
 var blueprint_snapshot: Array[Dictionary] = []
+var mouse_dragging := false
+var touch_points: Dictionary = {}
 
 
 func _ready() -> void:
@@ -49,15 +58,58 @@ func _ready() -> void:
 	_recalculate_layout()
 
 
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if portrait_view:
 		return
-	if event is InputEventMouseMotion:
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			zoom_at_screen_position(event.position, view_zoom * WHEEL_ZOOM_STEP)
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			zoom_at_screen_position(event.position, view_zoom / WHEEL_ZOOM_STEP)
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			mouse_dragging = event.pressed
+			_update_hover(event.position)
+	elif event is InputEventMouseMotion:
+		if mouse_dragging:
+			pan_view(event.relative)
+			get_viewport().set_input_as_handled()
+		else:
+			_update_hover(event.position)
+	elif event is InputEventScreenTouch:
+		if event.pressed:
+			touch_points[event.index] = event.position
+		else:
+			touch_points.erase(event.index)
 		_update_hover(event.position)
 	elif event is InputEventScreenDrag:
+		_handle_touch_drag(event)
+		get_viewport().set_input_as_handled()
+
+
+func _handle_touch_drag(event: InputEventScreenDrag) -> void:
+	var old_points := touch_points.duplicate()
+	touch_points[event.index] = event.position
+	if touch_points.size() < 2:
+		pan_view(event.relative)
 		_update_hover(event.position)
-	elif event is InputEventScreenTouch and event.pressed:
-		_update_hover(event.position)
+		return
+	var indices: Array = touch_points.keys()
+	var first_index = indices[0]
+	var second_index = indices[1]
+	if not old_points.has(first_index) or not old_points.has(second_index):
+		return
+	var old_a := Vector2(old_points[first_index])
+	var old_b := Vector2(old_points[second_index])
+	var new_a := Vector2(touch_points[first_index])
+	var new_b := Vector2(touch_points[second_index])
+	var old_center := (old_a + old_b) * 0.5
+	var new_center := (new_a + new_b) * 0.5
+	var old_distance := maxf(old_a.distance_to(old_b), 1.0)
+	var new_distance := maxf(new_a.distance_to(new_b), 1.0)
+	pan_view(new_center - old_center)
+	zoom_at_screen_position(new_center, view_zoom * new_distance / old_distance)
 
 
 func _update_hover(screen_position: Vector2) -> void:
@@ -77,20 +129,80 @@ func _recalculate_layout() -> void:
 		queue_redraw()
 		return
 	var available_width := maxf(viewport_rect.size.x - PAGE_MARGIN * 2.0, 1.0)
-	var available_height := maxf(viewport_rect.size.y - HEADER_HEIGHT - FOOTER_HEIGHT - PAGE_MARGIN, 1.0)
-	cell_size = maxf(minf(
+	var available_height := maxf(viewport_rect.size.y - HEADER_HEIGHT - FOOTER_HEIGHT, 1.0)
+	fit_cell_size = maxf(minf(
 		available_width / float(ArenaLayoutScript.GRID_SIZE.x),
 		available_height / float(ArenaLayoutScript.GRID_SIZE.y)
 	), 1.0)
+	view_zoom = clampf(view_zoom, MIN_VIEW_ZOOM, MAX_VIEW_ZOOM)
+	cell_size = fit_cell_size * view_zoom
 	var size := Vector2(ArenaLayoutScript.GRID_SIZE) * cell_size
+	var usable_rect := _get_usable_view_rect()
 	board_origin = Vector2(
-		viewport_rect.position.x + (viewport_rect.size.x - size.x) * 0.5,
-		viewport_rect.position.y + HEADER_HEIGHT + (available_height - size.y) * 0.5
+		usable_rect.position.x + (usable_rect.size.x - size.x) * 0.5,
+		usable_rect.position.y + (usable_rect.size.y - size.y) * 0.5
 	)
-	board_rect = Rect2(board_origin, size)
+	_update_board_transform()
 	_set_structure_visibility(true)
+
+
+func reset_view() -> void:
+	view_zoom = INITIAL_VIEW_ZOOM
+	_recalculate_layout()
+
+
+func zoom_at_screen_position(screen_position: Vector2, requested_zoom: float) -> void:
+	if portrait_view or fit_cell_size <= 0.0:
+		return
+	var next_zoom := clampf(requested_zoom, MIN_VIEW_ZOOM, MAX_VIEW_ZOOM)
+	if is_equal_approx(next_zoom, view_zoom):
+		return
+	var world_anchor := (screen_position - board_origin) / cell_size
+	view_zoom = next_zoom
+	cell_size = fit_cell_size * view_zoom
+	board_origin = screen_position - world_anchor * cell_size
+	_update_board_transform()
+
+
+func pan_view(screen_delta: Vector2) -> void:
+	if portrait_view:
+		return
+	board_origin += screen_delta
+	_update_board_transform()
+
+
+func _update_board_transform() -> void:
+	var size := Vector2(ArenaLayoutScript.GRID_SIZE) * cell_size
+	board_origin = _clamp_board_origin(board_origin, size)
+	board_rect = Rect2(board_origin, size)
 	_update_structure_layout()
+	view_transform_changed.emit()
 	queue_redraw()
+
+
+func _get_usable_view_rect() -> Rect2:
+	var viewport_rect := get_viewport_rect()
+	return Rect2(
+		Vector2(viewport_rect.position.x + PAGE_MARGIN, viewport_rect.position.y + HEADER_HEIGHT),
+		Vector2(
+			maxf(viewport_rect.size.x - PAGE_MARGIN * 2.0, 1.0),
+			maxf(viewport_rect.size.y - HEADER_HEIGHT - FOOTER_HEIGHT, 1.0)
+		)
+	)
+
+
+func _clamp_board_origin(requested_origin: Vector2, board_size: Vector2) -> Vector2:
+	var usable := _get_usable_view_rect()
+	var result := requested_origin
+	if board_size.x <= usable.size.x:
+		result.x = usable.position.x + (usable.size.x - board_size.x) * 0.5
+	else:
+		result.x = clampf(result.x, usable.end.x - board_size.x, usable.position.x)
+	if board_size.y <= usable.size.y:
+		result.y = usable.position.y + (usable.size.y - board_size.y) * 0.5
+	else:
+		result.y = clampf(result.y, usable.end.y - board_size.y, usable.position.y)
+	return result
 
 
 func _build_structures_from_blueprint(blueprint: Array[Dictionary]) -> void:
@@ -255,7 +367,7 @@ func _draw_static_terrain() -> void:
 
 func _draw_deployment_arrows() -> void:
 	var arrow_color := Color("ef624d")
-	for y in [1, 3, 5, 7, 9]:
+	for y in [1, 4, 7, 10, 13]:
 		var center := cell_rect(Vector2i(0, y)).get_center()
 		var start := Vector2(maxf(board_origin.x - cell_size * 0.55, 4.0), center.y)
 		var end := Vector2(board_origin.x + cell_size * 0.70, center.y)
@@ -268,7 +380,7 @@ func _draw_labels() -> void:
 	var small_size := clampi(roundi(cell_size * 0.27), 10, 16)
 	var footer_y := board_rect.end.y + minf(FOOTER_HEIGHT * 0.62, 28.0)
 	draw_string(title_font, Vector2(board_rect.position.x, footer_y), "ENEMY FRONT", HORIZONTAL_ALIGNMENT_LEFT, -1.0, small_size, Color("ef624d"))
-	draw_string(title_font, Vector2(board_rect.get_center().x - cell_size * 1.1, footer_y), "FIXED TEST ARENA", HORIZONTAL_ALIGNMENT_LEFT, -1.0, small_size, COLOR_MUTED_TEXT)
+	draw_string(title_font, Vector2(board_rect.get_center().x - cell_size * 1.1, footer_y), "28×16 SIEGE FIELD", HORIZONTAL_ALIGNMENT_LEFT, -1.0, small_size, COLOR_MUTED_TEXT)
 	draw_string(title_font, Vector2(board_rect.end.x - cell_size * 2.2, footer_y), "FORTRESS DEPTH →", HORIZONTAL_ALIGNMENT_LEFT, -1.0, small_size, COLOR_CORE)
 
 

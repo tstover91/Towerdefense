@@ -1,12 +1,12 @@
 class_name SiegeStructureCatalog
 extends RefCounted
 
-# Clash values are reference ratios, not drop-in balance. The prototype health
-# scale maps a TH6 Town Hall's 2,800 HP to a 900 HP Command Core.
+# Phase 4 deliberately uses an exact TH6 Clash stat snapshot. Geometry and the
+# integrity objective remain prototype-specific, but combat values are copied.
 const DEFINITIONS := {
 	&"command_core": {
 		"display_name": "Command Core",
-		"max_health": 900.0,
+		"max_health": 2800.0,
 		"integrity_value": 4,
 		"blocks_movement": true,
 		"counts_for_objective": true,
@@ -15,13 +15,13 @@ const DEFINITIONS := {
 	},
 	&"cannon": {
 		"display_name": "Cannon",
-		"max_health": 235.0,
+		"max_health": 730.0,
 		"integrity_value": 1,
 		"blocks_movement": true,
 		"counts_for_objective": true,
-		"attack_damage": 18.0,
+		"attack_damage": 32.0,
 		"attack_interval": 0.8,
-		"attack_range_cells": 5.0,
+		"attack_range_cells": 9.0,
 		"minimum_range_cells": 0.0,
 		"splash_radius_cells": 0.0,
 		"reference_level": 7,
@@ -30,15 +30,15 @@ const DEFINITIONS := {
 	},
 	&"mortar": {
 		"display_name": "Mortar",
-		"max_health": 180.0,
+		"max_health": 550.0,
 		"integrity_value": 2,
 		"blocks_movement": true,
 		"counts_for_objective": true,
-		"attack_damage": 55.0,
-		"attack_interval": 3.0,
-		"attack_range_cells": 6.0,
-		"minimum_range_cells": 2.0,
-		"splash_radius_cells": 1.25,
+		"attack_damage": 35.0,
+		"attack_interval": 5.0,
+		"attack_range_cells": 11.0,
+		"minimum_range_cells": 4.0,
+		"splash_radius_cells": 1.5,
 		"reference_level": 4,
 		"reference_health": 550.0,
 		"reference_damage_per_hit": 35.0,
@@ -46,7 +46,7 @@ const DEFINITIONS := {
 	},
 	&"wall": {
 		"display_name": "Wall",
-		"max_health": 580.0,
+		"max_health": 1800.0,
 		"integrity_value": 0,
 		"blocks_movement": true,
 		"counts_for_objective": false,

@@ -14,11 +14,16 @@ run from `res://prototype/prototype_main.tscn` without depending on this mode.
 
 ## Phase 2 fixed arena
 
-The siege lab now renders a deterministic 14 by 10 landscape arena. The first
+The siege lab now renders a deterministic 28 by 16 landscape arena. The first
 column is the enemy deployment front, the second column is a no-build approach
 buffer, and the remaining cells form the fortress construction area. Its fixed
-starting blueprint contains one 2 by 2 Command Core, two Cannons, and eight Wall
+starting blueprint contains one 2 by 2 Command Core, two Cannons, and twelve Wall
 segments. Four fixed terrain cells break up the otherwise empty board.
+
+The field opens slightly zoomed in to make better use of widescreen phones.
+One-finger or mouse dragging pans the board, two-finger pinching or the mouse
+wheel zooms from 0.82x to 2.5x, and **Reset View** restores the opening view.
+Panning is clamped to the map edges so the board cannot be lost off-screen.
 
 Run `res://tools/siege_arena_layout_smoke.gd` headlessly to validate the arena,
 blueprint, deployment boundary, non-overlap rules, and responsive layout.
@@ -42,7 +47,8 @@ The initial values and their Clash-derived rationale live in
 
 ## Phase 4 autonomous siege
 
-The test attack now contains Raiders, Brutes, and Sappers. Raiders choose the
+The test attack now contains Raiders, Brutes, and Sappers using exact TH6-era
+Clash combat values. Raiders choose the
 nearest objective, Brutes prefer defensive buildings, and Sappers create a
 one-contact breach. Attackers use deterministic four-direction grid routing but
 move continuously between cell centers.

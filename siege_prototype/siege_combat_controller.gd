@@ -9,15 +9,24 @@ const AttackerCatalogScript = preload("res://siege_prototype/siege_attacker_cata
 const AttackerScript = preload("res://siege_prototype/siege_attacker.gd")
 
 const DEMO_WAVE: Array[Dictionary] = [
-	{"kind": &"sapper", "row": 4},
-	{"kind": &"brute", "row": 3},
-	{"kind": &"raider", "row": 5},
-	{"kind": &"raider", "row": 2},
+	{"kind": &"brute", "row": 5},
 	{"kind": &"brute", "row": 6},
-	{"kind": &"sapper", "row": 7},
-	{"kind": &"raider", "row": 4},
+	{"kind": &"brute", "row": 10},
+	{"kind": &"brute", "row": 11, "next_delay": 6.0},
+	{"kind": &"sapper", "row": 6},
+	{"kind": &"sapper", "row": 6},
+	{"kind": &"sapper", "row": 8},
+	{"kind": &"sapper", "row": 8},
+	{"kind": &"sapper", "row": 10},
+	{"kind": &"sapper", "row": 10},
+	{"kind": &"raider", "row": 5},
 	{"kind": &"raider", "row": 6},
-	{"kind": &"raider", "row": 3},
+	{"kind": &"raider", "row": 7},
+	{"kind": &"raider", "row": 8},
+	{"kind": &"raider", "row": 9},
+	{"kind": &"raider", "row": 10},
+	{"kind": &"sapper", "row": 11},
+	{"kind": &"raider", "row": 11},
 ]
 
 var board: Node2D
@@ -39,6 +48,7 @@ func _ready() -> void:
 	if board == null:
 		return
 	board.structure_topology_changed.connect(_on_structure_topology_changed)
+	board.view_transform_changed.connect(_update_attacker_layout)
 	get_viewport().size_changed.connect(_update_attacker_layout)
 	set_physics_process(true)
 
@@ -55,7 +65,7 @@ func start_demo_wave() -> void:
 	elapsed_time = 0.0
 	active = true
 	result = &"running"
-	status_changed.emit("Siege in progress · 9 attackers incoming")
+	status_changed.emit("Siege in progress · 18 attackers incoming")
 	wave_started.emit()
 	queue_redraw()
 
@@ -109,7 +119,7 @@ func _update_spawning(delta: float) -> void:
 	while not pending_wave.is_empty() and spawn_cooldown <= 0.0:
 		var entry: Dictionary = pending_wave.pop_front()
 		_spawn_attacker(StringName(entry.get("kind", &"raider")), int(entry.get("row", 5)))
-		spawn_cooldown += spawn_interval
+		spawn_cooldown += float(entry.get("next_delay", spawn_interval))
 
 
 func _spawn_attacker(kind: StringName, row: int) -> Node2D:

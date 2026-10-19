@@ -1,29 +1,33 @@
 class_name SiegeArenaLayout
 extends RefCounted
 
-const GRID_SIZE := Vector2i(14, 10)
+const GRID_SIZE := Vector2i(28, 16)
 const DEPLOYMENT_COLUMNS := 1
 const BUILD_BUFFER_COLUMNS := 1
 
 const STATIC_TERRAIN: Array[Vector2i] = [
-	Vector2i(5, 0),
-	Vector2i(6, 0),
-	Vector2i(5, 9),
-	Vector2i(6, 9),
+	Vector2i(19, 0),
+	Vector2i(19, 1),
+	Vector2i(19, 14),
+	Vector2i(19, 15),
 ]
 
 const INITIAL_BLUEPRINT: Array[Dictionary] = [
-	{"id": &"command_core", "kind": &"command_core", "cell": Vector2i(11, 4), "footprint": Vector2i(2, 2)},
-	{"id": &"north_cannon", "kind": &"cannon", "cell": Vector2i(9, 2), "footprint": Vector2i.ONE},
-	{"id": &"south_cannon", "kind": &"cannon", "cell": Vector2i(9, 7), "footprint": Vector2i.ONE},
-	{"id": &"wall_1", "kind": &"wall", "cell": Vector2i(7, 1), "footprint": Vector2i.ONE},
-	{"id": &"wall_2", "kind": &"wall", "cell": Vector2i(7, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_3", "kind": &"wall", "cell": Vector2i(7, 3), "footprint": Vector2i.ONE},
-	{"id": &"wall_4", "kind": &"wall", "cell": Vector2i(7, 4), "footprint": Vector2i.ONE},
-	{"id": &"wall_5", "kind": &"wall", "cell": Vector2i(7, 5), "footprint": Vector2i.ONE},
-	{"id": &"wall_6", "kind": &"wall", "cell": Vector2i(7, 6), "footprint": Vector2i.ONE},
-	{"id": &"wall_7", "kind": &"wall", "cell": Vector2i(7, 7), "footprint": Vector2i.ONE},
-	{"id": &"wall_8", "kind": &"wall", "cell": Vector2i(7, 8), "footprint": Vector2i.ONE},
+	{"id": &"command_core", "kind": &"command_core", "cell": Vector2i(24, 7), "footprint": Vector2i(2, 2)},
+	{"id": &"north_cannon", "kind": &"cannon", "cell": Vector2i(22, 4), "footprint": Vector2i.ONE},
+	{"id": &"south_cannon", "kind": &"cannon", "cell": Vector2i(22, 11), "footprint": Vector2i.ONE},
+	{"id": &"wall_1", "kind": &"wall", "cell": Vector2i(19, 2), "footprint": Vector2i.ONE},
+	{"id": &"wall_2", "kind": &"wall", "cell": Vector2i(19, 3), "footprint": Vector2i.ONE},
+	{"id": &"wall_3", "kind": &"wall", "cell": Vector2i(19, 4), "footprint": Vector2i.ONE},
+	{"id": &"wall_4", "kind": &"wall", "cell": Vector2i(19, 5), "footprint": Vector2i.ONE},
+	{"id": &"wall_5", "kind": &"wall", "cell": Vector2i(19, 6), "footprint": Vector2i.ONE},
+	{"id": &"wall_6", "kind": &"wall", "cell": Vector2i(19, 7), "footprint": Vector2i.ONE},
+	{"id": &"wall_7", "kind": &"wall", "cell": Vector2i(19, 8), "footprint": Vector2i.ONE},
+	{"id": &"wall_8", "kind": &"wall", "cell": Vector2i(19, 9), "footprint": Vector2i.ONE},
+	{"id": &"wall_9", "kind": &"wall", "cell": Vector2i(19, 10), "footprint": Vector2i.ONE},
+	{"id": &"wall_10", "kind": &"wall", "cell": Vector2i(19, 11), "footprint": Vector2i.ONE},
+	{"id": &"wall_11", "kind": &"wall", "cell": Vector2i(19, 12), "footprint": Vector2i.ONE},
+	{"id": &"wall_12", "kind": &"wall", "cell": Vector2i(19, 13), "footprint": Vector2i.ONE},
 ]
 
 

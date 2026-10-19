@@ -1,9 +1,8 @@
 # Clash reference snapshot
 
-Collected 2026-10-19 for the siege prototype. These values are design
-references, not copied balance. Clash has a much larger battlefield, longer
-attacks, and years of economy/stat inflation, so direct values would produce a
-slow prototype.
+Collected 2026-10-19 for the siege prototype. Phase 4 now uses these combat
+values directly so the first playtests evaluate Clash's real low-level health,
+damage, cadence, range, and movement relationships before custom balancing.
 
 ## TH6 structure baseline
 
@@ -28,22 +27,17 @@ The official balance notes and current Home Village table both report 1,800.
 The separate Builder Base table reports 2,200 for its level-6 wall; these modes
 must not be mixed when deriving the prototype ratio.
 
-## Prototype conversion
+## Prototype implementation
 
-The shared HP multiplier is approximately `900 / 2800 = 0.321`. Values are
-rounded to readable increments:
-
-| Prototype structure | HP | Integrity | Purpose |
+| Prototype structure | HP | Integrity | Combat implementation |
 | --- | ---: | ---: | --- |
-| Command Core | 900 | 4 | Durable centerpiece, not an instant-loss Town Hall |
-| Cannon | 235 | 1 | Fragile single-target defense |
-| Mortar | 180 | 2 | Fragile high-impact splash defense for a later phase |
-| Wall | 580 | 0 | Very durable blocker; excluded from destruction objective |
+| Command Core | 2,800 | 4 | Exact TH6 Town Hall HP; still not an instant-loss objective |
+| Cannon | 730 | 1 | 32 damage every 0.8s, range 9 |
+| Mortar | 550 | 2 | 35 damage every 5s, range 4–11, splash 1.5 |
+| Wall | 1,800 | 0 | Exact level-6 HP; excluded from destruction objective |
 
-Weapon timings are separately compressed for 20–35 second rounds. The Cannon
-keeps its recognizable 0.8s cadence but uses 18 damage and 5 cells of range.
-The Mortar uses 55 damage every 3s, 2–6 cells of range, and 1.25-cell splash.
-These are hypotheses for combat testing, not claims about Clash.
+Integrity values, the Command Core's objective behavior, the 28×16 geometry,
+and the names/visuals remain prototype-specific. They are not Clash stats.
 
 The key routing rule reproduced in Phase 4 is behavioral rather than numeric:
 ground units choose a building target and only attack a wall when it blocks the
@@ -53,9 +47,9 @@ route to that target. Walls are obstacles, not part of the destruction score.
 
 | Prototype role | Clash reference | Clash reference stats | Prototype stats |
 | --- | --- | --- | --- |
-| Raider | Level-3 Barbarian | 65 HP, 14 DPS, no preferred building | 70 HP, 22 damage each 1s, 2.2 cells/s |
-| Brute | Level-3 Giant | 600 HP, 20 DPS, 2s attack, 1.5 tiles/s, defenses preferred | 280 HP, 36 damage each 2s, 1.5 cells/s, defenses preferred |
-| Sapper | Level-3 Wall Breaker | 29 HP, 1,000 contact damage to walls plus death damage, 3 tiles/s, walls preferred | 42 HP, 600 wall damage, 3 cells/s, self-destructs |
+| Raider | Level-3 Barbarian | 65 HP, 15 damage every 1s, no preferred building, 2.2 tiles/s | Exact combat values |
+| Brute | Level-3 Giant | 600 HP, 40 damage every 2s, 1.5 tiles/s, defenses preferred | Exact combat values |
+| Sapper | Level-3 Wall Breaker | 29 HP, 25 contact plus 13 death damage; x40 against walls; 3 tiles/s | Exact contact/death values and 2-tile death splash |
 
 Attacker sources:
 
@@ -64,6 +58,6 @@ Attacker sources:
 - Wall Breaker: https://clashofclans.fandom.com/wiki/Wall_Breaker?page=2
 - Movement conversion: https://clashofclans.fandom.com/wiki/Troop_Movement_Speed
 
-The prototype deliberately compresses the Giant's HP advantage so Cannons can
-resolve a wave quickly. The Sapper is tuned to destroy one full-health wall in
-one successful contact, making the breach readable and strategically decisive.
+The deterministic test wave composition is allowed to change, but these unit
+and structure combat values should remain untouched until the exact-stat test
+has produced enough playtest evidence to justify a deliberate balance change.

@@ -3,6 +3,7 @@ extends SceneTree
 const BoardScript = preload("res://siege_prototype/siege_board.gd")
 const CombatScript = preload("res://siege_prototype/siege_combat_controller.gd")
 const RouterScript = preload("res://siege_prototype/siege_grid_router.gd")
+const AttackerCatalogScript = preload("res://siege_prototype/siege_attacker_catalog.gd")
 
 var failure_count := 0
 
@@ -12,6 +13,12 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"raider")["move_speed_cells"]), 2.2), "Raiders use exact Barbarian movement speed")
+	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"brute")["move_speed_cells"]), 1.5), "Brutes use exact Giant movement speed")
+	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"sapper")["move_speed_cells"]), 3.0), "Sappers use exact Wall Breaker movement speed")
+	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"raider")["max_health"]), 65.0), "Raiders use exact level-3 Barbarian HP")
+	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"brute")["max_health"]), 600.0), "Brutes use exact level-3 Giant HP")
+	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"sapper")["wall_damage"]), 1000.0), "Sappers use exact level-3 Wall Breaker contact damage")
 	var route: Array[Vector2i] = RouterScript.find_path(
 		Vector2i(0, 1),
 		[Vector2i(3, 1)],
@@ -34,17 +41,19 @@ func _run() -> void:
 
 	combat.start_demo_wave()
 	combat.simulate_step(0.05)
-	_assert(combat.attackers.size() == 1, "the deterministic wave begins with one Sapper")
+	_assert(combat.attackers.size() == 1, "the deterministic wave begins with one Brute tank")
 	var first_attacker: Node2D = combat.attackers[0]
-	_assert(first_attacker.intended_target_id != &"", "the Sapper first chooses a non-wall objective")
+	_assert(first_attacker.intended_target_id != &"", "the Brute first chooses a non-wall objective")
 	var first_active_target: Node2D = board.get_structure(first_attacker.active_target_id)
-	_assert(first_active_target != null and first_active_target.kind == &"wall", "a sealed route redirects the Sapper to a blocking wall")
+	_assert(first_active_target != null and first_active_target.kind == &"wall", "a sealed route redirects the Brute to a blocking wall")
+	var first_intended_target: Node2D = board.get_structure(first_attacker.intended_target_id)
+	_assert(first_intended_target != null and first_intended_target.kind == &"cannon", "Brutes use Clash's defense preference")
 
-	var brute: Node2D = combat._spawn_attacker(&"brute", 2)
-	brute.simulate(0.01)
-	var brute_target: Node2D = board.get_structure(brute.intended_target_id)
-	_assert(brute_target != null and brute_target.kind == &"cannon", "Brutes prefer a defensive building")
-	combat._on_attacker_died(brute)
+	var sapper: Node2D = combat._spawn_attacker(&"sapper", 7)
+	sapper.simulate(0.01)
+	var sapper_target: Node2D = board.get_structure(sapper.active_target_id)
+	_assert(sapper_target != null and sapper_target.kind == &"wall", "Sappers route to the wall protecting their intended building")
+	combat._on_attacker_died(sapper)
 
 	var initial_wall_count := _living_kind_count(board, &"wall")
 	var saw_attacker_damage := false
@@ -64,7 +73,7 @@ func _run() -> void:
 
 	combat.reset_fortress()
 	_assert(board.get_remaining_integrity() == 6, "rebuild restores the fortress after combat")
-	_assert(_living_kind_count(board, &"wall") == 8, "rebuild restores every wall segment")
+	_assert(_living_kind_count(board, &"wall") == 12, "rebuild restores every wall segment")
 
 	harness.queue_free()
 	_finish("SIEGE_COMBAT_PHASE4_SMOKE_OK")

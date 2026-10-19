@@ -24,6 +24,9 @@ var max_health := 1.0
 var health := 1.0
 var damage := 1.0
 var wall_damage := 1.0
+var death_damage := 0.0
+var death_wall_damage := 0.0
+var death_damage_radius_cells := 0.0
 var attack_interval := 1.0
 var move_speed_cells := 1.0
 var attack_range_cells := 1.05
@@ -55,6 +58,9 @@ func configure(
 	health = max_health
 	damage = float(definition.get("damage", 1.0))
 	wall_damage = float(definition.get("wall_damage", damage))
+	death_damage = float(definition.get("death_damage", 0.0))
+	death_wall_damage = float(definition.get("death_wall_damage", death_damage))
+	death_damage_radius_cells = float(definition.get("death_damage_radius_cells", 0.0))
 	attack_interval = maxf(float(definition.get("attack_interval", 1.0)), 0.05)
 	move_speed_cells = maxf(float(definition.get("move_speed_cells", 1.0)), 0.05)
 	attack_range_cells = maxf(float(definition.get("attack_range_cells", 1.05)), 0.1)
@@ -199,7 +205,9 @@ func _try_attack(target: Node2D) -> void:
 func _distance_to_structure(structure: Node2D) -> float:
 	var best := INF
 	for cell in structure.get_occupied_cells():
-		best = minf(best, grid_position.distance_to(Vector2(cell)))
+		# Clash range is measured from footprint edges. Adjacent grid cells have
+		# zero separation even though their centers are one cell apart.
+		best = minf(best, maxf(grid_position.distance_to(Vector2(cell)) - 1.0, 0.0))
 	return best
 
 
@@ -210,10 +218,26 @@ func _current_cell() -> Vector2i:
 func _die() -> void:
 	if dead:
 		return
+	_apply_death_damage()
 	dead = true
 	health = 0.0
 	queue_redraw()
 	attacker_died.emit(self)
+
+
+func _apply_death_damage() -> void:
+	if death_damage_radius_cells <= 0.0 or board == null:
+		return
+	for structure in board.structures:
+		if structure.destroyed:
+			continue
+		var distance := INF
+		for cell in structure.get_occupied_cells():
+			distance = minf(distance, grid_position.distance_to(Vector2(cell)))
+		if distance > death_damage_radius_cells:
+			continue
+		var explosion_damage := death_wall_damage if structure.kind == &"wall" else death_damage
+		structure.apply_damage(explosion_damage)
 
 
 func _draw() -> void:

@@ -96,11 +96,17 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "1× SPEED"
 
+[node name="ViewButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(120, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "RESET VIEW"
+
 [node name="Status" type="Label" parent="HUD/BottomBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 15
-text = "Ready · start the deterministic nine-unit test attack"
+text = "Drag to pan · pinch or wheel to zoom · exact TH6 stats · 18-unit test attack"
 vertical_alignment = 1
 text_overrun_behavior = 3
