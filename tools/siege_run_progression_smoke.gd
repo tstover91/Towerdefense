@@ -15,7 +15,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	var expected_budgets := [[15, 20], [22, 30], [52, 70]]
+	var expected_budgets := [[15, 20], [10, 15], [20, 22]]
 	for town_hall in range(1, 4):
 		for battle in range(2):
 			var wave: Array[Dictionary] = TierCatalogScript.build_wave(town_hall, battle)
@@ -23,6 +23,10 @@ func _run() -> void:
 	_assert(TierCatalogScript.get_count_cap(1, &"wall") == 0, "TH1 has no walls")
 	_assert(TierCatalogScript.get_count_cap(2, &"wall") == 12, "the TH2 run condenses walls to twelve")
 	_assert(TierCatalogScript.get_count_cap(3, &"wall") == 20, "the TH3 run condenses walls to twenty")
+	var opening_wave: Array[Dictionary] = TierCatalogScript.build_wave(2, 0)
+	_assert(opening_wave.size() == 10, "TH2-A opens with ten attackers")
+	for attacker in opening_wave:
+		_assert(StringName(attacker.get("kind", &"")) == &"raider" and int(attacker.get("level", 0)) == 1, "every TH2-A attacker is a level-one Barbarian reference")
 	_assert(StructureCatalogScript.get_build_cost(&"wall") == 0, "new level-one Walls are free to place like current Clash")
 	_assert(TierCatalogScript.get_level_cap(3, &"cannon") == 4, "TH3 Cannons cap at Clash level four")
 	_assert(is_equal_approx(StructureCatalogScript.get_max_health(&"command_core", 1), 400.0), "TH1 uses current exact Town Hall HP")

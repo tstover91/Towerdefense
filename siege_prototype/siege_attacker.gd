@@ -148,15 +148,22 @@ func _choose_target_plan() -> Dictionary:
 				candidates.append(structure)
 	candidates.sort_custom(func(a: Node2D, b: Node2D) -> bool: return _distance_to_structure(a) < _distance_to_structure(b))
 	var considered_plans: Array[Dictionary] = []
+	var sapper_fallback_plans: Array[Dictionary] = []
 	for candidate in candidates:
 		var plan := _build_plan_for_target(candidate)
 		if plan.is_empty():
 			continue
 		if kind == &"sapper" and not bool(plan.get("crosses_wall", false)):
+			# Wall Breakers prefer any route that crosses a Wall. If the player
+			# built no Walls (or none remain), they still need a valid objective;
+			# otherwise a no-timer battle can never finish.
+			sapper_fallback_plans.append(plan)
 			continue
 		considered_plans.append(plan)
 		if considered_plans.size() >= TARGET_CANDIDATE_COUNT:
 			break
+	if considered_plans.is_empty() and kind == &"sapper":
+		considered_plans = sapper_fallback_plans
 	var best_plan: Dictionary = {}
 	var best_cost := INF
 	for plan in considered_plans:

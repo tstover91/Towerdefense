@@ -110,7 +110,7 @@ func _run() -> void:
 
 	var initial_wall_count := _living_kind_count(board, &"wall")
 	var saw_attacker_damage := false
-	for _step in 600:
+	for _step in 1800:
 		for attacker in combat.attackers:
 			if attacker.health < attacker.max_health:
 				saw_attacker_damage = true
@@ -122,7 +122,7 @@ func _run() -> void:
 	var core: Node2D = board.get_structure(&"command_core")
 	_assert(board.get_remaining_integrity() < 14 or core.health < core.max_health, "surviving attackers reach and damage a real objective")
 	_assert(combat.result == &"attackers" or combat.result == &"defenders", "the deterministic wave reaches a declared result")
-	_assert(combat.elapsed_time <= 45.1, "the test round respects the 45-second hard limit")
+	_assert(not combat.active, "combat ends only after one side has actually been eliminated")
 
 	combat.reset_fortress()
 	_assert(board.get_remaining_integrity() == 14, "rebuild restores the fortress after combat")

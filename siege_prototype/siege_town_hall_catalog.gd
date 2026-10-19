@@ -44,8 +44,9 @@ static func get_tier(town_hall: int) -> Dictionary:
 
 
 static func get_army_budget(town_hall: int, battle_index: int) -> int:
-	var capacity := int(get_tier(town_hall).get("army_capacity", 0))
-	return capacity if battle_index >= 1 else floori(float(capacity) * 0.75)
+	# Show the force actually deployed. Clash army capacity remains reference
+	# data, but filling it every round overwhelms this condensed TD economy.
+	return get_wave_housing(build_wave(town_hall, battle_index))
 
 
 static func get_reward(town_hall: int, battle_index: int) -> int:
@@ -79,9 +80,17 @@ static func build_wave(town_hall: int, battle_index: int) -> Array[Dictionary]:
 		1:
 			composition = _composition([[&"raider", 9 if battle_index == 0 else 10], [&"ranger", 6 if battle_index == 0 else 10]])
 		2:
-			composition = _composition([[&"brute", 2 if battle_index == 0 else 3], [&"raider", 6 if battle_index == 0 else 8], [&"ranger", 6 if battle_index == 0 else 7]])
+			if battle_index == 0:
+				# The opening defense is a readable tutorial wave: exact level-one
+				# Barbarian stats, without ranged pressure or defense-targeting Giants.
+				composition = _composition([[&"raider", 10]])
+			else:
+				composition = _composition([[&"brute", 1], [&"raider", 5], [&"ranger", 5]])
 		_:
-			composition = _composition([[&"brute", 4 if battle_index == 0 else 5], [&"sapper", 2 if battle_index == 0 else 3], [&"raider", 14 if battle_index == 0 else 20], [&"ranger", 14 if battle_index == 0 else 19]])
+			if battle_index == 0:
+				composition = _composition([[&"brute", 1], [&"sapper", 1], [&"raider", 7], [&"ranger", 6]])
+			else:
+				composition = _composition([[&"brute", 1], [&"sapper", 1], [&"raider", 8], [&"ranger", 7]])
 	var levels: Dictionary = get_tier(town_hall).get("troop_levels", {})
 	var spawn_delay := _get_spawn_delay(town_hall, battle_index)
 	for index in composition.size():

@@ -268,8 +268,6 @@ func _check_wave_end() -> void:
 		_finish_wave(&"attackers")
 	elif pending_wave.is_empty() and attackers.is_empty():
 		_finish_wave(&"defenders")
-	elif elapsed_time >= 45.0:
-		_finish_wave(&"defenders")
 
 
 func _finish_wave(winner: StringName) -> void:
