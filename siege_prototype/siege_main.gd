@@ -34,6 +34,8 @@ func _ready() -> void:
 	$SiegeBoard.selected_structure_changed.connect(_on_selection_changed)
 	$SiegeBoard.structure_added.connect(_on_structure_added)
 	$SiegeBoard.build_preview_changed.connect(_on_build_preview_changed)
+	$SiegeBoard.wall_extension_requested.connect(_confirm_build)
+	$SiegeBoard.view_transform_changed.connect(_on_view_transform_changed)
 	_new_run()
 	$HUD/TopBar/BackButton.grab_focus()
 
@@ -110,9 +112,11 @@ func _select_build_kind(kind: StringName) -> void:
 	$HUD/BuildTray.visible = false
 	$HUD/SelectionPanel.visible = false
 	$HUD/PlacementPanel.visible = true
-	$HUD/PlacementPanel/Margin/Actions/PlacementLabel.text = "PLACE %s\nTap an empty area" % _display_name(kind).to_upper()
+	var price := "FREE" if cost == 0 else "%d GOLD" % cost
+	$HUD/PlacementPanel/Margin/Actions/PlacementLabel.text = "%s · %s\nDRAG TO MOVE" % [_display_name(kind).to_upper(), price]
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.disabled = true
-	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.text = "✓ BUILD · %s" % ("FREE" if cost == 0 else "%d GOLD" % cost)
+	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.visible = true
+	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.text = "✓"
 
 
 func _confirm_build() -> void:
@@ -122,8 +126,10 @@ func _confirm_build() -> void:
 		_on_status_changed("Tap a valid empty position before confirming")
 
 
-func _on_build_preview_changed(_kind: StringName, _cell: Vector2i, can_confirm: bool) -> void:
+func _on_build_preview_changed(_kind: StringName, cell: Vector2i, can_confirm: bool) -> void:
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.disabled = not can_confirm
+	if cell.x >= 0:
+		_position_placement_panel($SiegeBoard.get_build_preview_screen_rect())
 
 
 func _on_structure_added(structure: Node) -> void:
@@ -139,14 +145,50 @@ func _on_structure_added(structure: Node) -> void:
 	_refresh_hud()
 	if placed_kind == &"wall" and $SiegeBoard.get_structure_count(&"wall") < TierCatalogScript.get_count_cap(run_state.town_hall, &"wall"):
 		$HUD/SelectionPanel.visible = false
-		call_deferred("_continue_wall_placement")
+		call_deferred("_continue_wall_placement", structure.grid_cell)
 	else:
 		_on_selection_changed(structure)
 
 
-func _continue_wall_placement() -> void:
+func _continue_wall_placement(cell: Vector2i) -> void:
 	if not $SiegeCombat.active and not run_state.completed:
-		_select_build_kind(&"wall")
+		pending_purchase_kind = &"wall"
+		pending_purchase_cost = StructureCatalogScript.get_build_cost(&"wall")
+		if $SiegeBoard.is_wall_chain_active():
+			$SiegeBoard.advance_wall_chain(cell)
+		else:
+			$SiegeBoard.begin_wall_chain(cell)
+		$HUD/PlacementPanel.visible = true
+		$HUD/PlacementPanel/Margin/Actions/PlacementLabel.text = "WALL ROW\nTap a green arrow to extend"
+		$HUD/PlacementPanel/Margin/Actions/ConfirmButton.visible = false
+		_position_placement_panel($SiegeBoard.cell_rect(cell))
+
+
+func _on_view_transform_changed() -> void:
+	if not $HUD/PlacementPanel.visible:
+		return
+	if $SiegeBoard.is_wall_chain_active():
+		var focus_cell: Vector2i = $SiegeBoard.get_wall_chain_focus_cell()
+		if focus_cell.x >= 0:
+			_position_placement_panel($SiegeBoard.cell_rect(focus_cell))
+	else:
+		_position_placement_panel($SiegeBoard.get_build_preview_screen_rect())
+
+
+func _position_placement_panel(target_rect: Rect2) -> void:
+	if target_rect.size == Vector2.ZERO:
+		return
+	var panel: Control = $HUD/PlacementPanel
+	var panel_size := panel.size
+	if panel_size.x <= 1.0:
+		panel_size = Vector2(390.0, 68.0)
+	var viewport_size := get_viewport().get_visible_rect().size
+	var target := Vector2(target_rect.get_center().x - panel_size.x * 0.5, target_rect.position.y - panel_size.y - 12.0)
+	if target.y < 58.0:
+		target.y = target_rect.end.y + 12.0
+	target.x = clampf(target.x, 8.0, maxf(viewport_size.x - panel_size.x - 8.0, 8.0))
+	target.y = clampf(target.y, 58.0, maxf(viewport_size.y - panel_size.y - 8.0, 58.0))
+	panel.position = target
 
 
 func _upgrade_selected() -> void:

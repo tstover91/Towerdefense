@@ -20,16 +20,16 @@ layout_mode = 3
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 22.0
-offset_top = 18.0
-offset_right = -22.0
-offset_bottom = 74.0
+offset_top = 8.0
+offset_right = -12.0
+offset_bottom = 52.0
 grow_horizontal = 2
 theme_override_constants/separation = 18
 
 [node name="BackButton" type="Button" parent="HUD/TopBar"]
-custom_minimum_size = Vector2(190, 54)
+custom_minimum_size = Vector2(132, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 17
+theme_override_font_sizes/font_size = 14
 text = "← MODE SELECT"
 
 [node name="TitleStack" type="VBoxContainer" parent="HUD/TopBar"]
@@ -40,33 +40,33 @@ theme_override_constants/separation = 0
 [node name="Title" type="Label" parent="HUD/TopBar/TitleStack"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
-theme_override_font_sizes/font_size = 25
-text = "SIEGE PROTOTYPE · DESTRUCTIBLE FORTRESS"
+theme_override_font_sizes/font_size = 18
+text = "SIEGE · DESTRUCTIBLE FORTRESS"
 text_overrun_behavior = 3
 clip_text = true
 
 [node name="Subtitle" type="Label" parent="HUD/TopBar/TitleStack"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
-theme_override_font_sizes/font_size = 14
-text = "Four-round TH2-TH3 run · two battles per Town Hall · exact Clash combat stats"
+theme_override_font_sizes/font_size = 11
+text = "TH2-TH3 RUN · PAN AND PINCH TO EXPLORE"
 text_overrun_behavior = 3
 clip_text = true
 
 [node name="PhaseBadge" type="Label" parent="HUD/TopBar"]
-custom_minimum_size = Vector2(168, 54)
+custom_minimum_size = Vector2(122, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 13
 text = "TH2 · A\nROUND 1 / 4"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Currency" type="Label" parent="HUD/TopBar"]
-custom_minimum_size = Vector2(130, 54)
+custom_minimum_size = Vector2(112, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.49, 0.79, 0.84, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 13
 text = "16 GOLD\n22 HOUSING"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -77,64 +77,64 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 22.0
-offset_top = -66.0
-offset_right = -164.0
-offset_bottom = -14.0
+offset_left = 12.0
+offset_top = -54.0
+offset_right = -126.0
+offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 12
 
 [node name="AttackButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(120, 48)
+custom_minimum_size = Vector2(104, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 14
 text = "ATTACK A"
 
 [node name="RebuildButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(110, 48)
+custom_minimum_size = Vector2(94, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 14
 text = "NEW RUN"
 
 [node name="SpeedButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(76, 48)
+custom_minimum_size = Vector2(64, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 14
 text = "1×"
 
 [node name="ViewButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(105, 48)
+custom_minimum_size = Vector2(92, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 14
 text = "RESET VIEW"
 
 [node name="Status" type="Label" parent="HUD/BottomBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 13
 text = "Tap Shop to build · tap a structure for its Upgrade button"
 vertical_alignment = 1
 text_overrun_behavior = 3
 
 [node name="ShopButton" type="Button" parent="HUD"]
-custom_minimum_size = Vector2(128, 68)
+custom_minimum_size = Vector2(108, 58)
 layout_mode = 3
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -146.0
-offset_top = -82.0
-offset_right = -18.0
-offset_bottom = -14.0
+offset_left = -116.0
+offset_top = -66.0
+offset_right = -8.0
+offset_bottom = -8.0
 grow_horizontal = 0
 grow_vertical = 0
 theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
-theme_override_font_sizes/font_size = 18
-text = "SHOP\nBUILDINGS"
+theme_override_font_sizes/font_size = 15
+text = "SHOP\nBUILD"
 
 [node name="BuildTray" type="PanelContainer" parent="HUD"]
 visible = false
@@ -144,8 +144,8 @@ anchor_left = 0.08
 anchor_top = 1.0
 anchor_right = 0.92
 anchor_bottom = 1.0
-offset_top = -244.0
-offset_bottom = -88.0
+offset_top = -224.0
+offset_bottom = -72.0
 grow_horizontal = 2
 grow_vertical = 0
 
@@ -211,16 +211,10 @@ text = "WALL\nFREE · BUILT 0 / 12"
 
 [node name="PlacementPanel" type="PanelContainer" parent="HUD"]
 visible = false
+custom_minimum_size = Vector2(390, 68)
 layout_mode = 3
-anchors_preset = 12
-anchor_left = 0.25
-anchor_top = 1.0
-anchor_right = 0.75
-anchor_bottom = 1.0
-offset_top = -158.0
-offset_bottom = -88.0
-grow_horizontal = 2
-grow_vertical = 0
+offset_right = 390.0
+offset_bottom = 68.0
 
 [node name="Margin" type="MarginContainer" parent="HUD/PlacementPanel"]
 layout_mode = 2
@@ -237,23 +231,23 @@ theme_override_constants/separation = 10
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 16
-text = "PLACE CANNON\nTap an empty area"
+text = "CANNON · 5 GOLD\nDRAG TO MOVE"
 vertical_alignment = 1
 
 [node name="CancelButton" type="Button" parent="HUD/PlacementPanel/Margin/Actions"]
-custom_minimum_size = Vector2(108, 52)
+custom_minimum_size = Vector2(62, 52)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.4, 0.38, 1)
-theme_override_font_sizes/font_size = 16
-text = "CANCEL"
+theme_override_font_sizes/font_size = 26
+text = "✕"
 
 [node name="ConfirmButton" type="Button" parent="HUD/PlacementPanel/Margin/Actions"]
-custom_minimum_size = Vector2(172, 52)
+custom_minimum_size = Vector2(62, 52)
 layout_mode = 2
 disabled = true
 theme_override_colors/font_color = Color(0.4, 0.9, 0.55, 1)
-theme_override_font_sizes/font_size = 16
-text = "BUILD · 5 GOLD"
+theme_override_font_sizes/font_size = 26
+text = "✓"
 
 [node name="SelectionPanel" type="PanelContainer" parent="HUD"]
 visible = false
@@ -263,8 +257,8 @@ anchor_left = 0.28
 anchor_top = 1.0
 anchor_right = 0.72
 anchor_bottom = 1.0
-offset_top = -158.0
-offset_bottom = -88.0
+offset_top = -140.0
+offset_bottom = -72.0
 grow_horizontal = 2
 grow_vertical = 0
 

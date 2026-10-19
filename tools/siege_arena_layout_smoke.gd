@@ -79,7 +79,7 @@ func _run() -> void:
 	board._recalculate_layout()
 	var original_cell_size: float = board.cell_size
 	var anchor: Vector2 = board.cell_rect(Vector2i(23, 22)).get_center()
-	board.zoom_at_screen_position(anchor, 1.8)
+	board.zoom_at_screen_position(anchor, board.view_zoom * 1.2)
 	_assert(board.cell_size > original_cell_size, "zooming increases the rendered cell size")
 	_assert(board.screen_to_cell(anchor) == Vector2i(23, 22), "zoom preserves the map cell under the gesture anchor")
 	var origin_before_pan: Vector2 = board.board_origin

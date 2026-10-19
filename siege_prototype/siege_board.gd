@@ -11,6 +11,7 @@ signal edit_status_changed(text: String)
 signal selected_structure_changed(structure: Node)
 signal structure_added(structure: Node)
 signal build_preview_changed(kind: StringName, cell: Vector2i, can_confirm: bool)
+signal wall_extension_requested
 
 const COLOR_BACKGROUND := Color("131313")
 const COLOR_BOARD_SHADOW := Color(0.0, 0.0, 0.0, 0.42)
@@ -30,12 +31,12 @@ const COLOR_SELECTED := Color(0.95, 0.72, 0.24, 0.72)
 const COLOR_INVALID_BUILD := Color(0.86, 0.22, 0.20, 0.48)
 const TAP_DRAG_THRESHOLD := 12.0
 
-const PAGE_MARGIN := 28.0
-const HEADER_HEIGHT := 92.0
-const FOOTER_HEIGHT := 78.0
+const PAGE_MARGIN := 0.0
+const HEADER_HEIGHT := 0.0
+const FOOTER_HEIGHT := 0.0
 const MIN_VIEW_ZOOM := 0.82
-const MAX_VIEW_ZOOM := 2.5
-const INITIAL_VIEW_ZOOM := 1.35
+const MAX_VIEW_ZOOM := 4.0
+const INITIAL_VIEW_ZOOM := 2.05
 const WHEEL_ZOOM_STEP := 1.12
 
 var arena_layout: RefCounted
@@ -52,16 +53,20 @@ var structures: Array[Node2D] = []
 var structures_by_id: Dictionary = {}
 var blueprint_snapshot: Array[Dictionary] = []
 var mouse_dragging := false
+var build_mouse_dragging := false
 var mouse_press_position := Vector2.ZERO
 var mouse_moved := false
 var touch_points: Dictionary = {}
 var touch_start_positions: Dictionary = {}
 var touch_moved: Dictionary = {}
+var build_drag_touch_index := -1
 var edit_mode := true
 var selected_structure_id: StringName
 var pending_build_kind: StringName
 var pending_build_cell := Vector2i(-1, -1)
 var pending_build_valid := false
+var wall_chain_cells: Array[Vector2i] = []
+var build_preview_structure: Node2D
 var next_structure_serial := 100
 
 
@@ -87,16 +92,29 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
+				if _can_drag_build_preview():
+					build_mouse_dragging = true
+					preview_build_at_screen_position(event.position)
+					get_viewport().set_input_as_handled()
+					return
 				mouse_dragging = true
 				mouse_press_position = event.position
 				mouse_moved = false
 			else:
+				if build_mouse_dragging:
+					build_mouse_dragging = false
+					preview_build_at_screen_position(event.position)
+					get_viewport().set_input_as_handled()
+					return
 				mouse_dragging = false
 				if not mouse_moved:
 					_handle_edit_tap(event.position)
 			_update_hover(event.position)
 	elif event is InputEventMouseMotion:
-		if mouse_dragging:
+		if build_mouse_dragging:
+			preview_build_at_screen_position(event.position)
+			get_viewport().set_input_as_handled()
+		elif mouse_dragging:
 			if event.position.distance_to(mouse_press_position) > TAP_DRAG_THRESHOLD:
 				mouse_moved = true
 			pan_view(event.relative)
@@ -105,10 +123,20 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_hover(event.position)
 	elif event is InputEventScreenTouch:
 		if event.pressed:
+			if _can_drag_build_preview():
+				build_drag_touch_index = event.index
+				preview_build_at_screen_position(event.position)
+				get_viewport().set_input_as_handled()
+				return
 			touch_points[event.index] = event.position
 			touch_start_positions[event.index] = event.position
 			touch_moved[event.index] = false
 		else:
+			if event.index == build_drag_touch_index:
+				build_drag_touch_index = -1
+				preview_build_at_screen_position(event.position)
+				get_viewport().set_input_as_handled()
+				return
 			var was_tap := not bool(touch_moved.get(event.index, true)) and touch_points.size() == 1
 			touch_points.erase(event.index)
 			touch_start_positions.erase(event.index)
@@ -117,8 +145,26 @@ func _unhandled_input(event: InputEvent) -> void:
 				_handle_edit_tap(event.position)
 		_update_hover(event.position)
 	elif event is InputEventScreenDrag:
-		_handle_touch_drag(event)
+		if event.index == build_drag_touch_index:
+			preview_build_at_screen_position(event.position)
+		else:
+			_handle_touch_drag(event)
 		get_viewport().set_input_as_handled()
+
+
+func _can_drag_build_preview() -> bool:
+	return edit_mode and pending_build_kind != &"" and wall_chain_cells.is_empty()
+
+
+func preview_build_at_screen_position(screen_position: Vector2) -> bool:
+	if not _can_drag_build_preview():
+		return false
+	var footprint := _default_footprint(pending_build_kind)
+	var pointer_cell := screen_to_cell(screen_position)
+	if pointer_cell.x < 0:
+		return false
+	var destination := pointer_cell - Vector2i(footprint.x / 2, footprint.y / 2)
+	return preview_build_at_cell(destination)
 
 
 func _handle_touch_drag(event: InputEventScreenDrag) -> void:
@@ -164,6 +210,8 @@ func set_edit_mode(enabled: bool) -> void:
 		pending_build_kind = &""
 		pending_build_cell = Vector2i(-1, -1)
 		pending_build_valid = false
+		wall_chain_cells.clear()
+		_clear_build_preview_structure()
 		selected_structure_changed.emit(null)
 	queue_redraw()
 
@@ -179,6 +227,10 @@ func _handle_edit_tap(screen_position: Vector2) -> void:
 	if not arena_layout.is_inside_grid(cell):
 		return
 	if pending_build_kind != &"":
+		if pending_build_kind == &"wall" and not wall_chain_cells.is_empty():
+			if not try_select_wall_extension(cell):
+				edit_status_changed.emit("Tap a green arrow to extend this wall row")
+			return
 		if preview_build_at_cell(cell):
 			edit_status_changed.emit("Position ready · tap the green check to build")
 		else:
@@ -205,10 +257,16 @@ func begin_build(kind: StringName) -> void:
 	pending_build_kind = kind
 	pending_build_cell = Vector2i(-1, -1)
 	pending_build_valid = false
+	wall_chain_cells.clear()
+	_create_build_preview_structure(kind)
 	selected_structure_id = &""
 	selected_structure_changed.emit(null)
-	build_preview_changed.emit(kind, pending_build_cell, false)
-	edit_status_changed.emit("Place %s on an empty build tile" % String(StructureCatalogScript.get_definition(kind, 1).get("display_name", kind)))
+	var opening_cell := _find_nearest_build_cell(screen_to_cell(get_viewport_rect().get_center()), kind)
+	if opening_cell.x >= 0:
+		preview_build_at_cell(opening_cell)
+	else:
+		build_preview_changed.emit(kind, pending_build_cell, false)
+	edit_status_changed.emit("Drag %s, then confirm or cancel" % String(StructureCatalogScript.get_definition(kind, 1).get("display_name", kind)))
 	queue_redraw()
 
 
@@ -216,6 +274,8 @@ func cancel_build() -> void:
 	pending_build_kind = &""
 	pending_build_cell = Vector2i(-1, -1)
 	pending_build_valid = false
+	wall_chain_cells.clear()
+	_clear_build_preview_structure()
 	build_preview_changed.emit(&"", pending_build_cell, false)
 	queue_redraw()
 
@@ -230,8 +290,73 @@ func confirm_pending_build() -> bool:
 	pending_build_kind = &""
 	pending_build_cell = Vector2i(-1, -1)
 	pending_build_valid = false
+	_clear_build_preview_structure()
 	build_preview_changed.emit(&"", pending_build_cell, false)
 	queue_redraw()
+	return true
+
+
+func begin_wall_chain(anchor: Vector2i) -> void:
+	_clear_build_preview_structure()
+	pending_build_kind = &"wall"
+	pending_build_cell = Vector2i(-1, -1)
+	pending_build_valid = false
+	wall_chain_cells.assign([anchor])
+	selected_structure_id = &""
+	selected_structure_changed.emit(null)
+	build_preview_changed.emit(&"wall", pending_build_cell, false)
+	edit_status_changed.emit("Wall row active · tap a green arrow to add the next piece")
+	queue_redraw()
+
+
+func advance_wall_chain(cell: Vector2i) -> void:
+	_clear_build_preview_structure()
+	if wall_chain_cells.is_empty():
+		begin_wall_chain(cell)
+		return
+	if not wall_chain_cells.has(cell):
+		wall_chain_cells.append(cell)
+	pending_build_kind = &"wall"
+	pending_build_cell = Vector2i(-1, -1)
+	pending_build_valid = false
+	build_preview_changed.emit(&"wall", pending_build_cell, false)
+	queue_redraw()
+
+
+func is_wall_chain_active() -> bool:
+	return not wall_chain_cells.is_empty()
+
+
+func get_wall_extension_cells() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if wall_chain_cells.is_empty():
+		return result
+	if wall_chain_cells.size() == 1:
+		for direction in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			result.append(wall_chain_cells[0] + direction)
+		return result
+	var difference := wall_chain_cells[1] - wall_chain_cells[0]
+	var axis := Vector2i.RIGHT if difference.x != 0 else Vector2i.DOWN
+	var minimum := wall_chain_cells[0]
+	var maximum := wall_chain_cells[0]
+	for cell in wall_chain_cells:
+		if axis.x != 0:
+			if cell.x < minimum.x: minimum = cell
+			if cell.x > maximum.x: maximum = cell
+		else:
+			if cell.y < minimum.y: minimum = cell
+			if cell.y > maximum.y: maximum = cell
+	result.append(minimum - axis)
+	result.append(maximum + axis)
+	return result
+
+
+func try_select_wall_extension(cell: Vector2i) -> bool:
+	if not is_wall_chain_active() or not get_wall_extension_cells().has(cell):
+		return false
+	if not preview_build_at_cell(cell):
+		return false
+	wall_extension_requested.emit()
 	return true
 
 
@@ -240,9 +365,72 @@ func preview_build_at_cell(cell: Vector2i) -> bool:
 		return false
 	pending_build_cell = cell
 	pending_build_valid = can_place_structure(pending_build_kind, cell)
+	_update_build_preview_structure()
 	build_preview_changed.emit(pending_build_kind, cell, pending_build_valid)
 	queue_redraw()
 	return pending_build_valid
+
+
+func get_build_preview_screen_rect() -> Rect2:
+	if pending_build_kind == &"" or pending_build_cell.x < 0:
+		return Rect2()
+	return Rect2(
+		board_origin + Vector2(pending_build_cell) * cell_size,
+		Vector2(_default_footprint(pending_build_kind)) * cell_size
+	)
+
+
+func get_wall_chain_focus_cell() -> Vector2i:
+	return wall_chain_cells[-1] if not wall_chain_cells.is_empty() else Vector2i(-1, -1)
+
+
+func _find_nearest_build_cell(center: Vector2i, kind: StringName) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_distance := 1000000
+	for x in ArenaLayoutScript.GRID_SIZE.x:
+		for y in ArenaLayoutScript.GRID_SIZE.y:
+			var candidate := Vector2i(x, y)
+			if not can_place_structure(kind, candidate):
+				continue
+			var distance := candidate.distance_squared_to(center)
+			if distance < best_distance:
+				best = candidate
+				best_distance = distance
+	return best
+
+
+func _create_build_preview_structure(kind: StringName) -> void:
+	_clear_build_preview_structure()
+	var entry := {
+		"id": &"build_preview",
+		"kind": kind,
+		"level": 1,
+		"cell": Vector2i.ZERO,
+		"footprint": _default_footprint(kind),
+	}
+	build_preview_structure = StructureScript.new()
+	build_preview_structure.configure(entry, StructureCatalogScript.get_definition(kind, 1))
+	build_preview_structure.z_index = 40
+	add_child(build_preview_structure)
+	_update_build_preview_structure()
+
+
+func _update_build_preview_structure() -> void:
+	if not is_instance_valid(build_preview_structure):
+		return
+	build_preview_structure.grid_cell = pending_build_cell
+	build_preview_structure.visible = pending_build_cell.x >= 0 and not portrait_view
+	build_preview_structure.modulate = Color(0.78, 1.0, 0.78, 0.86) if pending_build_valid else Color(1.0, 0.55, 0.52, 0.78)
+	build_preview_structure.set_layout_metrics(board_origin, cell_size)
+
+
+func _clear_build_preview_structure() -> void:
+	if not is_instance_valid(build_preview_structure):
+		build_preview_structure = null
+		return
+	remove_child(build_preview_structure)
+	build_preview_structure.queue_free()
+	build_preview_structure = null
 
 
 func can_place_structure(kind: StringName, destination: Vector2i) -> bool:
@@ -307,6 +495,8 @@ func load_blueprint(blueprint: Array[Dictionary], capture := true) -> void:
 	pending_build_kind = &""
 	pending_build_cell = Vector2i(-1, -1)
 	pending_build_valid = false
+	wall_chain_cells.clear()
+	_clear_build_preview_structure()
 	_build_structures_from_blueprint(blueprint)
 	if capture:
 		blueprint_snapshot = blueprint.duplicate(true)
@@ -466,6 +656,7 @@ func _set_structure_visibility(value: bool) -> void:
 func _update_structure_layout() -> void:
 	for structure in structures:
 		structure.set_layout_metrics(board_origin, cell_size)
+	_update_build_preview_structure()
 
 
 func _on_structure_destroyed(_structure: Node) -> void:
@@ -574,8 +765,36 @@ func _draw() -> void:
 		var outline_color := Color("65d66f") if pending_build_valid else Color("e34b47")
 		draw_rect(preview_rect.grow(-1.5), preview_color, true)
 		draw_rect(preview_rect.grow(-1.5), outline_color, false, maxf(cell_size * 0.10, 2.0))
+	if edit_mode and is_wall_chain_active():
+		_draw_wall_extension_arrows()
 	if arena_layout.is_inside_grid(hovered_cell):
 		draw_rect(cell_rect(hovered_cell).grow(-1.5), COLOR_HOVER, true)
+
+
+func _draw_wall_extension_arrows() -> void:
+	for cell in get_wall_extension_cells():
+		if not arena_layout.is_inside_grid(cell):
+			continue
+		var valid := can_place_structure(&"wall", cell)
+		var center := cell_rect(cell).get_center()
+		var nearest := wall_chain_cells[0]
+		var nearest_distance := 1000000
+		for chain_cell in wall_chain_cells:
+			var distance := chain_cell.distance_squared_to(cell)
+			if distance < nearest_distance:
+				nearest = chain_cell
+				nearest_distance = distance
+		var direction := Vector2(cell - nearest).normalized()
+		var perpendicular := Vector2(-direction.y, direction.x)
+		var tip := center + direction * cell_size * 0.34
+		var back := center - direction * cell_size * 0.22
+		var points := PackedVector2Array([
+			tip,
+			back + perpendicular * cell_size * 0.25,
+			back - perpendicular * cell_size * 0.25,
+		])
+		draw_colored_polygon(points, Color("65d66f") if valid else Color("e34b47"))
+		draw_polyline(PackedVector2Array([points[0], points[1], points[2], points[0]]), Color("f2efe4"), maxf(cell_size * 0.06, 1.5), true)
 
 
 func _draw_cells() -> void:
