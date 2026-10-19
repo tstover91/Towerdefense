@@ -1,0 +1,79 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://prototype/prototype_mode_select.gd" type="Script" id="1_selector"]
+
+[node name="PrototypeModeSelect" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_selector")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0745098, 0.0745098, 0.0745098, 1)
+mouse_filter = 2
+
+[node name="Page" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 48
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 48
+
+[node name="Content" type="VBoxContainer" parent="Page"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="Page/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
+theme_override_font_sizes/font_size = 36
+text = "TOWER DEFENSE PROTOTYPE LAB"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Page/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
+theme_override_font_sizes/font_size = 18
+text = "The existing grid-maze game and the new siege experiment remain separate."
+horizontal_alignment = 1
+
+[node name="ModeButtons" type="HBoxContainer" parent="Page/Content"]
+custom_minimum_size = Vector2(0, 112)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="GridMazeButton" type="Button" parent="Page/Content/ModeButtons"]
+custom_minimum_size = Vector2(300, 92)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "PLAY GRID MAZE\nCurrent prototype"
+
+[node name="SiegeButton" type="Button" parent="Page/Content/ModeButtons"]
+custom_minimum_size = Vector2(300, 92)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "OPEN SIEGE LAB\nNew prototype"
+
+[node name="PhaseNote" type="Label" parent="Page/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
+theme_override_font_sizes/font_size = 16
+text = "Phase 1: isolated entry points. Siege combat has not been implemented yet."
+horizontal_alignment = 1

@@ -1,6 +1,9 @@
 # Grid maze prototype
 
-This is the project's only gameplay scene and launches when the project runs.
+This remains the complete grid-maze gameplay scene. The project now opens a
+mode selector so this prototype and the isolated siege experiment can be
+launched independently. Run `res://prototype/prototype_main.tscn` directly to
+skip the selector and launch the grid-maze prototype immediately.
 
 Each run generates a seeded entrance in the first column, an exit in the last
 column, and three interior waypoints. Their
@@ -78,3 +81,4 @@ these scripts through Godot after changing the prototype:
 - `res://tools/prototype_economy_smoke.gd`
 - `res://tools/prototype_combat_integration_smoke.gd`
 - `res://tools/prototype_phase1_combat_smoke.gd`
+- `res://tools/prototype_mode_separation_smoke.gd`

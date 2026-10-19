@@ -1,0 +1,106 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource path="res://siege_prototype/siege_main.gd" type="Script" id="1_siege"]
+[ext_resource path="res://siege_prototype/siege_board.gd" type="Script" id="2_board"]
+[ext_resource path="res://siege_prototype/siege_combat_controller.gd" type="Script" id="3_combat"]
+
+[node name="SiegePrototype" type="Node"]
+script = ExtResource("1_siege")
+
+[node name="SiegeBoard" type="Node2D" parent="."]
+script = ExtResource("2_board")
+
+[node name="SiegeCombat" type="Node2D" parent="."]
+script = ExtResource("3_combat")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="TopBar" type="HBoxContainer" parent="HUD"]
+layout_mode = 3
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 22.0
+offset_top = 18.0
+offset_right = -22.0
+offset_bottom = 74.0
+grow_horizontal = 2
+theme_override_constants/separation = 18
+
+[node name="BackButton" type="Button" parent="HUD/TopBar"]
+custom_minimum_size = Vector2(190, 54)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "← MODE SELECT"
+
+[node name="TitleStack" type="VBoxContainer" parent="HUD/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="Title" type="Label" parent="HUD/TopBar/TitleStack"]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
+theme_override_font_sizes/font_size = 25
+text = "SIEGE PROTOTYPE · DESTRUCTIBLE FORTRESS"
+text_overrun_behavior = 3
+clip_text = true
+
+[node name="Subtitle" type="Label" parent="HUD/TopBar/TitleStack"]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
+theme_override_font_sizes/font_size = 14
+text = "Phase 4 · autonomous attackers · wall-aware routing · live Cannon fire"
+text_overrun_behavior = 3
+clip_text = true
+
+[node name="PhaseBadge" type="Label" parent="HUD/TopBar"]
+custom_minimum_size = Vector2(168, 54)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
+theme_override_font_sizes/font_size = 15
+text = "LIVE SIEGE\nDETERMINISTIC"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BottomBar" type="HBoxContainer" parent="HUD"]
+layout_mode = 3
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 22.0
+offset_top = -66.0
+offset_right = -22.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 12
+
+[node name="AttackButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(150, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "START ATTACK"
+
+[node name="RebuildButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(130, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "REBUILD"
+
+[node name="SpeedButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(110, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "1× SPEED"
+
+[node name="Status" type="Label" parent="HUD/BottomBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
+theme_override_font_sizes/font_size = 15
+text = "Ready · start the deterministic nine-unit test attack"
+vertical_alignment = 1
+text_overrun_behavior = 3

@@ -1,0 +1,73 @@
+extends SceneTree
+
+const ArenaLayoutScript = preload("res://siege_prototype/siege_arena_layout.gd")
+const BoardScript = preload("res://siege_prototype/siege_board.gd")
+
+const TEST_VIEWPORTS: Array[Vector2i] = [
+	Vector2i(1152, 648),
+	Vector2i(2400, 1080),
+	Vector2i(960, 540),
+	Vector2i(640, 320),
+]
+
+var failure_count := 0
+
+
+func _init() -> void:
+	_run()
+
+
+func _run() -> void:
+	var layout: RefCounted = ArenaLayoutScript.new()
+	_assert(ArenaLayoutScript.GRID_SIZE == Vector2i(14, 10), "the arena uses the fixed 14x10 grid")
+	_assert(layout.get_deployment_cells().size() == 10, "the entire left edge is a deployment front")
+	for cell in layout.get_deployment_cells():
+		_assert(cell.x == 0, "deployment cells stay in the leftmost column")
+		_assert(not layout.is_buildable_cell(cell), "deployment cells cannot hold structures")
+	_assert(layout.get_validation_errors().is_empty(), "the initial blueprint is valid and non-overlapping")
+
+	var kind_counts := {&"command_core": 0, &"cannon": 0, &"wall": 0}
+	var first_blueprint: Array[Dictionary] = layout.get_initial_blueprint()
+	for structure in first_blueprint:
+		var kind := StringName(structure.get("kind", &""))
+		kind_counts[kind] = int(kind_counts.get(kind, 0)) + 1
+	_assert(int(kind_counts[&"command_core"]) == 1, "the arena begins with one Command Core")
+	_assert(int(kind_counts[&"cannon"]) == 2, "the arena begins with two Cannons")
+	_assert(int(kind_counts[&"wall"]) == 8, "the arena begins with eight wall segments")
+
+	var second_blueprint: Array[Dictionary] = layout.get_initial_blueprint()
+	first_blueprint[0]["cell"] = Vector2i.ZERO
+	_assert(Vector2i(second_blueprint[0]["cell"]) == Vector2i(11, 4), "blueprint callers receive independent deterministic copies")
+
+	var board: Node2D = BoardScript.new()
+	get_root().add_child(board)
+	await process_frame
+	for viewport_size in TEST_VIEWPORTS:
+		get_root().size = viewport_size
+		board._recalculate_layout()
+		_assert(not board.portrait_view, "%s remains landscape" % viewport_size)
+		_assert(board.cell_size > 0.0, "%s produces a usable square cell" % viewport_size)
+		_assert(board.safe_view_rect.encloses(board.board_rect), "%s keeps the fixed arena inside the viewport" % viewport_size)
+		var core_cell_center: Vector2 = board.cell_rect(Vector2i(11, 4)).get_center()
+		_assert(board.screen_to_cell(core_cell_center) == Vector2i(11, 4), "%s maps screen coordinates back to arena cells" % viewport_size)
+
+	get_root().size = Vector2i(540, 960)
+	board._recalculate_layout()
+	_assert(board.portrait_view, "portrait view asks for landscape instead of changing the arena")
+	board.queue_free()
+	_finish("SIEGE_ARENA_LAYOUT_SMOKE_OK")
+
+
+func _assert(condition: bool, description: String) -> void:
+	if condition:
+		return
+	push_error("Siege arena layout smoke failed: %s" % description)
+	failure_count += 1
+
+
+func _finish(success_message: String) -> void:
+	if failure_count > 0:
+		quit(1)
+		return
+	print(success_message)
+	quit(0)
