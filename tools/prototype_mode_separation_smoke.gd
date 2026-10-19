@@ -15,6 +15,10 @@ func _init() -> void:
 		== "res://prototype/prototype_mode_select.tscn",
 		"the project launches through the prototype mode selector"
 	)
+	_assert(
+		int(ProjectSettings.get_setting("display/window/handheld/orientation", -1)) == 4,
+		"Android uses sensor-landscape orientation instead of sensor-portrait"
+	)
 	_assert(selector.name == "PrototypeModeSelect", "the selector scene instantiates")
 	_assert(
 		selector.get_node_or_null("Page/Content/ModeButtons/GridMazeButton") != null,
