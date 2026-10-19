@@ -10,6 +10,7 @@ signal view_transform_changed
 signal edit_status_changed(text: String)
 signal selected_structure_changed(structure: Node)
 signal structure_added(structure: Node)
+signal build_preview_changed(kind: StringName, cell: Vector2i, can_confirm: bool)
 
 const COLOR_BACKGROUND := Color("131313")
 const COLOR_BOARD_SHADOW := Color(0.0, 0.0, 0.0, 0.42)
@@ -26,6 +27,7 @@ const COLOR_TEXT := Color("f2efe4")
 const COLOR_MUTED_TEXT := Color("b9b6ac")
 const COLOR_HOVER := Color(0.20, 0.72, 0.42, 0.42)
 const COLOR_SELECTED := Color(0.95, 0.72, 0.24, 0.72)
+const COLOR_INVALID_BUILD := Color(0.86, 0.22, 0.20, 0.48)
 const TAP_DRAG_THRESHOLD := 12.0
 
 const PAGE_MARGIN := 28.0
@@ -58,6 +60,8 @@ var touch_moved: Dictionary = {}
 var edit_mode := true
 var selected_structure_id: StringName
 var pending_build_kind: StringName
+var pending_build_cell := Vector2i(-1, -1)
+var pending_build_valid := false
 var next_structure_serial := 100
 
 
@@ -158,6 +162,8 @@ func set_edit_mode(enabled: bool) -> void:
 	if not edit_mode:
 		selected_structure_id = &""
 		pending_build_kind = &""
+		pending_build_cell = Vector2i(-1, -1)
+		pending_build_valid = false
 		selected_structure_changed.emit(null)
 	queue_redraw()
 
@@ -173,8 +179,8 @@ func _handle_edit_tap(screen_position: Vector2) -> void:
 	if not arena_layout.is_inside_grid(cell):
 		return
 	if pending_build_kind != &"":
-		if try_add_structure(pending_build_kind, cell, 1):
-			pending_build_kind = &""
+		if preview_build_at_cell(cell):
+			edit_status_changed.emit("Position ready · tap the green check to build")
 		else:
 			edit_status_changed.emit("That position is blocked or outside the build area")
 		return
@@ -197,17 +203,49 @@ func _handle_edit_tap(screen_position: Vector2) -> void:
 
 func begin_build(kind: StringName) -> void:
 	pending_build_kind = kind
+	pending_build_cell = Vector2i(-1, -1)
+	pending_build_valid = false
 	selected_structure_id = &""
 	selected_structure_changed.emit(null)
+	build_preview_changed.emit(kind, pending_build_cell, false)
 	edit_status_changed.emit("Place %s on an empty build tile" % String(StructureCatalogScript.get_definition(kind, 1).get("display_name", kind)))
 	queue_redraw()
 
 
 func cancel_build() -> void:
 	pending_build_kind = &""
+	pending_build_cell = Vector2i(-1, -1)
+	pending_build_valid = false
+	build_preview_changed.emit(&"", pending_build_cell, false)
+	queue_redraw()
 
 
-func try_add_structure(kind: StringName, destination: Vector2i, level := 1) -> bool:
+func confirm_pending_build() -> bool:
+	if pending_build_kind == &"" or pending_build_cell.x < 0 or not pending_build_valid:
+		return false
+	var kind := pending_build_kind
+	var cell := pending_build_cell
+	if not try_add_structure(kind, cell, 1):
+		return false
+	pending_build_kind = &""
+	pending_build_cell = Vector2i(-1, -1)
+	pending_build_valid = false
+	build_preview_changed.emit(&"", pending_build_cell, false)
+	queue_redraw()
+	return true
+
+
+func preview_build_at_cell(cell: Vector2i) -> bool:
+	if pending_build_kind == &"" or not arena_layout.is_inside_grid(cell):
+		return false
+	pending_build_cell = cell
+	pending_build_valid = can_place_structure(pending_build_kind, cell)
+	build_preview_changed.emit(pending_build_kind, cell, pending_build_valid)
+	queue_redraw()
+	return pending_build_valid
+
+
+func can_place_structure(kind: StringName, destination: Vector2i) -> bool:
 	if not edit_mode or not StructureCatalogScript.has_kind(kind):
 		return false
 	var footprint: Vector2i = _default_footprint(kind)
@@ -216,6 +254,13 @@ func try_add_structure(kind: StringName, destination: Vector2i, level := 1) -> b
 			var cell := destination + Vector2i(x, y)
 			if not arena_layout.is_buildable_cell(cell) or get_structure_at_cell(cell, true) != null:
 				return false
+	return true
+
+
+func try_add_structure(kind: StringName, destination: Vector2i, level := 1) -> bool:
+	if not can_place_structure(kind, destination):
+		return false
+	var footprint: Vector2i = _default_footprint(kind)
 	var structure_id := StringName("%s_%d" % [kind, next_structure_serial])
 	next_structure_serial += 1
 	var entry := {"id": structure_id, "kind": kind, "level": level, "cell": destination, "footprint": footprint}
@@ -260,6 +305,8 @@ func load_blueprint(blueprint: Array[Dictionary], capture := true) -> void:
 	_clear_structures()
 	selected_structure_id = &""
 	pending_build_kind = &""
+	pending_build_cell = Vector2i(-1, -1)
+	pending_build_valid = false
 	_build_structures_from_blueprint(blueprint)
 	if capture:
 		blueprint_snapshot = blueprint.duplicate(true)
@@ -520,6 +567,13 @@ func _draw() -> void:
 		var selected := get_structure(selected_structure_id)
 		if selected != null:
 			draw_rect(Rect2(board_origin + Vector2(selected.grid_cell) * cell_size, Vector2(selected.footprint) * cell_size).grow(-1.5), COLOR_SELECTED, false, maxf(cell_size * 0.10, 2.0))
+	if edit_mode and pending_build_kind != &"" and pending_build_cell.x >= 0:
+		var preview_footprint := _default_footprint(pending_build_kind)
+		var preview_rect := Rect2(board_origin + Vector2(pending_build_cell) * cell_size, Vector2(preview_footprint) * cell_size)
+		var preview_color := COLOR_HOVER if pending_build_valid else COLOR_INVALID_BUILD
+		var outline_color := Color("65d66f") if pending_build_valid else Color("e34b47")
+		draw_rect(preview_rect.grow(-1.5), preview_color, true)
+		draw_rect(preview_rect.grow(-1.5), outline_color, false, maxf(cell_size * 0.10, 2.0))
 	if arena_layout.is_inside_grid(hovered_cell):
 		draw_rect(cell_rect(hovered_cell).grow(-1.5), COLOR_HOVER, true)
 

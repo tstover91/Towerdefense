@@ -38,7 +38,6 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
 [node name="Title" type="Label" parent="HUD/TopBar/TitleStack"]
-custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
 theme_override_font_sizes/font_size = 25
@@ -47,7 +46,6 @@ text_overrun_behavior = 3
 clip_text = true
 
 [node name="Subtitle" type="Label" parent="HUD/TopBar/TitleStack"]
-custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 14
@@ -81,7 +79,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 22.0
 offset_top = -66.0
-offset_right = -22.0
+offset_right = -164.0
 offset_bottom = -14.0
 grow_horizontal = 2
 grow_vertical = 0
@@ -98,18 +96,6 @@ custom_minimum_size = Vector2(110, 48)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "NEW RUN"
-
-[node name="BuildButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(110, 48)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "BUILD"
-
-[node name="UpgradeButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(120, 48)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "UPGRADE"
 
 [node name="SpeedButton" type="Button" parent="HUD/BottomBar"]
 custom_minimum_size = Vector2(76, 48)
@@ -128,6 +114,180 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 15
-text = "Build TH2 defenses and free level-1 Walls, then start battle A"
+text = "Tap Shop to build · tap a structure for its Upgrade button"
 vertical_alignment = 1
 text_overrun_behavior = 3
+
+[node name="ShopButton" type="Button" parent="HUD"]
+custom_minimum_size = Vector2(128, 68)
+layout_mode = 3
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -146.0
+offset_top = -82.0
+offset_right = -18.0
+offset_bottom = -14.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
+theme_override_font_sizes/font_size = 18
+text = "SHOP\nBUILDINGS"
+
+[node name="BuildTray" type="PanelContainer" parent="HUD"]
+visible = false
+layout_mode = 3
+anchors_preset = 12
+anchor_left = 0.08
+anchor_top = 1.0
+anchor_right = 0.92
+anchor_bottom = 1.0
+offset_top = -244.0
+offset_bottom = -88.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="HUD/BuildTray"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="Stack" type="VBoxContainer" parent="HUD/BuildTray/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="HUD/BuildTray/Margin/Stack"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="HUD/BuildTray/Margin/Stack/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
+theme_override_font_sizes/font_size = 18
+text = "BUILDINGS · DEFENSES"
+vertical_alignment = 1
+
+[node name="CloseButton" type="Button" parent="HUD/BuildTray/Margin/Stack/Header"]
+custom_minimum_size = Vector2(92, 36)
+layout_mode = 2
+text = "CLOSE"
+
+[node name="Cards" type="HBoxContainer" parent="HUD/BuildTray/Margin/Stack"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="CannonCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
+custom_minimum_size = Vector2(170, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+text = "CANNON\n5 GOLD · BUILT 1 / 2"
+
+[node name="ArcherCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
+custom_minimum_size = Vector2(170, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+text = "ARCHER TOWER\n6 GOLD · BUILT 0 / 1"
+
+[node name="MortarCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
+custom_minimum_size = Vector2(170, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+text = "MORTAR\nUNLOCKS TH3"
+
+[node name="WallCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
+custom_minimum_size = Vector2(170, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+text = "WALL\nFREE · BUILT 0 / 12"
+
+[node name="PlacementPanel" type="PanelContainer" parent="HUD"]
+visible = false
+layout_mode = 3
+anchors_preset = 12
+anchor_left = 0.25
+anchor_top = 1.0
+anchor_right = 0.75
+anchor_bottom = 1.0
+offset_top = -158.0
+offset_bottom = -88.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="HUD/PlacementPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Actions" type="HBoxContainer" parent="HUD/PlacementPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PlacementLabel" type="Label" parent="HUD/PlacementPanel/Margin/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+text = "PLACE CANNON\nTap an empty area"
+vertical_alignment = 1
+
+[node name="CancelButton" type="Button" parent="HUD/PlacementPanel/Margin/Actions"]
+custom_minimum_size = Vector2(108, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.4, 0.38, 1)
+theme_override_font_sizes/font_size = 16
+text = "CANCEL"
+
+[node name="ConfirmButton" type="Button" parent="HUD/PlacementPanel/Margin/Actions"]
+custom_minimum_size = Vector2(172, 52)
+layout_mode = 2
+disabled = true
+theme_override_colors/font_color = Color(0.4, 0.9, 0.55, 1)
+theme_override_font_sizes/font_size = 16
+text = "BUILD · 5 GOLD"
+
+[node name="SelectionPanel" type="PanelContainer" parent="HUD"]
+visible = false
+layout_mode = 3
+anchors_preset = 12
+anchor_left = 0.28
+anchor_top = 1.0
+anchor_right = 0.72
+anchor_bottom = 1.0
+offset_top = -158.0
+offset_bottom = -88.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="HUD/SelectionPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Actions" type="HBoxContainer" parent="HUD/SelectionPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SelectedLabel" type="Label" parent="HUD/SelectionPanel/Margin/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+text = "CANNON · LEVEL 2"
+vertical_alignment = 1
+
+[node name="UpgradeButton" type="Button" parent="HUD/SelectionPanel/Margin/Actions"]
+custom_minimum_size = Vector2(230, 52)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "UPGRADE TO L3 · 4 GOLD"
