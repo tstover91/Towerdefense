@@ -49,13 +49,33 @@ must not be mixed when deriving the prototype ratio.
 | Wall | 1,800 | 0 | Exact level-6 HP; excluded from destruction objective |
 
 Every non-wall building contributes one objective point, matching the rule that
-attackers must destroy all non-wall buildings. The 28×16 geometry, compressed
-building footprints, 38-wall limit, Command Core name, and visuals remain
-prototype-specific. They are not Clash stats.
+attackers must destroy all non-wall buildings. The build area and footprints now
+use Clash's 44×44 spatial scale: Town Hall 4×4, standard defenses 3×3, Air
+Sweeper 2×2, and Walls 1×1. The 68-wall inventory, three-column left approach,
+Command Core name, and visuals remain prototype-specific.
 
-The key routing rule reproduced in Phase 4 is behavioral rather than numeric:
-ground units choose a building target and only attack a wall when it blocks the
-route to that target. Walls are obstacles, not part of the destruction score.
+The routing implementation is behavioral rather than a claim to reproduce
+Supercell's unpublished source code. Ground troops emulate the community-observed
+"rule of three": select the three closest eligible buildings by direct footprint
+distance, compare routes, then commit to one building. Preferred-target units
+apply that rule within their preferred category. A route can walk around walls
+or cross them; its wall cost is calculated from each wall's live HP and that
+troop's exact wall DPS. Walls remain intermediate obstacles, not destruction
+objectives. Wall Breakers consider protected buildings and attack the first wall
+on the selected route. Ground movement supports eight directions without corner
+cutting, while small local separation prevents exact unit overlap. Defenses lock
+their current target until it dies or leaves range.
+
+Behavior references:
+
+- Community targeting/pathfinding analysis: https://goblinsfarm.com/wiki/mechanics/troop-targeting-and-ai.html
+- Wall Breaker targeting summary: https://clash-of-clans.1337wiki.com/wall-breaker/
+- Compartment targeting examples: https://www.clashchamps.com/2023/01/31/how-to-use-super-wall-breakers-ai-path-best-usage/
+
+The exact hidden wall weights, collision radii, steering constants, and tie-break
+rules are not publicly documented. The prototype therefore exposes those as
+explicit approximations while preserving the sourced HP, damage, cadence, range,
+movement speed, footprint, and board-scale values above.
 
 ## TH6 attacker behavior baseline
 

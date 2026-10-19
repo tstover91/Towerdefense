@@ -31,6 +31,36 @@ func _run() -> void:
 	)
 	_assert(not route.is_empty(), "the grid router finds a deterministic route around an obstacle")
 	_assert(not route.has(Vector2i(1, 1)), "the route never enters blocked cells")
+	_assert(route.has(Vector2i(1, 0)), "the grid router uses diagonal movement")
+	var corner_route: Array[Vector2i] = RouterScript.find_path(
+		Vector2i(0, 0),
+		[Vector2i(1, 1)],
+		[Vector2i(1, 0), Vector2i(0, 1)],
+		Vector2i(3, 3)
+	)
+	_assert(corner_route.is_empty(), "diagonal movement cannot cut through blocked corners")
+	var expensive_wall_route: Dictionary = RouterScript.find_weighted_path(
+		Vector2i(0, 1),
+		[Vector2i(4, 1)],
+		[],
+		{Vector2i(2, 1): 20.0},
+		Vector2i(5, 3)
+	)
+	_assert(
+		Array(expensive_wall_route.get("crossed_walls", [])).is_empty(),
+		"route cost makes troops walk around a wall when that is faster than breaking it"
+	)
+	var cheap_wall_route: Dictionary = RouterScript.find_weighted_path(
+		Vector2i(0, 1),
+		[Vector2i(4, 1)],
+		[],
+		{Vector2i(2, 1): 0.1},
+		Vector2i(5, 3)
+	)
+	_assert(
+		Array(cheap_wall_route.get("crossed_walls", [])).has(Vector2i(2, 1)),
+		"route cost selects a breach when breaking the wall is faster than the detour"
+	)
 
 	var harness := Node.new()
 	get_root().add_child(harness)
@@ -52,12 +82,25 @@ func _run() -> void:
 	_assert(first_active_target != null and first_active_target.kind == &"wall", "a sealed route redirects the Brute to a blocking wall")
 	var first_intended_target: Node2D = board.get_structure(first_attacker.intended_target_id)
 	_assert(first_intended_target != null and bool(first_intended_target.definition.get("is_defense", false)), "Brutes use Clash's defense preference")
+	var committed_target_id: StringName = first_attacker.intended_target_id
+	first_attacker.mark_plan_dirty()
+	first_attacker.simulate(0.01)
+	_assert(first_attacker.intended_target_id == committed_target_id, "attackers stay committed while their intended target survives")
 
-	var sapper: Node2D = combat._spawn_attacker(&"sapper", 7)
+	var sapper: Node2D = combat._spawn_attacker(&"sapper", 20)
 	sapper.simulate(0.01)
 	var sapper_target: Node2D = board.get_structure(sapper.active_target_id)
 	_assert(sapper_target != null and sapper_target.kind == &"wall", "Sappers route to the wall protecting their intended building")
 	combat._on_attacker_died(sapper)
+
+	var overlapping_raider: Node2D = combat._spawn_attacker(&"raider", 15)
+	overlapping_raider.grid_position = first_attacker.grid_position
+	combat._apply_unit_separation()
+	_assert(
+		overlapping_raider.grid_position.distance_to(first_attacker.grid_position) > 0.0,
+		"nearby ground troops separate instead of occupying one point"
+	)
+	combat._on_attacker_died(overlapping_raider)
 
 	var initial_wall_count := _living_kind_count(board, &"wall")
 	var saw_attacker_damage := false
@@ -77,7 +120,7 @@ func _run() -> void:
 
 	combat.reset_fortress()
 	_assert(board.get_remaining_integrity() == 14, "rebuild restores the fortress after combat")
-	_assert(_living_kind_count(board, &"wall") == 38, "rebuild restores every wall segment")
+	_assert(_living_kind_count(board, &"wall") == 68, "rebuild restores every wall segment")
 
 	harness.queue_free()
 	_finish("SIEGE_COMBAT_PHASE4_SMOKE_OK")

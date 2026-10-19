@@ -14,13 +14,13 @@ run from `res://prototype/prototype_main.tscn` without depending on this mode.
 
 ## Phase 2 fixed arena
 
-The siege lab now renders a deterministic 28 by 16 landscape arena. The first
-column is the enemy deployment front, the second column is a no-build approach
-buffer, and the remaining cells form the fortress construction area. Its fixed
-starting blueprint contains one 2 by 2 Command Core, two Cannons, and twelve Wall
-segments. Four fixed terrain cells break up the otherwise empty board.
+The siege lab now renders Clash's full 44 by 44 Home Village build area, plus a
+separate three-column approach on the left for deployment and entry routing.
+The enemy deployment front therefore does not consume any of the 44 by 44
+construction grid. The field is clear terrain so all of that area remains
+available for base editing.
 
-The field opens slightly zoomed in to make better use of widescreen phones.
+The field opens zoomed in to make the square village readable on widescreen phones.
 One-finger or mouse dragging pans the board, two-finger pinching or the mouse
 wheel zooms from 0.82x to 2.5x, and **Reset View** restores the opening view.
 Panning is clamped to the map edges so the board cannot be lost off-screen.
@@ -48,18 +48,23 @@ The initial values and their Clash-derived rationale live in
 ## Phase 4 autonomous siege
 
 The test attack now contains Raiders, Brutes, and Sappers using exact TH6-era
-Clash combat values. Raiders choose the
-nearest objective, Brutes prefer defensive buildings, and Sappers create a
-one-contact breach. Attackers use deterministic four-direction grid routing but
-move continuously between cell centers.
+Clash combat values. Brutes prefer defensive buildings, while Raiders have no
+building preference. Sappers seek walls that protect a building instead of
+detonating on exposed, irrelevant wall pieces.
 
-Units first seek an open route to their intended non-wall building. If none
-exists, they route to the reachable wall segment that best advances that same
-attack. Once a segment falls, every survivor replans through the opening. This
-keeps walls as topology rather than treating them as the real objective.
+Ground targeting now emulates Clash's observed rule of three: gather the three
+nearest eligible buildings by footprint distance, calculate a practical route
+to each, and commit to the cheapest result until that building is destroyed.
+Eight-direction A* movement permits diagonal travel without cutting through
+blocked corners. Routes may walk around walls or cross them; crossing cost is
+derived from that wall's current HP and the unit's exact wall DPS, so troops
+breach only when the detour would take longer. Once a segment falls, survivors
+retain their building target and replan through the new topology. Light local
+separation keeps moving troops from collapsing into one point.
 
-The two Cannons now acquire the nearest ground attacker within range and fire
-at their configured 0.8-second cadence. **Start Attack**, **Rebuild**, and
+Ground-capable defenses acquire the nearest valid attacker and retain that
+target until it dies or leaves the tower's minimum/maximum range. They fire at
+their exact configured cadence. **Start Attack**, **Rebuild**, and
 **1x/2x Speed** controls support repeatable observation without adding active
 combat chores.
 
@@ -71,8 +76,14 @@ preferences, wall breaching, tower damage, and deterministic wave completion.
 The fixed fortress now contains the full current Town Hall 6 defensive roster:
 three Cannons, three Archer Towers, two Mortars, two Air Defenses, two Wizard
 Towers, one Air Sweeper, and the Town Hall objective. Resource buildings, army
-buildings, and traps are deliberately excluded. The condensed field uses 38
-level-6 wall segments instead of Clash's 125.
+buildings, and traps are deliberately excluded. The scaled prototype fortress
+uses 68 level-6 wall segments instead of Clash's 125.
+
+Spatial values now share Clash's scale as well: the construction area is 44 by
+44, the Town Hall is 4 by 4, standard defenses are 3 by 3, the Air Sweeper is
+2 by 2, and Walls are 1 by 1. Tower ranges and troop movement remain expressed
+directly in Clash tiles, so their proportions and travel times are no longer
+inflated by the earlier condensed grid.
 
 Before combat, tap any structure and then tap a valid empty build cell to move
 it. Dragging still pans the camera, and the edit toggle prevents accidental
@@ -87,3 +98,13 @@ are implemented.
 
 Economy, upgrades, resource buildings, army buildings, traps, flying attackers,
 and procedural waves remain outside Phase 5.
+
+## Phase 6 Clash-like movement and targeting
+
+Phase 6 supplies the targeting and movement behaviors described in Phase 4:
+three-candidate target evaluation, preferred-target filtering, target
+commitment, wall-aware weighted routes, protected-building selection for
+Sappers, diagonal ground movement, troop separation, and defensive target lock.
+These are behavioral emulations because Supercell does not publish its internal
+pathfinding weights. Combat numbers remain the exact TH6 snapshot; no hidden
+damage, health, range, or speed modifiers were introduced.

@@ -1,75 +1,53 @@
 class_name SiegeArenaLayout
 extends RefCounted
 
-const GRID_SIZE := Vector2i(28, 16)
+const BUILD_AREA_SIZE := Vector2i(44, 44)
 const DEPLOYMENT_COLUMNS := 1
-const BUILD_BUFFER_COLUMNS := 1
+const BUILD_BUFFER_COLUMNS := 2
+const BUILD_START_X := DEPLOYMENT_COLUMNS + BUILD_BUFFER_COLUMNS
+const GRID_SIZE := Vector2i(BUILD_START_X + BUILD_AREA_SIZE.x, BUILD_AREA_SIZE.y)
+const WALL_COUNT := 68
 
-const STATIC_TERRAIN: Array[Vector2i] = [
-	Vector2i(19, 0),
-	Vector2i(19, 1),
-	Vector2i(19, 14),
-	Vector2i(19, 15),
-]
+const STATIC_TERRAIN: Array[Vector2i] = []
 
-const INITIAL_BLUEPRINT: Array[Dictionary] = [
-	{"id": &"command_core", "kind": &"command_core", "cell": Vector2i(24, 7), "footprint": Vector2i(2, 2)},
-	{"id": &"cannon_1", "kind": &"cannon", "cell": Vector2i(21, 4), "footprint": Vector2i.ONE},
-	{"id": &"cannon_2", "kind": &"cannon", "cell": Vector2i(21, 11), "footprint": Vector2i.ONE},
-	{"id": &"cannon_3", "kind": &"cannon", "cell": Vector2i(26, 7), "footprint": Vector2i.ONE},
-	{"id": &"archer_tower_1", "kind": &"archer_tower", "cell": Vector2i(23, 3), "footprint": Vector2i.ONE},
-	{"id": &"archer_tower_2", "kind": &"archer_tower", "cell": Vector2i(23, 12), "footprint": Vector2i.ONE},
-	{"id": &"archer_tower_3", "kind": &"archer_tower", "cell": Vector2i(26, 10), "footprint": Vector2i.ONE},
-	{"id": &"mortar_1", "kind": &"mortar", "cell": Vector2i(21, 7), "footprint": Vector2i.ONE},
-	{"id": &"mortar_2", "kind": &"mortar", "cell": Vector2i(21, 9), "footprint": Vector2i.ONE},
-	{"id": &"air_defense_1", "kind": &"air_defense", "cell": Vector2i(24, 4), "footprint": Vector2i.ONE},
-	{"id": &"air_defense_2", "kind": &"air_defense", "cell": Vector2i(24, 11), "footprint": Vector2i.ONE},
-	{"id": &"wizard_tower_1", "kind": &"wizard_tower", "cell": Vector2i(23, 6), "footprint": Vector2i.ONE},
-	{"id": &"wizard_tower_2", "kind": &"wizard_tower", "cell": Vector2i(23, 9), "footprint": Vector2i.ONE},
-	{"id": &"air_sweeper_1", "kind": &"air_sweeper", "cell": Vector2i(26, 5), "footprint": Vector2i.ONE},
-	{"id": &"wall_1", "kind": &"wall", "cell": Vector2i(19, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_2", "kind": &"wall", "cell": Vector2i(20, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_3", "kind": &"wall", "cell": Vector2i(21, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_4", "kind": &"wall", "cell": Vector2i(22, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_5", "kind": &"wall", "cell": Vector2i(23, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_6", "kind": &"wall", "cell": Vector2i(24, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_7", "kind": &"wall", "cell": Vector2i(25, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_8", "kind": &"wall", "cell": Vector2i(26, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_9", "kind": &"wall", "cell": Vector2i(27, 2), "footprint": Vector2i.ONE},
-	{"id": &"wall_10", "kind": &"wall", "cell": Vector2i(19, 13), "footprint": Vector2i.ONE},
-	{"id": &"wall_11", "kind": &"wall", "cell": Vector2i(20, 13), "footprint": Vector2i.ONE},
-	{"id": &"wall_12", "kind": &"wall", "cell": Vector2i(21, 13), "footprint": Vector2i.ONE},
-	{"id": &"wall_13", "kind": &"wall", "cell": Vector2i(22, 13), "footprint": Vector2i.ONE},
-	{"id": &"wall_14", "kind": &"wall", "cell": Vector2i(23, 13), "footprint": Vector2i.ONE},
-	{"id": &"wall_15", "kind": &"wall", "cell": Vector2i(24, 13), "footprint": Vector2i.ONE},
-	{"id": &"wall_16", "kind": &"wall", "cell": Vector2i(25, 13), "footprint": Vector2i.ONE},
-	{"id": &"wall_17", "kind": &"wall", "cell": Vector2i(26, 13), "footprint": Vector2i.ONE},
-	{"id": &"wall_18", "kind": &"wall", "cell": Vector2i(27, 13), "footprint": Vector2i.ONE},
-	{"id": &"wall_19", "kind": &"wall", "cell": Vector2i(19, 3), "footprint": Vector2i.ONE},
-	{"id": &"wall_20", "kind": &"wall", "cell": Vector2i(19, 4), "footprint": Vector2i.ONE},
-	{"id": &"wall_21", "kind": &"wall", "cell": Vector2i(19, 5), "footprint": Vector2i.ONE},
-	{"id": &"wall_22", "kind": &"wall", "cell": Vector2i(19, 6), "footprint": Vector2i.ONE},
-	{"id": &"wall_23", "kind": &"wall", "cell": Vector2i(19, 7), "footprint": Vector2i.ONE},
-	{"id": &"wall_24", "kind": &"wall", "cell": Vector2i(19, 8), "footprint": Vector2i.ONE},
-	{"id": &"wall_25", "kind": &"wall", "cell": Vector2i(19, 9), "footprint": Vector2i.ONE},
-	{"id": &"wall_26", "kind": &"wall", "cell": Vector2i(19, 10), "footprint": Vector2i.ONE},
-	{"id": &"wall_27", "kind": &"wall", "cell": Vector2i(19, 11), "footprint": Vector2i.ONE},
-	{"id": &"wall_28", "kind": &"wall", "cell": Vector2i(19, 12), "footprint": Vector2i.ONE},
-	{"id": &"wall_29", "kind": &"wall", "cell": Vector2i(27, 3), "footprint": Vector2i.ONE},
-	{"id": &"wall_30", "kind": &"wall", "cell": Vector2i(27, 4), "footprint": Vector2i.ONE},
-	{"id": &"wall_31", "kind": &"wall", "cell": Vector2i(27, 5), "footprint": Vector2i.ONE},
-	{"id": &"wall_32", "kind": &"wall", "cell": Vector2i(27, 6), "footprint": Vector2i.ONE},
-	{"id": &"wall_33", "kind": &"wall", "cell": Vector2i(27, 7), "footprint": Vector2i.ONE},
-	{"id": &"wall_34", "kind": &"wall", "cell": Vector2i(27, 8), "footprint": Vector2i.ONE},
-	{"id": &"wall_35", "kind": &"wall", "cell": Vector2i(27, 9), "footprint": Vector2i.ONE},
-	{"id": &"wall_36", "kind": &"wall", "cell": Vector2i(27, 10), "footprint": Vector2i.ONE},
-	{"id": &"wall_37", "kind": &"wall", "cell": Vector2i(27, 11), "footprint": Vector2i.ONE},
-	{"id": &"wall_38", "kind": &"wall", "cell": Vector2i(27, 12), "footprint": Vector2i.ONE},
+const INITIAL_STRUCTURES: Array[Dictionary] = [
+	{"id": &"command_core", "kind": &"command_core", "cell": Vector2i(36, 19), "footprint": Vector2i(4, 4)},
+	{"id": &"cannon_1", "kind": &"cannon", "cell": Vector2i(26, 15), "footprint": Vector2i(3, 3)},
+	{"id": &"cannon_2", "kind": &"cannon", "cell": Vector2i(26, 24), "footprint": Vector2i(3, 3)},
+	{"id": &"cannon_3", "kind": &"cannon", "cell": Vector2i(26, 19), "footprint": Vector2i(3, 3)},
+	{"id": &"archer_tower_1", "kind": &"archer_tower", "cell": Vector2i(30, 15), "footprint": Vector2i(3, 3)},
+	{"id": &"archer_tower_2", "kind": &"archer_tower", "cell": Vector2i(30, 24), "footprint": Vector2i(3, 3)},
+	{"id": &"archer_tower_3", "kind": &"archer_tower", "cell": Vector2i(30, 19), "footprint": Vector2i(3, 3)},
+	{"id": &"mortar_1", "kind": &"mortar", "cell": Vector2i(34, 15), "footprint": Vector2i(3, 3)},
+	{"id": &"mortar_2", "kind": &"mortar", "cell": Vector2i(34, 24), "footprint": Vector2i(3, 3)},
+	{"id": &"air_defense_1", "kind": &"air_defense", "cell": Vector2i(38, 15), "footprint": Vector2i(3, 3)},
+	{"id": &"air_defense_2", "kind": &"air_defense", "cell": Vector2i(38, 24), "footprint": Vector2i(3, 3)},
+	{"id": &"wizard_tower_1", "kind": &"wizard_tower", "cell": Vector2i(42, 15), "footprint": Vector2i(3, 3)},
+	{"id": &"wizard_tower_2", "kind": &"wizard_tower", "cell": Vector2i(42, 24), "footprint": Vector2i(3, 3)},
+	{"id": &"air_sweeper_1", "kind": &"air_sweeper", "cell": Vector2i(42, 20), "footprint": Vector2i(2, 2)},
 ]
 
 
 func get_initial_blueprint() -> Array[Dictionary]:
-	return INITIAL_BLUEPRINT.duplicate(true)
+	var result: Array[Dictionary] = INITIAL_STRUCTURES.duplicate(true)
+	var wall_index := 1
+	for x in range(25, 46):
+		result.append(_wall_entry(wall_index, Vector2i(x, 14)))
+		wall_index += 1
+	for x in range(25, 46):
+		result.append(_wall_entry(wall_index, Vector2i(x, 28)))
+		wall_index += 1
+	for y in range(15, 28):
+		result.append(_wall_entry(wall_index, Vector2i(25, y)))
+		wall_index += 1
+	for y in range(15, 28):
+		result.append(_wall_entry(wall_index, Vector2i(45, y)))
+		wall_index += 1
+	return result
+
+
+func _wall_entry(index: int, cell: Vector2i) -> Dictionary:
+	return {"id": StringName("wall_%d" % index), "kind": &"wall", "cell": cell, "footprint": Vector2i.ONE}
 
 
 func get_deployment_cells() -> Array[Vector2i]:
@@ -101,7 +79,7 @@ func is_deployment_cell(cell: Vector2i) -> bool:
 func is_buildable_cell(cell: Vector2i) -> bool:
 	return (
 		is_inside_grid(cell)
-		and cell.x >= DEPLOYMENT_COLUMNS + BUILD_BUFFER_COLUMNS
+		and cell.x >= BUILD_START_X
 		and not STATIC_TERRAIN.has(cell)
 	)
 
@@ -110,7 +88,7 @@ func get_validation_errors() -> Array[String]:
 	var errors: Array[String] = []
 	var occupied: Dictionary = {}
 	var ids: Dictionary = {}
-	for structure in INITIAL_BLUEPRINT:
+	for structure in get_initial_blueprint():
 		var structure_id := StringName(structure.get("id", &""))
 		if structure_id == &"" or ids.has(structure_id):
 			errors.append("Every initial structure needs a unique non-empty id.")

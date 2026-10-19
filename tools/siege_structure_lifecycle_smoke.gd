@@ -15,9 +15,9 @@ func _run() -> void:
 	get_root().add_child(board)
 	await process_frame
 
-	_assert(board.structures.size() == 52, "the TH6 defense blueprint creates 52 real structure nodes")
-	_assert(board.get_structure_blocked_cells().size() == 55, "living footprints block 55 grid cells")
-	_assert(board.get_navigation_blocked_cells().size() == 59, "terrain and structures share one navigation blocker query")
+	_assert(board.structures.size() == 82, "the TH6 defense blueprint creates 82 real structure nodes")
+	_assert(board.get_structure_blocked_cells().size() == 196, "Clash-sized living footprints block 196 grid cells")
+	_assert(board.get_navigation_blocked_cells().size() == 196, "the clear Clash-sized field uses the structure blockers")
 	_assert(board.get_remaining_integrity() == 14, "every non-wall building counts toward the objective")
 	_assert(is_equal_approx(CatalogScript.get_max_health(&"command_core"), 2800.0), "the core uses exact TH6 Town Hall HP")
 	_assert(is_equal_approx(CatalogScript.get_max_health(&"wall"), 1800.0), "the wall uses exact level-6 HP")
@@ -41,7 +41,7 @@ func _run() -> void:
 
 	var snapshot: Array[Dictionary] = board.get_blueprint_snapshot()
 	snapshot[0]["cell"] = Vector2i.ZERO
-	_assert(Vector2i(board.get_blueprint_snapshot()[0]["cell"]) == Vector2i(24, 7), "callers cannot mutate the saved blueprint")
+	_assert(Vector2i(board.get_blueprint_snapshot()[0]["cell"]) == Vector2i(36, 19), "callers cannot mutate the saved blueprint")
 
 	var old_wall_instance_id := wall.get_instance_id()
 	board.reconstruct_blueprint()
@@ -53,10 +53,10 @@ func _run() -> void:
 	_assert(board.get_remaining_integrity() == 14, "reconstruction restores objective integrity")
 
 	board.set_edit_mode(true)
-	_assert(board.try_move_structure(&"cannon_1", Vector2i(18, 5)), "a selected defense can move to a valid empty build cell")
-	_assert(board.get_structure(&"cannon_1").grid_cell == Vector2i(18, 5), "editing updates the defense grid position")
+	_assert(board.try_move_structure(&"cannon_1", Vector2i(10, 10)), "a selected defense can move to a valid empty build cell")
+	_assert(board.get_structure(&"cannon_1").grid_cell == Vector2i(10, 10), "editing updates the defense grid position")
 	_assert(not board.try_move_structure(&"cannon_1", Vector2i(0, 5)), "editing rejects the enemy deployment front")
-	_assert(not board.try_move_structure(&"cannon_1", Vector2i(24, 7)), "editing rejects occupied cells")
+	_assert(not board.try_move_structure(&"cannon_1", Vector2i(36, 19)), "editing rejects occupied cells")
 
 	board.queue_free()
 	_finish("SIEGE_STRUCTURE_LIFECYCLE_SMOKE_OK")

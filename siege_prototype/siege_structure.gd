@@ -149,63 +149,70 @@ func _draw_wall(rect: Rect2) -> void:
 
 func _draw_cannon(rect: Rect2) -> void:
 	var center := rect.get_center()
-	draw_rect(rect.grow(-cell_size * 0.12), COLOR_CANNON, true)
-	draw_circle(center, cell_size * 0.24, COLOR_CORE_INSET)
-	draw_line(center, center + Vector2.LEFT * cell_size * 0.36, COLOR_TEXT, maxf(cell_size * 0.10, 2.0), true)
-	draw_circle(center, cell_size * 0.11, COLOR_TEXT)
+	var scale := minf(rect.size.x, rect.size.y)
+	draw_rect(rect.grow(-scale * 0.06), COLOR_CANNON, true)
+	draw_circle(center, scale * 0.24, COLOR_CORE_INSET)
+	draw_line(center, center + Vector2.LEFT * scale * 0.36, COLOR_TEXT, maxf(scale * 0.10, 2.0), true)
+	draw_circle(center, scale * 0.11, COLOR_TEXT)
 
 
 func _draw_mortar(rect: Rect2) -> void:
 	var center := rect.get_center()
-	draw_rect(rect.grow(-cell_size * 0.12), COLOR_MORTAR, true)
-	draw_circle(center, cell_size * 0.27, COLOR_OUTLINE)
-	draw_circle(center, cell_size * 0.15, COLOR_HEALTH_BACK)
+	var scale := minf(rect.size.x, rect.size.y)
+	draw_rect(rect.grow(-scale * 0.06), COLOR_MORTAR, true)
+	draw_circle(center, scale * 0.27, COLOR_OUTLINE)
+	draw_circle(center, scale * 0.15, COLOR_HEALTH_BACK)
 
 
 func _draw_archer_tower(rect: Rect2) -> void:
-	var body := rect.grow(-cell_size * 0.15)
+	var scale := minf(rect.size.x, rect.size.y)
+	var body := rect.grow(-scale * 0.06)
 	var center := rect.get_center()
 	draw_rect(body, COLOR_ARCHER, true)
-	draw_rect(body, COLOR_OUTLINE, false, maxf(cell_size * 0.055, 1.0))
-	draw_line(center + Vector2(-cell_size * 0.20, cell_size * 0.18), center + Vector2(0.0, -cell_size * 0.23), COLOR_TEXT, maxf(cell_size * 0.055, 1.0), true)
-	draw_line(center + Vector2(cell_size * 0.20, cell_size * 0.18), center + Vector2(0.0, -cell_size * 0.23), COLOR_TEXT, maxf(cell_size * 0.055, 1.0), true)
+	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 1.0))
+	draw_line(center + Vector2(-scale * 0.20, scale * 0.18), center + Vector2(0.0, -scale * 0.23), COLOR_TEXT, maxf(scale * 0.055, 1.0), true)
+	draw_line(center + Vector2(scale * 0.20, scale * 0.18), center + Vector2(0.0, -scale * 0.23), COLOR_TEXT, maxf(scale * 0.055, 1.0), true)
 
 
 func _draw_wizard_tower(rect: Rect2) -> void:
-	var body := rect.grow(-cell_size * 0.14)
+	var scale := minf(rect.size.x, rect.size.y)
+	var body := rect.grow(-scale * 0.06)
 	var center := rect.get_center()
 	draw_rect(body, COLOR_WIZARD, true)
-	draw_rect(body, COLOR_OUTLINE, false, maxf(cell_size * 0.055, 1.0))
-	draw_circle(center, cell_size * 0.18, COLOR_TEXT)
-	draw_circle(center, cell_size * 0.09, COLOR_WIZARD.darkened(0.35))
+	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 1.0))
+	draw_circle(center, scale * 0.18, COLOR_TEXT)
+	draw_circle(center, scale * 0.09, COLOR_WIZARD.darkened(0.35))
 
 
 func _draw_air_defense(rect: Rect2) -> void:
 	var center := rect.get_center()
-	var body := rect.grow(-cell_size * 0.14)
+	var scale := minf(rect.size.x, rect.size.y)
+	var body := rect.grow(-scale * 0.06)
 	draw_rect(body, COLOR_AIR_DEFENSE, true)
-	draw_rect(body, COLOR_OUTLINE, false, maxf(cell_size * 0.055, 1.0))
+	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 1.0))
 	for offset_x in [-0.18, 0.18]:
-		draw_line(center + Vector2(cell_size * offset_x, cell_size * 0.23), center + Vector2(cell_size * offset_x, -cell_size * 0.22), COLOR_TEXT, maxf(cell_size * 0.075, 1.0), true)
+		draw_line(center + Vector2(scale * offset_x, scale * 0.23), center + Vector2(scale * offset_x, -scale * 0.22), COLOR_TEXT, maxf(scale * 0.075, 1.0), true)
 
 
 func _draw_air_sweeper(rect: Rect2) -> void:
 	var center := rect.get_center()
-	var body := rect.grow(-cell_size * 0.14)
+	var scale := minf(rect.size.x, rect.size.y)
+	var body := rect.grow(-scale * 0.06)
 	draw_rect(body, COLOR_AIR_SWEEPER, true)
-	draw_rect(body, COLOR_OUTLINE, false, maxf(cell_size * 0.055, 1.0))
-	draw_arc(center, cell_size * 0.24, -PI * 0.65, PI * 0.65, 12, COLOR_TEXT, maxf(cell_size * 0.07, 1.0), true)
-	draw_line(center, center + Vector2.LEFT * cell_size * 0.28, COLOR_TEXT, maxf(cell_size * 0.07, 1.0), true)
+	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 1.0))
+	draw_arc(center, scale * 0.24, -PI * 0.65, PI * 0.65, 12, COLOR_TEXT, maxf(scale * 0.07, 1.0), true)
+	draw_line(center, center + Vector2.LEFT * scale * 0.28, COLOR_TEXT, maxf(scale * 0.07, 1.0), true)
 
 
 func _draw_command_core(rect: Rect2) -> void:
-	var body := rect.grow(-cell_size * 0.12)
+	var scale := minf(rect.size.x, rect.size.y)
+	var body := rect.grow(-scale * 0.05)
 	draw_rect(body, COLOR_CORE, true)
-	draw_rect(body, COLOR_OUTLINE, false, maxf(cell_size * 0.07, 2.0))
-	var inset := body.grow(-cell_size * 0.28)
+	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 2.0))
+	var inset := body.grow(-scale * 0.20)
 	draw_rect(inset, COLOR_CORE_INSET, true)
-	draw_circle(rect.get_center(), cell_size * 0.26, COLOR_TEXT)
-	draw_circle(rect.get_center(), cell_size * 0.15, COLOR_CANNON)
+	draw_circle(rect.get_center(), scale * 0.18, COLOR_TEXT)
+	draw_circle(rect.get_center(), scale * 0.10, COLOR_CANNON)
 
 
 func _draw_rubble(rect: Rect2) -> void:

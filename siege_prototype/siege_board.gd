@@ -31,7 +31,7 @@ const HEADER_HEIGHT := 92.0
 const FOOTER_HEIGHT := 78.0
 const MIN_VIEW_ZOOM := 0.82
 const MAX_VIEW_ZOOM := 2.5
-const INITIAL_VIEW_ZOOM := 1.08
+const INITIAL_VIEW_ZOOM := 1.35
 const WHEEL_ZOOM_STEP := 1.12
 
 var arena_layout: RefCounted
@@ -455,7 +455,7 @@ func _draw_static_terrain() -> void:
 
 func _draw_deployment_arrows() -> void:
 	var arrow_color := Color("ef624d")
-	for y in [1, 4, 7, 10, 13]:
+	for y in [3, 12, 21, 30, 39]:
 		var center := cell_rect(Vector2i(0, y)).get_center()
 		var start := Vector2(maxf(board_origin.x - cell_size * 0.55, 4.0), center.y)
 		var end := Vector2(board_origin.x + cell_size * 0.70, center.y)
@@ -468,7 +468,7 @@ func _draw_labels() -> void:
 	var small_size := clampi(roundi(cell_size * 0.27), 10, 16)
 	var footer_y := board_rect.end.y + minf(FOOTER_HEIGHT * 0.62, 28.0)
 	draw_string(title_font, Vector2(board_rect.position.x, footer_y), "ENEMY FRONT", HORIZONTAL_ALIGNMENT_LEFT, -1.0, small_size, Color("ef624d"))
-	draw_string(title_font, Vector2(board_rect.get_center().x - cell_size * 1.1, footer_y), "28×16 SIEGE FIELD", HORIZONTAL_ALIGNMENT_LEFT, -1.0, small_size, COLOR_MUTED_TEXT)
+	draw_string(title_font, Vector2(board_rect.get_center().x - cell_size * 3.0, footer_y), "44×44 CLASH BUILD AREA", HORIZONTAL_ALIGNMENT_LEFT, -1.0, small_size, COLOR_MUTED_TEXT)
 	draw_string(title_font, Vector2(board_rect.end.x - cell_size * 2.2, footer_y), "FORTRESS DEPTH →", HORIZONTAL_ALIGNMENT_LEFT, -1.0, small_size, COLOR_CORE)
 
 

@@ -7,6 +7,7 @@ signal status_changed(text: String)
 
 const AttackerCatalogScript = preload("res://siege_prototype/siege_attacker_catalog.gd")
 const AttackerScript = preload("res://siege_prototype/siege_attacker.gd")
+const ArenaLayoutScript = preload("res://siege_prototype/siege_arena_layout.gd")
 
 const DEMO_ATTACKER_COUNT := 48
 
@@ -14,6 +15,7 @@ var board: Node2D
 var attackers: Array[Node2D] = []
 var pending_wave: Array[Dictionary] = []
 var tower_cooldowns: Dictionary = {}
+var tower_targets: Dictionary = {}
 var tracers: Array[Dictionary] = []
 var next_attacker_id := 1
 var spawn_cooldown := 0.0
@@ -41,6 +43,7 @@ func start_demo_wave() -> void:
 	board.reconstruct_blueprint()
 	pending_wave = _build_demo_wave()
 	tower_cooldowns.clear()
+	tower_targets.clear()
 	tracers.clear()
 	spawn_cooldown = 0.0
 	elapsed_time = 0.0
@@ -54,6 +57,8 @@ func start_demo_wave() -> void:
 func reset_fortress() -> void:
 	clear_attackers()
 	pending_wave.clear()
+	tower_cooldowns.clear()
+	tower_targets.clear()
 	tracers.clear()
 	active = false
 	result = &"idle"
@@ -70,6 +75,7 @@ func clear_attackers() -> void:
 			remove_child(attacker)
 			attacker.queue_free()
 	attackers.clear()
+	tower_targets.clear()
 
 
 func _build_demo_wave() -> Array[Dictionary]:
@@ -77,12 +83,12 @@ func _build_demo_wave() -> Array[Dictionary]:
 	# Giants lead and hold defensive fire while Wall Breakers approach. This
 	# changes army composition only; every unit retains its exact TH6 stats.
 	for index in 12:
-		wave.append({"kind": &"brute", "row": 2 + index})
+		wave.append({"kind": &"brute", "row": 15 + index})
 	wave[-1]["next_delay"] = 2.0
 	for index in 12:
-		wave.append({"kind": &"sapper", "row": 2 + index})
+		wave.append({"kind": &"sapper", "row": 15 + index})
 	for index in 24:
-		wave.append({"kind": &"raider", "row": 2 + index % 12})
+		wave.append({"kind": &"raider", "row": 15 + index % 12})
 	return wave
 
 
@@ -104,6 +110,7 @@ func simulate_step(delta: float) -> void:
 	for attacker in attackers.duplicate():
 		if is_instance_valid(attacker) and not attacker.dead:
 			attacker.simulate(delta)
+	_apply_unit_separation()
 	_update_towers(delta)
 	_update_tracers(delta)
 	_check_wave_end()
@@ -120,7 +127,7 @@ func _update_spawning(delta: float) -> void:
 func _spawn_attacker(kind: StringName, row: int) -> Node2D:
 	assert(AttackerCatalogScript.has_kind(kind), "Missing siege attacker definition for %s" % kind)
 	var attacker: Node2D = AttackerScript.new()
-	attacker.configure(next_attacker_id, kind, AttackerCatalogScript.get_definition(kind), Vector2i(0, clampi(row, 0, 15)), board)
+	attacker.configure(next_attacker_id, kind, AttackerCatalogScript.get_definition(kind), Vector2i(0, clampi(row, 0, ArenaLayoutScript.GRID_SIZE.y - 1)), board)
 	next_attacker_id += 1
 	attacker.attacker_died.connect(_on_attacker_died)
 	attacker.structure_hit.connect(_on_structure_hit)
@@ -141,7 +148,13 @@ func _update_towers(delta: float) -> void:
 		if cooldown > 0.0:
 			tower_cooldowns[structure.structure_id] = cooldown
 			continue
-		var target := _choose_tower_target(structure)
+		var target: Node2D = tower_targets.get(structure.structure_id)
+		if not _tower_target_is_valid(structure, target):
+			target = _choose_tower_target(structure)
+			if target == null:
+				tower_targets.erase(structure.structure_id)
+			else:
+				tower_targets[structure.structure_id] = target
 		if target == null:
 			tower_cooldowns[structure.structure_id] = 0.0
 			continue
@@ -169,6 +182,47 @@ func _choose_tower_target(tower: Node2D) -> Node2D:
 			best = attacker
 			best_distance = distance
 	return best
+
+
+func _tower_target_is_valid(tower: Node2D, target: Node2D) -> bool:
+	if target == null or not is_instance_valid(target) or target.dead:
+		return false
+	var distance := _structure_center_grid(tower).distance_to(target.grid_position)
+	var range_cells := float(tower.definition.get("attack_range_cells", 0.0))
+	var minimum_range := float(tower.definition.get("minimum_range_cells", 0.0))
+	return distance >= minimum_range and distance <= range_cells
+
+
+func _apply_unit_separation() -> void:
+	var living: Array[Node2D] = []
+	for attacker in attackers:
+		if is_instance_valid(attacker) and not attacker.dead:
+			living.append(attacker)
+	var blocked: Array[Vector2i] = board.get_navigation_blocked_cells()
+	for first_index in living.size():
+		for second_index in range(first_index + 1, living.size()):
+			var first := living[first_index]
+			var second := living[second_index]
+			var offset: Vector2 = second.grid_position - first.grid_position
+			var distance := offset.length()
+			var minimum_distance := 0.52 if first.kind == &"brute" or second.kind == &"brute" else 0.40
+			if distance >= minimum_distance:
+				continue
+			var direction := offset / distance if distance > 0.001 else Vector2.UP.rotated(float(first.attacker_id % 8) * PI / 4.0)
+			var correction := direction * (minimum_distance - distance) * 0.28
+			_try_nudge_attacker(first, -correction, blocked)
+			_try_nudge_attacker(second, correction, blocked)
+
+
+func _try_nudge_attacker(attacker: Node2D, offset: Vector2, blocked: Array[Vector2i]) -> void:
+	var candidate: Vector2 = attacker.grid_position + offset
+	candidate.x = clampf(candidate.x, 0.0, float(ArenaLayoutScript.GRID_SIZE.x - 1))
+	candidate.y = clampf(candidate.y, 0.0, float(ArenaLayoutScript.GRID_SIZE.y - 1))
+	var candidate_cell := Vector2i(roundi(candidate.x), roundi(candidate.y))
+	if blocked.has(candidate_cell):
+		return
+	attacker.grid_position = candidate
+	attacker.set_layout_metrics(board.board_origin, board.cell_size)
 
 
 func _apply_tower_damage(tower: Node2D, primary_target: Node2D) -> void:

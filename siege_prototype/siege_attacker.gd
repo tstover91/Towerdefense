@@ -14,6 +14,7 @@ const COLOR_OUTLINE := Color("252522")
 const COLOR_HEALTH := Color("62bd69")
 const COLOR_HEALTH_BACK := Color("252522")
 const COLOR_TARGET := Color("f3d166")
+const TARGET_CANDIDATE_COUNT := 3
 
 var attacker_id: int
 var kind: StringName
@@ -77,8 +78,11 @@ func simulate(delta: float) -> void:
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
 	var active_target: Node2D = board.get_structure(active_target_id) if active_target_id != &"" else null
 	var intended_target: Node2D = board.get_structure(intended_target_id) if intended_target_id != &"" else null
-	if plan_dirty or intended_target == null or intended_target.destroyed or active_target == null or active_target.destroyed:
-		_refresh_plan()
+	if intended_target == null or intended_target.destroyed:
+		_refresh_plan(true)
+		active_target = board.get_structure(active_target_id) if active_target_id != &"" else null
+	elif plan_dirty or active_target == null or active_target.destroyed:
+		_refresh_plan(false)
 		active_target = board.get_structure(active_target_id) if active_target_id != &"" else null
 	if active_target == null:
 		return
@@ -109,37 +113,29 @@ func set_layout_metrics(board_origin: Vector2, next_cell_size: float) -> void:
 	queue_redraw()
 
 
-func _refresh_plan() -> void:
+func _refresh_plan(force_retarget: bool) -> void:
 	plan_dirty = false
 	path.clear()
 	path_index = 0
-	var intended := _choose_intended_target()
-	if intended == null:
+	var plan: Dictionary = {}
+	var committed_target: Node2D = board.get_structure(intended_target_id) if intended_target_id != &"" else null
+	if not force_retarget and committed_target != null and not committed_target.destroyed:
+		plan = _build_plan_for_target(committed_target)
+	if plan.is_empty():
+		plan = _choose_target_plan()
+	if plan.is_empty():
 		intended_target_id = &""
 		active_target_id = &""
 		return
+	var intended: Node2D = plan["target"]
 	intended_target_id = intended.structure_id
-	var start := _current_cell()
-	var blocked: Array[Vector2i] = board.get_navigation_blocked_cells()
-	var goals: Array[Vector2i] = RouterScript.get_adjacent_cells(intended.get_occupied_cells(), ArenaLayoutScript.GRID_SIZE)
-	var direct_path: Array[Vector2i] = RouterScript.find_path(start, goals, blocked, ArenaLayoutScript.GRID_SIZE)
-	if not direct_path.is_empty():
-		active_target_id = intended_target_id
-		path = direct_path
-		path_index = mini(1, path.size())
-		return
-
-	var wall_plan := _choose_blocking_wall_plan(start, intended, blocked)
-	if wall_plan.is_empty():
-		active_target_id = intended_target_id
-		return
-	var wall: Node2D = wall_plan["wall"]
-	active_target_id = wall.structure_id
-	path = wall_plan["path"]
+	var active: Node2D = plan.get("active_target", intended)
+	active_target_id = active.structure_id
+	path.assign(plan.get("path", []))
 	path_index = mini(1, path.size())
 
 
-func _choose_intended_target() -> Node2D:
+func _choose_target_plan() -> Dictionary:
 	var candidates: Array[Node2D] = []
 	if preferred_target == &"defenses":
 		for structure in board.structures:
@@ -149,32 +145,80 @@ func _choose_intended_target() -> Node2D:
 		for structure in board.structures:
 			if not structure.destroyed and structure.counts_for_objective:
 				candidates.append(structure)
-	var best: Node2D
-	var best_distance := INF
+	candidates.sort_custom(func(a: Node2D, b: Node2D) -> bool: return _distance_to_structure(a) < _distance_to_structure(b))
+	var considered_plans: Array[Dictionary] = []
 	for candidate in candidates:
-		var candidate_distance := _distance_to_structure(candidate)
-		if candidate_distance < best_distance:
-			best = candidate
-			best_distance = candidate_distance
-	return best
-
-
-func _choose_blocking_wall_plan(start: Vector2i, intended: Node2D, blocked: Array[Vector2i]) -> Dictionary:
+		var plan := _build_plan_for_target(candidate)
+		if plan.is_empty():
+			continue
+		if kind == &"sapper" and not bool(plan.get("crosses_wall", false)):
+			continue
+		considered_plans.append(plan)
+		if considered_plans.size() >= TARGET_CANDIDATE_COUNT:
+			break
 	var best_plan: Dictionary = {}
-	var best_score := 1_000_000
-	for structure in board.structures:
-		if structure.destroyed or structure.kind != &"wall":
-			continue
-		var wall_cells: Array[Vector2i] = structure.get_occupied_cells()
-		var approach_cells: Array[Vector2i] = RouterScript.get_adjacent_cells(wall_cells, ArenaLayoutScript.GRID_SIZE)
-		var wall_path: Array[Vector2i] = RouterScript.find_path(start, approach_cells, blocked, ArenaLayoutScript.GRID_SIZE)
-		if wall_path.is_empty():
-			continue
-		var score := wall_path.size() + RouterScript.manhattan_to_cells(wall_cells[0], intended.get_occupied_cells())
-		if score < best_score:
-			best_score = score
-			best_plan = {"wall": structure, "path": wall_path}
+	var best_cost := INF
+	for plan in considered_plans:
+		var plan_cost := float(plan.get("cost", INF))
+		if plan_cost < best_cost:
+			best_cost = plan_cost
+			best_plan = plan
 	return best_plan
+
+
+func _build_plan_for_target(target: Node2D) -> Dictionary:
+	if target == null or target.destroyed:
+		return {}
+	var hard_blocked: Array[Vector2i] = []
+	var wall_costs: Dictionary = {}
+	var wall_by_cell: Dictionary = {}
+	for structure in board.structures:
+		if structure.destroyed or not structure.blocks_movement:
+			continue
+		if structure.kind == &"wall":
+			var wall_equivalent_cost := _wall_break_cost_in_tiles(structure.health)
+			for cell in structure.get_occupied_cells():
+				wall_costs[cell] = wall_equivalent_cost
+				wall_by_cell[cell] = structure
+		else:
+			hard_blocked.append_array(structure.get_occupied_cells())
+	for terrain_cell in ArenaLayoutScript.STATIC_TERRAIN:
+		if not hard_blocked.has(terrain_cell):
+			hard_blocked.append(terrain_cell)
+	var goals: Array[Vector2i] = []
+	for candidate_goal in RouterScript.get_adjacent_cells(target.get_occupied_cells(), ArenaLayoutScript.GRID_SIZE):
+		if _distance_from_position_to_structure(Vector2(candidate_goal), target) <= attack_range_cells:
+			goals.append(candidate_goal)
+	var route := RouterScript.find_weighted_path(_current_cell(), goals, hard_blocked, wall_costs, ArenaLayoutScript.GRID_SIZE)
+	if route.is_empty():
+		return {}
+	var full_path: Array[Vector2i] = []
+	full_path.assign(route.get("path", []))
+	var crossed_walls: Array[Vector2i] = []
+	crossed_walls.assign(route.get("crossed_walls", []))
+	var active_target: Node2D = target
+	var movement_path: Array[Vector2i] = full_path
+	if not crossed_walls.is_empty():
+		active_target = wall_by_cell.get(crossed_walls[0])
+		movement_path = []
+		for cell in full_path:
+			if cell == crossed_walls[0]:
+				break
+			movement_path.append(cell)
+	return {
+		"target": target,
+		"active_target": active_target,
+		"path": movement_path,
+		"cost": float(route.get("cost", INF)),
+		"crosses_wall": not crossed_walls.is_empty(),
+	}
+
+
+func _wall_break_cost_in_tiles(wall_health: float) -> float:
+	var wall_dps := wall_damage / attack_interval
+	if wall_dps <= 0.0:
+		return 1_000_000.0
+	return maxf(wall_health, 0.0) / wall_dps * move_speed_cells
 
 
 func _move_along_path(delta: float) -> void:
@@ -203,11 +247,15 @@ func _try_attack(target: Node2D) -> void:
 
 
 func _distance_to_structure(structure: Node2D) -> float:
+	return _distance_from_position_to_structure(grid_position, structure)
+
+
+func _distance_from_position_to_structure(from_position: Vector2, structure: Node2D) -> float:
 	var best := INF
 	for cell in structure.get_occupied_cells():
 		# Clash range is measured from footprint edges. Adjacent grid cells have
 		# zero separation even though their centers are one cell apart.
-		best = minf(best, maxf(grid_position.distance_to(Vector2(cell)) - 1.0, 0.0))
+		best = minf(best, maxf(from_position.distance_to(Vector2(cell)) - 1.0, 0.0))
 	return best
 
 
