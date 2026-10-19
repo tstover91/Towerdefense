@@ -152,13 +152,17 @@ func _update_towers(delta: float) -> void:
 		if cooldown > 0.0:
 			tower_cooldowns[structure.structure_id] = cooldown
 			continue
-		var target: Node2D = tower_targets.get(structure.structure_id)
+		# Cache stable attacker IDs, never Node references. A killed attacker can be
+		# queued for deletion between physics frames; assigning that freed Object
+		# from a Dictionary to a typed Node2D caused the Android battle freeze.
+		var cached_attacker_id := int(tower_targets.get(structure.structure_id, -1))
+		var target: Node2D = _get_living_attacker(cached_attacker_id)
 		if not _tower_target_is_valid(structure, target):
 			target = _choose_tower_target(structure)
 			if target == null:
 				tower_targets.erase(structure.structure_id)
 			else:
-				tower_targets[structure.structure_id] = target
+				tower_targets[structure.structure_id] = target.attacker_id
 		if target == null:
 			tower_cooldowns[structure.structure_id] = 0.0
 			continue
@@ -195,6 +199,15 @@ func _tower_target_is_valid(tower: Node2D, target: Node2D) -> bool:
 	var range_cells := float(tower.definition.get("attack_range_cells", 0.0))
 	var minimum_range := float(tower.definition.get("minimum_range_cells", 0.0))
 	return distance >= minimum_range and distance <= range_cells
+
+
+func _get_living_attacker(attacker_id: int) -> Node2D:
+	if attacker_id < 0:
+		return null
+	for attacker in attackers:
+		if is_instance_valid(attacker) and not attacker.dead and attacker.attacker_id == attacker_id:
+			return attacker
+	return null
 
 
 func _apply_unit_separation() -> void:
@@ -272,6 +285,9 @@ func _finish_wave(winner: StringName) -> void:
 
 
 func _on_attacker_died(attacker: Node2D) -> void:
+	for tower_id in tower_targets.keys():
+		if int(tower_targets.get(tower_id, -1)) == attacker.attacker_id:
+			tower_targets.erase(tower_id)
 	attackers.erase(attacker)
 	if is_instance_valid(attacker):
 		attacker.queue_free()

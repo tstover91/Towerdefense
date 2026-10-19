@@ -101,6 +101,12 @@ func _run() -> void:
 		"nearby ground troops separate instead of occupying one point"
 	)
 	combat._on_attacker_died(overlapping_raider)
+	var stale_target_test: Node2D = combat._spawn_attacker(&"raider", 16)
+	var stale_attacker_id: int = stale_target_test.attacker_id
+	combat.tower_targets[&"cannon_1"] = stale_attacker_id
+	combat._on_attacker_died(stale_target_test)
+	combat._update_towers(1.0)
+	_assert(int(combat.tower_targets.get(&"cannon_1", -1)) != stale_attacker_id, "dead attackers are removed from tower target caches before they are freed")
 
 	var initial_wall_count := _living_kind_count(board, &"wall")
 	var saw_attacker_damage := false
