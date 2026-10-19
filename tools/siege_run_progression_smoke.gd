@@ -74,6 +74,9 @@ func _run() -> void:
 	_assert(main.pending_purchase_kind == &"cannon", "the Cannon card starts an explicit Cannon purchase")
 	_assert(main.get_node("HUD/PlacementPanel").visible and not main.get_node("HUD/BuildTray").visible, "choosing a card opens confirm/cancel placement controls")
 	_assert(is_instance_valid(main_board.build_preview_structure), "choosing a card creates a visible draggable building ghost")
+	var opening_preview_cell: Vector2i = main_board.pending_build_cell
+	main_board._handle_edit_tap(main_board.cell_rect(Vector2i(12, 12)).get_center())
+	_assert(main_board.pending_build_cell == opening_preview_cell, "tapping elsewhere does not relocate or place the building ghost")
 	var drag_target: Vector2 = main_board.cell_rect(Vector2i(21, 21)).get_center()
 	_assert(main_board.preview_build_at_screen_position(drag_target), "dragging the ghost snaps it to a valid grid footprint")
 	_assert(main_board.pending_build_cell == Vector2i(20, 20) and main_board.build_preview_structure.grid_cell == Vector2i(20, 20), "the ghost follows the dragged footprint before confirmation")
@@ -88,13 +91,29 @@ func _run() -> void:
 	await process_frame
 	_assert(main_board.is_wall_chain_active(), "placing the first Wall activates the row-extension arrows")
 	var extensions: Array[Vector2i] = main_board.get_wall_extension_cells()
-	_assert(not extensions.is_empty() and main_board.try_select_wall_extension(extensions[0]), "tapping a row arrow immediately adds the next Wall")
+	_assert(extensions.size() >= 3 and main_board.try_select_wall_extension(extensions[1]), "tapping any open arrow immediately adds the next Wall")
 	await process_frame
-	var row_ends: Array[Vector2i] = main_board.get_wall_extension_cells()
-	_assert(row_ends.size() == 2 and (row_ends[0].x == row_ends[1].x or row_ends[0].y == row_ends[1].y), "after two pieces, arrows stay on the two ends of a straight row")
-	_assert(main_board.try_select_wall_extension(row_ends[1]), "either end arrow can continue the established wall row")
+	var chain_focus: Vector2i = main_board.get_wall_chain_focus_cell()
+	var turn_choices: Array[Vector2i] = main_board.get_wall_extension_cells()
+	var perpendicular_choice: Vector2i = Vector2i(-1, -1)
+	var has_straight_choice := false
+	for choice in turn_choices:
+		if choice.y == chain_focus.y:
+			has_straight_choice = true
+		elif choice.x == chain_focus.x:
+			perpendicular_choice = choice
+	_assert(has_straight_choice and perpendicular_choice.x >= 0, "after two pieces, both straight and turning directions remain available when open")
+	_assert(main_board.try_select_wall_extension(perpendicular_choice), "a wall chain can turn after its first direction")
+	await process_frame
 	_assert(main_board.get_structure_count(&"wall") == 3, "wall-row placement keeps building consecutive segments")
 	_assert(main.run_state.currency == 7, "free Wall-row segments do not spend Gold")
+	main._cancel_pending_purchase()
+	var placed_wall: Node = main_board.get_structure_at_cell(Vector2i(24, 20), true)
+	main._on_selection_changed(placed_wall)
+	await process_frame
+	_assert(main_board.is_wall_chain_active(), "selecting a placed Wall restores its extension arrows")
+	var selected_directions: Array[Vector2i] = main_board.get_wall_extension_cells()
+	_assert(not selected_directions.is_empty(), "reselecting an existing Wall exposes every open adjacent direction")
 	main._cancel_pending_purchase()
 	main._select_build_kind(&"archer_tower")
 	_assert(is_instance_valid(main_board.build_preview_structure), "another building can enter draggable preview mode")

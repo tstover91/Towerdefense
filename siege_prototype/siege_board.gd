@@ -92,7 +92,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
-				if _can_drag_build_preview():
+				if _can_drag_build_preview_at(event.position):
 					build_mouse_dragging = true
 					preview_build_at_screen_position(event.position)
 					get_viewport().set_input_as_handled()
@@ -123,7 +123,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_hover(event.position)
 	elif event is InputEventScreenTouch:
 		if event.pressed:
-			if _can_drag_build_preview():
+			if _can_drag_build_preview_at(event.position):
 				build_drag_touch_index = event.index
 				preview_build_at_screen_position(event.position)
 				get_viewport().set_input_as_handled()
@@ -154,6 +154,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _can_drag_build_preview() -> bool:
 	return edit_mode and pending_build_kind != &"" and wall_chain_cells.is_empty()
+
+
+func _can_drag_build_preview_at(screen_position: Vector2) -> bool:
+	return _can_drag_build_preview() and get_build_preview_screen_rect().grow(maxf(cell_size * 0.35, 12.0)).has_point(screen_position)
 
 
 func preview_build_at_screen_position(screen_position: Vector2) -> bool:
@@ -231,10 +235,7 @@ func _handle_edit_tap(screen_position: Vector2) -> void:
 			if not try_select_wall_extension(cell):
 				edit_status_changed.emit("Tap a green arrow to extend this wall row")
 			return
-		if preview_build_at_cell(cell):
-			edit_status_changed.emit("Position ready · tap the green check to build")
-		else:
-			edit_status_changed.emit("That position is blocked or outside the build area")
+		edit_status_changed.emit("Drag the building itself to move it · use the green check to build")
 		return
 	var tapped_structure := get_structure_at_cell(cell, true)
 	if tapped_structure != null:
@@ -296,17 +297,22 @@ func confirm_pending_build() -> bool:
 	return true
 
 
-func begin_wall_chain(anchor: Vector2i) -> void:
+func begin_wall_chain(anchor: Vector2i, preserve_selection := false) -> void:
 	_clear_build_preview_structure()
 	pending_build_kind = &"wall"
 	pending_build_cell = Vector2i(-1, -1)
 	pending_build_valid = false
 	wall_chain_cells.assign([anchor])
-	selected_structure_id = &""
-	selected_structure_changed.emit(null)
+	if not preserve_selection:
+		selected_structure_id = &""
+		selected_structure_changed.emit(null)
 	build_preview_changed.emit(&"wall", pending_build_cell, false)
 	edit_status_changed.emit("Wall row active · tap a green arrow to add the next piece")
 	queue_redraw()
+
+
+func begin_wall_chain_from_existing(anchor: Vector2i) -> void:
+	begin_wall_chain(anchor, true)
 
 
 func advance_wall_chain(cell: Vector2i) -> void:
@@ -331,23 +337,11 @@ func get_wall_extension_cells() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if wall_chain_cells.is_empty():
 		return result
-	if wall_chain_cells.size() == 1:
-		for direction in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
-			result.append(wall_chain_cells[0] + direction)
-		return result
-	var difference := wall_chain_cells[1] - wall_chain_cells[0]
-	var axis := Vector2i.RIGHT if difference.x != 0 else Vector2i.DOWN
-	var minimum := wall_chain_cells[0]
-	var maximum := wall_chain_cells[0]
-	for cell in wall_chain_cells:
-		if axis.x != 0:
-			if cell.x < minimum.x: minimum = cell
-			if cell.x > maximum.x: maximum = cell
-		else:
-			if cell.y < minimum.y: minimum = cell
-			if cell.y > maximum.y: maximum = cell
-	result.append(minimum - axis)
-	result.append(maximum + axis)
+	var focus: Vector2i = wall_chain_cells[-1]
+	for direction in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+		var candidate: Vector2i = focus + Vector2i(direction)
+		if arena_layout.is_inside_grid(candidate) and can_place_structure(&"wall", candidate):
+			result.append(candidate)
 	return result
 
 
@@ -773,9 +767,6 @@ func _draw() -> void:
 
 func _draw_wall_extension_arrows() -> void:
 	for cell in get_wall_extension_cells():
-		if not arena_layout.is_inside_grid(cell):
-			continue
-		var valid := can_place_structure(&"wall", cell)
 		var center := cell_rect(cell).get_center()
 		var nearest := wall_chain_cells[0]
 		var nearest_distance := 1000000
@@ -793,7 +784,7 @@ func _draw_wall_extension_arrows() -> void:
 			back + perpendicular * cell_size * 0.25,
 			back - perpendicular * cell_size * 0.25,
 		])
-		draw_colored_polygon(points, Color("65d66f") if valid else Color("e34b47"))
+		draw_colored_polygon(points, Color("65d66f"))
 		draw_polyline(PackedVector2Array([points[0], points[1], points[2], points[0]]), Color("f2efe4"), maxf(cell_size * 0.06, 1.5), true)
 
 

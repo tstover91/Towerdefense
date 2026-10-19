@@ -159,7 +159,7 @@ func _continue_wall_placement(cell: Vector2i) -> void:
 		else:
 			$SiegeBoard.begin_wall_chain(cell)
 		$HUD/PlacementPanel.visible = true
-		$HUD/PlacementPanel/Margin/Actions/PlacementLabel.text = "WALL ROW\nTap a green arrow to extend"
+		$HUD/PlacementPanel/Margin/Actions/PlacementLabel.text = "WALL CHAIN\nTap any open green arrow"
 		$HUD/PlacementPanel/Margin/Actions/ConfirmButton.visible = false
 		_position_placement_panel($SiegeBoard.cell_rect(cell))
 
@@ -252,6 +252,18 @@ func _on_selection_changed(structure: Node) -> void:
 	else:
 		button.text = "UPGRADE TO L%d · %d GOLD" % [next_level, cost]
 		button.disabled = run_state.currency < cost
+	if structure.kind == &"wall" and $SiegeBoard.get_structure_count(&"wall") < TierCatalogScript.get_count_cap(run_state.town_hall, &"wall"):
+		call_deferred("_begin_selected_wall_row", structure.grid_cell)
+
+
+func _begin_selected_wall_row(cell: Vector2i) -> void:
+	if $SiegeCombat.active or run_state.completed or pending_purchase_kind != &"":
+		return
+	pending_purchase_kind = &"wall"
+	pending_purchase_cost = StructureCatalogScript.get_build_cost(&"wall")
+	$SiegeBoard.begin_wall_chain_from_existing(cell)
+	$HUD/PlacementPanel.visible = false
+	_on_status_changed("Wall selected · extend in any open green-arrow direction")
 
 
 func _on_wave_started() -> void:
