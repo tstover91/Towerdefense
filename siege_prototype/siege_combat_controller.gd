@@ -142,7 +142,7 @@ func _spawn_attacker(kind: StringName, row: int, level := -1) -> Node2D:
 
 func _update_towers(delta: float) -> void:
 	for structure in board.structures:
-		if structure.destroyed or not bool(structure.definition.get("is_defense", false)):
+		if structure.destroyed or not bool(structure.definition.get("can_attack", structure.definition.get("is_defense", false))):
 			continue
 		if StringName(structure.definition.get("target_type", &"ground")) == &"air":
 			continue

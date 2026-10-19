@@ -228,6 +228,7 @@ func _draw_command_core(rect: Rect2) -> void:
 	draw_rect(inset, COLOR_CORE_INSET, true)
 	draw_circle(rect.get_center(), scale * 0.18, COLOR_TEXT)
 	draw_circle(rect.get_center(), scale * 0.10, COLOR_CANNON)
+	draw_line(rect.get_center(), rect.get_center() + Vector2.LEFT * scale * 0.25, COLOR_CANNON, maxf(scale * 0.07, 2.0), true)
 
 
 func _draw_rubble(rect: Rect2) -> void:

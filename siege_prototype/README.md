@@ -112,8 +112,8 @@ damage, health, range, or speed modifiers were introduced.
 ## Phase 7 four-round run
 
 The Siege Lab now starts a complete TH2-to-TH3 run rather than dropping directly
-into the TH6 benchmark. Each Town Hall has an A battle at roughly 75% of its
-Clash army capacity and a B battle at 100%, for four rounds total. The wave roster,
+into the TH6 benchmark. Each Town Hall has an A and B battle, for four rounds
+total. Wave sizes are tuned for the condensed TD economy. The wave roster,
 unit level, building unlocks, building level caps, health, damage, cadence,
 range, footprints, and movement speed all use the current Clash values recorded
 in `CLASH_REFERENCE.md`.
@@ -122,10 +122,11 @@ Between attacks the player may reposition the whole base, buy an unlocked
 defense or wall, and upgrade a selected structure to the current Town Hall cap.
 Gold is a deliberately condensed prototype economy; Clash prices and timers
 are not used. New level-one Walls are free, matching current Clash, while their
-upgrades and all defense construction/upgrades use Gold. Wall inventories are
-condensed to 12/20 at TH2/3 so the
-prototype remains practical on a phone. The Command Core advances for free after
+upgrades and all defense construction/upgrades use Gold. Wall inventories now
+match Clash at 25/50 for TH2/3. The Command Core advances for free after
 each B battle, but every defense and wall keeps the level the player purchased.
+As a prototype-specific exception, the low-level Command Core fires the exact
+level-one Cannon shot (7 DPS, 0.8-second cadence, 9-tile range).
 
 An attack captures a safe precombat snapshot. Holding earns Gold and advances
 one battle. Losing earns nothing, loses nothing, and reconstructs that snapshot

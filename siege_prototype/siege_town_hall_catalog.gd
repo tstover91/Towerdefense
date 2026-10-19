@@ -1,8 +1,7 @@
 class_name SiegeTownHallCatalog
 extends RefCounted
 
-# Combat caps and army space mirror current Clash TH1-TH3. Wall quantities are
-# deliberately condensed for this one-map run so placement remains readable.
+# Combat caps, army space, and Wall quantities mirror current Clash TH1-TH3.
 const TIERS := {
 	1: {
 		"army_capacity": 20,
@@ -17,7 +16,7 @@ const TIERS := {
 		"reward_a": 7,
 		"reward_b": 9,
 		"structure_caps": {&"command_core": 2, &"cannon": 3, &"archer_tower": 2, &"wall": 2},
-		"count_caps": {&"command_core": 1, &"cannon": 2, &"archer_tower": 1, &"wall": 12},
+		"count_caps": {&"command_core": 1, &"cannon": 2, &"archer_tower": 1, &"wall": 25},
 		"troop_levels": {&"raider": 1, &"ranger": 1, &"brute": 1},
 	},
 	3: {
@@ -25,7 +24,7 @@ const TIERS := {
 		"reward_a": 10,
 		"reward_b": 14,
 		"structure_caps": {&"command_core": 3, &"cannon": 4, &"archer_tower": 3, &"mortar": 1, &"wall": 3},
-		"count_caps": {&"command_core": 1, &"cannon": 2, &"archer_tower": 1, &"mortar": 1, &"wall": 20},
+		"count_caps": {&"command_core": 1, &"cannon": 2, &"archer_tower": 1, &"mortar": 1, &"wall": 50},
 		"troop_levels": {&"raider": 2, &"ranger": 2, &"brute": 1, &"sapper": 1},
 	},
 }

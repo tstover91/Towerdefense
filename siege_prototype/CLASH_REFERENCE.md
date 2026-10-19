@@ -118,12 +118,12 @@ Current early-game troop values used by the run:
 - Giant level 1: 400 HP, 12 DPS (24 every 2 seconds), 5 housing, 1.5 tiles per second, defenses preferred.
 - Wall Breaker level 1: 20 HP, 10 contact damage and 6 death damage, both x40 against Walls, 2 housing, 3 tiles per second.
 
-The playable run skips TH1. Its A/B wave budgets are 75% (rounded down) and
-100% of the listed TH2/TH3 army space: 22/30 and 52/70. Spawn spacing is custom
-TD pacing and does not change any unit combat statistic. Run rewards and numeric
-Gold prices are intentionally condensed. New Walls are free to place, early Wall
-upgrades and defenses use Gold, and the reduced 12/20 inventories remain
-prototype-specific.
+The playable run skips TH1. Wave sizes and spawn spacing use custom TD pacing
+and do not change any unit combat statistic. Run rewards and numeric Gold prices
+are intentionally condensed. New Walls are free to place, early Wall upgrades
+and defenses use Gold, and the inventories match Clash: 25 at TH2 and 50 at TH3.
+Low-level Clash Town Halls do not attack; the prototype's weak Command Core gun
+is an explicit exception using the exact level-one Cannon weapon values.
 
 Early-game sources:
 

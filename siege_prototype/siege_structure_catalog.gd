@@ -10,6 +10,16 @@ const DEFINITIONS := {
 		"integrity_value": 1,
 		"blocks_movement": true,
 		"counts_for_objective": true,
+		# Low-level Clash Town Halls do not fire. For this defense game the Core
+		# uses the exact level-one Cannon shot, cadence, and range as a weak gun.
+		"attack_damage": 5.6,
+		"attack_interval": 0.8,
+		"attack_range_cells": 9.0,
+		"minimum_range_cells": 0.0,
+		"splash_radius_cells": 0.0,
+		"reference_dps": 7.0,
+		"can_attack": true,
+		"target_type": &"ground",
 		"reference_level": 6,
 		"reference_health": 2800.0,
 	},
