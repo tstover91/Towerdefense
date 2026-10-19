@@ -7,6 +7,7 @@ const StructureScript = preload("res://siege_prototype/siege_structure.gd")
 
 signal structure_topology_changed
 signal view_transform_changed
+signal edit_status_changed(text: String)
 
 const COLOR_BACKGROUND := Color("131313")
 const COLOR_BOARD_SHADOW := Color(0.0, 0.0, 0.0, 0.42)
@@ -22,6 +23,8 @@ const COLOR_TERRAIN := Color("42423f")
 const COLOR_TEXT := Color("f2efe4")
 const COLOR_MUTED_TEXT := Color("b9b6ac")
 const COLOR_HOVER := Color(0.20, 0.72, 0.42, 0.42)
+const COLOR_SELECTED := Color(0.95, 0.72, 0.24, 0.72)
+const TAP_DRAG_THRESHOLD := 12.0
 
 const PAGE_MARGIN := 28.0
 const HEADER_HEIGHT := 92.0
@@ -45,7 +48,13 @@ var structures: Array[Node2D] = []
 var structures_by_id: Dictionary = {}
 var blueprint_snapshot: Array[Dictionary] = []
 var mouse_dragging := false
+var mouse_press_position := Vector2.ZERO
+var mouse_moved := false
 var touch_points: Dictionary = {}
+var touch_start_positions: Dictionary = {}
+var touch_moved: Dictionary = {}
+var edit_mode := true
+var selected_structure_id: StringName
 
 
 func _ready() -> void:
@@ -69,10 +78,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			zoom_at_screen_position(event.position, view_zoom / WHEEL_ZOOM_STEP)
 			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
-			mouse_dragging = event.pressed
+			if event.pressed:
+				mouse_dragging = true
+				mouse_press_position = event.position
+				mouse_moved = false
+			else:
+				mouse_dragging = false
+				if not mouse_moved:
+					_handle_edit_tap(event.position)
 			_update_hover(event.position)
 	elif event is InputEventMouseMotion:
 		if mouse_dragging:
+			if event.position.distance_to(mouse_press_position) > TAP_DRAG_THRESHOLD:
+				mouse_moved = true
 			pan_view(event.relative)
 			get_viewport().set_input_as_handled()
 		else:
@@ -80,8 +98,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventScreenTouch:
 		if event.pressed:
 			touch_points[event.index] = event.position
+			touch_start_positions[event.index] = event.position
+			touch_moved[event.index] = false
 		else:
+			var was_tap := not bool(touch_moved.get(event.index, true)) and touch_points.size() == 1
 			touch_points.erase(event.index)
+			touch_start_positions.erase(event.index)
+			touch_moved.erase(event.index)
+			if was_tap:
+				_handle_edit_tap(event.position)
 		_update_hover(event.position)
 	elif event is InputEventScreenDrag:
 		_handle_touch_drag(event)
@@ -91,11 +116,15 @@ func _unhandled_input(event: InputEvent) -> void:
 func _handle_touch_drag(event: InputEventScreenDrag) -> void:
 	var old_points := touch_points.duplicate()
 	touch_points[event.index] = event.position
+	if event.position.distance_to(Vector2(touch_start_positions.get(event.index, event.position))) > TAP_DRAG_THRESHOLD:
+		touch_moved[event.index] = true
 	if touch_points.size() < 2:
 		pan_view(event.relative)
 		_update_hover(event.position)
 		return
 	var indices: Array = touch_points.keys()
+	for index in indices:
+		touch_moved[index] = true
 	var first_index = indices[0]
 	var second_index = indices[1]
 	if not old_points.has(first_index) or not old_points.has(second_index):
@@ -118,6 +147,61 @@ func _update_hover(screen_position: Vector2) -> void:
 		return
 	hovered_cell = next_cell
 	queue_redraw()
+
+
+func set_edit_mode(enabled: bool) -> void:
+	edit_mode = enabled
+	if not edit_mode:
+		selected_structure_id = &""
+	queue_redraw()
+
+
+func is_edit_mode() -> bool:
+	return edit_mode
+
+
+func _handle_edit_tap(screen_position: Vector2) -> void:
+	if not edit_mode:
+		return
+	var cell := screen_to_cell(screen_position)
+	if not arena_layout.is_inside_grid(cell):
+		return
+	var tapped_structure := get_structure_at_cell(cell, true)
+	if tapped_structure != null:
+		selected_structure_id = tapped_structure.structure_id
+		edit_status_changed.emit("%s selected · tap an empty cell to move it" % String(tapped_structure.definition.get("display_name", tapped_structure.kind)))
+		queue_redraw()
+		return
+	if selected_structure_id == &"":
+		edit_status_changed.emit("Tap a building or wall, then tap its new position")
+		return
+	if try_move_structure(selected_structure_id, cell):
+		var moved := get_structure(selected_structure_id)
+		edit_status_changed.emit("%s moved · layout saved" % String(moved.definition.get("display_name", moved.kind)))
+	else:
+		edit_status_changed.emit("That position is blocked or outside the build area")
+
+
+func try_move_structure(structure_id: StringName, destination: Vector2i) -> bool:
+	if not edit_mode:
+		return false
+	var structure := get_structure(structure_id)
+	if structure == null or structure.destroyed:
+		return false
+	for x in structure.footprint.x:
+		for y in structure.footprint.y:
+			var cell := destination + Vector2i(x, y)
+			if not arena_layout.is_buildable_cell(cell):
+				return false
+			var occupant := get_structure_at_cell(cell, true)
+			if occupant != null and occupant != structure:
+				return false
+	structure.grid_cell = destination
+	structure.set_layout_metrics(board_origin, cell_size)
+	capture_current_blueprint()
+	structure_topology_changed.emit()
+	queue_redraw()
+	return true
 
 
 func _recalculate_layout() -> void:
@@ -333,6 +417,10 @@ func _draw() -> void:
 	_draw_static_terrain()
 	_draw_deployment_arrows()
 	_draw_labels()
+	if edit_mode and selected_structure_id != &"":
+		var selected := get_structure(selected_structure_id)
+		if selected != null:
+			draw_rect(Rect2(board_origin + Vector2(selected.grid_cell) * cell_size, Vector2(selected.footprint) * cell_size).grow(-1.5), COLOR_SELECTED, false, maxf(cell_size * 0.10, 2.0))
 	if arena_layout.is_inside_grid(hovered_cell):
 		draw_rect(cell_rect(hovered_cell).grow(-1.5), COLOR_HOVER, true)
 

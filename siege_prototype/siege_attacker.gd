@@ -143,7 +143,7 @@ func _choose_intended_target() -> Node2D:
 	var candidates: Array[Node2D] = []
 	if preferred_target == &"defenses":
 		for structure in board.structures:
-			if not structure.destroyed and (structure.kind == &"cannon" or structure.kind == &"mortar"):
+			if not structure.destroyed and bool(structure.definition.get("is_defense", false)):
 				candidates.append(structure)
 	if candidates.is_empty():
 		for structure in board.structures:

@@ -51,7 +51,7 @@ custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 14
-text = "Phase 4 · autonomous attackers · wall-aware routing · live Cannon fire"
+text = "Phase 5 · editable TH6 defense roster · exact combat stats · wall-aware routing"
 text_overrun_behavior = 3
 clip_text = true
 
@@ -102,11 +102,17 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "RESET VIEW"
 
+[node name="EditButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(116, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "EDIT: ON"
+
 [node name="Status" type="Label" parent="HUD/BottomBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 15
-text = "Drag to pan · pinch or wheel to zoom · exact TH6 stats · 18-unit test attack"
+text = "Tap a structure, then tap an empty cell to move it · drag to pan · pinch to zoom · 48-unit test"
 vertical_alignment = 1
 text_overrun_behavior = 3

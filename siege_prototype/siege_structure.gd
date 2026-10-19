@@ -12,6 +12,10 @@ const COLOR_CANNON := Color("dc503f")
 const COLOR_CORE := Color("e9b949")
 const COLOR_CORE_INSET := Color("294d55")
 const COLOR_MORTAR := Color("77909a")
+const COLOR_ARCHER := Color("5f8fc4")
+const COLOR_WIZARD := Color("9d64bb")
+const COLOR_AIR_DEFENSE := Color("d17a3f")
+const COLOR_AIR_SWEEPER := Color("74b9c5")
 const COLOR_TEXT := Color("f2efe4")
 const COLOR_RUBBLE := Color("4a4541")
 const COLOR_DAMAGE := Color("792d28")
@@ -118,6 +122,14 @@ func _draw() -> void:
 			_draw_cannon(rect)
 		&"mortar":
 			_draw_mortar(rect)
+		&"archer_tower":
+			_draw_archer_tower(rect)
+		&"wizard_tower":
+			_draw_wizard_tower(rect)
+		&"air_defense":
+			_draw_air_defense(rect)
+		&"air_sweeper":
+			_draw_air_sweeper(rect)
 		&"wall":
 			_draw_wall(rect)
 		_:
@@ -148,6 +160,42 @@ func _draw_mortar(rect: Rect2) -> void:
 	draw_rect(rect.grow(-cell_size * 0.12), COLOR_MORTAR, true)
 	draw_circle(center, cell_size * 0.27, COLOR_OUTLINE)
 	draw_circle(center, cell_size * 0.15, COLOR_HEALTH_BACK)
+
+
+func _draw_archer_tower(rect: Rect2) -> void:
+	var body := rect.grow(-cell_size * 0.15)
+	var center := rect.get_center()
+	draw_rect(body, COLOR_ARCHER, true)
+	draw_rect(body, COLOR_OUTLINE, false, maxf(cell_size * 0.055, 1.0))
+	draw_line(center + Vector2(-cell_size * 0.20, cell_size * 0.18), center + Vector2(0.0, -cell_size * 0.23), COLOR_TEXT, maxf(cell_size * 0.055, 1.0), true)
+	draw_line(center + Vector2(cell_size * 0.20, cell_size * 0.18), center + Vector2(0.0, -cell_size * 0.23), COLOR_TEXT, maxf(cell_size * 0.055, 1.0), true)
+
+
+func _draw_wizard_tower(rect: Rect2) -> void:
+	var body := rect.grow(-cell_size * 0.14)
+	var center := rect.get_center()
+	draw_rect(body, COLOR_WIZARD, true)
+	draw_rect(body, COLOR_OUTLINE, false, maxf(cell_size * 0.055, 1.0))
+	draw_circle(center, cell_size * 0.18, COLOR_TEXT)
+	draw_circle(center, cell_size * 0.09, COLOR_WIZARD.darkened(0.35))
+
+
+func _draw_air_defense(rect: Rect2) -> void:
+	var center := rect.get_center()
+	var body := rect.grow(-cell_size * 0.14)
+	draw_rect(body, COLOR_AIR_DEFENSE, true)
+	draw_rect(body, COLOR_OUTLINE, false, maxf(cell_size * 0.055, 1.0))
+	for offset_x in [-0.18, 0.18]:
+		draw_line(center + Vector2(cell_size * offset_x, cell_size * 0.23), center + Vector2(cell_size * offset_x, -cell_size * 0.22), COLOR_TEXT, maxf(cell_size * 0.075, 1.0), true)
+
+
+func _draw_air_sweeper(rect: Rect2) -> void:
+	var center := rect.get_center()
+	var body := rect.grow(-cell_size * 0.14)
+	draw_rect(body, COLOR_AIR_SWEEPER, true)
+	draw_rect(body, COLOR_OUTLINE, false, maxf(cell_size * 0.055, 1.0))
+	draw_arc(center, cell_size * 0.24, -PI * 0.65, PI * 0.65, 12, COLOR_TEXT, maxf(cell_size * 0.07, 1.0), true)
+	draw_line(center, center + Vector2.LEFT * cell_size * 0.28, COLOR_TEXT, maxf(cell_size * 0.07, 1.0), true)
 
 
 func _draw_command_core(rect: Rect2) -> void:

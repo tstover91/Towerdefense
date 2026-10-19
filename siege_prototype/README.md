@@ -66,5 +66,24 @@ combat chores.
 Run `res://tools/siege_combat_phase4_smoke.gd` to validate routing, target
 preferences, wall breaching, tower damage, and deterministic wave completion.
 
-Mortar placement/firing, build-mode editing, economy, upgrades, and procedural
-waves remain out of Phase 4.
+## Phase 5 editable TH6 defense roster
+
+The fixed fortress now contains the full current Town Hall 6 defensive roster:
+three Cannons, three Archer Towers, two Mortars, two Air Defenses, two Wizard
+Towers, one Air Sweeper, and the Town Hall objective. Resource buildings, army
+buildings, and traps are deliberately excluded. The condensed field uses 38
+level-6 wall segments instead of Clash's 125.
+
+Before combat, tap any structure and then tap a valid empty build cell to move
+it. Dragging still pans the camera, and the edit toggle prevents accidental
+changes. Starting the attack captures and locks the chosen layout. Rebuild
+restores that layout at full health and returns to editing.
+
+All ground-capable defenses now fire with their exact TH6-level health, damage,
+cadence, range, minimum range, and splash behavior. Air Defenses and the Air
+Sweeper are present and count as destructible buildings, but correctly ignore
+the ground-only test army. They will become active only after flying attackers
+are implemented.
+
+Economy, upgrades, resource buildings, army buildings, traps, flying attackers,
+and procedural waves remain outside Phase 5.

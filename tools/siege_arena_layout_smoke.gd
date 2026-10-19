@@ -26,14 +26,28 @@ func _run() -> void:
 		_assert(not layout.is_buildable_cell(cell), "deployment cells cannot hold structures")
 	_assert(layout.get_validation_errors().is_empty(), "the initial blueprint is valid and non-overlapping")
 
-	var kind_counts := {&"command_core": 0, &"cannon": 0, &"wall": 0}
+	var kind_counts := {
+		&"command_core": 0,
+		&"cannon": 0,
+		&"archer_tower": 0,
+		&"mortar": 0,
+		&"air_defense": 0,
+		&"wizard_tower": 0,
+		&"air_sweeper": 0,
+		&"wall": 0,
+	}
 	var first_blueprint: Array[Dictionary] = layout.get_initial_blueprint()
 	for structure in first_blueprint:
 		var kind := StringName(structure.get("kind", &""))
 		kind_counts[kind] = int(kind_counts.get(kind, 0)) + 1
 	_assert(int(kind_counts[&"command_core"]) == 1, "the arena begins with one Command Core")
-	_assert(int(kind_counts[&"cannon"]) == 2, "the arena begins with two Cannons")
-	_assert(int(kind_counts[&"wall"]) == 12, "the arena begins with twelve wall segments")
+	_assert(int(kind_counts[&"cannon"]) == 3, "the arena includes all three TH6 Cannons")
+	_assert(int(kind_counts[&"archer_tower"]) == 3, "the arena includes all three TH6 Archer Towers")
+	_assert(int(kind_counts[&"mortar"]) == 2, "the arena includes both TH6 Mortars")
+	_assert(int(kind_counts[&"air_defense"]) == 2, "the arena includes both TH6 Air Defenses")
+	_assert(int(kind_counts[&"wizard_tower"]) == 2, "the arena includes both TH6 Wizard Towers")
+	_assert(int(kind_counts[&"air_sweeper"]) == 1, "the arena includes the TH6 Air Sweeper")
+	_assert(int(kind_counts[&"wall"]) == 38, "the condensed arena uses thirty-eight wall segments")
 
 	var second_blueprint: Array[Dictionary] = layout.get_initial_blueprint()
 	first_blueprint[0]["cell"] = Vector2i.ZERO
