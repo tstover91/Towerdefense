@@ -51,7 +51,7 @@ custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 14
-text = "Phase 5 · editable TH6 defense roster · exact combat stats · wall-aware routing"
+text = "Six-round run · two battles per Town Hall · exact Clash combat stats"
 text_overrun_behavior = 3
 clip_text = true
 
@@ -60,7 +60,16 @@ custom_minimum_size = Vector2(168, 54)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
 theme_override_font_sizes/font_size = 15
-text = "LIVE SIEGE\nDETERMINISTIC"
+text = "TH1 · A\nROUND 1 / 6"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Currency" type="Label" parent="HUD/TopBar"]
+custom_minimum_size = Vector2(130, 54)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.49, 0.79, 0.84, 1)
+theme_override_font_sizes/font_size = 15
+text = "4 BOLTS\n15 HOUSING"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -79,40 +88,46 @@ grow_vertical = 0
 theme_override_constants/separation = 12
 
 [node name="AttackButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(150, 48)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "START ATTACK"
-
-[node name="RebuildButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(130, 48)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "REBUILD"
-
-[node name="SpeedButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(110, 48)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "1× SPEED"
-
-[node name="ViewButton" type="Button" parent="HUD/BottomBar"]
 custom_minimum_size = Vector2(120, 48)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "RESET VIEW"
+text = "ATTACK A"
 
-[node name="EditButton" type="Button" parent="HUD/BottomBar"]
-custom_minimum_size = Vector2(116, 48)
+[node name="RebuildButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(110, 48)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "EDIT: ON"
+text = "NEW RUN"
+
+[node name="BuildButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(110, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "BUILD"
+
+[node name="UpgradeButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(120, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "UPGRADE"
+
+[node name="SpeedButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(76, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "1×"
+
+[node name="ViewButton" type="Button" parent="HUD/BottomBar"]
+custom_minimum_size = Vector2(105, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "RESET VIEW"
 
 [node name="Status" type="Label" parent="HUD/BottomBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 15
-text = "Tap a structure, then tap an empty cell to move it · drag to pan · pinch to zoom · 48-unit test"
+text = "Tap the Cannon, upgrade it for 3 bolts, then start battle A"
 vertical_alignment = 1
 text_overrun_behavior = 3

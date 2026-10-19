@@ -14,7 +14,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"raider")["move_speed_cells"]), 2.2), "Raiders use exact Barbarian movement speed")
+	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"raider")["move_speed_cells"]), 2.25), "Raiders use current exact Barbarian movement speed")
 	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"brute")["move_speed_cells"]), 1.5), "Brutes use exact Giant movement speed")
 	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"sapper")["move_speed_cells"]), 3.0), "Sappers use exact Wall Breaker movement speed")
 	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"raider")["max_health"]), 65.0), "Raiders use exact level-3 Barbarian HP")

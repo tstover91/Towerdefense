@@ -46,6 +46,13 @@ func get_initial_blueprint() -> Array[Dictionary]:
 	return result
 
 
+func get_run_initial_blueprint() -> Array[Dictionary]:
+	return [
+		{"id": &"command_core", "kind": &"command_core", "level": 1, "cell": Vector2i(36, 20), "footprint": Vector2i(4, 4)},
+		{"id": &"cannon_1", "kind": &"cannon", "level": 1, "cell": Vector2i(29, 20), "footprint": Vector2i(3, 3)},
+	]
+
+
 func _wall_entry(index: int, cell: Vector2i) -> Dictionary:
 	return {"id": StringName("wall_%d" % index), "kind": &"wall", "cell": cell, "footprint": Vector2i.ONE}
 

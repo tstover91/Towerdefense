@@ -37,11 +37,15 @@ func _ready() -> void:
 
 
 func start_demo_wave() -> void:
+	start_wave(_build_demo_wave(), "TH6 benchmark")
+
+
+func start_wave(wave: Array[Dictionary], wave_label := "Run attack") -> void:
 	if board == null:
 		return
 	clear_attackers()
 	board.reconstruct_blueprint()
-	pending_wave = _build_demo_wave()
+	pending_wave = wave.duplicate(true)
 	tower_cooldowns.clear()
 	tower_targets.clear()
 	tracers.clear()
@@ -49,7 +53,7 @@ func start_demo_wave() -> void:
 	elapsed_time = 0.0
 	active = true
 	result = &"running"
-	status_changed.emit("Siege in progress · %d attackers incoming" % DEMO_ATTACKER_COUNT)
+	status_changed.emit("%s · %d attackers incoming" % [wave_label, pending_wave.size()])
 	wave_started.emit()
 	queue_redraw()
 
@@ -120,14 +124,14 @@ func _update_spawning(delta: float) -> void:
 	spawn_cooldown -= delta
 	while not pending_wave.is_empty() and spawn_cooldown <= 0.0:
 		var entry: Dictionary = pending_wave.pop_front()
-		_spawn_attacker(StringName(entry.get("kind", &"raider")), int(entry.get("row", 5)))
+		_spawn_attacker(StringName(entry.get("kind", &"raider")), int(entry.get("row", 5)), int(entry.get("level", -1)))
 		spawn_cooldown += float(entry.get("next_delay", spawn_interval))
 
 
-func _spawn_attacker(kind: StringName, row: int) -> Node2D:
+func _spawn_attacker(kind: StringName, row: int, level := -1) -> Node2D:
 	assert(AttackerCatalogScript.has_kind(kind), "Missing siege attacker definition for %s" % kind)
 	var attacker: Node2D = AttackerScript.new()
-	attacker.configure(next_attacker_id, kind, AttackerCatalogScript.get_definition(kind), Vector2i(0, clampi(row, 0, ArenaLayoutScript.GRID_SIZE.y - 1)), board)
+	attacker.configure(next_attacker_id, kind, AttackerCatalogScript.get_definition(kind, level), Vector2i(0, clampi(row, 0, ArenaLayoutScript.GRID_SIZE.y - 1)), board)
 	next_attacker_id += 1
 	attacker.attacker_died.connect(_on_attacker_died)
 	attacker.structure_hit.connect(_on_structure_hit)

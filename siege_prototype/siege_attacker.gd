@@ -10,6 +10,7 @@ const RouterScript = preload("res://siege_prototype/siege_grid_router.gd")
 const COLOR_RAIDER := Color("4ca66a")
 const COLOR_BRUTE := Color("5878b8")
 const COLOR_SAPPER := Color("d68637")
+const COLOR_RANGER := Color("9b63b6")
 const COLOR_OUTLINE := Color("252522")
 const COLOR_HEALTH := Color("62bd69")
 const COLOR_HEALTH_BACK := Color("252522")
@@ -295,12 +296,16 @@ func _draw() -> void:
 		body_color = COLOR_BRUTE
 	elif kind == &"sapper":
 		body_color = COLOR_SAPPER
+	elif kind == &"ranger":
+		body_color = COLOR_RANGER
 	if dead:
 		body_color = body_color.darkened(0.65)
 	draw_circle(Vector2.ZERO, radius, body_color)
 	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 20, COLOR_OUTLINE, maxf(cell_size * 0.045, 1.0), true)
 	if kind == &"sapper":
 		draw_line(Vector2(-radius * 0.55, 0.0), Vector2(radius * 0.55, 0.0), COLOR_TARGET, maxf(cell_size * 0.07, 2.0), true)
+	elif kind == &"ranger":
+		draw_arc(Vector2.ZERO, radius * 0.65, -PI * 0.6, PI * 0.6, 10, COLOR_TARGET, maxf(cell_size * 0.05, 1.0), true)
 	if dead or health >= max_health:
 		return
 	var width := radius * 1.8

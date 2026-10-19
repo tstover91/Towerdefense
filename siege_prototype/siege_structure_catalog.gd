@@ -126,14 +126,83 @@ const DEFINITIONS := {
 	},
 }
 
+# Current Clash combat values for the TH1-TH3 vertical slice. Economy values
+# intentionally live outside this table because the run uses a condensed TD
+# currency instead of Clash build prices and timers.
+const LEVEL_STATS := {
+	&"command_core": {
+		1: {"max_health": 400.0},
+		2: {"max_health": 800.0},
+		3: {"max_health": 1600.0},
+		6: {"max_health": 2800.0},
+	},
+	&"cannon": {
+		1: {"max_health": 300.0, "attack_damage": 5.6, "reference_dps": 7.0},
+		2: {"max_health": 360.0, "attack_damage": 8.0, "reference_dps": 10.0},
+		3: {"max_health": 420.0, "attack_damage": 10.4, "reference_dps": 13.0},
+		4: {"max_health": 500.0, "attack_damage": 13.6, "reference_dps": 17.0},
+		7: {"max_health": 730.0, "attack_damage": 32.0, "reference_dps": 40.0},
+	},
+	&"archer_tower": {
+		1: {"max_health": 380.0, "attack_damage": 5.5, "reference_dps": 11.0},
+		2: {"max_health": 420.0, "attack_damage": 7.5, "reference_dps": 15.0},
+		3: {"max_health": 460.0, "attack_damage": 9.5, "reference_dps": 19.0},
+		7: {"max_health": 630.0, "attack_damage": 21.0, "reference_dps": 42.0},
+	},
+	&"mortar": {
+		1: {"max_health": 400.0, "attack_damage": 20.0, "reference_damage_per_hit": 20.0},
+		4: {"max_health": 550.0, "attack_damage": 35.0, "reference_damage_per_hit": 35.0},
+	},
+	&"wall": {
+		1: {"max_health": 100.0},
+		2: {"max_health": 200.0},
+		3: {"max_health": 400.0},
+		6: {"max_health": 1800.0},
+	},
+}
+
+const RUN_UPGRADE_COSTS := {
+	&"cannon": {2: 3, 3: 4, 4: 5},
+	&"archer_tower": {2: 4, 3: 5},
+	&"mortar": {},
+	&"wall": {2: 1, 3: 2},
+}
+
+const RUN_BUILD_COSTS := {
+	&"cannon": 5,
+	&"archer_tower": 6,
+	&"mortar": 8,
+	&"wall": 1,
+}
+
 
 static func has_kind(kind: StringName) -> bool:
 	return DEFINITIONS.has(kind)
 
 
-static func get_definition(kind: StringName) -> Dictionary:
-	return Dictionary(DEFINITIONS.get(kind, {})).duplicate(true)
+static func get_definition(kind: StringName, level := -1) -> Dictionary:
+	var result := Dictionary(DEFINITIONS.get(kind, {})).duplicate(true)
+	if result.is_empty():
+		return result
+	var resolved_level := level
+	if resolved_level < 0:
+		resolved_level = int(result.get("reference_level", 1))
+	var levels: Dictionary = LEVEL_STATS.get(kind, {})
+	if levels.has(resolved_level):
+		result.merge(Dictionary(levels[resolved_level]), true)
+	result["level"] = resolved_level
+	result["reference_level"] = resolved_level
+	result["reference_health"] = float(result.get("max_health", 0.0))
+	return result
 
 
-static func get_max_health(kind: StringName) -> float:
-	return float(DEFINITIONS.get(kind, {}).get("max_health", 0.0))
+static func get_max_health(kind: StringName, level := -1) -> float:
+	return float(get_definition(kind, level).get("max_health", 0.0))
+
+
+static func get_build_cost(kind: StringName) -> int:
+	return int(RUN_BUILD_COSTS.get(kind, -1))
+
+
+static func get_upgrade_cost(kind: StringName, next_level: int) -> int:
+	return int(Dictionary(RUN_UPGRADE_COSTS.get(kind, {})).get(next_level, -1))

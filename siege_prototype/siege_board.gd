@@ -8,6 +8,8 @@ const StructureScript = preload("res://siege_prototype/siege_structure.gd")
 signal structure_topology_changed
 signal view_transform_changed
 signal edit_status_changed(text: String)
+signal selected_structure_changed(structure: Node)
+signal structure_added(structure: Node)
 
 const COLOR_BACKGROUND := Color("131313")
 const COLOR_BOARD_SHADOW := Color(0.0, 0.0, 0.0, 0.42)
@@ -55,6 +57,8 @@ var touch_start_positions: Dictionary = {}
 var touch_moved: Dictionary = {}
 var edit_mode := true
 var selected_structure_id: StringName
+var pending_build_kind: StringName
+var next_structure_serial := 100
 
 
 func _ready() -> void:
@@ -153,6 +157,8 @@ func set_edit_mode(enabled: bool) -> void:
 	edit_mode = enabled
 	if not edit_mode:
 		selected_structure_id = &""
+		pending_build_kind = &""
+		selected_structure_changed.emit(null)
 	queue_redraw()
 
 
@@ -166,9 +172,16 @@ func _handle_edit_tap(screen_position: Vector2) -> void:
 	var cell := screen_to_cell(screen_position)
 	if not arena_layout.is_inside_grid(cell):
 		return
+	if pending_build_kind != &"":
+		if try_add_structure(pending_build_kind, cell, 1):
+			pending_build_kind = &""
+		else:
+			edit_status_changed.emit("That position is blocked or outside the build area")
+		return
 	var tapped_structure := get_structure_at_cell(cell, true)
 	if tapped_structure != null:
 		selected_structure_id = tapped_structure.structure_id
+		selected_structure_changed.emit(tapped_structure)
 		edit_status_changed.emit("%s selected · tap an empty cell to move it" % String(tapped_structure.definition.get("display_name", tapped_structure.kind)))
 		queue_redraw()
 		return
@@ -180,6 +193,79 @@ func _handle_edit_tap(screen_position: Vector2) -> void:
 		edit_status_changed.emit("%s moved · layout saved" % String(moved.definition.get("display_name", moved.kind)))
 	else:
 		edit_status_changed.emit("That position is blocked or outside the build area")
+
+
+func begin_build(kind: StringName) -> void:
+	pending_build_kind = kind
+	selected_structure_id = &""
+	selected_structure_changed.emit(null)
+	edit_status_changed.emit("Place %s on an empty build tile" % String(StructureCatalogScript.get_definition(kind, 1).get("display_name", kind)))
+	queue_redraw()
+
+
+func cancel_build() -> void:
+	pending_build_kind = &""
+
+
+func try_add_structure(kind: StringName, destination: Vector2i, level := 1) -> bool:
+	if not edit_mode or not StructureCatalogScript.has_kind(kind):
+		return false
+	var footprint: Vector2i = _default_footprint(kind)
+	for x in footprint.x:
+		for y in footprint.y:
+			var cell := destination + Vector2i(x, y)
+			if not arena_layout.is_buildable_cell(cell) or get_structure_at_cell(cell, true) != null:
+				return false
+	var structure_id := StringName("%s_%d" % [kind, next_structure_serial])
+	next_structure_serial += 1
+	var entry := {"id": structure_id, "kind": kind, "level": level, "cell": destination, "footprint": footprint}
+	var structure: Node2D = _create_structure(entry)
+	structures.append(structure)
+	structures_by_id[structure.structure_id] = structure
+	structure.set_layout_metrics(board_origin, cell_size)
+	selected_structure_id = structure.structure_id
+	capture_current_blueprint()
+	structure_topology_changed.emit()
+	selected_structure_changed.emit(structure)
+	structure_added.emit(structure)
+	edit_status_changed.emit("%s built · select it to upgrade" % String(structure.definition.get("display_name", kind)))
+	queue_redraw()
+	return true
+
+
+func upgrade_structure(structure_id: StringName, next_level: int) -> bool:
+	var structure := get_structure(structure_id)
+	if structure == null or structure.destroyed or next_level <= structure.level:
+		return false
+	structure.upgrade_to(next_level, StructureCatalogScript.get_definition(structure.kind, next_level))
+	capture_current_blueprint()
+	structure_topology_changed.emit()
+	selected_structure_changed.emit(structure)
+	return true
+
+
+func get_selected_structure() -> Node2D:
+	return get_structure(selected_structure_id) if selected_structure_id != &"" else null
+
+
+func get_structure_count(kind: StringName) -> int:
+	var result := 0
+	for structure in structures:
+		if structure.kind == kind:
+			result += 1
+	return result
+
+
+func load_blueprint(blueprint: Array[Dictionary], capture := true) -> void:
+	_clear_structures()
+	selected_structure_id = &""
+	pending_build_kind = &""
+	_build_structures_from_blueprint(blueprint)
+	if capture:
+		blueprint_snapshot = blueprint.duplicate(true)
+	structure_topology_changed.emit()
+	selected_structure_changed.emit(null)
+	queue_redraw()
 
 
 func try_move_structure(structure_id: StringName, destination: Vector2i) -> bool:
@@ -291,16 +377,29 @@ func _clamp_board_origin(requested_origin: Vector2, board_size: Vector2) -> Vect
 
 func _build_structures_from_blueprint(blueprint: Array[Dictionary]) -> void:
 	for entry in blueprint:
-		var kind := StringName(entry.get("kind", &""))
-		assert(StructureCatalogScript.has_kind(kind), "Missing siege structure definition for %s" % kind)
-		var structure: Node2D = StructureScript.new()
-		structure.configure(entry, StructureCatalogScript.get_definition(kind))
-		structure.structure_destroyed.connect(_on_structure_destroyed)
-		structure.structure_restored.connect(_on_structure_restored)
-		add_child(structure)
+		var structure: Node2D = _create_structure(entry)
 		structures.append(structure)
 		structures_by_id[structure.structure_id] = structure
 	_update_structure_layout()
+
+
+func _create_structure(entry: Dictionary) -> Node2D:
+	var kind := StringName(entry.get("kind", &""))
+	assert(StructureCatalogScript.has_kind(kind), "Missing siege structure definition for %s" % kind)
+	var level := int(entry.get("level", -1))
+	var structure: Node2D = StructureScript.new()
+	structure.configure(entry, StructureCatalogScript.get_definition(kind, level))
+	structure.structure_destroyed.connect(_on_structure_destroyed)
+	structure.structure_restored.connect(_on_structure_restored)
+	add_child(structure)
+	return structure
+
+
+func _default_footprint(kind: StringName) -> Vector2i:
+	match kind:
+		&"command_core": return Vector2i(4, 4)
+		&"wall": return Vector2i.ONE
+		_: return Vector2i(3, 3)
 
 
 func _clear_structures() -> void:

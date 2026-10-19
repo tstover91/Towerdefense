@@ -24,6 +24,7 @@ const COLOR_HEALTH_BACK := Color("252522")
 
 var structure_id: StringName
 var kind: StringName
+var level := 1
 var grid_cell := Vector2i.ZERO
 var footprint := Vector2i.ONE
 var max_health := 1.0
@@ -39,6 +40,7 @@ var cell_size := 48.0
 func configure(blueprint_entry: Dictionary, structure_definition: Dictionary) -> void:
 	structure_id = StringName(blueprint_entry.get("id", &""))
 	kind = StringName(blueprint_entry.get("kind", &""))
+	level = int(blueprint_entry.get("level", structure_definition.get("reference_level", 1)))
 	grid_cell = Vector2i(blueprint_entry.get("cell", Vector2i.ZERO))
 	footprint = Vector2i(blueprint_entry.get("footprint", Vector2i.ONE))
 	definition = structure_definition.duplicate(true)
@@ -49,6 +51,15 @@ func configure(blueprint_entry: Dictionary, structure_definition: Dictionary) ->
 	counts_for_objective = bool(definition.get("counts_for_objective", false))
 	destroyed = false
 	name = String(structure_id)
+	queue_redraw()
+
+
+func upgrade_to(next_level: int, structure_definition: Dictionary) -> void:
+	level = maxi(next_level, 1)
+	definition = structure_definition.duplicate(true)
+	max_health = maxf(float(definition.get("max_health", 1.0)), 1.0)
+	health = max_health
+	destroyed = false
 	queue_redraw()
 
 
@@ -105,6 +116,7 @@ func get_blueprint_entry() -> Dictionary:
 	return {
 		"id": structure_id,
 		"kind": kind,
+		"level": level,
 		"cell": grid_cell,
 		"footprint": footprint,
 	}
@@ -136,6 +148,9 @@ func _draw() -> void:
 			draw_rect(rect.grow(-cell_size * 0.12), COLOR_TEXT, true)
 	if health < max_health:
 		_draw_health_bar(rect)
+	if kind != &"wall":
+		var label_position := Vector2(rect.position.x + cell_size * 0.10, rect.end.y - cell_size * 0.12)
+		draw_string(ThemeDB.fallback_font, label_position, "L%d" % level, HORIZONTAL_ALIGNMENT_LEFT, -1.0, clampi(roundi(cell_size * 0.28), 9, 15), COLOR_TEXT)
 
 
 func _draw_wall(rect: Rect2) -> void:
