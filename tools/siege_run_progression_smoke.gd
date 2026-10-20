@@ -157,8 +157,6 @@ func _run() -> void:
 	_assert(main_board.is_wall_chain_active(), "placing the first Wall activates the row-extension arrows")
 	var extensions: Array[Vector2i] = main_board.get_wall_extension_cells()
 	_assert(extensions.size() >= 3 and main_board.try_select_wall_extension(extensions[1]), "tapping any open arrow previews the next Wall")
-	main._confirm_build()
-	await process_frame
 	var chain_focus: Vector2i = main_board.get_wall_chain_focus_cell()
 	var turn_choices: Array[Vector2i] = main_board.get_wall_extension_cells()
 	var perpendicular_choice: Vector2i = Vector2i(-1, -1)
@@ -170,15 +168,23 @@ func _run() -> void:
 			perpendicular_choice = choice
 	_assert(has_straight_choice and perpendicular_choice.x >= 0, "after two pieces, both straight and turning directions remain available when open")
 	_assert(main_board.try_select_wall_extension(perpendicular_choice), "a wall chain can preview a turn after its first direction")
+	_assert(main_board.get_structure_count(&"wall") == 1 and main_board.get_pending_wall_count() == 2, "a turned wall chain remains an uncommitted batch")
+	_assert(main.get_node("HUD/PlacementPanel/Margin/Actions/WallCountLabel").text.begins_with("2 DRAWN"), "wall placement reports the previewed and remaining counts")
 	main._confirm_build()
 	await process_frame
-	_assert(main_board.get_structure_count(&"wall") == 3, "wall-row placement keeps building consecutive segments")
+	_assert(main_board.get_structure_count(&"wall") == 3, "one confirmation builds the complete turned wall chain")
 	_assert(main.run_state.currency == 7, "free Wall-row segments do not spend Gold")
 	main._cancel_pending_purchase()
 	var placed_wall: Node = main_board.get_structure_at_cell(Vector2i(24, 20), true)
 	main_board.select_structure(placed_wall)
 	await process_frame
 	_assert(not main_board.is_wall_chain_active(), "selecting a placed Wall does not silently enter purchase mode")
+	_assert(main.get_node("HUD/SelectionPanel/Margin/Stack/Actions/SelectRowButton").visible, "a single Wall exposes the Select Row action")
+	main._select_wall_row()
+	_assert(main_board.get_selected_wall_row_count() >= 2, "Select Row chooses the connected straight Wall run")
+	_assert(main.get_node("HUD/SelectionPanel/Margin/Stack/Actions/RotateRowButton").visible, "a selected Wall row exposes Rotate Row")
+	_assert(not main.get_node("HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton").visible, "row mode does not misleadingly offer a single-Wall upgrade")
+	main_board.select_structure(placed_wall)
 	var selected_directions: Array[Vector2i] = main_board.get_wall_extension_cells()
 	_assert(not selected_directions.is_empty(), "selecting an existing Wall exposes every open adjacent direction")
 	var wall_drag_start: Vector2 = main_board.cell_rect(placed_wall.grid_cell).get_center()

@@ -28,6 +28,8 @@ func _ready() -> void:
 	$HUD/BuildTray/Margin/Stack/Cards/WallCard.pressed.connect(func() -> void: _select_build_kind(&"wall"))
 	$HUD/PlacementPanel/Margin/Actions/CancelButton.pressed.connect(_cancel_pending_purchase)
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.pressed.connect(_confirm_build)
+	$HUD/SelectionPanel/Margin/Stack/Actions/SelectRowButton.pressed.connect(_select_wall_row)
+	$HUD/SelectionPanel/Margin/Stack/Actions/RotateRowButton.pressed.connect(_rotate_wall_row)
 	$HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton.pressed.connect(_upgrade_selected)
 	$SiegeCombat.status_changed.connect(_on_status_changed)
 	$SiegeCombat.wave_started.connect(_on_wave_started)
@@ -124,12 +126,17 @@ func _select_build_kind(kind: StringName) -> void:
 func _confirm_build() -> void:
 	if pending_purchase_kind == &"":
 		return
+	var pending_wall_count: int = $SiegeBoard.get_pending_wall_count()
 	if not $SiegeBoard.confirm_pending_build():
 		_on_status_changed("Tap a valid empty position before confirming")
+		return
+	if pending_wall_count > 0:
+		_finish_wall_batch(pending_wall_count)
 
 
 func _on_build_preview_changed(_kind: StringName, cell: Vector2i, can_confirm: bool) -> void:
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.disabled = not can_confirm
+	_update_wall_placement_label()
 	if cell.x >= 0:
 		_position_placement_panel($SiegeBoard.get_build_preview_screen_rect())
 
@@ -159,13 +166,15 @@ func _on_structure_added(structure: Node) -> void:
 
 func _continue_wall_placement(cell: Vector2i) -> void:
 	if not $SiegeCombat.active and not run_state.completed:
+		var cap: int = TierCatalogScript.get_count_cap(run_state.town_hall, &"wall")
+		var remaining: int = maxi(cap - $SiegeBoard.get_structure_count(&"wall"), 0)
+		if remaining <= 0:
+			return
 		pending_purchase_kind = &"wall"
 		pending_purchase_cost = StructureCatalogScript.get_build_cost(&"wall")
-		if $SiegeBoard.is_wall_chain_active():
-			$SiegeBoard.advance_wall_chain(cell)
-		else:
-			$SiegeBoard.begin_wall_chain(cell)
+		$SiegeBoard.begin_wall_chain(cell, false, remaining)
 		$HUD/PlacementPanel.visible = false
+		_update_wall_placement_label()
 
 
 func _on_wall_extension_start_requested(cell: Vector2i) -> void:
@@ -184,8 +193,7 @@ func _on_wall_extension_start_requested(cell: Vector2i) -> void:
 		return
 	pending_purchase_kind = &"wall"
 	pending_purchase_cost = cost
-	$SiegeBoard.begin_wall_chain_from_existing(selected.grid_cell)
-	$SiegeBoard.preview_build_at_cell(cell)
+	$SiegeBoard.begin_wall_chain_from_existing(selected.grid_cell, cap - $SiegeBoard.get_structure_count(&"wall"))
 	_on_wall_extension_preview_requested()
 
 
@@ -195,7 +203,41 @@ func _on_wall_extension_preview_requested() -> void:
 	$HUD/PlacementPanel.visible = true
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.visible = true
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.disabled = false
+	_update_wall_placement_label()
 	_position_placement_panel($SiegeBoard.get_build_preview_screen_rect())
+
+
+func _finish_wall_batch(wall_count: int) -> void:
+	var total_cost := pending_purchase_cost * wall_count
+	if total_cost > 0 and not run_state.spend(total_cost):
+		return
+	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
+	pending_purchase_kind = &""
+	pending_purchase_cost = 0
+	$HUD/PlacementPanel.visible = false
+	_refresh_hud()
+	var cap: int = TierCatalogScript.get_count_cap(run_state.town_hall, &"wall")
+	var built: int = $SiegeBoard.get_structure_count(&"wall")
+	if built >= cap:
+		$SiegeBoard.clear_selection()
+		$HUD/SelectionPanel.visible = false
+		_on_status_changed("All %d Walls built" % cap)
+		return
+	var last_wall: Node = $SiegeBoard.get_selected_structure()
+	if last_wall != null:
+		call_deferred("_continue_wall_placement", last_wall.grid_cell)
+
+
+func _update_wall_placement_label() -> void:
+	var label: Label = $HUD/PlacementPanel/Margin/Actions/WallCountLabel
+	var wall_mode := pending_purchase_kind == &"wall"
+	label.visible = wall_mode
+	if not wall_mode or run_state == null:
+		return
+	var cap: int = TierCatalogScript.get_count_cap(run_state.town_hall, &"wall")
+	var built: int = $SiegeBoard.get_structure_count(&"wall")
+	var previewed: int = $SiegeBoard.get_pending_wall_count()
+	label.text = "%d DRAWN\n%d LEFT" % [previewed, maxi(cap - built - previewed, 0)]
 
 
 func _on_view_transform_changed() -> void:
@@ -213,7 +255,7 @@ func _position_placement_panel(target_rect: Rect2) -> void:
 	if target_rect.size == Vector2.ZERO:
 		return
 	var panel: Control = $HUD/PlacementPanel
-	var panel_size := panel.size
+	var panel_size := panel.get_combined_minimum_size()
 	if panel_size.x <= 1.0:
 		panel_size = Vector2(158.0, 68.0)
 	var viewport_size := get_viewport().get_visible_rect().size
@@ -251,6 +293,19 @@ func _upgrade_selected() -> void:
 	_refresh_hud()
 
 
+func _select_wall_row() -> void:
+	if $SiegeCombat.active or run_state.completed:
+		return
+	$SiegeBoard.select_wall_row()
+
+
+func _rotate_wall_row() -> void:
+	if $SiegeCombat.active or run_state.completed:
+		return
+	if $SiegeBoard.rotate_selected_wall_row():
+		run_state.blueprint = $SiegeBoard.capture_current_blueprint()
+
+
 func _toggle_speed() -> void:
 	var next_speed := 2.0 if is_equal_approx($SiegeCombat.combat_speed, 1.0) else 1.0
 	$SiegeCombat.set_combat_speed(next_speed)
@@ -271,8 +326,17 @@ func _on_selection_changed(structure: Node) -> void:
 		return
 	$HUD/BuildTray.visible = false
 	$HUD/SelectionPanel.visible = true
-	$HUD/SelectionPanel/Margin/Stack/SelectedLabel.text = "%s (LEVEL %d)" % [_display_name(structure.kind).to_upper(), structure.level]
+	var row_count: int = $SiegeBoard.get_selected_wall_row_count()
+	var row_selected: bool = structure.kind == &"wall" and row_count > 1
+	$HUD/SelectionPanel/Margin/Stack/SelectedLabel.text = "%d WALLS · DRAG TO MOVE" % row_count if row_selected else "%s (LEVEL %d)" % [_display_name(structure.kind).to_upper(), structure.level]
+	var select_row_button: Button = $HUD/SelectionPanel/Margin/Stack/Actions/SelectRowButton
+	var rotate_row_button: Button = $HUD/SelectionPanel/Margin/Stack/Actions/RotateRowButton
 	var button: Button = $HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton
+	select_row_button.visible = structure.kind == &"wall" and not row_selected
+	select_row_button.disabled = $SiegeBoard.get_selectable_wall_row_count() <= 1
+	rotate_row_button.visible = row_selected
+	rotate_row_button.disabled = false
+	button.visible = not row_selected
 	if structure.kind == &"command_core":
 		button.text = "TOWN HALL\nUPGRADES AFTER B"
 		button.disabled = true

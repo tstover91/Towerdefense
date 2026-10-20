@@ -91,6 +91,19 @@ empty ground clears the selection. Starting the attack captures and locks the
 chosen layout. Rebuild restores that layout at full health and returns to
 editing.
 
+Selecting a Wall exposes every valid adjacent extension arrow. Press or drag
+from an arrow to paint one connected path, including corners; dragging backward
+removes the last previewed segment. The complete chain stays a green preview
+until one confirmation commits it, while cancel leaves the blueprint unchanged.
+The placement panel reports both the number drawn and the current Town Hall's
+remaining Wall allowance.
+
+A selected Wall also offers **Select Row**, which follows Clash's longest
+contiguous straight-run rule. Every highlighted segment can then be dragged as
+one snapped group or rotated 90 degrees around the originally selected segment.
+Blocked or out-of-bounds row transformations are rejected without changing the
+saved layout.
+
 All included defenses now use their exact TH6-level health, damage, cadence,
 range, minimum range, target type, and splash behavior. Air Defenses correctly
 ignore ground attackers and engage flying attackers.
