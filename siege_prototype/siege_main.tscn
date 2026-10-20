@@ -49,7 +49,7 @@ clip_text = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 11
-text = "TH2-TH5 RUN · PAN AND PINCH TO EXPLORE"
+text = "TH2-TH7 RUN · PAN AND PINCH TO EXPLORE"
 text_overrun_behavior = 3
 clip_text = true
 
@@ -58,7 +58,7 @@ custom_minimum_size = Vector2(122, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
 theme_override_font_sizes/font_size = 13
-text = "TH2 · A\nROUND 1 / 8"
+text = "TH2 · A\nROUND 1 / 12"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -258,14 +258,16 @@ text = "✓"
 
 [node name="SelectionPanel" type="PanelContainer" parent="HUD"]
 visible = false
+custom_minimum_size = Vector2(360, 114)
 layout_mode = 3
-anchors_preset = 12
-anchor_left = 0.28
+anchor_left = 0.5
 anchor_top = 1.0
-anchor_right = 0.72
+anchor_right = 0.5
 anchor_bottom = 1.0
-offset_top = -140.0
-offset_bottom = -72.0
+offset_left = -180.0
+offset_top = -176.0
+offset_right = 180.0
+offset_bottom = -62.0
 grow_horizontal = 2
 grow_vertical = 0
 
@@ -276,19 +278,26 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 8
 
-[node name="Actions" type="HBoxContainer" parent="HUD/SelectionPanel/Margin"]
+[node name="Stack" type="VBoxContainer" parent="HUD/SelectionPanel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
-[node name="SelectedLabel" type="Label" parent="HUD/SelectionPanel/Margin/Actions"]
+[node name="SelectedLabel" type="Label" parent="HUD/SelectionPanel/Margin/Stack"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 16
-text = "CANNON · LEVEL 2"
+theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
+theme_override_font_sizes/font_size = 18
+text = "CANNON (LEVEL 2)"
+horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="UpgradeButton" type="Button" parent="HUD/SelectionPanel/Margin/Actions"]
-custom_minimum_size = Vector2(230, 52)
+[node name="Actions" type="HBoxContainer" parent="HUD/SelectionPanel/Margin/Stack"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="UpgradeButton" type="Button" parent="HUD/SelectionPanel/Margin/Stack/Actions"]
+custom_minimum_size = Vector2(214, 58)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "UPGRADE TO L3 · 4 GOLD"
+text = "UPGRADE\nLEVEL 3 · 4 GOLD"

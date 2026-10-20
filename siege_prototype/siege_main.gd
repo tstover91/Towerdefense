@@ -28,7 +28,7 @@ func _ready() -> void:
 	$HUD/BuildTray/Margin/Stack/Cards/WallCard.pressed.connect(func() -> void: _select_build_kind(&"wall"))
 	$HUD/PlacementPanel/Margin/Actions/CancelButton.pressed.connect(_cancel_pending_purchase)
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.pressed.connect(_confirm_build)
-	$HUD/SelectionPanel/Margin/Actions/UpgradeButton.pressed.connect(_upgrade_selected)
+	$HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton.pressed.connect(_upgrade_selected)
 	$SiegeCombat.status_changed.connect(_on_status_changed)
 	$SiegeCombat.wave_started.connect(_on_wave_started)
 	$SiegeCombat.wave_finished.connect(_on_wave_finished)
@@ -242,20 +242,20 @@ func _on_selection_changed(structure: Node) -> void:
 		return
 	$HUD/BuildTray.visible = false
 	$HUD/SelectionPanel.visible = true
-	$HUD/SelectionPanel/Margin/Actions/SelectedLabel.text = "%s · LEVEL %d" % [_display_name(structure.kind).to_upper(), structure.level]
-	var button: Button = $HUD/SelectionPanel/Margin/Actions/UpgradeButton
+	$HUD/SelectionPanel/Margin/Stack/SelectedLabel.text = "%s (LEVEL %d)" % [_display_name(structure.kind).to_upper(), structure.level]
+	var button: Button = $HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton
 	if structure.kind == &"command_core":
-		button.text = "UPGRADES AFTER B"
+		button.text = "TOWN HALL\nUPGRADES AFTER B"
 		button.disabled = true
 		return
 	var next_level: int = structure.level + 1
 	var cap := TierCatalogScript.get_level_cap(run_state.town_hall, structure.kind)
 	var cost := StructureCatalogScript.get_upgrade_cost(structure.kind, next_level)
 	if next_level > cap or cost < 0:
-		button.text = "MAX FOR TH%d" % run_state.town_hall
+		button.text = "MAX LEVEL\nFOR TH%d" % run_state.town_hall
 		button.disabled = true
 	else:
-		button.text = "UPGRADE TO L%d · %d GOLD" % [next_level, cost]
+		button.text = "UPGRADE\nLEVEL %d · %d GOLD" % [next_level, cost]
 		button.disabled = run_state.currency < cost
 	if structure.kind == &"wall" and $SiegeBoard.get_structure_count(&"wall") < TierCatalogScript.get_count_cap(run_state.town_hall, &"wall"):
 		call_deferred("_begin_selected_wall_row", structure.grid_cell)
@@ -288,7 +288,7 @@ func _on_wave_finished(result: StringName) -> void:
 			_upgrade_command_core_in_blueprint(run_state.blueprint, run_state.town_hall)
 		$SiegeBoard.load_blueprint(run_state.blueprint)
 		if run_state.completed:
-			_on_status_changed("RUN COMPLETE · TH2-TH5 survived · %d Gold banked" % run_state.currency)
+			_on_status_changed("RUN COMPLETE · TH2-TH7 survived · %d Gold banked" % run_state.currency)
 		else:
 			_on_status_changed("Defense held · +%d Gold · prepare TH%d-%s" % [reward, run_state.town_hall, run_state.get_battle_letter()])
 	else:
@@ -323,7 +323,7 @@ func _hide_context_panels() -> void:
 
 func _set_build_controls_enabled(enabled: bool) -> void:
 	$HUD/ShopButton.disabled = not enabled
-	$HUD/SelectionPanel/Margin/Actions/UpgradeButton.disabled = not enabled
+	$HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton.disabled = not enabled
 
 
 func _refresh_hud() -> void:

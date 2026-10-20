@@ -15,16 +15,16 @@ func _run() -> void:
 	get_root().add_child(board)
 	await process_frame
 
-	_assert(board.structures.size() == 82, "the TH6 defense blueprint creates 82 real structure nodes")
-	_assert(board.get_structure_blocked_cells().size() == 196, "Clash-sized living footprints block 196 grid cells")
-	_assert(board.get_navigation_blocked_cells().size() == 196, "the clear Clash-sized field uses the structure blockers")
-	_assert(board.get_remaining_integrity() == 14, "every non-wall building counts toward the objective")
+	_assert(board.structures.size() == 81, "the no-Sweeper TH6 benchmark creates 81 real structure nodes")
+	_assert(board.get_structure_blocked_cells().size() == 192, "Clash-sized living footprints block 192 grid cells")
+	_assert(board.get_navigation_blocked_cells().size() == 192, "the clear Clash-sized field uses the structure blockers")
+	_assert(board.get_remaining_integrity() == 13, "every non-wall building counts toward the objective")
 	_assert(is_equal_approx(CatalogScript.get_max_health(&"command_core"), 2800.0), "the core uses exact TH6 Town Hall HP")
 	_assert(is_equal_approx(CatalogScript.get_max_health(&"wall"), 1800.0), "the wall uses exact level-6 HP")
 	_assert(is_equal_approx(CatalogScript.get_max_health(&"archer_tower"), 630.0), "Archer Towers use exact level-7 HP")
 	_assert(is_equal_approx(CatalogScript.get_max_health(&"air_defense"), 950.0), "Air Defenses use exact level-4 HP")
 	_assert(is_equal_approx(CatalogScript.get_max_health(&"wizard_tower"), 680.0), "Wizard Towers use exact level-3 HP")
-	_assert(is_equal_approx(CatalogScript.get_max_health(&"air_sweeper"), 800.0), "the Air Sweeper uses exact level-2 HP")
+	_assert(not CatalogScript.has_kind(&"air_sweeper"), "Air Sweepers are excluded from this game")
 
 	var wall: Node2D = board.get_structure(&"wall_1")
 	var wall_cell: Vector2i = wall.grid_cell
@@ -34,10 +34,10 @@ func _run() -> void:
 	board.damage_structure(&"wall_1", 2000.0)
 	_assert(wall.destroyed, "lethal damage marks a wall destroyed")
 	_assert(not board.get_structure_blocked_cells().has(wall_cell), "destroyed walls stop blocking movement")
-	_assert(board.get_remaining_integrity() == 14, "walls never contribute to the destruction objective")
+	_assert(board.get_remaining_integrity() == 13, "walls never contribute to the destruction objective")
 
 	board.damage_structure(&"cannon_1", 1000.0)
-	_assert(board.get_remaining_integrity() == 13, "destroyed objective buildings reduce remaining integrity")
+	_assert(board.get_remaining_integrity() == 12, "destroyed objective buildings reduce remaining integrity")
 
 	var snapshot: Array[Dictionary] = board.get_blueprint_snapshot()
 	snapshot[0]["cell"] = Vector2i.ZERO
@@ -50,7 +50,7 @@ func _run() -> void:
 	_assert(rebuilt_wall.get_instance_id() != old_wall_instance_id, "reconstruction replaces battle-damaged instances")
 	_assert(not rebuilt_wall.destroyed and is_equal_approx(rebuilt_wall.health, rebuilt_wall.max_health), "reconstruction restores full health")
 	_assert(board.get_structure_blocked_cells().has(wall_cell), "reconstructed walls block their blueprint cells again")
-	_assert(board.get_remaining_integrity() == 14, "reconstruction restores objective integrity")
+	_assert(board.get_remaining_integrity() == 13, "reconstruction restores objective integrity")
 
 	board.set_edit_mode(true)
 	_assert(board.try_move_structure(&"cannon_1", Vector2i(10, 10)), "a selected defense can move to a valid empty build cell")

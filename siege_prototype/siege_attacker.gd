@@ -13,6 +13,10 @@ const COLOR_SAPPER := Color("d68637")
 const COLOR_RANGER := Color("9b63b6")
 const COLOR_BOMBER := Color("9b493d")
 const COLOR_MAGE := Color("4d8ac8")
+const COLOR_HEALER := Color("df87bd")
+const COLOR_DRAGON := Color("a85842")
+const COLOR_MINION := Color("58469b")
+const COLOR_HOG := Color("a76f43")
 const COLOR_OUTLINE := Color("252522")
 const COLOR_HEALTH := Color("62bd69")
 const COLOR_HEALTH_BACK := Color("252522")
@@ -37,6 +41,10 @@ var move_speed_cells := 1.0
 var attack_range_cells := 1.05
 var preferred_target: StringName = &"any"
 var movement_type: StringName = &"ground"
+var ignores_walls := false
+var is_support := false
+var heal_per_second := 0.0
+var heal_splash_radius_cells := 0.0
 var self_destructs := false
 var dead := false
 var attack_cooldown := 0.0
@@ -73,6 +81,10 @@ func configure(
 	attack_range_cells = maxf(float(definition.get("attack_range_cells", 1.05)), 0.1)
 	preferred_target = StringName(definition.get("preferred_target", &"any"))
 	movement_type = StringName(definition.get("movement_type", &"ground"))
+	ignores_walls = bool(definition.get("ignores_walls", false))
+	is_support = bool(definition.get("is_support", false))
+	heal_per_second = float(definition.get("heal_per_second", 0.0))
+	heal_splash_radius_cells = float(definition.get("heal_splash_radius_cells", 0.0))
 	self_destructs = bool(definition.get("self_destructs", false))
 	name = "%s_%d" % [kind, attacker_id]
 	set_layout_metrics(board.board_origin, board.cell_size)
@@ -83,6 +95,9 @@ func simulate(delta: float) -> void:
 	if dead:
 		return
 	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
+	if is_support:
+		_simulate_support(delta)
+		return
 	var active_target: Node2D = board.get_structure(active_target_id) if active_target_id != &"" else null
 	var intended_target: Node2D = board.get_structure(intended_target_id) if intended_target_id != &"" else null
 	if intended_target == null or intended_target.destroyed:
@@ -112,6 +127,15 @@ func apply_damage(amount: float) -> float:
 	if health <= 0.0:
 		_die()
 	return previous - health
+
+
+func restore_health(amount: float) -> float:
+	if dead or amount <= 0.0 or health >= max_health:
+		return 0.0
+	var previous := health
+	health = minf(health + amount, max_health)
+	queue_redraw()
+	return health - previous
 
 
 func set_layout_metrics(board_origin: Vector2, next_cell_size: float) -> void:
@@ -207,6 +231,8 @@ func _build_plan_for_target(target: Node2D, protective_wall_cells: Dictionary = 
 			if structure.destroyed or not structure.blocks_movement:
 				continue
 			if structure.kind == &"wall":
+				if ignores_walls:
+					continue
 				var wall_equivalent_cost := _wall_break_cost_in_tiles(structure.health)
 				for cell in structure.get_occupied_cells():
 					wall_costs[cell] = wall_equivalent_cost
@@ -246,6 +272,59 @@ func _build_plan_for_target(target: Node2D, protective_wall_cells: Dictionary = 
 		"crosses_wall": not crossed_walls.is_empty(),
 		"crosses_protective_wall": crosses_protective_wall,
 	}
+
+
+func _simulate_support(delta: float) -> void:
+	var allies := _get_ground_allies()
+	if allies.is_empty():
+		return
+	var target: Node2D
+	var best_health_ratio := INF
+	var best_distance := INF
+	for ally in allies:
+		var health_ratio: float = ally.health / maxf(ally.max_health, 1.0)
+		var distance: float = grid_position.distance_to(ally.grid_position)
+		if health_ratio < 0.999 and (health_ratio < best_health_ratio or (is_equal_approx(health_ratio, best_health_ratio) and distance < best_distance)):
+			target = ally
+			best_health_ratio = health_ratio
+			best_distance = distance
+	if target == null:
+		for ally in allies:
+			var distance: float = grid_position.distance_to(ally.grid_position)
+			if distance < best_distance:
+				target = ally
+				best_distance = distance
+	if target == null:
+		return
+	var follow_distance := attack_range_cells if target.health < target.max_health else attack_range_cells * 0.65
+	if best_distance > follow_distance:
+		grid_position = grid_position.move_toward(target.grid_position, move_speed_cells * delta)
+		set_layout_metrics(board.board_origin, board.cell_size)
+		return
+	if target.health >= target.max_health or attack_cooldown > 0.0:
+		return
+	attack_cooldown = attack_interval
+	var healing_per_pulse := heal_per_second * attack_interval
+	for ally in allies:
+		if ally.grid_position.distance_to(target.grid_position) <= heal_splash_radius_cells:
+			ally.restore_health(healing_per_pulse)
+
+
+func _get_ground_allies() -> Array[Node2D]:
+	var result: Array[Node2D] = []
+	var combat_controller := get_parent()
+	if combat_controller == null:
+		return result
+	var sibling_attackers: Array = combat_controller.get("attackers")
+	for ally in sibling_attackers:
+		if not is_instance_valid(ally) or ally == self or ally.dead:
+			continue
+		if StringName(ally.definition.get("movement_type", &"ground")) != &"ground":
+			continue
+		if bool(ally.definition.get("is_support", false)):
+			continue
+		result.append(ally)
+	return result
 
 
 func _get_attack_goal_cells(target: Node2D, hard_blocked: Array[Vector2i], wall_costs: Dictionary) -> Array[Vector2i]:
@@ -417,7 +496,7 @@ func _apply_death_damage() -> void:
 
 
 func _draw() -> void:
-	var radius := cell_size * (0.32 if kind == &"brute" or kind == &"bomber" else 0.23)
+	var radius := cell_size * (0.32 if kind == &"brute" or kind == &"bomber" or kind == &"dragon" else 0.23)
 	var body_color := COLOR_RAIDER
 	if kind == &"brute":
 		body_color = COLOR_BRUTE
@@ -429,6 +508,14 @@ func _draw() -> void:
 		body_color = COLOR_BOMBER
 	elif kind == &"mage":
 		body_color = COLOR_MAGE
+	elif kind == &"healer":
+		body_color = COLOR_HEALER
+	elif kind == &"dragon":
+		body_color = COLOR_DRAGON
+	elif kind == &"minion":
+		body_color = COLOR_MINION
+	elif kind == &"hog":
+		body_color = COLOR_HOG
 	if dead:
 		body_color = body_color.darkened(0.65)
 	draw_circle(Vector2.ZERO, radius, body_color)
@@ -442,6 +529,15 @@ func _draw() -> void:
 		draw_circle(Vector2(0.0, -radius * 0.35), radius * 0.22, COLOR_TARGET)
 	elif kind == &"mage":
 		draw_circle(Vector2.ZERO, radius * 0.34, COLOR_TARGET)
+	elif kind == &"healer":
+		draw_line(Vector2(-radius * 0.55, 0.0), Vector2(radius * 0.55, 0.0), COLOR_TARGET, maxf(cell_size * 0.06, 1.0), true)
+		draw_line(Vector2(0.0, -radius * 0.55), Vector2(0.0, radius * 0.55), COLOR_TARGET, maxf(cell_size * 0.06, 1.0), true)
+	elif kind == &"dragon":
+		draw_arc(Vector2.ZERO, radius * 0.65, PI, TAU, 10, COLOR_TARGET, maxf(cell_size * 0.06, 1.0), true)
+	elif kind == &"minion":
+		draw_line(Vector2(-radius * 0.7, 0.0), Vector2(radius * 0.7, 0.0), COLOR_TARGET, maxf(cell_size * 0.05, 1.0), true)
+	elif kind == &"hog":
+		draw_circle(Vector2(0.0, radius * 0.2), radius * 0.25, COLOR_TARGET)
 	if dead or health >= max_health:
 		return
 	var width := radius * 1.8

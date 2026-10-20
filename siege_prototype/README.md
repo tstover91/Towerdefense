@@ -73,15 +73,15 @@ preferences, wall breaching, tower damage, and deterministic wave completion.
 
 ## Phase 5 editable TH6 defense roster
 
-The fixed fortress now contains the full current Town Hall 6 defensive roster:
+The fixed benchmark fortress contains the selected Town Hall 6 defensive roster:
 three Cannons, three Archer Towers, two Mortars, two Air Defenses, two Wizard
-Towers, one Air Sweeper, and the Town Hall objective. Resource buildings, army
-buildings, and traps are deliberately excluded. The scaled prototype fortress
+Towers, and the Town Hall objective. Air Sweepers, Hidden Teslas, heroes,
+resource buildings, army buildings, and traps are deliberately excluded. The scaled prototype fortress
 uses 68 level-6 wall segments instead of Clash's 125.
 
 Spatial values now share Clash's scale as well: the construction area is 44 by
-44, the Town Hall is 4 by 4, standard defenses are 3 by 3, the Air Sweeper is
-2 by 2, and Walls are 1 by 1. Tower ranges and troop movement remain expressed
+44, the Town Hall is 4 by 4, standard defenses are 3 by 3, and Walls are 1 by 1.
+Tower ranges and troop movement remain expressed
 directly in Clash tiles, so their proportions and travel times are no longer
 inflated by the earlier condensed grid.
 
@@ -91,14 +91,12 @@ empty ground clears the selection. Starting the attack captures and locks the
 chosen layout. Rebuild restores that layout at full health and returns to
 editing.
 
-All ground-capable defenses now fire with their exact TH6-level health, damage,
-cadence, range, minimum range, and splash behavior. Air Defenses and the Air
-Sweeper are present and count as destructible buildings, but correctly ignore
-the ground-only test army. They will become active only after flying attackers
-are implemented.
+All included defenses now use their exact TH6-level health, damage, cadence,
+range, minimum range, target type, and splash behavior. Air Defenses correctly
+ignore ground attackers and engage flying attackers.
 
-Economy, upgrades, resource buildings, army buildings, traps, flying attackers,
-and procedural waves remain outside Phase 5.
+Resource buildings, army buildings, traps, Tesla, Air Sweeper, and heroes remain
+outside the prototype by design.
 
 ## Phase 6 Clash-like movement and targeting
 
@@ -110,12 +108,13 @@ These are behavioral emulations because Supercell does not publish its internal
 pathfinding weights. Combat numbers remain the exact TH6 snapshot; no hidden
 damage, health, range, or speed modifiers were introduced.
 
-## Phase 7 eight-round run
+## Phase 7 twelve-round run
 
-The Siege Lab now runs from TH2 through TH5 rather than dropping directly into
-the TH6 benchmark. Each Town Hall has an A and B battle, for eight rounds total.
+The Siege Lab now runs from TH2 through TH7 rather than dropping directly into
+the TH6 benchmark. Each Town Hall has an A and B battle, for twelve rounds total.
 TH4 introduces flying Bombers and Air Defense; TH5 introduces splash-damage
-Mages and the Wizard Tower. Wave sizes are tuned for the condensed TD economy. The wave roster,
+Mages and the Wizard Tower; TH6 adds Healers; TH7 adds Dragons, Minions, and
+wall-jumping Hog Riders. Wave sizes are tuned for the condensed TD economy. The wave roster,
 unit level, building unlocks, building level caps, health, damage, cadence,
 range, footprints, and movement speed all use the current Clash values recorded
 in `CLASH_REFERENCE.md`.
@@ -125,7 +124,7 @@ defense or wall, and upgrade a selected structure to the current Town Hall cap.
 Gold is a deliberately condensed prototype economy; Clash prices and timers
 are not used. New level-one Walls are free, matching current Clash, while their
 upgrades and all defense construction/upgrades use Gold. Wall inventories now
-match Clash at 25/50/75/100 for TH2-TH5. The Command Core advances for free after
+match Clash at 25/50/75/100/125/175 for TH2-TH7. The Command Core advances for free after
 each B battle, but every defense and wall keeps the level the player purchased.
 As a prototype-specific exception, the low-level Command Core fires the exact
 level-one Cannon shot (7 DPS, 0.8-second cadence, 9-tile range).

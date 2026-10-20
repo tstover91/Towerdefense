@@ -15,7 +15,6 @@ const COLOR_MORTAR := Color("77909a")
 const COLOR_ARCHER := Color("5f8fc4")
 const COLOR_WIZARD := Color("9d64bb")
 const COLOR_AIR_DEFENSE := Color("d17a3f")
-const COLOR_AIR_SWEEPER := Color("74b9c5")
 const COLOR_TEXT := Color("f2efe4")
 const COLOR_RUBBLE := Color("4a4541")
 const COLOR_DAMAGE := Color("792d28")
@@ -140,8 +139,6 @@ func _draw() -> void:
 			_draw_wizard_tower(rect)
 		&"air_defense":
 			_draw_air_defense(rect)
-		&"air_sweeper":
-			_draw_air_sweeper(rect)
 		&"wall":
 			_draw_wall(rect)
 		_:
@@ -207,16 +204,6 @@ func _draw_air_defense(rect: Rect2) -> void:
 	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 1.0))
 	for offset_x in [-0.18, 0.18]:
 		draw_line(center + Vector2(scale * offset_x, scale * 0.23), center + Vector2(scale * offset_x, -scale * 0.22), COLOR_TEXT, maxf(scale * 0.075, 1.0), true)
-
-
-func _draw_air_sweeper(rect: Rect2) -> void:
-	var center := rect.get_center()
-	var scale := minf(rect.size.x, rect.size.y)
-	var body := rect.grow(-scale * 0.06)
-	draw_rect(body, COLOR_AIR_SWEEPER, true)
-	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 1.0))
-	draw_arc(center, scale * 0.24, -PI * 0.65, PI * 0.65, 12, COLOR_TEXT, maxf(scale * 0.07, 1.0), true)
-	draw_line(center, center + Vector2.LEFT * scale * 0.28, COLOR_TEXT, maxf(scale * 0.07, 1.0), true)
 
 
 func _draw_command_core(rect: Rect2) -> void:

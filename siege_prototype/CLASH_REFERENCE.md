@@ -14,7 +14,6 @@ damage, cadence, range, and movement relationships before custom balancing.
 | Mortar | Level 4 | 550 | 35 per hit, 5s cadence, range 4–11, 1.5-tile splash, ground-only |
 | Air Defense | Level 4 | 950 | 160 damage every 1s, range 10, air-only, single target |
 | Wizard Tower | Level 3 | 680 | 20.8 damage every 1.3s, range 7, 1-tile splash, ground and air |
-| Air Sweeper | Level 2 | 800 | No damage; 2-tile push every 5s, range 1–15, air-only |
 | Wall | Level 6 | 1,800 | 1x1 blocker; walls do not count toward destruction percentage |
 
 Sources:
@@ -26,7 +25,6 @@ Sources:
 - Mortar: https://clashofclans.fandom.com/wiki/Mortar?page=3
 - Air Defense: https://clash-of-clans.1337wiki.com/air-defense-home-village/
 - Wizard Tower: https://clash-of-clans.1337wiki.com/wizard-tower-home-village/
-- Air Sweeper: https://clash-of-clans.1337wiki.com/air-sweeper-home-village/
 - Wall: https://clashofclans.fandom.com/wiki/Wall
 - Official wall balance change: https://supercell.com/en/games/clashofclans/blog/release-notes/welcome-to-lets-get-crafty-update/
 - Routing behavior: https://clashofclans.fandom.com/wiki/Glossary/Q-Z
@@ -45,13 +43,12 @@ must not be mixed when deriving the prototype ratio.
 | Mortar | 550 | 1 | 35 damage every 5s, range 4–11, splash 1.5 |
 | Air Defense | 950 | 1 | 160 damage every 1s, range 10; correctly inactive against ground units |
 | Wizard Tower | 680 | 1 | 20.8 damage every 1.3s, range 7, splash 1 |
-| Air Sweeper | 800 | 1 | Air-only push; correctly inactive against ground units |
 | Wall | 1,800 | 0 | Exact level-6 HP; excluded from destruction objective |
 
 Every non-wall building contributes one objective point, matching the rule that
 attackers must destroy all non-wall buildings. The build area and footprints now
-use Clash's 44×44 spatial scale: Town Hall 4×4, standard defenses 3×3, Air
-Sweeper 2×2, and Walls 1×1. The 68-wall inventory, three-column left approach,
+use Clash's 44×44 spatial scale: Town Hall 4×4, standard defenses 3×3, and Walls
+1×1. The 68-wall inventory, three-column left approach,
 Command Core name, and visuals remain prototype-specific.
 
 The routing implementation is behavioral rather than a claim to reproduce
@@ -99,7 +96,7 @@ The deterministic test wave composition is allowed to change, but these unit
 and structure combat values should remain untouched until the exact-stat test
 has produced enough playtest evidence to justify a deliberate balance change.
 
-## TH2-TH5 run snapshot
+## TH2-TH7 run snapshot
 
 | Town Hall | Army space | Defense caps | Troop levels |
 | --- | ---: | --- | --- |
@@ -107,30 +104,38 @@ has produced enough playtest evidence to justify a deliberate balance change.
 | TH3 | 70 | 2 Cannons, level 4; 1 Archer Tower, level 3; 1 Mortar, level 1; Walls level 3 | Raider/Barbarian 2, Ranger/Archer 2, Brute/Giant 1, Sapper/Wall Breaker 1 |
 | TH4 | 80 | 2 Cannons, level 5; 2 Archer Towers, level 4; 1 Mortar, level 2; 1 Air Defense, level 2; 75 Walls, level 4 | Raider/Barbarian 2, Ranger/Archer 2, Brute/Giant 2, Sapper/Wall Breaker 2, Bomber/Balloon 2 |
 | TH5 | 135 | 3 Cannons and Archer Towers, level 6; Mortar/Air Defense level 3; Wizard Tower level 2; 100 Walls, level 5 | Raider/Barbarian 3, Ranger/Archer 3, Brute/Giant 2, Sapper/Wall Breaker 2, Bomber/Balloon 2, Mage/Wizard 2 |
+| TH6 | 150 | 3 Cannons and Archer Towers, level 7; 2 Mortars level 4; 2 Air Defenses level 4; 2 Wizard Towers level 3; 125 Walls, level 6 | Raider/Barbarian 3, Ranger/Archer 3, Brute/Giant 3, Sapper/Wall Breaker 3, Bomber/Balloon 3, Mage/Wizard 3, Healer 1 |
+| TH7 | 200 | 5 Cannons level 8; 4 Archer Towers level 8; 3 Mortars/Air Defenses level 5; 2 Wizard Towers level 4; 175 Walls, level 7 | Core troops level 4; Healer/Dragon/Minion/Hog Rider level 2 |
+
+Hidden Tesla, Air Sweeper, and heroes are intentionally excluded from TH6/TH7.
 
 Current early-game structure values used by the run:
 
-- Town Hall HP: 400 / 800 / 1,600 / 2,000 / 2,400 at TH1-TH5.
-- Cannon levels 1-6: 300 / 360 / 420 / 500 / 600 / 660 HP and 7 / 10 / 13 / 17 / 23 / 30 DPS, firing every 0.8 seconds at range 9.
-- Archer Tower levels 1-6: 380 / 420 / 460 / 500 / 540 / 580 HP and 11 / 15 / 19 / 25 / 30 / 35 DPS, firing every 0.5 seconds at range 10.
-- Mortar levels 1-3: 400 / 450 / 500 HP and 20 / 25 / 30 damage every 5 seconds, range 4-11, 1.5-tile splash.
-- Air Defense levels 1-3: 800 / 850 / 900 HP and 80 / 110 / 140 DPS, air-only, range 10.
-- Wizard Tower levels 1-2: 620 / 650 HP and 11 / 13 DPS, firing every 1.3 seconds at range 7 with splash.
-- Wall levels 1-5: 100 / 200 / 400 / 800 / 1,200 HP.
+- Town Hall HP: 400 / 800 / 1,600 / 2,000 / 2,400 / 2,800 / 3,300 at TH1-TH7.
+- Cannon levels 1-8: 300 / 360 / 420 / 500 / 600 / 660 / 730 / 800 HP and 7 / 10 / 13 / 17 / 23 / 30 / 40 / 48 DPS, firing every 0.8 seconds at range 9.
+- Archer Tower levels 1-8: 380 / 420 / 460 / 500 / 540 / 580 / 630 / 690 HP and 11 / 15 / 19 / 25 / 30 / 35 / 42 / 48 DPS, firing every 0.5 seconds at range 10.
+- Mortar levels 1-5: 400 / 450 / 500 / 550 / 600 HP and 20 / 25 / 30 / 35 / 45 damage every 5 seconds, range 4-11, 1.5-tile splash.
+- Air Defense levels 1-5: 800 / 850 / 900 / 950 / 1,000 HP and 80 / 110 / 140 / 160 / 190 DPS, air-only, range 10.
+- Wizard Tower levels 1-4: 620 / 650 / 680 / 730 HP and 11 / 13 / 16 / 20 DPS, firing every 1.3 seconds at range 7 with splash.
+- Wall levels 1-7: 100 / 200 / 400 / 800 / 1,200 / 1,800 / 2,400 HP.
 
 Current early-game troop values used by the run:
 
-- Barbarian levels 1-2: 45 / 54 HP, 9 / 12 DPS, 1 housing, 2.25 tiles per second.
-- Archer levels 1-2: 22 / 26 HP, 8 / 10 DPS, 1 housing, range 3.5, 3 tiles per second.
-- Giant level 1: 400 HP, 12 DPS (24 every 2 seconds), 5 housing, 1.5 tiles per second, defenses preferred.
-- Wall Breaker level 1: 20 HP, 10 contact damage and 6 death damage, both x40 against Walls, 2 housing, 3 tiles per second.
-- Balloon levels 1-2: 150 / 180 HP, 75 / 96 damage every 3 seconds, 25 / 32 death damage, 5 housing, 1.25 tiles per second, defenses preferred, air movement.
-- Wizard levels 1-2: 75 / 90 HP, 75 / 105 damage every 1.5 seconds, 4 housing, range 3, splash damage.
+- Barbarian levels 1-4: 45 / 54 / 65 / 85 HP and 9 / 12 / 15 / 18 DPS, 1 housing.
+- Archer levels 1-4: 22 / 26 / 29 / 33 HP and 8 / 10 / 13 / 16 DPS, 1 housing, range 3.5.
+- Giant levels 1-4: 400 / 500 / 600 / 700 HP and 12 / 15 / 20 / 24 DPS, 5 housing, defenses preferred.
+- Wall Breaker levels 1-4: 20 / 24 / 29 / 35 HP and 10 / 20 / 25 / 30 contact damage, x40 against Walls, 2 housing.
+- Balloon levels 1-4: 150 / 180 / 216 / 280 HP and 25 / 32 / 48 / 72 DPS, 5 housing, defenses preferred, air movement.
+- Wizard levels 1-4: 75 / 90 / 108 / 135 HP and 50 / 70 / 90 / 125 DPS, 4 housing, range 3, splash damage.
+- Healer levels 1-2: 500 / 700 HP and 36 / 48 healing per second; air support that heals only ground troops.
+- Dragon levels 1-2: 1,900 / 2,100 HP and 140 / 160 DPS; air splash attacker.
+- Minion levels 1-2: 58 / 63 HP and 38 / 41 DPS; fast ranged air attacker.
+- Hog Rider levels 1-2: 270 / 312 HP and 60 / 70 DPS; defense preference and Wall jumping.
 
 The playable run skips TH1. Wave sizes and spawn spacing use custom TD pacing
 and do not change any unit combat statistic. Run rewards and numeric Gold prices
 are intentionally condensed. New Walls are free to place, early Wall upgrades
-and defenses use Gold, and the inventories match Clash: 25 / 50 / 75 / 100 Walls at TH2-TH5.
+and defenses use Gold, and the inventories match Clash: 25 / 50 / 75 / 100 / 125 / 175 Walls at TH2-TH7.
 Low-level Clash Town Halls do not attack; the prototype's weak Command Core gun
 is an explicit exception using the exact level-one Cannon weapon values.
 
@@ -142,6 +147,8 @@ Early-game sources:
 - TH3 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-3/
 - TH4 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-4/
 - TH5 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-5/
+- TH6 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-6/
+- TH7 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-7/
 - Cannon: https://clash-of-clans.1337wiki.com/cannon-home-village/
 - Archer Tower: https://clash-of-clans.1337wiki.com/archer-tower-home-village/
 - Mortar: https://clash-of-clans.1337wiki.com/mortar-home-village/
@@ -154,3 +161,7 @@ Early-game sources:
 - Wizard Tower: https://goblinsfarm.com/wiki/buildings/wizard-tower.html
 - Balloon: https://goblinsfarm.com/wiki/troops/balloon.html
 - Wizard: https://goblinsfarm.com/wiki/troops/wizard.html
+- Healer: https://goblinsfarm.com/wiki/troops/healer.html
+- Dragon: https://goblinsfarm.com/wiki/troops/dragon.html
+- Minion: https://goblinsfarm.com/wiki/troops/minion.html
+- Hog Rider: https://goblinsfarm.com/wiki/troops/hog-rider.html

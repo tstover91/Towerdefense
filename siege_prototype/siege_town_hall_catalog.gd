@@ -1,7 +1,7 @@
 class_name SiegeTownHallCatalog
 extends RefCounted
 
-# Combat caps, army space, and Wall quantities mirror current Clash TH1-TH5.
+# Combat caps, army space, and Wall quantities mirror current Clash TH1-TH7.
 const TIERS := {
 	1: {
 		"army_capacity": 20,
@@ -43,6 +43,22 @@ const TIERS := {
 		"count_caps": {&"command_core": 1, &"cannon": 3, &"archer_tower": 3, &"mortar": 1, &"air_defense": 1, &"wizard_tower": 1, &"wall": 100},
 		"troop_levels": {&"raider": 3, &"ranger": 3, &"brute": 2, &"sapper": 2, &"bomber": 2, &"mage": 2},
 	},
+	6: {
+		"army_capacity": 150,
+		"reward_a": 32,
+		"reward_b": 38,
+		"structure_caps": {&"command_core": 6, &"cannon": 7, &"archer_tower": 7, &"mortar": 4, &"air_defense": 4, &"wizard_tower": 3, &"wall": 6},
+		"count_caps": {&"command_core": 1, &"cannon": 3, &"archer_tower": 3, &"mortar": 2, &"air_defense": 2, &"wizard_tower": 2, &"wall": 125},
+		"troop_levels": {&"raider": 3, &"ranger": 3, &"brute": 3, &"sapper": 3, &"bomber": 3, &"mage": 3, &"healer": 1},
+	},
+	7: {
+		"army_capacity": 200,
+		"reward_a": 44,
+		"reward_b": 52,
+		"structure_caps": {&"command_core": 7, &"cannon": 8, &"archer_tower": 8, &"mortar": 5, &"air_defense": 5, &"wizard_tower": 4, &"wall": 7},
+		"count_caps": {&"command_core": 1, &"cannon": 5, &"archer_tower": 4, &"mortar": 3, &"air_defense": 3, &"wizard_tower": 2, &"wall": 175},
+		"troop_levels": {&"raider": 4, &"ranger": 4, &"brute": 4, &"sapper": 4, &"bomber": 4, &"mage": 4, &"healer": 2, &"dragon": 2, &"minion": 2, &"hog": 2},
+	},
 }
 
 const FOOTPRINTS := {
@@ -57,7 +73,7 @@ const FOOTPRINTS := {
 
 
 static func get_tier(town_hall: int) -> Dictionary:
-	return Dictionary(TIERS.get(clampi(town_hall, 1, 5), {})).duplicate(true)
+	return Dictionary(TIERS.get(clampi(town_hall, 1, 7), {})).duplicate(true)
 
 
 static func get_army_budget(town_hall: int, battle_index: int) -> int:
@@ -113,11 +129,21 @@ static func build_wave(town_hall: int, battle_index: int) -> Array[Dictionary]:
 				composition = _composition([[&"brute", 1], [&"sapper", 1], [&"bomber", 2], [&"raider", 6], [&"ranger", 5]])
 			else:
 				composition = _composition([[&"brute", 2], [&"sapper", 2], [&"bomber", 3], [&"raider", 6], [&"ranger", 5]])
-		_:
+		5:
 			if battle_index == 0:
 				composition = _composition([[&"brute", 2], [&"sapper", 2], [&"bomber", 2], [&"mage", 2], [&"raider", 6], [&"ranger", 6]])
 			else:
 				composition = _composition([[&"brute", 3], [&"sapper", 3], [&"bomber", 2], [&"mage", 2], [&"raider", 6], [&"ranger", 7]])
+		6:
+			if battle_index == 0:
+				composition = _composition([[&"brute", 2], [&"sapper", 2], [&"bomber", 3], [&"mage", 3], [&"raider", 6], [&"ranger", 6], [&"healer", 1]])
+			else:
+				composition = _composition([[&"brute", 3], [&"sapper", 3], [&"bomber", 4], [&"mage", 4], [&"raider", 7], [&"ranger", 7], [&"healer", 1]])
+		_:
+			if battle_index == 0:
+				composition = _composition([[&"hog", 4], [&"minion", 5], [&"brute", 2], [&"sapper", 2], [&"mage", 3], [&"raider", 5], [&"ranger", 5], [&"healer", 1]])
+			else:
+				composition = _composition([[&"dragon", 1], [&"hog", 4], [&"bomber", 3], [&"minion", 6], [&"mage", 3], [&"raider", 4], [&"ranger", 5]])
 	var levels: Dictionary = get_tier(town_hall).get("troop_levels", {})
 	var spawn_delay := _get_spawn_delay(town_hall, battle_index)
 	for index in composition.size():
@@ -135,6 +161,10 @@ static func get_wave_housing(wave: Array[Dictionary]) -> int:
 			&"sapper": total += 2
 			&"bomber": total += 5
 			&"mage": total += 4
+			&"healer": total += 14
+			&"dragon": total += 20
+			&"minion": total += 2
+			&"hog": total += 5
 			_: total += 1
 	return total
 
@@ -155,4 +185,6 @@ static func _get_spawn_delay(town_hall: int, battle_index: int) -> float:
 		2: return 2.4 if battle_index == 0 else 2.0
 		3: return 1.15 if battle_index == 0 else 0.82
 		4: return 0.78 if battle_index == 0 else 0.68
-		_: return 0.62 if battle_index == 0 else 0.54
+		5: return 0.62 if battle_index == 0 else 0.54
+		6: return 0.52 if battle_index == 0 else 0.46
+		_: return 0.42 if battle_index == 0 else 0.36

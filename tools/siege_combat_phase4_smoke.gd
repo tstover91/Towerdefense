@@ -111,6 +111,29 @@ func _run() -> void:
 	_assert(not combat._tower_can_target_attacker(board.get_structure(&"cannon_1"), bomber), "ground-only Cannons ignore flying attackers")
 	combat._on_attacker_died(bomber)
 
+	var hog: Node2D = combat._spawn_attacker(&"hog", 20, 2)
+	hog.simulate(0.01)
+	_assert(hog.intended_target_id != &"" and hog.active_target_id == hog.intended_target_id, "Hog Riders jump Walls and route directly to a defense")
+	combat._on_attacker_died(hog)
+
+	var wounded_raider: Node2D = combat._spawn_attacker(&"raider", 20, 3)
+	var healer: Node2D = combat._spawn_attacker(&"healer", 20, 1)
+	wounded_raider.grid_position = Vector2(8.0, 20.0)
+	healer.grid_position = Vector2(8.0, 21.0)
+	wounded_raider.apply_damage(50.0)
+	var wounded_health: float = wounded_raider.health
+	healer.simulate(0.7)
+	_assert(wounded_raider.health > wounded_health, "Healers restore health to nearby ground troops")
+	combat._on_attacker_died(healer)
+	combat._on_attacker_died(wounded_raider)
+
+	var dragon: Node2D = combat._spawn_attacker(&"dragon", 20, 2)
+	var minion: Node2D = combat._spawn_attacker(&"minion", 20, 2)
+	_assert(combat._tower_can_target_attacker(board.get_structure(&"air_defense_1"), dragon), "Air Defenses acquire Dragons")
+	_assert(combat._tower_can_target_attacker(board.get_structure(&"wizard_tower_1"), minion), "Wizard Towers acquire Minions")
+	combat._on_attacker_died(dragon)
+	combat._on_attacker_died(minion)
+
 	var sapper: Node2D = combat._spawn_attacker(&"sapper", 20)
 	sapper.simulate(0.01)
 	var sapper_target: Node2D = board.get_structure(sapper.active_target_id)
@@ -144,13 +167,18 @@ func _run() -> void:
 	_assert(saw_attacker_damage, "Cannons damage attackers during the live simulation")
 	_assert(_living_kind_count(board, &"wall") < initial_wall_count, "the wave breaches at least one wall segment")
 	var core: Node2D = board.get_structure(&"command_core")
-	_assert(board.get_remaining_integrity() < 14 or core.health < core.max_health, "surviving attackers reach and damage a real objective")
+	_assert(board.get_remaining_integrity() < 13 or core.health < core.max_health, "surviving attackers reach and damage a real objective")
 	_assert(combat.result == &"attackers" or combat.result == &"defenders", "the deterministic wave reaches a declared result")
 	_assert(not combat.active, "combat ends only after one side has actually been eliminated")
 
 	combat.reset_fortress()
-	_assert(board.get_remaining_integrity() == 14, "rebuild restores the fortress after combat")
+	_assert(board.get_remaining_integrity() == 13, "rebuild restores the fortress after combat")
 	_assert(_living_kind_count(board, &"wall") == 68, "rebuild restores every wall segment")
+	combat.active = true
+	combat.result = &"running"
+	combat._spawn_attacker(&"healer", 20, 1)
+	combat._check_wave_end()
+	_assert(combat.result == &"defenders" and combat.attackers.is_empty(), "a support-only army resolves immediately without a timer")
 
 	harness.queue_free()
 	_finish("SIEGE_COMBAT_PHASE4_SMOKE_OK")

@@ -24,7 +24,6 @@ const INITIAL_STRUCTURES: Array[Dictionary] = [
 	{"id": &"air_defense_2", "kind": &"air_defense", "cell": Vector2i(38, 24), "footprint": Vector2i(3, 3)},
 	{"id": &"wizard_tower_1", "kind": &"wizard_tower", "cell": Vector2i(42, 15), "footprint": Vector2i(3, 3)},
 	{"id": &"wizard_tower_2", "kind": &"wizard_tower", "cell": Vector2i(42, 24), "footprint": Vector2i(3, 3)},
-	{"id": &"air_sweeper_1", "kind": &"air_sweeper", "cell": Vector2i(42, 20), "footprint": Vector2i(2, 2)},
 ]
 
 

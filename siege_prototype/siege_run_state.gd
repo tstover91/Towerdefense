@@ -2,7 +2,7 @@ class_name SiegeRunState
 extends RefCounted
 
 const FIRST_TOWN_HALL := 2
-const LAST_TOWN_HALL := 5
+const LAST_TOWN_HALL := 7
 const BATTLES_PER_TOWN_HALL := 2
 
 var town_hall := 2

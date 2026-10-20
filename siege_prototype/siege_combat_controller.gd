@@ -274,8 +274,19 @@ func _update_tracers(delta: float) -> void:
 func _check_wave_end() -> void:
 	if board.get_remaining_integrity() <= 0:
 		_finish_wave(&"attackers")
-	elif pending_wave.is_empty() and attackers.is_empty():
-		_finish_wave(&"defenders")
+	elif pending_wave.is_empty():
+		var has_offensive_attacker := false
+		for attacker in attackers:
+			if is_instance_valid(attacker) and not attacker.dead and not bool(attacker.definition.get("is_support", false)):
+				has_offensive_attacker = true
+				break
+		if not has_offensive_attacker:
+			# A Healer cannot damage a building. Remove support-only survivors so a
+			# no-timer round resolves immediately once its fighting troops are gone.
+			for attacker in attackers.duplicate():
+				if is_instance_valid(attacker) and not attacker.dead:
+					attacker.apply_damage(attacker.health)
+			_finish_wave(&"defenders")
 
 
 func _finish_wave(winner: StringName) -> void:

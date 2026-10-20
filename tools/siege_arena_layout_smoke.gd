@@ -34,7 +34,6 @@ func _run() -> void:
 		&"mortar": 0,
 		&"air_defense": 0,
 		&"wizard_tower": 0,
-		&"air_sweeper": 0,
 		&"wall": 0,
 	}
 	var first_blueprint: Array[Dictionary] = layout.get_initial_blueprint()
@@ -44,8 +43,6 @@ func _run() -> void:
 		var footprint := Vector2i(structure.get("footprint", Vector2i.ZERO))
 		if kind == &"command_core":
 			_assert(footprint == Vector2i(4, 4), "the Town Hall uses its Clash 4x4 footprint")
-		elif kind == &"air_sweeper":
-			_assert(footprint == Vector2i(2, 2), "the Air Sweeper uses its Clash 2x2 footprint")
 		elif kind == &"wall":
 			_assert(footprint == Vector2i.ONE, "walls retain their Clash 1x1 footprint")
 		else:
@@ -56,7 +53,6 @@ func _run() -> void:
 	_assert(int(kind_counts[&"mortar"]) == 2, "the arena includes both TH6 Mortars")
 	_assert(int(kind_counts[&"air_defense"]) == 2, "the arena includes both TH6 Air Defenses")
 	_assert(int(kind_counts[&"wizard_tower"]) == 2, "the arena includes both TH6 Wizard Towers")
-	_assert(int(kind_counts[&"air_sweeper"]) == 1, "the arena includes the TH6 Air Sweeper")
 	_assert(int(kind_counts[&"wall"]) == 68, "the scaled TH6 fortress uses sixty-eight wall segments")
 
 	var second_blueprint: Array[Dictionary] = layout.get_initial_blueprint()

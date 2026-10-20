@@ -109,22 +109,6 @@ const DEFINITIONS := {
 		"is_defense": true,
 		"target_type": &"ground_air",
 	},
-	&"air_sweeper": {
-		"display_name": "Air Sweeper",
-		"max_health": 800.0,
-		"integrity_value": 1,
-		"blocks_movement": true,
-		"counts_for_objective": true,
-		"attack_damage": 0.0,
-		"attack_interval": 5.0,
-		"attack_range_cells": 15.0,
-		"minimum_range_cells": 1.0,
-		"push_distance_cells": 2.0,
-		"reference_level": 2,
-		"reference_health": 800.0,
-		"is_defense": true,
-		"target_type": &"air",
-	},
 	&"wall": {
 		"display_name": "Wall",
 		"max_health": 1800.0,
@@ -136,7 +120,7 @@ const DEFINITIONS := {
 	},
 }
 
-# Current Clash combat values for the TH1-TH5 vertical slice. Economy values
+# Current Clash combat values for the TH1-TH7 vertical slice. Economy values
 # intentionally live outside this table because the run uses a condensed TD
 # currency instead of Clash build prices and timers.
 const LEVEL_STATS := {
@@ -147,6 +131,7 @@ const LEVEL_STATS := {
 		4: {"max_health": 2000.0},
 		5: {"max_health": 2400.0},
 		6: {"max_health": 2800.0},
+		7: {"max_health": 3300.0},
 	},
 	&"cannon": {
 		1: {"max_health": 300.0, "attack_damage": 5.6, "reference_dps": 7.0},
@@ -156,6 +141,7 @@ const LEVEL_STATS := {
 		5: {"max_health": 600.0, "attack_damage": 18.4, "reference_dps": 23.0},
 		6: {"max_health": 660.0, "attack_damage": 24.0, "reference_dps": 30.0},
 		7: {"max_health": 730.0, "attack_damage": 32.0, "reference_dps": 40.0},
+		8: {"max_health": 800.0, "attack_damage": 38.4, "reference_dps": 48.0},
 	},
 	&"archer_tower": {
 		1: {"max_health": 380.0, "attack_damage": 5.5, "reference_dps": 11.0},
@@ -165,23 +151,27 @@ const LEVEL_STATS := {
 		5: {"max_health": 540.0, "attack_damage": 15.0, "reference_dps": 30.0},
 		6: {"max_health": 580.0, "attack_damage": 17.5, "reference_dps": 35.0},
 		7: {"max_health": 630.0, "attack_damage": 21.0, "reference_dps": 42.0},
+		8: {"max_health": 690.0, "attack_damage": 24.0, "reference_dps": 48.0},
 	},
 	&"mortar": {
 		1: {"max_health": 400.0, "attack_damage": 20.0, "reference_damage_per_hit": 20.0},
 		2: {"max_health": 450.0, "attack_damage": 25.0, "reference_damage_per_hit": 25.0},
 		3: {"max_health": 500.0, "attack_damage": 30.0, "reference_damage_per_hit": 30.0},
 		4: {"max_health": 550.0, "attack_damage": 35.0, "reference_damage_per_hit": 35.0},
+		5: {"max_health": 600.0, "attack_damage": 45.0, "reference_damage_per_hit": 45.0},
 	},
 	&"air_defense": {
 		1: {"max_health": 800.0, "attack_damage": 80.0, "reference_dps": 80.0},
 		2: {"max_health": 850.0, "attack_damage": 110.0, "reference_dps": 110.0},
 		3: {"max_health": 900.0, "attack_damage": 140.0, "reference_dps": 140.0},
 		4: {"max_health": 950.0, "attack_damage": 160.0, "reference_dps": 160.0},
+		5: {"max_health": 1000.0, "attack_damage": 190.0, "reference_dps": 190.0},
 	},
 	&"wizard_tower": {
 		1: {"max_health": 620.0, "attack_damage": 14.3, "reference_dps": 11.0},
 		2: {"max_health": 650.0, "attack_damage": 16.9, "reference_dps": 13.0},
 		3: {"max_health": 680.0, "attack_damage": 20.8, "reference_dps": 16.0},
+		4: {"max_health": 730.0, "attack_damage": 26.0, "reference_dps": 20.0},
 	},
 	&"wall": {
 		1: {"max_health": 100.0},
@@ -190,16 +180,17 @@ const LEVEL_STATS := {
 		4: {"max_health": 800.0},
 		5: {"max_health": 1200.0},
 		6: {"max_health": 1800.0},
+		7: {"max_health": 2400.0},
 	},
 }
 
 const RUN_UPGRADE_COSTS := {
-	&"cannon": {2: 3, 3: 4, 4: 5, 5: 6, 6: 7},
-	&"archer_tower": {2: 4, 3: 5, 4: 6, 5: 7, 6: 8},
-	&"mortar": {2: 7, 3: 8},
-	&"air_defense": {2: 7, 3: 9},
-	&"wizard_tower": {2: 9},
-	&"wall": {2: 1, 3: 2, 4: 3, 5: 4},
+	&"cannon": {2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9},
+	&"archer_tower": {2: 4, 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10},
+	&"mortar": {2: 7, 3: 8, 4: 9, 5: 10},
+	&"air_defense": {2: 7, 3: 9, 4: 10, 5: 11},
+	&"wizard_tower": {2: 9, 3: 10, 4: 11},
+	&"wall": {2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6},
 }
 
 const RUN_BUILD_COSTS := {
