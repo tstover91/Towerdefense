@@ -112,8 +112,6 @@ func _select_build_kind(kind: StringName) -> void:
 	$HUD/BuildTray.visible = false
 	$HUD/SelectionPanel.visible = false
 	$HUD/PlacementPanel.visible = true
-	var price := "FREE" if cost == 0 else "%d GOLD" % cost
-	$HUD/PlacementPanel/Margin/Actions/PlacementLabel.text = "%s · %s\nDRAG TO MOVE" % [_display_name(kind).to_upper(), price]
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.disabled = true
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.visible = true
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.text = "✓"
@@ -159,7 +157,6 @@ func _continue_wall_placement(cell: Vector2i) -> void:
 		else:
 			$SiegeBoard.begin_wall_chain(cell)
 		$HUD/PlacementPanel.visible = true
-		$HUD/PlacementPanel/Margin/Actions/PlacementLabel.text = "WALL CHAIN\nTap any open green arrow"
 		$HUD/PlacementPanel/Margin/Actions/ConfirmButton.visible = false
 		_position_placement_panel($SiegeBoard.cell_rect(cell))
 
@@ -181,7 +178,7 @@ func _position_placement_panel(target_rect: Rect2) -> void:
 	var panel: Control = $HUD/PlacementPanel
 	var panel_size := panel.size
 	if panel_size.x <= 1.0:
-		panel_size = Vector2(390.0, 68.0)
+		panel_size = Vector2(158.0, 68.0)
 	var viewport_size := get_viewport().get_visible_rect().size
 	var target := Vector2(target_rect.get_center().x - panel_size.x * 0.5, target_rect.position.y - panel_size.y - 12.0)
 	if target.y < 58.0:

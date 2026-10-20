@@ -81,6 +81,8 @@ func _run() -> void:
 	main._select_build_kind(&"cannon")
 	_assert(main.pending_purchase_kind == &"cannon", "the Cannon card starts an explicit Cannon purchase")
 	_assert(main.get_node("HUD/PlacementPanel").visible and not main.get_node("HUD/BuildTray").visible, "choosing a card opens confirm/cancel placement controls")
+	_assert(not main.has_node("HUD/PlacementPanel/Margin/Actions/PlacementLabel"), "placement controls contain no popup instruction text")
+	_assert(main.get_node("HUD/PlacementPanel/Margin/Actions/CancelButton").visible and main.get_node("HUD/PlacementPanel/Margin/Actions/ConfirmButton").visible, "normal placement shows only cancel and confirm")
 	_assert(is_instance_valid(main_board.build_preview_structure), "choosing a card creates a visible draggable building ghost")
 	var opening_preview_cell: Vector2i = main_board.pending_build_cell
 	main_board._handle_edit_tap(main_board.cell_rect(Vector2i(12, 12)).get_center())

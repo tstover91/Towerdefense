@@ -207,13 +207,13 @@ custom_minimum_size = Vector2(170, 88)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
-text = "WALL\nFREE · BUILT 0 / 12"
+text = "WALL\nFREE · BUILT 0 / 25"
 
 [node name="PlacementPanel" type="PanelContainer" parent="HUD"]
 visible = false
-custom_minimum_size = Vector2(390, 68)
+custom_minimum_size = Vector2(158, 68)
 layout_mode = 3
-offset_right = 390.0
+offset_right = 158.0
 offset_bottom = 68.0
 
 [node name="Margin" type="MarginContainer" parent="HUD/PlacementPanel"]
@@ -226,13 +226,6 @@ theme_override_constants/margin_bottom = 8
 [node name="Actions" type="HBoxContainer" parent="HUD/PlacementPanel/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 10
-
-[node name="PlacementLabel" type="Label" parent="HUD/PlacementPanel/Margin/Actions"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 16
-text = "CANNON · 5 GOLD\nDRAG TO MOVE"
-vertical_alignment = 1
 
 [node name="CancelButton" type="Button" parent="HUD/PlacementPanel/Margin/Actions"]
 custom_minimum_size = Vector2(62, 52)
