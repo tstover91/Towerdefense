@@ -5,7 +5,7 @@ const ArenaLayoutScript = preload("res://siege_prototype/siege_arena_layout.gd")
 const RunStateScript = preload("res://siege_prototype/siege_run_state.gd")
 const TierCatalogScript = preload("res://siege_prototype/siege_town_hall_catalog.gd")
 const StructureCatalogScript = preload("res://siege_prototype/siege_structure_catalog.gd")
-const SHOP_KINDS: Array[StringName] = [&"cannon", &"archer_tower", &"mortar", &"wall"]
+const SHOP_KINDS: Array[StringName] = [&"cannon", &"archer_tower", &"mortar", &"air_defense", &"wizard_tower", &"wall"]
 
 var run_state: RefCounted
 var pending_purchase_kind: StringName
@@ -23,6 +23,8 @@ func _ready() -> void:
 	$HUD/BuildTray/Margin/Stack/Cards/CannonCard.pressed.connect(func() -> void: _select_build_kind(&"cannon"))
 	$HUD/BuildTray/Margin/Stack/Cards/ArcherCard.pressed.connect(func() -> void: _select_build_kind(&"archer_tower"))
 	$HUD/BuildTray/Margin/Stack/Cards/MortarCard.pressed.connect(func() -> void: _select_build_kind(&"mortar"))
+	$HUD/BuildTray/Margin/Stack/Cards/AirDefenseCard.pressed.connect(func() -> void: _select_build_kind(&"air_defense"))
+	$HUD/BuildTray/Margin/Stack/Cards/WizardTowerCard.pressed.connect(func() -> void: _select_build_kind(&"wizard_tower"))
 	$HUD/BuildTray/Margin/Stack/Cards/WallCard.pressed.connect(func() -> void: _select_build_kind(&"wall"))
 	$HUD/PlacementPanel/Margin/Actions/CancelButton.pressed.connect(_cancel_pending_purchase)
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.pressed.connect(_confirm_build)
@@ -286,7 +288,7 @@ func _on_wave_finished(result: StringName) -> void:
 			_upgrade_command_core_in_blueprint(run_state.blueprint, run_state.town_hall)
 		$SiegeBoard.load_blueprint(run_state.blueprint)
 		if run_state.completed:
-			_on_status_changed("RUN COMPLETE · TH2-TH3 survived · %d Gold banked" % run_state.currency)
+			_on_status_changed("RUN COMPLETE · TH2-TH5 survived · %d Gold banked" % run_state.currency)
 		else:
 			_on_status_changed("Defense held · +%d Gold · prepare TH%d-%s" % [reward, run_state.town_hall, run_state.get_battle_letter()])
 	else:
@@ -326,7 +328,7 @@ func _set_build_controls_enabled(enabled: bool) -> void:
 
 func _refresh_hud() -> void:
 	var budget := TierCatalogScript.get_army_budget(run_state.town_hall, run_state.battle_index)
-	$HUD/TopBar/PhaseBadge.text = "TH%d · %s\nROUND %d / 4" % [run_state.town_hall, run_state.get_battle_letter(), run_state.get_round_number()]
+	$HUD/TopBar/PhaseBadge.text = "TH%d · %s\nROUND %d / %d" % [run_state.town_hall, run_state.get_battle_letter(), run_state.get_round_number(), run_state.get_total_rounds()]
 	$HUD/TopBar/Currency.text = "%d GOLD\n%d HOUSING" % [run_state.currency, budget]
 	$HUD/BottomBar/AttackButton.text = "ATTACK %s" % run_state.get_battle_letter()
 	_refresh_shop_cards()
@@ -344,7 +346,7 @@ func _refresh_shop_cards() -> void:
 		var built: int = $SiegeBoard.get_structure_count(kind)
 		var cost: int = StructureCatalogScript.get_build_cost(kind)
 		if cap <= 0:
-			card.text = "%s\nUNLOCKS TH3" % _display_name(kind).to_upper()
+			card.text = "%s\nUNLOCKS TH%d" % [_display_name(kind).to_upper(), _get_unlock_town_hall(kind)]
 			card.disabled = true
 		elif built >= cap:
 			card.text = "%s\nBUILT %d / %d · MAX" % [_display_name(kind).to_upper(), built, cap]
@@ -359,8 +361,17 @@ func _card_for_kind(kind: StringName) -> Button:
 	match kind:
 		&"archer_tower": return $HUD/BuildTray/Margin/Stack/Cards/ArcherCard
 		&"mortar": return $HUD/BuildTray/Margin/Stack/Cards/MortarCard
+		&"air_defense": return $HUD/BuildTray/Margin/Stack/Cards/AirDefenseCard
+		&"wizard_tower": return $HUD/BuildTray/Margin/Stack/Cards/WizardTowerCard
 		&"wall": return $HUD/BuildTray/Margin/Stack/Cards/WallCard
 		_: return $HUD/BuildTray/Margin/Stack/Cards/CannonCard
+
+
+func _get_unlock_town_hall(kind: StringName) -> int:
+	for town_hall in range(RunStateScript.FIRST_TOWN_HALL, RunStateScript.LAST_TOWN_HALL + 1):
+		if TierCatalogScript.get_count_cap(town_hall, kind) > 0:
+			return town_hall
+	return RunStateScript.LAST_TOWN_HALL
 
 
 func _display_name(kind: StringName) -> String:

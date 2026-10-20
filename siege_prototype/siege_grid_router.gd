@@ -49,7 +49,10 @@ static func find_weighted_path(
 	hard_blocked.erase(start)
 	var goal_lookup: Dictionary = {}
 	for goal in goals:
-		if _inside(goal, grid_size) and not hard_blocked.has(goal) and not wall_costs.has(goal):
+		# A wall cell may itself be the closest valid attack position around a
+		# tightly enclosed building. Let the weighted route reach that cell so
+		# the attacker can breach it, then replan after the wall is destroyed.
+		if _inside(goal, grid_size) and not hard_blocked.has(goal):
 			goal_lookup[goal] = true
 	if goal_lookup.is_empty():
 		return {}

@@ -110,11 +110,12 @@ These are behavioral emulations because Supercell does not publish its internal
 pathfinding weights. Combat numbers remain the exact TH6 snapshot; no hidden
 damage, health, range, or speed modifiers were introduced.
 
-## Phase 7 four-round run
+## Phase 7 eight-round run
 
-The Siege Lab now starts a complete TH2-to-TH3 run rather than dropping directly
-into the TH6 benchmark. Each Town Hall has an A and B battle, for four rounds
-total. Wave sizes are tuned for the condensed TD economy. The wave roster,
+The Siege Lab now runs from TH2 through TH5 rather than dropping directly into
+the TH6 benchmark. Each Town Hall has an A and B battle, for eight rounds total.
+TH4 introduces flying Bombers and Air Defense; TH5 introduces splash-damage
+Mages and the Wizard Tower. Wave sizes are tuned for the condensed TD economy. The wave roster,
 unit level, building unlocks, building level caps, health, damage, cadence,
 range, footprints, and movement speed all use the current Clash values recorded
 in `CLASH_REFERENCE.md`.
@@ -124,7 +125,7 @@ defense or wall, and upgrade a selected structure to the current Town Hall cap.
 Gold is a deliberately condensed prototype economy; Clash prices and timers
 are not used. New level-one Walls are free, matching current Clash, while their
 upgrades and all defense construction/upgrades use Gold. Wall inventories now
-match Clash at 25/50 for TH2/3. The Command Core advances for free after
+match Clash at 25/50/75/100 for TH2-TH5. The Command Core advances for free after
 each B battle, but every defense and wall keeps the level the player purchased.
 As a prototype-specific exception, the low-level Command Core fires the exact
 level-one Cannon shot (7 DPS, 0.8-second cadence, 9-tile range).

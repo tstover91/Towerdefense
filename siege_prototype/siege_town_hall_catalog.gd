@@ -1,7 +1,7 @@
 class_name SiegeTownHallCatalog
 extends RefCounted
 
-# Combat caps, army space, and Wall quantities mirror current Clash TH1-TH3.
+# Combat caps, army space, and Wall quantities mirror current Clash TH1-TH5.
 const TIERS := {
 	1: {
 		"army_capacity": 20,
@@ -27,6 +27,22 @@ const TIERS := {
 		"count_caps": {&"command_core": 1, &"cannon": 2, &"archer_tower": 1, &"mortar": 1, &"wall": 50},
 		"troop_levels": {&"raider": 2, &"ranger": 2, &"brute": 1, &"sapper": 1},
 	},
+	4: {
+		"army_capacity": 80,
+		"reward_a": 16,
+		"reward_b": 20,
+		"structure_caps": {&"command_core": 4, &"cannon": 5, &"archer_tower": 4, &"mortar": 2, &"air_defense": 2, &"wall": 4},
+		"count_caps": {&"command_core": 1, &"cannon": 2, &"archer_tower": 2, &"mortar": 1, &"air_defense": 1, &"wall": 75},
+		"troop_levels": {&"raider": 2, &"ranger": 2, &"brute": 2, &"sapper": 2, &"bomber": 2},
+	},
+	5: {
+		"army_capacity": 135,
+		"reward_a": 22,
+		"reward_b": 28,
+		"structure_caps": {&"command_core": 5, &"cannon": 6, &"archer_tower": 6, &"mortar": 3, &"air_defense": 3, &"wizard_tower": 2, &"wall": 5},
+		"count_caps": {&"command_core": 1, &"cannon": 3, &"archer_tower": 3, &"mortar": 1, &"air_defense": 1, &"wizard_tower": 1, &"wall": 100},
+		"troop_levels": {&"raider": 3, &"ranger": 3, &"brute": 2, &"sapper": 2, &"bomber": 2, &"mage": 2},
+	},
 }
 
 const FOOTPRINTS := {
@@ -34,12 +50,14 @@ const FOOTPRINTS := {
 	&"cannon": Vector2i(3, 3),
 	&"archer_tower": Vector2i(3, 3),
 	&"mortar": Vector2i(3, 3),
+	&"air_defense": Vector2i(3, 3),
+	&"wizard_tower": Vector2i(3, 3),
 	&"wall": Vector2i.ONE,
 }
 
 
 static func get_tier(town_hall: int) -> Dictionary:
-	return Dictionary(TIERS.get(clampi(town_hall, 1, 3), {})).duplicate(true)
+	return Dictionary(TIERS.get(clampi(town_hall, 1, 5), {})).duplicate(true)
 
 
 static func get_army_budget(town_hall: int, battle_index: int) -> int:
@@ -63,7 +81,7 @@ static func get_count_cap(town_hall: int, kind: StringName) -> int:
 
 static func get_unlocked_build_kinds(town_hall: int) -> Array[StringName]:
 	var result: Array[StringName] = []
-	for kind in [&"cannon", &"archer_tower", &"mortar", &"wall"]:
+	for kind in [&"cannon", &"archer_tower", &"mortar", &"air_defense", &"wizard_tower", &"wall"]:
 		if get_count_cap(town_hall, kind) > 0:
 			result.append(kind)
 	return result
@@ -85,11 +103,21 @@ static func build_wave(town_hall: int, battle_index: int) -> Array[Dictionary]:
 				composition = _composition([[&"raider", 10]])
 			else:
 				composition = _composition([[&"brute", 1], [&"raider", 5], [&"ranger", 5]])
-		_:
+		3:
 			if battle_index == 0:
 				composition = _composition([[&"brute", 1], [&"sapper", 1], [&"raider", 7], [&"ranger", 6]])
 			else:
 				composition = _composition([[&"brute", 1], [&"sapper", 1], [&"raider", 8], [&"ranger", 7]])
+		4:
+			if battle_index == 0:
+				composition = _composition([[&"brute", 1], [&"sapper", 1], [&"bomber", 2], [&"raider", 6], [&"ranger", 5]])
+			else:
+				composition = _composition([[&"brute", 2], [&"sapper", 2], [&"bomber", 3], [&"raider", 6], [&"ranger", 5]])
+		_:
+			if battle_index == 0:
+				composition = _composition([[&"brute", 2], [&"sapper", 2], [&"bomber", 2], [&"mage", 2], [&"raider", 6], [&"ranger", 6]])
+			else:
+				composition = _composition([[&"brute", 3], [&"sapper", 3], [&"bomber", 2], [&"mage", 2], [&"raider", 6], [&"ranger", 7]])
 	var levels: Dictionary = get_tier(town_hall).get("troop_levels", {})
 	var spawn_delay := _get_spawn_delay(town_hall, battle_index)
 	for index in composition.size():
@@ -105,6 +133,8 @@ static func get_wave_housing(wave: Array[Dictionary]) -> int:
 		match StringName(entry.get("kind", &"")):
 			&"brute": total += 5
 			&"sapper": total += 2
+			&"bomber": total += 5
+			&"mage": total += 4
 			_: total += 1
 	return total
 
@@ -123,4 +153,6 @@ static func _get_spawn_delay(town_hall: int, battle_index: int) -> float:
 	match town_hall:
 		1: return 3.0 if battle_index == 0 else 2.6
 		2: return 2.4 if battle_index == 0 else 2.0
-		_: return 1.15 if battle_index == 0 else 0.82
+		3: return 1.15 if battle_index == 0 else 0.82
+		4: return 0.78 if battle_index == 0 else 0.68
+		_: return 0.62 if battle_index == 0 else 0.54

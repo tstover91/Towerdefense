@@ -85,6 +85,8 @@ func _run() -> void:
 	var origin_before_pan: Vector2 = board.board_origin
 	board.pan_view(Vector2(-80.0, -40.0))
 	_assert(board.board_origin != origin_before_pan, "a zoomed board can be panned")
+	board.zoom_at_screen_position(anchor, board.MAX_VIEW_ZOOM * 2.0)
+	_assert(is_equal_approx(board.view_zoom, 5.0), "players can zoom farther in and the camera clamps at the new 5x limit")
 	board.reset_view()
 	_assert(is_equal_approx(board.view_zoom, board.INITIAL_VIEW_ZOOM), "reset view restores the opening zoom")
 

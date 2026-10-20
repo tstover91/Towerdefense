@@ -36,7 +36,7 @@ const PAGE_MARGIN := 0.0
 const HEADER_HEIGHT := 0.0
 const FOOTER_HEIGHT := 0.0
 const MIN_VIEW_ZOOM := 0.82
-const MAX_VIEW_ZOOM := 4.0
+const MAX_VIEW_ZOOM := 5.0
 const INITIAL_VIEW_ZOOM := 2.05
 const WHEEL_ZOOM_STEP := 1.12
 

@@ -1,7 +1,9 @@
 class_name SiegeRunState
 extends RefCounted
 
-const LAST_TOWN_HALL := 3
+const FIRST_TOWN_HALL := 2
+const LAST_TOWN_HALL := 5
+const BATTLES_PER_TOWN_HALL := 2
 
 var town_hall := 2
 var battle_index := 0
@@ -42,7 +44,11 @@ func spend(amount: int) -> bool:
 
 
 func get_round_number() -> int:
-	return (town_hall - 2) * 2 + battle_index + 1
+	return (town_hall - FIRST_TOWN_HALL) * BATTLES_PER_TOWN_HALL + battle_index + 1
+
+
+func get_total_rounds() -> int:
+	return (LAST_TOWN_HALL - FIRST_TOWN_HALL + 1) * BATTLES_PER_TOWN_HALL
 
 
 func get_battle_letter() -> String:

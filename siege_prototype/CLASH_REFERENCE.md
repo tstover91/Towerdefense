@@ -62,9 +62,12 @@ apply that rule within their preferred category. A route can walk around walls
 or cross them; its wall cost is calculated from each wall's live HP and that
 troop's exact wall DPS. Walls remain intermediate obstacles, not destruction
 objectives. Wall Breakers consider protected buildings and attack the first wall
-on the selected route. Ground movement supports eight directions without corner
-cutting, while small local separation prevents exact unit overlap. Defenses lock
-their current target until it dies or leaves range.
+on the selected route, preferring wall groups of at least three connected pieces
+over isolated decoys. Ranged troops route only as far as a valid firing position
+and can fire over walls; melee troops cannot attack through an intervening wall.
+Ground movement supports eight directions without corner cutting, while small
+local separation prevents exact unit overlap. Defenses lock their current target
+until it dies or leaves range.
 
 Behavior references:
 
@@ -96,20 +99,24 @@ The deterministic test wave composition is allowed to change, but these unit
 and structure combat values should remain untouched until the exact-stat test
 has produced enough playtest evidence to justify a deliberate balance change.
 
-## TH2-TH3 run snapshot
+## TH2-TH5 run snapshot
 
 | Town Hall | Army space | Defense caps | Troop levels |
 | --- | ---: | --- | --- |
 | TH2 | 30 | 2 Cannons, level 3; 1 Archer Tower, level 2; Walls level 2 | Raider/Barbarian 1, Ranger/Archer 1, Brute/Giant 1 |
 | TH3 | 70 | 2 Cannons, level 4; 1 Archer Tower, level 3; 1 Mortar, level 1; Walls level 3 | Raider/Barbarian 2, Ranger/Archer 2, Brute/Giant 1, Sapper/Wall Breaker 1 |
+| TH4 | 80 | 2 Cannons, level 5; 2 Archer Towers, level 4; 1 Mortar, level 2; 1 Air Defense, level 2; 75 Walls, level 4 | Raider/Barbarian 2, Ranger/Archer 2, Brute/Giant 2, Sapper/Wall Breaker 2, Bomber/Balloon 2 |
+| TH5 | 135 | 3 Cannons and Archer Towers, level 6; Mortar/Air Defense level 3; Wizard Tower level 2; 100 Walls, level 5 | Raider/Barbarian 3, Ranger/Archer 3, Brute/Giant 2, Sapper/Wall Breaker 2, Bomber/Balloon 2, Mage/Wizard 2 |
 
 Current early-game structure values used by the run:
 
-- Town Hall HP: 400 / 800 / 1,600 at TH1 / TH2 / TH3.
-- Cannon levels 1-4: 300 / 360 / 420 / 500 HP and 7 / 10 / 13 / 17 DPS, firing every 0.8 seconds at range 9.
-- Archer Tower levels 1-3: 380 / 420 / 460 HP and 11 / 15 / 19 DPS, firing every 0.5 seconds at range 10.
-- Mortar level 1: 400 HP, 20 damage every 5 seconds, range 4-11, 1.5-tile splash.
-- Wall levels 1-3: 100 / 200 / 400 HP.
+- Town Hall HP: 400 / 800 / 1,600 / 2,000 / 2,400 at TH1-TH5.
+- Cannon levels 1-6: 300 / 360 / 420 / 500 / 600 / 660 HP and 7 / 10 / 13 / 17 / 23 / 30 DPS, firing every 0.8 seconds at range 9.
+- Archer Tower levels 1-6: 380 / 420 / 460 / 500 / 540 / 580 HP and 11 / 15 / 19 / 25 / 30 / 35 DPS, firing every 0.5 seconds at range 10.
+- Mortar levels 1-3: 400 / 450 / 500 HP and 20 / 25 / 30 damage every 5 seconds, range 4-11, 1.5-tile splash.
+- Air Defense levels 1-3: 800 / 850 / 900 HP and 80 / 110 / 140 DPS, air-only, range 10.
+- Wizard Tower levels 1-2: 620 / 650 HP and 11 / 13 DPS, firing every 1.3 seconds at range 7 with splash.
+- Wall levels 1-5: 100 / 200 / 400 / 800 / 1,200 HP.
 
 Current early-game troop values used by the run:
 
@@ -117,11 +124,13 @@ Current early-game troop values used by the run:
 - Archer levels 1-2: 22 / 26 HP, 8 / 10 DPS, 1 housing, range 3.5, 3 tiles per second.
 - Giant level 1: 400 HP, 12 DPS (24 every 2 seconds), 5 housing, 1.5 tiles per second, defenses preferred.
 - Wall Breaker level 1: 20 HP, 10 contact damage and 6 death damage, both x40 against Walls, 2 housing, 3 tiles per second.
+- Balloon levels 1-2: 150 / 180 HP, 75 / 96 damage every 3 seconds, 25 / 32 death damage, 5 housing, 1.25 tiles per second, defenses preferred, air movement.
+- Wizard levels 1-2: 75 / 90 HP, 75 / 105 damage every 1.5 seconds, 4 housing, range 3, splash damage.
 
 The playable run skips TH1. Wave sizes and spawn spacing use custom TD pacing
 and do not change any unit combat statistic. Run rewards and numeric Gold prices
 are intentionally condensed. New Walls are free to place, early Wall upgrades
-and defenses use Gold, and the inventories match Clash: 25 at TH2 and 50 at TH3.
+and defenses use Gold, and the inventories match Clash: 25 / 50 / 75 / 100 Walls at TH2-TH5.
 Low-level Clash Town Halls do not attack; the prototype's weak Command Core gun
 is an explicit exception using the exact level-one Cannon weapon values.
 
@@ -131,6 +140,8 @@ Early-game sources:
 - TH1 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-1/
 - TH2 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-2/
 - TH3 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-3/
+- TH4 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-4/
+- TH5 roster and caps: https://clash-of-clans.1337wiki.com/town-hall-level-5/
 - Cannon: https://clash-of-clans.1337wiki.com/cannon-home-village/
 - Archer Tower: https://clash-of-clans.1337wiki.com/archer-tower-home-village/
 - Mortar: https://clash-of-clans.1337wiki.com/mortar-home-village/
@@ -139,3 +150,7 @@ Early-game sources:
 - Archer: https://clash-of-clans.1337wiki.com/archer/
 - Giant: https://clash-of-clans.1337wiki.com/giant/
 - Wall Breaker: https://clash-of-clans.1337wiki.com/wall-breaker/
+- Air Defense: https://goblinsfarm.com/wiki/buildings/air-defense.html
+- Wizard Tower: https://goblinsfarm.com/wiki/buildings/wizard-tower.html
+- Balloon: https://goblinsfarm.com/wiki/troops/balloon.html
+- Wizard: https://goblinsfarm.com/wiki/troops/wizard.html

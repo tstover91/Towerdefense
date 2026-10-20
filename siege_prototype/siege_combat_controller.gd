@@ -144,8 +144,6 @@ func _update_towers(delta: float) -> void:
 	for structure in board.structures:
 		if structure.destroyed or not bool(structure.definition.get("can_attack", structure.definition.get("is_defense", false))):
 			continue
-		if StringName(structure.definition.get("target_type", &"ground")) == &"air":
-			continue
 		if float(structure.definition.get("attack_damage", 0.0)) <= 0.0:
 			continue
 		var cooldown := maxf(float(tower_cooldowns.get(structure.structure_id, 0.0)) - delta, 0.0)
@@ -185,6 +183,8 @@ func _choose_tower_target(tower: Node2D) -> Node2D:
 	for attacker in attackers:
 		if not is_instance_valid(attacker) or attacker.dead:
 			continue
+		if not _tower_can_target_attacker(tower, attacker):
+			continue
 		var distance := tower_center.distance_to(attacker.grid_position)
 		if distance >= minimum_range and distance <= range_cells and distance < best_distance:
 			best = attacker
@@ -195,10 +195,18 @@ func _choose_tower_target(tower: Node2D) -> Node2D:
 func _tower_target_is_valid(tower: Node2D, target: Node2D) -> bool:
 	if target == null or not is_instance_valid(target) or target.dead:
 		return false
+	if not _tower_can_target_attacker(tower, target):
+		return false
 	var distance := _structure_center_grid(tower).distance_to(target.grid_position)
 	var range_cells := float(tower.definition.get("attack_range_cells", 0.0))
 	var minimum_range := float(tower.definition.get("minimum_range_cells", 0.0))
 	return distance >= minimum_range and distance <= range_cells
+
+
+func _tower_can_target_attacker(tower: Node2D, attacker: Node2D) -> bool:
+	var target_type := StringName(tower.definition.get("target_type", &"ground"))
+	var movement_type := StringName(attacker.definition.get("movement_type", &"ground"))
+	return target_type == &"ground_air" or target_type == movement_type
 
 
 func _get_living_attacker(attacker_id: int) -> Node2D:
@@ -236,7 +244,7 @@ func _try_nudge_attacker(attacker: Node2D, offset: Vector2, blocked: Array[Vecto
 	candidate.x = clampf(candidate.x, 0.0, float(ArenaLayoutScript.GRID_SIZE.x - 1))
 	candidate.y = clampf(candidate.y, 0.0, float(ArenaLayoutScript.GRID_SIZE.y - 1))
 	var candidate_cell := Vector2i(roundi(candidate.x), roundi(candidate.y))
-	if blocked.has(candidate_cell):
+	if StringName(attacker.definition.get("movement_type", &"ground")) != &"air" and blocked.has(candidate_cell):
 		return
 	attacker.grid_position = candidate
 	attacker.set_layout_metrics(board.board_origin, board.cell_size)

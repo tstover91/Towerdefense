@@ -61,6 +61,14 @@ func _run() -> void:
 		Array(cheap_wall_route.get("crossed_walls", [])).has(Vector2i(2, 1)),
 		"route cost selects a breach when breaking the wall is faster than the detour"
 	)
+	var wall_goal_route: Dictionary = RouterScript.find_weighted_path(
+		Vector2i(0, 1),
+		[Vector2i(2, 1)],
+		[],
+		{Vector2i(2, 1): 0.1},
+		Vector2i(3, 3)
+	)
+	_assert(Array(wall_goal_route.get("crossed_walls", [])).has(Vector2i(2, 1)), "a tightly enclosed melee target can route to and breach a Wall attack position")
 
 	var harness := Node.new()
 	get_root().add_child(harness)
@@ -86,6 +94,22 @@ func _run() -> void:
 	first_attacker.mark_plan_dirty()
 	first_attacker.simulate(0.01)
 	_assert(first_attacker.intended_target_id == committed_target_id, "attackers stay committed while their intended target survives")
+	_assert(first_attacker._get_protective_wall_cells().size() == 68, "connected wall groups qualify as Wall Breaker protection")
+
+	var ranger: Node2D = combat._spawn_attacker(&"ranger", 20)
+	ranger.simulate(0.01)
+	_assert(ranger.intended_target_id != &"" and ranger.active_target_id == ranger.intended_target_id, "Rangers choose a clear firing position and shoot over Walls instead of breaching them")
+	_assert(not ranger.path.is_empty() and ranger._distance_from_position_to_structure(Vector2(ranger.path[-1]), board.get_structure(ranger.intended_target_id)) <= ranger.attack_range_cells + 0.001, "ranged routes end at the unit's real attack perimeter")
+	_assert(not combat._tower_can_target_attacker(board.get_structure(&"air_defense_1"), ranger), "Air Defenses ignore ground attackers")
+	combat._on_attacker_died(ranger)
+
+	var bomber: Node2D = combat._spawn_attacker(&"bomber", 20, 2)
+	bomber.simulate(0.01)
+	_assert(bomber.intended_target_id != &"" and bomber.active_target_id == bomber.intended_target_id, "flying Bombers cross Walls and commit directly to a defense")
+	_assert(combat._tower_can_target_attacker(board.get_structure(&"air_defense_1"), bomber), "Air Defenses acquire flying attackers")
+	_assert(combat._tower_can_target_attacker(board.get_structure(&"archer_tower_1"), bomber), "ground-and-air defenses acquire flying attackers")
+	_assert(not combat._tower_can_target_attacker(board.get_structure(&"cannon_1"), bomber), "ground-only Cannons ignore flying attackers")
+	combat._on_attacker_died(bomber)
 
 	var sapper: Node2D = combat._spawn_attacker(&"sapper", 20)
 	sapper.simulate(0.01)

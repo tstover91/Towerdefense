@@ -11,6 +11,8 @@ const COLOR_RAIDER := Color("4ca66a")
 const COLOR_BRUTE := Color("5878b8")
 const COLOR_SAPPER := Color("d68637")
 const COLOR_RANGER := Color("9b63b6")
+const COLOR_BOMBER := Color("9b493d")
+const COLOR_MAGE := Color("4d8ac8")
 const COLOR_OUTLINE := Color("252522")
 const COLOR_HEALTH := Color("62bd69")
 const COLOR_HEALTH_BACK := Color("252522")
@@ -29,10 +31,12 @@ var wall_damage := 1.0
 var death_damage := 0.0
 var death_wall_damage := 0.0
 var death_damage_radius_cells := 0.0
+var splash_radius_cells := 0.0
 var attack_interval := 1.0
 var move_speed_cells := 1.0
 var attack_range_cells := 1.05
 var preferred_target: StringName = &"any"
+var movement_type: StringName = &"ground"
 var self_destructs := false
 var dead := false
 var attack_cooldown := 0.0
@@ -63,10 +67,12 @@ func configure(
 	death_damage = float(definition.get("death_damage", 0.0))
 	death_wall_damage = float(definition.get("death_wall_damage", death_damage))
 	death_damage_radius_cells = float(definition.get("death_damage_radius_cells", 0.0))
+	splash_radius_cells = float(definition.get("splash_radius_cells", 0.0))
 	attack_interval = maxf(float(definition.get("attack_interval", 1.0)), 0.05)
 	move_speed_cells = maxf(float(definition.get("move_speed_cells", 1.0)), 0.05)
 	attack_range_cells = maxf(float(definition.get("attack_range_cells", 1.05)), 0.1)
 	preferred_target = StringName(definition.get("preferred_target", &"any"))
+	movement_type = StringName(definition.get("movement_type", &"ground"))
 	self_destructs = bool(definition.get("self_destructs", false))
 	name = "%s_%d" % [kind, attacker_id]
 	set_layout_metrics(board.board_origin, board.cell_size)
@@ -121,7 +127,7 @@ func _refresh_plan(force_retarget: bool) -> void:
 	var plan: Dictionary = {}
 	var committed_target: Node2D = board.get_structure(intended_target_id) if intended_target_id != &"" else null
 	if not force_retarget and committed_target != null and not committed_target.destroyed:
-		plan = _build_plan_for_target(committed_target)
+		plan = _build_plan_for_target(committed_target, _get_protective_wall_cells())
 	if plan.is_empty():
 		plan = _choose_target_plan()
 	if plan.is_empty():
@@ -148,22 +154,34 @@ func _choose_target_plan() -> Dictionary:
 				candidates.append(structure)
 	candidates.sort_custom(func(a: Node2D, b: Node2D) -> bool: return _distance_to_structure(a) < _distance_to_structure(b))
 	var considered_plans: Array[Dictionary] = []
-	var sapper_fallback_plans: Array[Dictionary] = []
-	for candidate in candidates:
-		var plan := _build_plan_for_target(candidate)
+	var sapper_wall_fallbacks: Array[Dictionary] = []
+	var sapper_building_fallbacks: Array[Dictionary] = []
+	var protective_wall_cells := _get_protective_wall_cells()
+	# Normal troops use Clash's rule of three literally: route only among the
+	# three closest eligible buildings. Wall Breakers instead keep looking for
+	# the nearest building protected by a meaningful connected wall group.
+	var candidate_limit := candidates.size() if kind == &"sapper" else mini(TARGET_CANDIDATE_COUNT, candidates.size())
+	for index in candidate_limit:
+		var candidate := candidates[index]
+		var plan := _build_plan_for_target(candidate, protective_wall_cells)
 		if plan.is_empty():
 			continue
-		if kind == &"sapper" and not bool(plan.get("crosses_wall", false)):
-			# Wall Breakers prefer any route that crosses a Wall. If the player
-			# built no Walls (or none remain), they still need a valid objective;
-			# otherwise a no-timer battle can never finish.
-			sapper_fallback_plans.append(plan)
+		if kind == &"sapper":
+			if bool(plan.get("crosses_protective_wall", false)):
+				considered_plans.append(plan)
+				if considered_plans.size() >= TARGET_CANDIDATE_COUNT:
+					break
+			elif bool(plan.get("crosses_wall", false)):
+				sapper_wall_fallbacks.append(plan)
+			else:
+				sapper_building_fallbacks.append(plan)
 			continue
 		considered_plans.append(plan)
-		if considered_plans.size() >= TARGET_CANDIDATE_COUNT:
-			break
 	if considered_plans.is_empty() and kind == &"sapper":
-		considered_plans = sapper_fallback_plans
+		# Ignore isolated decoy pieces while a three-piece wall group protects a
+		# building. If no such group exists, retain fallbacks so no-timer rounds
+		# can always resolve instead of leaving a Wall Breaker permanently idle.
+		considered_plans = sapper_wall_fallbacks if not sapper_wall_fallbacks.is_empty() else sapper_building_fallbacks
 	var best_plan: Dictionary = {}
 	var best_cost := INF
 	for plan in considered_plans:
@@ -174,29 +192,31 @@ func _choose_target_plan() -> Dictionary:
 	return best_plan
 
 
-func _build_plan_for_target(target: Node2D) -> Dictionary:
+func _build_plan_for_target(target: Node2D, protective_wall_cells: Dictionary = {}) -> Dictionary:
 	if target == null or target.destroyed:
 		return {}
 	var hard_blocked: Array[Vector2i] = []
 	var wall_costs: Dictionary = {}
 	var wall_by_cell: Dictionary = {}
-	for structure in board.structures:
-		if structure.destroyed or not structure.blocks_movement:
-			continue
-		if structure.kind == &"wall":
-			var wall_equivalent_cost := _wall_break_cost_in_tiles(structure.health)
-			for cell in structure.get_occupied_cells():
-				wall_costs[cell] = wall_equivalent_cost
-				wall_by_cell[cell] = structure
-		else:
-			hard_blocked.append_array(structure.get_occupied_cells())
-	for terrain_cell in ArenaLayoutScript.STATIC_TERRAIN:
-		if not hard_blocked.has(terrain_cell):
-			hard_blocked.append(terrain_cell)
-	var goals: Array[Vector2i] = []
-	for candidate_goal in RouterScript.get_adjacent_cells(target.get_occupied_cells(), ArenaLayoutScript.GRID_SIZE):
-		if _distance_from_position_to_structure(Vector2(candidate_goal), target) <= attack_range_cells:
-			goals.append(candidate_goal)
+	if movement_type == &"air":
+		# Flying troops cross Walls, terrain, and other structures. The intended
+		# target footprint alone stays closed so they stop at its attack perimeter.
+		hard_blocked.append_array(target.get_occupied_cells())
+	else:
+		for structure in board.structures:
+			if structure.destroyed or not structure.blocks_movement:
+				continue
+			if structure.kind == &"wall":
+				var wall_equivalent_cost := _wall_break_cost_in_tiles(structure.health)
+				for cell in structure.get_occupied_cells():
+					wall_costs[cell] = wall_equivalent_cost
+					wall_by_cell[cell] = structure
+			else:
+				hard_blocked.append_array(structure.get_occupied_cells())
+		for terrain_cell in ArenaLayoutScript.STATIC_TERRAIN:
+			if not hard_blocked.has(terrain_cell):
+				hard_blocked.append(terrain_cell)
+	var goals := _get_attack_goal_cells(target, hard_blocked, wall_costs)
 	var route := RouterScript.find_weighted_path(_current_cell(), goals, hard_blocked, wall_costs, ArenaLayoutScript.GRID_SIZE)
 	if route.is_empty():
 		return {}
@@ -206,6 +226,11 @@ func _build_plan_for_target(target: Node2D) -> Dictionary:
 	crossed_walls.assign(route.get("crossed_walls", []))
 	var active_target: Node2D = target
 	var movement_path: Array[Vector2i] = full_path
+	var crosses_protective_wall := false
+	for crossed_cell in crossed_walls:
+		if protective_wall_cells.has(crossed_cell):
+			crosses_protective_wall = true
+			break
 	if not crossed_walls.is_empty():
 		active_target = wall_by_cell.get(crossed_walls[0])
 		movement_path = []
@@ -219,7 +244,86 @@ func _build_plan_for_target(target: Node2D) -> Dictionary:
 		"path": movement_path,
 		"cost": float(route.get("cost", INF)),
 		"crosses_wall": not crossed_walls.is_empty(),
+		"crosses_protective_wall": crosses_protective_wall,
 	}
+
+
+func _get_attack_goal_cells(target: Node2D, hard_blocked: Array[Vector2i], wall_costs: Dictionary) -> Array[Vector2i]:
+	var occupied: Array[Vector2i] = []
+	occupied.assign(target.get_occupied_cells())
+	var min_cell: Vector2i = occupied[0]
+	var max_cell: Vector2i = occupied[0]
+	for cell in occupied:
+		min_cell.x = mini(min_cell.x, cell.x)
+		min_cell.y = mini(min_cell.y, cell.y)
+		max_cell.x = maxi(max_cell.x, cell.x)
+		max_cell.y = maxi(max_cell.y, cell.y)
+	var margin := ceili(attack_range_cells + 1.0)
+	var goals: Array[Vector2i] = []
+	for x in range(maxi(0, min_cell.x - margin), mini(ArenaLayoutScript.GRID_SIZE.x - 1, max_cell.x + margin) + 1):
+		for y in range(maxi(0, min_cell.y - margin), mini(ArenaLayoutScript.GRID_SIZE.y - 1, max_cell.y + margin) + 1):
+			var candidate := Vector2i(x, y)
+			if hard_blocked.has(candidate):
+				continue
+			if _distance_from_position_to_structure(Vector2(candidate), target) > attack_range_cells + 0.001:
+				continue
+			# Ranged units can fire over Walls. Melee units must either stand on the
+			# blocking Wall cell (and breach it) or have a clear contact line.
+			if attack_range_cells <= 1.05 and not wall_costs.has(candidate):
+				var has_clear_contact := false
+				for target_cell in occupied:
+					if _edge_distance_between_cells(candidate, target_cell) <= attack_range_cells + 0.001 and not _wall_between_cells(candidate, target_cell, wall_costs):
+						has_clear_contact = true
+						break
+				if not has_clear_contact:
+					continue
+			goals.append(candidate)
+	return goals
+
+
+func _wall_between_cells(from_cell: Vector2i, to_cell: Vector2i, wall_costs: Dictionary) -> bool:
+	var delta := to_cell - from_cell
+	var steps := maxi(absi(delta.x), absi(delta.y))
+	if steps <= 1:
+		return false
+	for step in range(1, steps):
+		var progress := float(step) / float(steps)
+		var sample := Vector2i(Vector2(from_cell).lerp(Vector2(to_cell), progress).round())
+		if wall_costs.has(sample):
+			return true
+	return false
+
+
+func _edge_distance_between_cells(first: Vector2i, second: Vector2i) -> float:
+	var delta := (Vector2(first) - Vector2(second)).abs()
+	return Vector2(maxf(delta.x - 1.0, 0.0), maxf(delta.y - 1.0, 0.0)).length()
+
+
+func _get_protective_wall_cells() -> Dictionary:
+	var unvisited: Dictionary = {}
+	for structure in board.structures:
+		if structure.destroyed or structure.kind != &"wall":
+			continue
+		for cell in structure.get_occupied_cells():
+			unvisited[cell] = true
+	var protective: Dictionary = {}
+	while not unvisited.is_empty():
+		var seed := Vector2i(unvisited.keys()[0])
+		var frontier: Array[Vector2i] = [seed]
+		var component: Array[Vector2i] = []
+		unvisited.erase(seed)
+		while not frontier.is_empty():
+			var current: Vector2i = frontier.pop_back()
+			component.append(current)
+			for direction in RouterScript.CARDINAL_DIRECTIONS:
+				var neighbor: Vector2i = current + direction
+				if unvisited.has(neighbor):
+					unvisited.erase(neighbor)
+					frontier.append(neighbor)
+		if component.size() >= 3:
+			for cell in component:
+				protective[cell] = true
+	return protective
 
 
 func _wall_break_cost_in_tiles(wall_health: float) -> float:
@@ -246,12 +350,25 @@ func _try_attack(target: Node2D) -> void:
 		return
 	attack_cooldown = attack_interval
 	var applied_damage := wall_damage if target.kind == &"wall" else damage
-	target.apply_damage(applied_damage)
+	_apply_attack_damage(target, applied_damage)
 	structure_hit.emit(self, target, applied_damage)
 	if self_destructs:
 		_die()
 	else:
 		plan_dirty = target.destroyed
+
+
+func _apply_attack_damage(primary_target: Node2D, primary_damage: float) -> void:
+	primary_target.apply_damage(primary_damage)
+	if splash_radius_cells <= 0.0:
+		return
+	var impact_position := Vector2(primary_target.grid_cell) + Vector2(primary_target.footprint) * 0.5 - Vector2(0.5, 0.5)
+	for structure in board.structures:
+		if structure == primary_target or structure.destroyed:
+			continue
+		if _distance_from_position_to_structure(impact_position, structure) > splash_radius_cells:
+			continue
+		structure.apply_damage(wall_damage if structure.kind == &"wall" else damage)
 
 
 func _distance_to_structure(structure: Node2D) -> float:
@@ -261,9 +378,12 @@ func _distance_to_structure(structure: Node2D) -> float:
 func _distance_from_position_to_structure(from_position: Vector2, structure: Node2D) -> float:
 	var best := INF
 	for cell in structure.get_occupied_cells():
-		# Clash range is measured from footprint edges. Adjacent grid cells have
-		# zero separation even though their centers are one cell apart.
-		best = minf(best, maxf(from_position.distance_to(Vector2(cell)) - 1.0, 0.0))
+		# Measure between tile edges rather than centers. This makes cardinal and
+		# diagonal contact both zero-distance and lets ranged units stop at their
+		# real firing perimeter instead of routing all the way to the building.
+		var delta := (from_position - Vector2(cell)).abs()
+		var edge_delta := Vector2(maxf(delta.x - 1.0, 0.0), maxf(delta.y - 1.0, 0.0))
+		best = minf(best, edge_delta.length())
 	return best
 
 
@@ -297,7 +417,7 @@ func _apply_death_damage() -> void:
 
 
 func _draw() -> void:
-	var radius := cell_size * (0.32 if kind == &"brute" else 0.23)
+	var radius := cell_size * (0.32 if kind == &"brute" or kind == &"bomber" else 0.23)
 	var body_color := COLOR_RAIDER
 	if kind == &"brute":
 		body_color = COLOR_BRUTE
@@ -305,6 +425,10 @@ func _draw() -> void:
 		body_color = COLOR_SAPPER
 	elif kind == &"ranger":
 		body_color = COLOR_RANGER
+	elif kind == &"bomber":
+		body_color = COLOR_BOMBER
+	elif kind == &"mage":
+		body_color = COLOR_MAGE
 	if dead:
 		body_color = body_color.darkened(0.65)
 	draw_circle(Vector2.ZERO, radius, body_color)
@@ -313,6 +437,11 @@ func _draw() -> void:
 		draw_line(Vector2(-radius * 0.55, 0.0), Vector2(radius * 0.55, 0.0), COLOR_TARGET, maxf(cell_size * 0.07, 2.0), true)
 	elif kind == &"ranger":
 		draw_arc(Vector2.ZERO, radius * 0.65, -PI * 0.6, PI * 0.6, 10, COLOR_TARGET, maxf(cell_size * 0.05, 1.0), true)
+	elif kind == &"bomber":
+		draw_line(Vector2(-radius * 0.65, radius * 0.15), Vector2(radius * 0.65, radius * 0.15), COLOR_TARGET, maxf(cell_size * 0.06, 1.0), true)
+		draw_circle(Vector2(0.0, -radius * 0.35), radius * 0.22, COLOR_TARGET)
+	elif kind == &"mage":
+		draw_circle(Vector2.ZERO, radius * 0.34, COLOR_TARGET)
 	if dead or health >= max_health:
 		return
 	var width := radius * 1.8

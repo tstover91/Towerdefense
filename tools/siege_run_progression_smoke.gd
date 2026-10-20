@@ -15,14 +15,18 @@ func _init() -> void:
 
 
 func _run() -> void:
-	var expected_budgets := [[15, 20], [10, 15], [20, 22]]
-	for town_hall in range(1, 4):
+	var expected_budgets := [[15, 20], [10, 15], [20, 22], [28, 40], [44, 52]]
+	for town_hall in range(1, 6):
 		for battle in range(2):
 			var wave: Array[Dictionary] = TierCatalogScript.build_wave(town_hall, battle)
 			_assert(TierCatalogScript.get_wave_housing(wave) == expected_budgets[town_hall - 1][battle], "TH%d-%s fills its intended housing budget" % [town_hall, "A" if battle == 0 else "B"])
 	_assert(TierCatalogScript.get_count_cap(1, &"wall") == 0, "TH1 has no walls")
 	_assert(TierCatalogScript.get_count_cap(2, &"wall") == 25, "TH2 supplies Clash's twenty-five Walls")
 	_assert(TierCatalogScript.get_count_cap(3, &"wall") == 50, "TH3 supplies Clash's fifty Walls")
+	_assert(TierCatalogScript.get_count_cap(4, &"wall") == 75, "TH4 supplies Clash's seventy-five Walls")
+	_assert(TierCatalogScript.get_count_cap(5, &"wall") == 100, "TH5 supplies Clash's one hundred Walls")
+	_assert(TierCatalogScript.get_count_cap(4, &"air_defense") == 1, "TH4 unlocks its first Air Defense")
+	_assert(TierCatalogScript.get_count_cap(5, &"wizard_tower") == 1, "TH5 unlocks its first Wizard Tower")
 	var opening_wave: Array[Dictionary] = TierCatalogScript.build_wave(2, 0)
 	_assert(opening_wave.size() == 10, "TH2-A opens with ten attackers")
 	for attacker in opening_wave:
@@ -32,6 +36,8 @@ func _run() -> void:
 	_assert(is_equal_approx(StructureCatalogScript.get_max_health(&"command_core", 1), 400.0), "TH1 uses current exact Town Hall HP")
 	_assert(is_equal_approx(StructureCatalogScript.get_max_health(&"command_core", 2), 800.0), "TH2 uses current exact Town Hall HP")
 	_assert(is_equal_approx(StructureCatalogScript.get_max_health(&"command_core", 3), 1600.0), "TH3 uses current exact Town Hall HP")
+	_assert(is_equal_approx(StructureCatalogScript.get_max_health(&"command_core", 4), 2000.0), "TH4 uses current exact Town Hall HP")
+	_assert(is_equal_approx(StructureCatalogScript.get_max_health(&"command_core", 5), 2400.0), "TH5 uses current exact Town Hall HP")
 	var armed_core := StructureCatalogScript.get_definition(&"command_core", 2)
 	_assert(bool(armed_core.get("can_attack", false)) and not bool(armed_core.get("is_defense", false)), "the Core fires without becoming a Giant-preferred defense")
 	_assert(is_equal_approx(float(armed_core.get("attack_damage", 0.0)), 5.6), "the Core gun uses an exact level-one Cannon shot")
@@ -39,6 +45,11 @@ func _run() -> void:
 	_assert(is_equal_approx(float(StructureCatalogScript.get_definition(&"cannon", 4)["reference_dps"]), 17.0), "level-four Cannon uses exact current DPS")
 	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"brute", 1)["max_health"]), 400.0), "level-one Brute uses exact current Giant HP")
 	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"ranger", 2)["attack_range_cells"]), 3.5), "Ranger preserves Archer range")
+	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"bomber", 2)["max_health"]), 180.0), "level-two Bomber uses exact current Balloon HP")
+	_assert(StringName(AttackerCatalogScript.get_definition(&"bomber", 2)["movement_type"]) == &"air", "Bombers use air movement")
+	_assert(is_equal_approx(float(AttackerCatalogScript.get_definition(&"mage", 2)["damage"]), 105.0), "level-two Mage uses exact current Wizard damage per hit")
+	_assert(is_equal_approx(float(StructureCatalogScript.get_definition(&"air_defense", 2)["reference_dps"]), 110.0), "level-two Air Defense uses exact current DPS")
+	_assert(is_equal_approx(float(StructureCatalogScript.get_definition(&"wizard_tower", 2)["max_health"]), 650.0), "level-two Wizard Tower uses exact current HP")
 
 	var state: RefCounted = RunStateScript.new()
 	var blueprint: Array[Dictionary] = ArenaLayoutScript.new().get_run_initial_blueprint()
@@ -48,12 +59,13 @@ func _run() -> void:
 	var defeat_blueprint: Array[Dictionary] = state.record_defeat()
 	_assert(state.currency == starting_currency and defeat_blueprint == blueprint, "defeat safely restores the precombat base without currency loss")
 	_assert(state.town_hall == 2 and state.get_round_number() == 1, "the run skips TH1 and opens at TH2-A")
-	for round_index in 4:
+	_assert(state.get_total_rounds() == 8, "the TH2-TH5 run contains eight rounds")
+	for round_index in state.get_total_rounds():
 		state.begin_combat(blueprint)
 		state.record_victory(TierCatalogScript.get_reward(state.town_hall, state.battle_index), blueprint)
-		if round_index < 3:
+		if round_index < state.get_total_rounds() - 1:
 			_assert(state.get_round_number() == round_index + 2, "victory advances exactly one round")
-	_assert(state.completed and state.town_hall == 3 and state.battle_index == 1, "four victories complete the TH2-TH3 run")
+	_assert(state.completed and state.town_hall == 5 and state.battle_index == 1, "eight victories complete the TH2-TH5 run")
 
 	var board: Node2D = BoardScript.new()
 	get_root().add_child(board)
@@ -78,6 +90,7 @@ func _run() -> void:
 	_assert(main_board.get_structure(&"cannon_1").level == 3, "the HUD upgrade action applies the TH2 level cap")
 	main._toggle_shop()
 	_assert(main.get_node("HUD/BuildTray").visible, "the Shop button opens the Clash-style building tray")
+	_assert(main.has_node("HUD/BuildTray/Margin/Stack/Cards/AirDefenseCard") and main.has_node("HUD/BuildTray/Margin/Stack/Cards/WizardTowerCard"), "the build tray exposes the TH4 and TH5 defense unlocks")
 	main._select_build_kind(&"cannon")
 	_assert(main.pending_purchase_kind == &"cannon", "the Cannon card starts an explicit Cannon purchase")
 	_assert(main.get_node("HUD/PlacementPanel").visible and not main.get_node("HUD/BuildTray").visible, "choosing a card opens confirm/cancel placement controls")

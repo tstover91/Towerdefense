@@ -49,7 +49,7 @@ clip_text = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 11
-text = "TH2-TH3 RUN · PAN AND PINCH TO EXPLORE"
+text = "TH2-TH5 RUN · PAN AND PINCH TO EXPLORE"
 text_overrun_behavior = 3
 clip_text = true
 
@@ -58,7 +58,7 @@ custom_minimum_size = Vector2(122, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
 theme_override_font_sizes/font_size = 13
-text = "TH2 · A\nROUND 1 / 4"
+text = "TH2 · A\nROUND 1 / 8"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -182,28 +182,42 @@ size_flags_vertical = 3
 theme_override_constants/separation = 10
 
 [node name="CannonCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(170, 88)
+custom_minimum_size = Vector2(136, 88)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
 text = "CANNON\n5 GOLD · BUILT 1 / 2"
 
 [node name="ArcherCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(170, 88)
+custom_minimum_size = Vector2(136, 88)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
 text = "ARCHER TOWER\n6 GOLD · BUILT 0 / 1"
 
 [node name="MortarCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(170, 88)
+custom_minimum_size = Vector2(136, 88)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
 text = "MORTAR\nUNLOCKS TH3"
 
+[node name="AirDefenseCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
+custom_minimum_size = Vector2(136, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+text = "AIR DEFENSE\nUNLOCKS TH4"
+
+[node name="WizardTowerCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
+custom_minimum_size = Vector2(136, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+text = "WIZARD TOWER\nUNLOCKS TH5"
+
 [node name="WallCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(170, 88)
+custom_minimum_size = Vector2(136, 88)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
