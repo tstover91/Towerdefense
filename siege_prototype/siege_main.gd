@@ -35,6 +35,7 @@ func _ready() -> void:
 	$SiegeBoard.structure_added.connect(_on_structure_added)
 	$SiegeBoard.build_preview_changed.connect(_on_build_preview_changed)
 	$SiegeBoard.wall_extension_requested.connect(_confirm_build)
+	$SiegeBoard.placement_cancel_requested.connect(_cancel_pending_purchase)
 	$SiegeBoard.view_transform_changed.connect(_on_view_transform_changed)
 	_new_run()
 	$HUD/TopBar/BackButton.grab_focus()
@@ -55,7 +56,7 @@ func _new_run() -> void:
 	_hide_context_panels()
 	$HUD/BottomBar/AttackButton.disabled = false
 	_set_build_controls_enabled(true)
-	_on_status_changed("Tap Shop to build · tap a structure for its Upgrade button")
+	_on_status_changed("Tap Shop to build · tap or drag a structure to edit it")
 	_refresh_hud()
 
 
@@ -144,6 +145,11 @@ func _on_structure_added(structure: Node) -> void:
 	if placed_kind == &"wall" and $SiegeBoard.get_structure_count(&"wall") < TierCatalogScript.get_count_cap(run_state.town_hall, &"wall"):
 		$HUD/SelectionPanel.visible = false
 		call_deferred("_continue_wall_placement", structure.grid_cell)
+	elif placed_kind == &"wall":
+		$SiegeBoard.cancel_build()
+		$SiegeBoard.clear_selection()
+		$HUD/SelectionPanel.visible = false
+		_on_status_changed("All %d Walls built" % TierCatalogScript.get_count_cap(run_state.town_hall, &"wall"))
 	else:
 		_on_selection_changed(structure)
 
@@ -191,7 +197,7 @@ func _position_placement_panel(target_rect: Rect2) -> void:
 func _upgrade_selected() -> void:
 	if $SiegeCombat.active or run_state.completed:
 		return
-	_cancel_pending_purchase()
+	_cancel_pending_purchase(false)
 	var structure: Node = $SiegeBoard.get_selected_structure()
 	if structure == null:
 		_on_status_changed("Select a defense or wall first")
@@ -298,10 +304,12 @@ func _upgrade_command_core_in_blueprint(blueprint: Array[Dictionary], town_hall:
 			return
 
 
-func _cancel_pending_purchase() -> void:
+func _cancel_pending_purchase(clear_selected := true) -> void:
 	pending_purchase_kind = &""
 	pending_purchase_cost = 0
 	$SiegeBoard.cancel_build()
+	if clear_selected:
+		$SiegeBoard.clear_selection()
 	$HUD/PlacementPanel.visible = false
 
 

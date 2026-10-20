@@ -95,6 +95,22 @@ func _run() -> void:
 	_assert(main.run_state.currency == 7, "placing the Cannon deducts its five-Gold prototype price once")
 	_assert(main_board.get_structure_count(&"cannon") == 2, "the TH2 base now contains both allowed Cannons")
 	_assert(main.get_node("HUD/SelectionPanel").visible, "a built defense receives its contextual Upgrade panel")
+	var built_cannon: Node2D = main_board.get_structure_at_cell(Vector2i(20, 20), true)
+	var cannon_drag_start: Vector2 = main_board.cell_rect(built_cannon.grid_cell).get_center()
+	_assert(main_board._begin_structure_drag_candidate_at(cannon_drag_start), "pressing an existing defense starts a direct-drag candidate")
+	main_board._update_structure_drag(cannon_drag_start + Vector2(0.0, main_board.cell_size * 5.0))
+	main_board._finish_structure_drag(cannon_drag_start + Vector2(0.0, main_board.cell_size * 5.0))
+	_assert(built_cannon.grid_cell == Vector2i(20, 25), "an existing defense follows a drag instead of using tap-to-move")
+	main_board._handle_edit_tap(main_board.cell_rect(Vector2i(12, 12)).get_center())
+	_assert(main_board.get_selected_structure() == null and not main.get_node("HUD/SelectionPanel").visible, "tapping empty ground clears the current selection")
+	var core: Node2D = main_board.get_structure(&"command_core")
+	var core_drag_start: Vector2 = main_board.cell_rect(core.grid_cell).get_center()
+	_assert(main_board._begin_structure_drag_candidate_at(core_drag_start), "the Town Hall uses the same direct-drag control as other buildings")
+	main_board._update_structure_drag(core_drag_start + Vector2(0.0, main_board.cell_size * 6.0))
+	main_board._finish_structure_drag(core_drag_start + Vector2(0.0, main_board.cell_size * 6.0))
+	_assert(core.grid_cell == Vector2i(36, 26), "the Town Hall can be rearranged by dragging")
+	main_board._handle_edit_tap(main_board.cell_rect(Vector2i(12, 12)).get_center())
+	_assert(main_board.get_selected_structure() == null, "empty ground also unselects the Town Hall")
 	main._select_build_kind(&"wall")
 	_assert(main_board.preview_build_at_cell(Vector2i(24, 20)), "the first Wall accepts normal placement")
 	_assert(main_board.confirm_pending_build(), "the first Wall uses the standard confirmation action")
@@ -119,16 +135,44 @@ func _run() -> void:
 	_assert(main.run_state.currency == 7, "free Wall-row segments do not spend Gold")
 	main._cancel_pending_purchase()
 	var placed_wall: Node = main_board.get_structure_at_cell(Vector2i(24, 20), true)
-	main._on_selection_changed(placed_wall)
+	main_board.select_structure(placed_wall)
 	await process_frame
 	_assert(main_board.is_wall_chain_active(), "selecting a placed Wall restores its extension arrows")
 	var selected_directions: Array[Vector2i] = main_board.get_wall_extension_cells()
 	_assert(not selected_directions.is_empty(), "reselecting an existing Wall exposes every open adjacent direction")
-	main._cancel_pending_purchase()
+	var wall_drag_start: Vector2 = main_board.cell_rect(placed_wall.grid_cell).get_center()
+	_assert(main_board._begin_structure_drag_candidate_at(wall_drag_start), "grabbing a selected Wall exits extension mode and starts dragging")
+	main_board._update_structure_drag(wall_drag_start + Vector2.LEFT * main_board.cell_size)
+	main_board._finish_structure_drag(wall_drag_start + Vector2.LEFT * main_board.cell_size)
+	_assert(placed_wall.grid_cell == Vector2i(23, 20), "an existing Wall can be rearranged by dragging")
+	await process_frame
+	main_board._handle_edit_tap(main_board.cell_rect(Vector2i(12, 12)).get_center())
+	_assert(main_board.get_selected_structure() == null and not main_board.is_wall_chain_active(), "tapping away from Wall arrows exits extension mode and unselects the Wall")
 	main._select_build_kind(&"archer_tower")
 	_assert(is_instance_valid(main_board.build_preview_structure), "another building can enter draggable preview mode")
 	main._cancel_pending_purchase()
 	_assert(main_board.get_structure_count(&"archer_tower") == 0 and main.run_state.currency == 7, "cancel removes the ghost without building or spending Gold")
+	var capped_blueprint: Array[Dictionary] = []
+	for entry in main_board.capture_current_blueprint():
+		if StringName(entry.get("kind", &"")) != &"wall":
+			capped_blueprint.append(entry)
+	for wall_index in 25:
+		capped_blueprint.append({
+			"id": StringName("cap_wall_%d" % wall_index),
+			"kind": &"wall",
+			"level": 1,
+			"cell": Vector2i(3 + wall_index, 5),
+			"footprint": Vector2i.ONE,
+		})
+	main_board.load_blueprint(capped_blueprint)
+	main.run_state.blueprint = capped_blueprint.duplicate(true)
+	main.pending_purchase_kind = &"wall"
+	main.pending_purchase_cost = 0
+	var final_wall: Node2D = main_board.get_structure(&"cap_wall_24")
+	main_board.selected_structure_id = final_wall.structure_id
+	main._on_structure_added(final_wall)
+	_assert(main_board.get_selected_structure() == null and not main_board.is_wall_chain_active(), "building the final available Wall leaves no stale selection or extension mode")
+	_assert(not main.get_node("HUD/SelectionPanel").visible, "the final Wall does not fall back to the old tap-to-move panel state")
 	main.run_state.begin_combat(main_board.capture_current_blueprint())
 	main._on_wave_finished(&"defenders")
 	main.run_state.begin_combat(main_board.capture_current_blueprint())

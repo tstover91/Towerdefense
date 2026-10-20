@@ -85,10 +85,11 @@ Spatial values now share Clash's scale as well: the construction area is 44 by
 directly in Clash tiles, so their proportions and travel times are no longer
 inflated by the earlier condensed grid.
 
-Before combat, tap any structure and then tap a valid empty build cell to move
-it. Dragging still pans the camera, and the edit toggle prevents accidental
-changes. Starting the attack captures and locks the chosen layout. Rebuild
-restores that layout at full health and returns to editing.
+Before combat, tap a structure to select it or drag the structure itself to
+rearrange it. Dragging empty ground pans the camera, pinching zooms, and tapping
+empty ground clears the selection. Starting the attack captures and locks the
+chosen layout. Rebuild restores that layout at full health and returns to
+editing.
 
 All ground-capable defenses now fire with their exact TH6-level health, damage,
 cadence, range, minimum range, and splash behavior. Air Defenses and the Air
