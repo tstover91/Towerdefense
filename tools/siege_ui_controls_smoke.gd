@@ -21,8 +21,10 @@ func _run() -> void:
 	_assert(not board._begin_structure_drag_candidate_at(archer_center), "an unselected building does not steal a camera drag")
 
 	board.select_structure(cannon)
-	var cannon_center: Vector2 = board.cell_rect(cannon.grid_cell).get_center()
+	_assert(board.get_selected_tower_range_cells() == Vector2(0.0, 9.0), "a selected Cannon exposes its exact nine-cell firing radius")
+	var cannon_center: Vector2 = board.board_origin + (Vector2(cannon.grid_cell) + Vector2(cannon.footprint) * 0.5) * board.cell_size
 	_assert(board._begin_structure_drag_candidate_at(cannon_center), "the selected building can begin a direct drag")
+	_assert(board.structure_drag_pointer_offset == Vector2(1.5, 1.5), "tower dragging uses the center of its three-by-three footprint")
 	var cannon_origin: Vector2i = cannon.grid_cell
 	var invalid_drop_position: Vector2 = board.board_origin + Vector2(0.5, 5.5) * board.cell_size
 	board._update_structure_drag(invalid_drop_position)
@@ -33,10 +35,14 @@ func _run() -> void:
 
 	var simple_blueprint: Array[Dictionary] = [
 		{"id": &"wall_test", "kind": &"wall", "level": 1, "cell": Vector2i(20, 20), "footprint": Vector2i.ONE},
+		{"id": &"mortar_test", "kind": &"mortar", "level": 1, "cell": Vector2i(30, 30), "footprint": Vector2i(3, 3)},
 	]
 	board.load_blueprint(simple_blueprint)
+	board.select_structure(board.get_structure(&"mortar_test"))
+	_assert(board.get_selected_tower_range_cells() == Vector2(4.0, 11.0), "a selected Mortar exposes both its four-cell dead zone and eleven-cell outer radius")
 	var wall: Node2D = board.get_structure(&"wall_test")
 	board.select_structure(wall)
+	_assert(board.get_selected_tower_range_cells() == Vector2.ZERO, "Walls never show a tower range ring")
 	_assert(board.pending_build_kind == &"", "selecting a wall does not silently begin a purchase")
 	_assert(board.get_wall_extension_cells().size() == 4, "a selected isolated wall exposes all four valid extension directions")
 

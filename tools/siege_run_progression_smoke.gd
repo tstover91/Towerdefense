@@ -133,7 +133,7 @@ func _run() -> void:
 	var upgrade_button: Control = main.get_node("HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton")
 	_assert(selected_label.get_global_rect().end.y <= upgrade_button.get_global_rect().position.y, "the structure name sits above the centered action button like Clash")
 	var built_cannon: Node2D = main_board.get_structure_at_cell(Vector2i(20, 20), true)
-	var cannon_drag_start: Vector2 = main_board.cell_rect(built_cannon.grid_cell).get_center()
+	var cannon_drag_start: Vector2 = main_board.board_origin + (Vector2(built_cannon.grid_cell) + Vector2(built_cannon.footprint) * 0.5) * main_board.cell_size
 	_assert(main_board._begin_structure_drag_candidate_at(cannon_drag_start), "pressing an existing defense starts a direct-drag candidate")
 	main_board._update_structure_drag(cannon_drag_start + Vector2(0.0, main_board.cell_size * 5.0))
 	main_board._finish_structure_drag(cannon_drag_start + Vector2(0.0, main_board.cell_size * 5.0))
@@ -141,7 +141,7 @@ func _run() -> void:
 	main_board._handle_edit_tap(main_board.cell_rect(Vector2i(12, 12)).get_center())
 	_assert(main_board.get_selected_structure() == null and not main.get_node("HUD/SelectionPanel").visible, "tapping empty ground clears the current selection")
 	var core: Node2D = main_board.get_structure(&"command_core")
-	var core_drag_start: Vector2 = main_board.cell_rect(core.grid_cell).get_center()
+	var core_drag_start: Vector2 = main_board.board_origin + (Vector2(core.grid_cell) + Vector2(core.footprint) * 0.5) * main_board.cell_size
 	_assert(not main_board._begin_structure_drag_candidate_at(core_drag_start), "an unselected Town Hall leaves the first drag available for camera panning")
 	main_board._handle_edit_tap(core_drag_start)
 	_assert(main_board._begin_structure_drag_candidate_at(core_drag_start), "the Town Hall uses the same direct-drag control as other buildings")

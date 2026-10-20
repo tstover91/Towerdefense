@@ -104,6 +104,10 @@ one snapped group or rotated 90 degrees around the originally selected segment.
 Blocked or out-of-bounds row transformations are rejected without changing the
 saved layout.
 
+Selecting a defensive tower draws its true firing radius over the board. Towers
+with a blind spot, such as the Mortar, also draw their minimum-range dead zone;
+both circles use the same Clash-scaled cell ranges as combat targeting.
+
 All included defenses now use their exact TH6-level health, damage, cadence,
 range, minimum range, target type, and splash behavior. Air Defenses correctly
 ignore ground attackers and engage flying attackers.

@@ -31,6 +31,10 @@ const COLOR_MUTED_TEXT := Color("b9b6ac")
 const COLOR_HOVER := Color(0.20, 0.72, 0.42, 0.42)
 const COLOR_SELECTED := Color(0.95, 0.72, 0.24, 0.72)
 const COLOR_INVALID_BUILD := Color(0.86, 0.22, 0.20, 0.48)
+const COLOR_RANGE_FILL := Color(0.82, 0.93, 1.0, 0.10)
+const COLOR_RANGE_OUTLINE := Color(0.91, 0.97, 1.0, 0.88)
+const COLOR_MIN_RANGE_FILL := Color(0.92, 0.32, 0.24, 0.10)
+const COLOR_MIN_RANGE_OUTLINE := Color(1.0, 0.48, 0.34, 0.84)
 const BASE_TAP_DRAG_THRESHOLD := 12.0
 
 const PAGE_MARGIN := 0.0
@@ -356,7 +360,10 @@ func _begin_structure_drag_candidate_at(screen_position: Vector2) -> bool:
 	structure_dragging = false
 	structure_drag_press_position = screen_position
 	structure_drag_last_position = screen_position
-	structure_drag_pointer_offset = (screen_position - board_origin) / cell_size - Vector2(structure.grid_cell)
+	# Clash-style building movement is anchored to the footprint center. This
+	# keeps 3x3 defenses and the 4x4 Core centered under the finger instead of
+	# making their top-left grid cell act like the drag handle.
+	structure_drag_pointer_offset = Vector2(structure.footprint) * 0.5
 	structure_drag_origin_cell = structure.grid_cell
 	structure_drag_preview_cell = structure.grid_cell
 	structure_drag_drop_valid = true
@@ -616,6 +623,16 @@ func clear_selection() -> void:
 
 func get_selected_wall_row_count() -> int:
 	return selected_wall_row_ids.size()
+
+
+func get_selected_tower_range_cells() -> Vector2:
+	var selected := get_selected_structure()
+	if selected == null or selected.destroyed or not bool(selected.definition.get("is_defense", false)):
+		return Vector2.ZERO
+	return Vector2(
+		maxf(float(selected.definition.get("minimum_range_cells", 0.0)), 0.0),
+		maxf(float(selected.definition.get("attack_range_cells", 0.0)), 0.0)
+	)
 
 
 func get_selectable_wall_row_count() -> int:
@@ -1277,6 +1294,8 @@ func _draw() -> void:
 	if edit_mode and selected_structure_id != &"":
 		var selected := get_structure(selected_structure_id)
 		if selected != null:
+			var range_cell: Vector2i = structure_drag_preview_cell if structure_dragging else selected.grid_cell
+			_draw_selected_tower_range(selected, range_cell)
 			if selected_wall_row_ids.size() > 1:
 				for structure_id in selected_wall_row_ids:
 					var row_wall := get_structure(structure_id)
@@ -1323,6 +1342,24 @@ func _draw() -> void:
 		_draw_wall_extension_arrows()
 	if arena_layout.is_inside_grid(hovered_cell):
 		draw_rect(cell_rect(hovered_cell).grow(-1.5), COLOR_HOVER, true)
+
+
+func _draw_selected_tower_range(structure: Node2D, display_cell: Vector2i) -> void:
+	if structure.destroyed or not bool(structure.definition.get("is_defense", false)):
+		return
+	var attack_range := maxf(float(structure.definition.get("attack_range_cells", 0.0)), 0.0)
+	if attack_range <= 0.0:
+		return
+	var center := board_origin + (Vector2(display_cell) + Vector2(structure.footprint) * 0.5) * cell_size
+	var outer_radius := attack_range * cell_size
+	draw_circle(center, outer_radius, COLOR_RANGE_FILL)
+	draw_arc(center, outer_radius, 0.0, TAU, 128, COLOR_RANGE_OUTLINE, maxf(cell_size * 0.065, 1.5), true)
+	var minimum_range := maxf(float(structure.definition.get("minimum_range_cells", 0.0)), 0.0)
+	if minimum_range <= 0.0:
+		return
+	var inner_radius := minimum_range * cell_size
+	draw_circle(center, inner_radius, COLOR_MIN_RANGE_FILL)
+	draw_arc(center, inner_radius, 0.0, TAU, 96, COLOR_MIN_RANGE_OUTLINE, maxf(cell_size * 0.055, 1.25), true)
 
 
 func _draw_wall_extension_arrows() -> void:
