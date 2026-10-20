@@ -142,6 +142,8 @@ func _run() -> void:
 	_assert(main_board.get_selected_structure() == null and not main.get_node("HUD/SelectionPanel").visible, "tapping empty ground clears the current selection")
 	var core: Node2D = main_board.get_structure(&"command_core")
 	var core_drag_start: Vector2 = main_board.cell_rect(core.grid_cell).get_center()
+	_assert(not main_board._begin_structure_drag_candidate_at(core_drag_start), "an unselected Town Hall leaves the first drag available for camera panning")
+	main_board._handle_edit_tap(core_drag_start)
 	_assert(main_board._begin_structure_drag_candidate_at(core_drag_start), "the Town Hall uses the same direct-drag control as other buildings")
 	main_board._update_structure_drag(core_drag_start + Vector2(0.0, main_board.cell_size * 6.0))
 	main_board._finish_structure_drag(core_drag_start + Vector2(0.0, main_board.cell_size * 6.0))
@@ -154,7 +156,8 @@ func _run() -> void:
 	await process_frame
 	_assert(main_board.is_wall_chain_active(), "placing the first Wall activates the row-extension arrows")
 	var extensions: Array[Vector2i] = main_board.get_wall_extension_cells()
-	_assert(extensions.size() >= 3 and main_board.try_select_wall_extension(extensions[1]), "tapping any open arrow immediately adds the next Wall")
+	_assert(extensions.size() >= 3 and main_board.try_select_wall_extension(extensions[1]), "tapping any open arrow previews the next Wall")
+	main._confirm_build()
 	await process_frame
 	var chain_focus: Vector2i = main_board.get_wall_chain_focus_cell()
 	var turn_choices: Array[Vector2i] = main_board.get_wall_extension_cells()
@@ -166,7 +169,8 @@ func _run() -> void:
 		elif choice.x == chain_focus.x:
 			perpendicular_choice = choice
 	_assert(has_straight_choice and perpendicular_choice.x >= 0, "after two pieces, both straight and turning directions remain available when open")
-	_assert(main_board.try_select_wall_extension(perpendicular_choice), "a wall chain can turn after its first direction")
+	_assert(main_board.try_select_wall_extension(perpendicular_choice), "a wall chain can preview a turn after its first direction")
+	main._confirm_build()
 	await process_frame
 	_assert(main_board.get_structure_count(&"wall") == 3, "wall-row placement keeps building consecutive segments")
 	_assert(main.run_state.currency == 7, "free Wall-row segments do not spend Gold")
@@ -174,9 +178,9 @@ func _run() -> void:
 	var placed_wall: Node = main_board.get_structure_at_cell(Vector2i(24, 20), true)
 	main_board.select_structure(placed_wall)
 	await process_frame
-	_assert(main_board.is_wall_chain_active(), "selecting a placed Wall restores its extension arrows")
+	_assert(not main_board.is_wall_chain_active(), "selecting a placed Wall does not silently enter purchase mode")
 	var selected_directions: Array[Vector2i] = main_board.get_wall_extension_cells()
-	_assert(not selected_directions.is_empty(), "reselecting an existing Wall exposes every open adjacent direction")
+	_assert(not selected_directions.is_empty(), "selecting an existing Wall exposes every open adjacent direction")
 	var wall_drag_start: Vector2 = main_board.cell_rect(placed_wall.grid_cell).get_center()
 	_assert(main_board._begin_structure_drag_candidate_at(wall_drag_start), "grabbing a selected Wall exits extension mode and starts dragging")
 	main_board._update_structure_drag(wall_drag_start + Vector2.LEFT * main_board.cell_size)

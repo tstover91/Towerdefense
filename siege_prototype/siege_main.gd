@@ -36,7 +36,8 @@ func _ready() -> void:
 	$SiegeBoard.selected_structure_changed.connect(_on_selection_changed)
 	$SiegeBoard.structure_added.connect(_on_structure_added)
 	$SiegeBoard.build_preview_changed.connect(_on_build_preview_changed)
-	$SiegeBoard.wall_extension_requested.connect(_confirm_build)
+	$SiegeBoard.wall_extension_requested.connect(_on_wall_extension_preview_requested)
+	$SiegeBoard.wall_extension_start_requested.connect(_on_wall_extension_start_requested)
 	$SiegeBoard.placement_cancel_requested.connect(_cancel_pending_purchase)
 	$SiegeBoard.view_transform_changed.connect(_on_view_transform_changed)
 	_new_run()
@@ -58,7 +59,7 @@ func _new_run() -> void:
 	_hide_context_panels()
 	$HUD/BottomBar/AttackButton.disabled = false
 	_set_build_controls_enabled(true)
-	_on_status_changed("Tap Shop to build · tap or drag a structure to edit it")
+	_on_status_changed("")
 	_refresh_hud()
 
 
@@ -164,9 +165,37 @@ func _continue_wall_placement(cell: Vector2i) -> void:
 			$SiegeBoard.advance_wall_chain(cell)
 		else:
 			$SiegeBoard.begin_wall_chain(cell)
-		$HUD/PlacementPanel.visible = true
-		$HUD/PlacementPanel/Margin/Actions/ConfirmButton.visible = false
-		_position_placement_panel($SiegeBoard.cell_rect(cell))
+		$HUD/PlacementPanel.visible = false
+
+
+func _on_wall_extension_start_requested(cell: Vector2i) -> void:
+	if $SiegeCombat.active or run_state.completed or pending_purchase_kind != &"":
+		return
+	var selected: Node = $SiegeBoard.get_selected_structure()
+	if selected == null or selected.kind != &"wall":
+		return
+	var cap: int = TierCatalogScript.get_count_cap(run_state.town_hall, &"wall")
+	if $SiegeBoard.get_structure_count(&"wall") >= cap:
+		_on_status_changed("All %d Walls built" % cap)
+		return
+	var cost := StructureCatalogScript.get_build_cost(&"wall")
+	if run_state.currency < cost:
+		_on_status_changed("Need %d Gold to build Wall" % cost)
+		return
+	pending_purchase_kind = &"wall"
+	pending_purchase_cost = cost
+	$SiegeBoard.begin_wall_chain_from_existing(selected.grid_cell)
+	$SiegeBoard.preview_build_at_cell(cell)
+	_on_wall_extension_preview_requested()
+
+
+func _on_wall_extension_preview_requested() -> void:
+	if pending_purchase_kind != &"wall":
+		return
+	$HUD/PlacementPanel.visible = true
+	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.visible = true
+	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.disabled = false
+	_position_placement_panel($SiegeBoard.get_build_preview_screen_rect())
 
 
 func _on_view_transform_changed() -> void:
@@ -257,18 +286,6 @@ func _on_selection_changed(structure: Node) -> void:
 	else:
 		button.text = "UPGRADE\nLEVEL %d · %d GOLD" % [next_level, cost]
 		button.disabled = run_state.currency < cost
-	if structure.kind == &"wall" and $SiegeBoard.get_structure_count(&"wall") < TierCatalogScript.get_count_cap(run_state.town_hall, &"wall"):
-		call_deferred("_begin_selected_wall_row", structure.grid_cell)
-
-
-func _begin_selected_wall_row(cell: Vector2i) -> void:
-	if $SiegeCombat.active or run_state.completed or pending_purchase_kind != &"":
-		return
-	pending_purchase_kind = &"wall"
-	pending_purchase_cost = StructureCatalogScript.get_build_cost(&"wall")
-	$SiegeBoard.begin_wall_chain_from_existing(cell)
-	$HUD/PlacementPanel.visible = false
-	_on_status_changed("Wall selected · extend in any open green-arrow direction")
 
 
 func _on_wave_started() -> void:
