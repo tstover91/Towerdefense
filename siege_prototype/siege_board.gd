@@ -627,7 +627,7 @@ func get_selected_wall_row_count() -> int:
 
 func get_selected_tower_range_cells() -> Vector2:
 	var selected := get_selected_structure()
-	if selected == null or selected.destroyed or not bool(selected.definition.get("is_defense", false)):
+	if selected == null or selected.destroyed or not _structure_has_weapon(selected):
 		return Vector2.ZERO
 	return Vector2(
 		maxf(float(selected.definition.get("minimum_range_cells", 0.0)), 0.0),
@@ -1345,7 +1345,7 @@ func _draw() -> void:
 
 
 func _draw_selected_tower_range(structure: Node2D, display_cell: Vector2i) -> void:
-	if structure.destroyed or not bool(structure.definition.get("is_defense", false)):
+	if structure.destroyed or not _structure_has_weapon(structure):
 		return
 	var attack_range := maxf(float(structure.definition.get("attack_range_cells", 0.0)), 0.0)
 	if attack_range <= 0.0:
@@ -1360,6 +1360,10 @@ func _draw_selected_tower_range(structure: Node2D, display_cell: Vector2i) -> vo
 	var inner_radius := minimum_range * cell_size
 	draw_circle(center, inner_radius, COLOR_MIN_RANGE_FILL)
 	draw_arc(center, inner_radius, 0.0, TAU, 96, COLOR_MIN_RANGE_OUTLINE, maxf(cell_size * 0.055, 1.25), true)
+
+
+func _structure_has_weapon(structure: Node2D) -> bool:
+	return bool(structure.definition.get("can_attack", false)) or bool(structure.definition.get("is_defense", false))
 
 
 func _draw_wall_extension_arrows() -> void:

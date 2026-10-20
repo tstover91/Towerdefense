@@ -17,6 +17,9 @@ func _run() -> void:
 
 	var cannon: Node2D = board.get_structure(&"cannon_1")
 	var archer: Node2D = board.get_structure(&"archer_tower_1")
+	var command_core: Node2D = board.get_structure(&"command_core")
+	board.select_structure(command_core)
+	_assert(board.get_selected_tower_range_cells() == Vector2(0.0, 9.0), "the armed Town Hall exposes its nine-cell aim radius without becoming a defense-priority target")
 	var archer_center: Vector2 = board.cell_rect(archer.grid_cell).get_center()
 	_assert(not board._begin_structure_drag_candidate_at(archer_center), "an unselected building does not steal a camera drag")
 
