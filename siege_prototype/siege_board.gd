@@ -775,7 +775,16 @@ func begin_wall_plan(cells: Array, preferred_origin := Vector2i(-1, -1), require
 	selected_structure_changed.emit(null)
 	var opening_origin: Vector2i = preferred_origin
 	if opening_origin.x < 0 or not can_place_wall_plan(opening_origin):
-		opening_origin = _find_nearest_wall_plan_origin(screen_to_cell(get_viewport_rect().get_center()))
+		var view_center: Vector2i = screen_to_cell(get_viewport_rect().get_center())
+		opening_origin = _find_nearest_wall_plan_origin(view_center)
+		if opening_origin.x < 0 and not pending_wall_plan_required_cells.is_empty():
+			for rotation in 3:
+				_rotate_pending_wall_plan_geometry()
+				opening_origin = _find_nearest_wall_plan_origin(view_center)
+				if opening_origin.x >= 0:
+					break
+		if opening_origin.x < 0:
+			opening_origin = _find_visible_wall_plan_origin(view_center)
 	preview_wall_plan_at_cell(opening_origin)
 
 
@@ -885,6 +894,18 @@ func _transform_pending_wall_plan(transformed: Array[Vector2i], transformed_requ
 	preview_wall_plan_at_cell(next_origin)
 
 
+func _rotate_pending_wall_plan_geometry() -> void:
+	var transformed: Array[Vector2i] = []
+	for cell in pending_wall_plan_cells:
+		transformed.append(Vector2i(-cell.y, cell.x))
+	var transformed_required: Array[Vector2i] = []
+	for cell in pending_wall_plan_required_cells:
+		transformed_required.append(Vector2i(-cell.y, cell.x))
+	var geometry: Dictionary = _normalize_wall_plan_geometry(transformed, transformed_required)
+	pending_wall_plan_cells.assign(geometry.get("cells", []))
+	pending_wall_plan_required_cells.assign(geometry.get("required", []))
+
+
 func _normalize_wall_plan_cells(value: Array) -> Array[Vector2i]:
 	var geometry: Dictionary = _normalize_wall_plan_geometry(value, [])
 	var result: Array[Vector2i] = []
@@ -948,6 +969,23 @@ func _find_nearest_wall_plan_origin(center: Vector2i) -> Vector2i:
 				best = candidate
 				best_distance = distance
 	return best
+
+
+func _find_visible_wall_plan_origin(center: Vector2i) -> Vector2i:
+	var plan_size := _wall_plan_geometry_size()
+	if center.x < 0:
+		center = Vector2i(
+			ArenaLayoutScript.BUILD_START_X + ArenaLayoutScript.BUILD_AREA_SIZE.x / 2,
+			ArenaLayoutScript.GRID_SIZE.y / 2
+		)
+	var maximum_origin := Vector2i(
+		ArenaLayoutScript.GRID_SIZE.x - plan_size.x,
+		ArenaLayoutScript.GRID_SIZE.y - plan_size.y
+	)
+	return Vector2i(
+		clampi(center.x - plan_size.x / 2, ArenaLayoutScript.BUILD_START_X, maximum_origin.x),
+		clampi(center.y - plan_size.y / 2, 0, maximum_origin.y)
+	)
 
 
 func _clear_pending_wall_plan() -> void:

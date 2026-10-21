@@ -44,10 +44,10 @@ func _run() -> void:
 	for plan in opening_plans:
 		_assert_closed_wall_plan(plan)
 	var expected_wall_plans := {
-		&"sidecar_pocket": [11, 5],
+		&"sidecar_pocket": [11, 0],
 		&"u_funnel": [18, 0],
 		&"dogleg_channel": [18, 0],
-		&"twin_compartments": [22, 5],
+		&"twin_compartments": [22, 0],
 		&"dead_zone_pair": [32, 0],
 		&"island_cluster": [48, 0],
 		&"ring": [48, 0],
@@ -64,8 +64,6 @@ func _run() -> void:
 	_assert(_plan_ids(rank_two_plans) == [&"sidecar_pocket", &"u_funnel", &"dogleg_channel"], "Rank 2 offers Sidecar, U-Funnel, and Dogleg")
 	var rank_six_plans: Array[Dictionary] = WallPlanCatalogScript.get_plan_choices(6, 100)
 	_assert(_plan_ids(rank_six_plans) == [&"ring", &"grid", &"island_cluster"], "Rank 6 offers Ring, Grid, and Island structures")
-	_assert_closed_wall_plan(_plan_with_required_walls(WallPlanCatalogScript.get_plan(&"sidecar_pocket")))
-	_assert_closed_wall_plan(_plan_with_required_walls(WallPlanCatalogScript.get_plan(&"twin_compartments")))
 	_assert(TierCatalogScript.get_unlock_rank(&"mortar") == 2 and TierCatalogScript.get_unlock_rank(&"wizard_tower") == 4, "locked defenses expose Fortress Rank unlocks")
 	var opening_wave: Array[Dictionary] = TierCatalogScript.build_wave(2, 0)
 	_assert(opening_wave.size() == 10, "TH2-A opens with ten attackers")
@@ -127,21 +125,13 @@ func _run() -> void:
 	_assert(cannon.level == 3 and is_equal_approx(cannon.max_health, 420.0), "upgrading applies the exact level-three stat line")
 	_assert(int(board.get_blueprint_snapshot()[1]["level"]) == 3, "upgraded level persists in the base blueprint")
 	var sidecar_plan: Dictionary = WallPlanCatalogScript.get_plan(&"sidecar_pocket")
-	var anchor_blueprint: Array[Dictionary] = []
-	for anchor_index in 5:
-		anchor_blueprint.append({
-			"id": StringName("anchor_%d" % anchor_index),
-			"kind": &"wall",
-			"level": 1,
-			"cell": Vector2i(10, 10 + anchor_index),
-			"footprint": Vector2i.ONE,
-		})
-	board.load_blueprint(anchor_blueprint)
+	var empty_blueprint: Array[Dictionary] = []
+	board.load_blueprint(empty_blueprint)
 	board.set_edit_mode(true)
-	board.begin_wall_plan(sidecar_plan.get("cells", []), Vector2i(10, 10), sidecar_plan.get("required_wall_cells", []))
+	board.begin_wall_plan(sidecar_plan.get("cells", []), Vector2i(10, 10))
 	_assert(board.is_wall_plan_active() and board.get_pending_wall_plan_count() == 11, "the Sidecar previews only its eleven new Walls")
-	_assert(board.pending_wall_plan_valid, "the Sidecar validates when its shared edge overlays five existing Walls")
-	_assert(not board.preview_wall_plan_at_cell(Vector2i(11, 10)), "the Sidecar is invalid when its required shared edge is not anchored")
+	_assert(board.pending_wall_plan_valid, "the open-sided Sidecar can be placed without attaching it to existing Walls")
+	_assert(board.preview_wall_plan_at_cell(Vector2i(20, 10)), "the player can move the open-sided Sidecar anywhere with clear buildable space")
 	board.queue_free()
 	await process_frame
 
@@ -306,16 +296,6 @@ func _plan_ids(plans: Array[Dictionary]) -> Array[StringName]:
 	var result: Array[StringName] = []
 	for plan in plans:
 		result.append(StringName(plan.get("id", &"")))
-	return result
-
-
-func _plan_with_required_walls(plan: Dictionary) -> Dictionary:
-	var combined: Array = Array(plan.get("cells", [])).duplicate()
-	for cell in Array(plan.get("required_wall_cells", [])):
-		if not combined.has(cell):
-			combined.append(cell)
-	var result := plan.duplicate(true)
-	result["cells"] = combined
 	return result
 
 

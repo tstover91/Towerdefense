@@ -55,7 +55,6 @@ static func get_all_plans() -> Array[Dictionary]:
 			"name": "SIDECAR POCKET",
 			"min_rank": 2,
 			"cells": _sidecar_pocket(),
-			"required_wall_cells": _left_attachment(5),
 			"preferred_origin": Vector2i(-1, -1),
 		},
 		{
@@ -77,7 +76,6 @@ static func get_all_plans() -> Array[Dictionary]:
 			"name": "TWIN COMPARTMENTS",
 			"min_rank": 3,
 			"cells": _twin_compartments(),
-			"required_wall_cells": _left_attachment(5),
 			"preferred_origin": Vector2i(-1, -1),
 		},
 		{
