@@ -33,6 +33,12 @@ func _run() -> void:
 	_assert(TierCatalogScript.get_count_cap(7, &"cannon") == 5 and TierCatalogScript.get_count_cap(7, &"archer_tower") == 4, "TH7 uses the Clash defense counts without Tesla")
 	_assert(TierCatalogScript.get_count_cap(7, &"air_sweeper") == 0, "Air Sweepers remain excluded")
 	_assert(TierCatalogScript.get_count_cap(7, &"hidden_tesla") == 0 and TierCatalogScript.get_count_cap(7, &"barbarian_king") == 0, "Tesla and heroes remain excluded")
+	var expected_defense_caps := [3, 4, 6, 9, 12, 17]
+	for fortress_rank in range(1, 7):
+		_assert(TierCatalogScript.get_fortress_rank(fortress_rank + 1) == fortress_rank, "internal Town Hall tier maps to the correct visible Fortress Rank")
+		_assert(TierCatalogScript.get_defense_capacity(fortress_rank + 1) == expected_defense_caps[fortress_rank - 1], "Fortress Rank %d has the intended shared defense capacity" % fortress_rank)
+	_assert(TierCatalogScript.get_wall_allowance(2) == 25, "Walls use a separate allowance from defense capacity")
+	_assert(TierCatalogScript.get_unlock_rank(&"mortar") == 2 and TierCatalogScript.get_unlock_rank(&"wizard_tower") == 4, "locked defenses expose Fortress Rank unlocks")
 	var opening_wave: Array[Dictionary] = TierCatalogScript.build_wave(2, 0)
 	_assert(opening_wave.size() == 10, "TH2-A opens with ten attackers")
 	for attacker in opening_wave:
@@ -74,6 +80,7 @@ func _run() -> void:
 	var defeat_blueprint: Array[Dictionary] = state.record_defeat()
 	_assert(state.currency == starting_currency and defeat_blueprint == blueprint, "defeat safely restores the precombat base without currency loss")
 	_assert(state.town_hall == 2 and state.get_round_number() == 1, "the run skips TH1 and opens at TH2-A")
+	_assert(state.get_fortress_rank() == 1 and state.get_total_ranks() == 6, "the player-facing run opens at Fortress Rank 1 of 6")
 	_assert(state.get_total_rounds() == 12, "the TH2-TH7 run contains twelve rounds")
 	for round_index in state.get_total_rounds():
 		state.begin_combat(blueprint)
@@ -99,6 +106,28 @@ func _run() -> void:
 	get_root().add_child(main)
 	await process_frame
 	var main_board: Node2D = main.get_node("SiegeBoard")
+	_assert(main.get_node("HUD/TopBar/PhaseBadge").text.begins_with("RANK 1 · A"), "the HUD uses Fortress Rank language instead of Town Hall language")
+	_assert(main.get_node("HUD/WallDraftPanel").visible and not main.get_node("HUD/ScoutPanel").visible, "a new run opens with the three-choice Wall Plan draft")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/Name").text.contains("25 WALLS"), "the split-compartment plan reports its actual Wall use")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack/Name").text.contains("22 WALLS"), "the offset plan can be smaller instead of forcing equal Wall counts")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack/Name").text.contains("24 WALLS"), "the Core-and-screen plan preserves its distinct Wall count")
+	main._select_wall_plan(1)
+	_assert(main_board.is_wall_plan_active() and main_board.get_pending_wall_plan_count() == 22, "choosing a plan creates one draggable multi-Wall ghost")
+	_assert(main.get_node("HUD/WallPlanPlacementPanel").visible and not main.get_node("HUD/WallDraftPanel").visible, "a chosen plan receives rotate, mirror, cancel, and confirm controls")
+	var original_plan_size: Vector2i = main_board._wall_plan_size(main_board.pending_wall_plan_cells)
+	_assert(main_board.rotate_pending_wall_plan(), "the complete Wall Plan rotates as one preview")
+	_assert(main_board._wall_plan_size(main_board.pending_wall_plan_cells) == Vector2i(original_plan_size.y, original_plan_size.x), "rotation turns the full plan footprint")
+	_assert(main_board.mirror_pending_wall_plan(), "the complete Wall Plan can be mirrored")
+	main._select_wall_plan(1)
+	var drafted_wall_cell: Vector2i = main_board.get_pending_wall_plan_cells()[0]
+	main._confirm_wall_plan()
+	_assert(main.run_state.opening_wall_plan_claimed and main_board.get_structure_count(&"wall") == 22, "confirming builds the selected plan once and consumes only its actual Walls")
+	_assert(not main_board.is_wall_plan_active() and main.get_node("HUD/ScoutPanel").visible, "confirmation closes placement and reveals the next-attack scout")
+	main_board.select_structure(main_board.get_structure_at_cell(drafted_wall_cell, true))
+	_assert(main_board.get_wall_extension_cells().is_empty() and main_board.get_selectable_wall_row_count() > 1, "drafted Walls remain row-editable without restoring tedious one-at-a-time extension")
+	main_board.clear_selection()
+	_assert(main.get_node("HUD/ScoutPanel/Margin/Stack/Roster").text.contains("10× Raider · L1 · GROUND"), "the scout reports enemy count, type, level, and movement trait")
+	_assert(main_board.get_defense_count() == 1 and TierCatalogScript.get_defense_capacity(2) == 3, "the opening Cannon uses one of three shared defense slots while the Core is excluded")
 	main_board.selected_structure_id = &"cannon_1"
 	main._upgrade_selected()
 	_assert(main.run_state.currency == 12, "the HUD upgrade action spends condensed Gold")
@@ -106,6 +135,7 @@ func _run() -> void:
 	main._toggle_shop()
 	_assert(main.get_node("HUD/BuildTray").visible, "the Shop button opens the Clash-style building tray")
 	_assert(main.has_node("HUD/BuildTray/Margin/Stack/Cards/AirDefenseCard") and main.has_node("HUD/BuildTray/Margin/Stack/Cards/WizardTowerCard"), "the build tray exposes the TH4 and TH5 defense unlocks")
+	_assert(not main.get_node("HUD/BuildTray/Margin/Stack/Cards/MortarCard").visible, "future defense unlocks are not previewed before their Fortress Rank")
 	main._select_build_kind(&"cannon")
 	_assert(main.pending_purchase_kind == &"cannon", "the Cannon card starts an explicit Cannon purchase")
 	_assert(main.get_node("HUD/PlacementPanel").visible and not main.get_node("HUD/BuildTray").visible, "choosing a card opens confirm/cancel placement controls")
@@ -122,6 +152,10 @@ func _run() -> void:
 	_assert(not is_instance_valid(main_board.build_preview_structure), "confirmation removes the temporary building ghost")
 	_assert(main.run_state.currency == 7, "placing the Cannon deducts its five-Gold prototype price once")
 	_assert(main_board.get_structure_count(&"cannon") == 2, "the TH2 base now contains both allowed Cannons")
+	main._refresh_shop_cards()
+	_assert(not main.get_node("HUD/BuildTray/Margin/Stack/Cards/CannonCard").disabled, "the old per-type Cannon limit no longer blocks a free shared defense slot")
+	_assert(main.get_node("HUD/BuildTray/Margin/Stack/Cards/CannonCard").text.contains("DEFENSES 2 / 3"), "tower cards show the shared defense capacity")
+	_assert(not main.get_node("HUD/BuildTray/Margin/Stack/Cards/WallCard").visible, "individual new-Wall construction is removed from the normal Shop")
 	_assert(main.get_node("HUD/SelectionPanel").visible, "a built defense receives its contextual Upgrade panel")
 	await process_frame
 	var selection_panel: Control = main.get_node("HUD/SelectionPanel")
@@ -150,51 +184,6 @@ func _run() -> void:
 	_assert(core.grid_cell == Vector2i(36, 26), "the Town Hall can be rearranged by dragging")
 	main_board._handle_edit_tap(main_board.cell_rect(Vector2i(12, 12)).get_center())
 	_assert(main_board.get_selected_structure() == null, "empty ground also unselects the Town Hall")
-	main._select_build_kind(&"wall")
-	_assert(main_board.preview_build_at_cell(Vector2i(24, 20)), "the first Wall accepts normal placement")
-	_assert(main_board.confirm_pending_build(), "the first Wall uses the standard confirmation action")
-	await process_frame
-	_assert(main_board.is_wall_chain_active(), "placing the first Wall activates the row-extension arrows")
-	var extensions: Array[Vector2i] = main_board.get_wall_extension_cells()
-	_assert(extensions.size() >= 3 and main_board.try_select_wall_extension(extensions[1]), "tapping any open arrow previews the next Wall")
-	var chain_focus: Vector2i = main_board.get_wall_chain_focus_cell()
-	var turn_choices: Array[Vector2i] = main_board.get_wall_extension_cells()
-	var perpendicular_choice: Vector2i = Vector2i(-1, -1)
-	var has_straight_choice := false
-	for choice in turn_choices:
-		if choice.y == chain_focus.y:
-			has_straight_choice = true
-		elif choice.x == chain_focus.x:
-			perpendicular_choice = choice
-	_assert(has_straight_choice and perpendicular_choice.x >= 0, "after two pieces, both straight and turning directions remain available when open")
-	_assert(main_board.try_select_wall_extension(perpendicular_choice), "a wall chain can preview a turn after its first direction")
-	_assert(main_board.get_structure_count(&"wall") == 1 and main_board.get_pending_wall_count() == 2, "a turned wall chain remains an uncommitted batch")
-	_assert(main.get_node("HUD/PlacementPanel/Margin/Actions/WallCountLabel").text.begins_with("2 DRAWN"), "wall placement reports the previewed and remaining counts")
-	main._confirm_build()
-	await process_frame
-	_assert(main_board.get_structure_count(&"wall") == 3, "one confirmation builds the complete turned wall chain")
-	_assert(main.run_state.currency == 7, "free Wall-row segments do not spend Gold")
-	main._cancel_pending_purchase()
-	var placed_wall: Node = main_board.get_structure_at_cell(Vector2i(24, 20), true)
-	main_board.select_structure(placed_wall)
-	await process_frame
-	_assert(not main_board.is_wall_chain_active(), "selecting a placed Wall does not silently enter purchase mode")
-	_assert(main.get_node("HUD/SelectionPanel/Margin/Stack/Actions/SelectRowButton").visible, "a single Wall exposes the Select Row action")
-	main._select_wall_row()
-	_assert(main_board.get_selected_wall_row_count() >= 2, "Select Row chooses the connected straight Wall run")
-	_assert(main.get_node("HUD/SelectionPanel/Margin/Stack/Actions/RotateRowButton").visible, "a selected Wall row exposes Rotate Row")
-	_assert(not main.get_node("HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton").visible, "row mode does not misleadingly offer a single-Wall upgrade")
-	main_board.select_structure(placed_wall)
-	var selected_directions: Array[Vector2i] = main_board.get_wall_extension_cells()
-	_assert(not selected_directions.is_empty(), "selecting an existing Wall exposes every open adjacent direction")
-	var wall_drag_start: Vector2 = main_board.cell_rect(placed_wall.grid_cell).get_center()
-	_assert(main_board._begin_structure_drag_candidate_at(wall_drag_start), "grabbing a selected Wall exits extension mode and starts dragging")
-	main_board._update_structure_drag(wall_drag_start + Vector2.LEFT * main_board.cell_size)
-	main_board._finish_structure_drag(wall_drag_start + Vector2.LEFT * main_board.cell_size)
-	_assert(placed_wall.grid_cell == Vector2i(23, 20), "an existing Wall can be rearranged by dragging")
-	await process_frame
-	main_board._handle_edit_tap(main_board.cell_rect(Vector2i(12, 12)).get_center())
-	_assert(main_board.get_selected_structure() == null and not main_board.is_wall_chain_active(), "tapping away from Wall arrows exits extension mode and unselects the Wall")
 	main._select_build_kind(&"archer_tower")
 	_assert(is_instance_valid(main_board.build_preview_structure), "another building can enter draggable preview mode")
 	main._cancel_pending_purchase()
@@ -222,9 +211,17 @@ func _run() -> void:
 	_assert(not main.get_node("HUD/SelectionPanel").visible, "the final Wall does not fall back to the old tap-to-move panel state")
 	main.run_state.begin_combat(main_board.capture_current_blueprint())
 	main._on_wave_finished(&"defenders")
+	_assert(main.get_node("HUD/ResultPanel").visible, "a victory opens a clear reward summary")
+	_assert(main.get_node("HUD/ResultPanel/Margin/Stack/Details").text.contains("+7 GOLD"), "the reward summary reports earned Gold")
+	_assert(not main.get_node("HUD/ResultPanel/Margin/Stack/Details").text.contains("Mortar"), "Attack A does not preview the next Rank's unlocks")
 	main.run_state.begin_combat(main_board.capture_current_blueprint())
 	main._on_wave_finished(&"defenders")
 	_assert(main.run_state.town_hall == 3 and main.run_state.battle_index == 0, "two HUD victories advance from TH2 to TH3-A")
+	_assert(main.get_node("HUD/ResultPanel/Margin/Stack/Title").text == "FORTRESS RANK 2 REACHED", "the second victory clearly presents the new Fortress Rank")
+	var rank_up_details: String = main.get_node("HUD/ResultPanel/Margin/Stack/Details").text
+	_assert(rank_up_details.contains("Defense capacity: 3 → 4") and rank_up_details.contains("Walls: 25 → 50"), "rank-up rewards show new defense and Wall allowances")
+	_assert(rank_up_details.contains("New defense: Mortar") and rank_up_details.contains("New upgrade caps:"), "rank-up rewards show newly available defenses and upgrade levels")
+	_assert(main.get_node("HUD/BuildTray/Margin/Stack/Cards/MortarCard").visible, "a newly revealed defense appears in the build tray after ranking up")
 	main.queue_free()
 	_finish("SIEGE_RUN_PROGRESSION_SMOKE_OK")
 

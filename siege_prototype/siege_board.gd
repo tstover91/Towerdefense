@@ -14,6 +14,7 @@ signal build_preview_changed(kind: StringName, cell: Vector2i, can_confirm: bool
 signal wall_extension_requested
 signal wall_extension_start_requested(cell: Vector2i)
 signal placement_cancel_requested
+signal wall_plan_preview_changed(can_confirm: bool)
 
 const COLOR_BACKGROUND := Color("131313")
 const COLOR_BOARD_SHADOW := Color(0.0, 0.0, 0.0, 0.42)
@@ -90,6 +91,10 @@ var pending_build_cell := Vector2i(-1, -1)
 var pending_build_valid := false
 var wall_chain_cells: Array[Vector2i] = []
 var wall_chain_max_new_walls := 0
+var wall_extensions_enabled := true
+var pending_wall_plan_cells: Array[Vector2i] = []
+var pending_wall_plan_origin := Vector2i(-1, -1)
+var pending_wall_plan_valid := false
 var build_preview_structure: Node2D
 var next_structure_serial := 100
 
@@ -500,7 +505,7 @@ func _reset_structure_drag_state() -> void:
 
 
 func _can_drag_build_preview() -> bool:
-	return edit_mode and pending_build_kind != &"" and wall_chain_cells.is_empty()
+	return edit_mode and (not pending_wall_plan_cells.is_empty() or (pending_build_kind != &"" and wall_chain_cells.is_empty()))
 
 
 func _can_drag_build_preview_at(screen_position: Vector2) -> bool:
@@ -510,6 +515,12 @@ func _can_drag_build_preview_at(screen_position: Vector2) -> bool:
 func preview_build_at_screen_position(screen_position: Vector2) -> bool:
 	if not _can_drag_build_preview():
 		return false
+	if not pending_wall_plan_cells.is_empty():
+		var plan_size := _wall_plan_size(pending_wall_plan_cells)
+		var pointer_cell := screen_to_cell(screen_position)
+		if pointer_cell.x < 0:
+			return false
+		return preview_wall_plan_at_cell(pointer_cell - Vector2i(plan_size.x / 2, plan_size.y / 2))
 	var footprint := _default_footprint(pending_build_kind)
 	var pointer_cell := screen_to_cell(screen_position)
 	if pointer_cell.x < 0:
@@ -564,6 +575,7 @@ func set_edit_mode(enabled: bool) -> void:
 		pending_build_valid = false
 		wall_chain_cells.clear()
 		wall_chain_max_new_walls = 0
+		_clear_pending_wall_plan()
 		wall_draw_invalid_cell = Vector2i(-1, -1)
 		_clear_build_preview_structure()
 		clear_selection()
@@ -576,6 +588,8 @@ func is_edit_mode() -> bool:
 
 func _handle_edit_tap(screen_position: Vector2) -> void:
 	if not edit_mode:
+		return
+	if not pending_wall_plan_cells.is_empty():
 		return
 	var cell := screen_to_cell(screen_position)
 	if not arena_layout.is_inside_grid(cell):
@@ -713,6 +727,7 @@ func _wall_at_cell(cell: Vector2i) -> Node2D:
 
 
 func begin_build(kind: StringName) -> void:
+	_clear_pending_wall_plan()
 	pending_build_kind = kind
 	pending_build_cell = Vector2i(-1, -1)
 	pending_build_valid = false
@@ -739,8 +754,167 @@ func cancel_build() -> void:
 	wall_chain_max_new_walls = 0
 	wall_draw_invalid_cell = Vector2i(-1, -1)
 	_clear_build_preview_structure()
+	_clear_pending_wall_plan()
 	build_preview_changed.emit(&"", pending_build_cell, false)
 	queue_redraw()
+
+
+func set_wall_extensions_enabled(enabled: bool) -> void:
+	wall_extensions_enabled = enabled
+	queue_redraw()
+
+
+func begin_wall_plan(cells: Array, preferred_origin := Vector2i(-1, -1)) -> void:
+	cancel_build()
+	pending_wall_plan_cells = _normalize_wall_plan_cells(cells)
+	selected_structure_id = &""
+	selected_wall_row_ids.clear()
+	selected_structure_changed.emit(null)
+	var opening_origin: Vector2i = preferred_origin
+	if opening_origin.x < 0 or not can_place_wall_plan(opening_origin):
+		opening_origin = _find_nearest_wall_plan_origin(screen_to_cell(get_viewport_rect().get_center()))
+	preview_wall_plan_at_cell(opening_origin)
+
+
+func is_wall_plan_active() -> bool:
+	return not pending_wall_plan_cells.is_empty()
+
+
+func get_pending_wall_plan_count() -> int:
+	return pending_wall_plan_cells.size()
+
+
+func get_pending_wall_plan_cells() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for cell in pending_wall_plan_cells:
+		result.append(pending_wall_plan_origin + cell)
+	return result
+
+
+func preview_wall_plan_at_cell(origin: Vector2i) -> bool:
+	if pending_wall_plan_cells.is_empty():
+		return false
+	pending_wall_plan_origin = origin
+	pending_wall_plan_valid = can_place_wall_plan(origin)
+	wall_plan_preview_changed.emit(pending_wall_plan_valid)
+	queue_redraw()
+	return pending_wall_plan_valid
+
+
+func can_place_wall_plan(origin: Vector2i) -> bool:
+	if not edit_mode or pending_wall_plan_cells.is_empty():
+		return false
+	for relative_cell in pending_wall_plan_cells:
+		var cell := origin + relative_cell
+		if not arena_layout.is_buildable_cell(cell) or get_structure_at_cell(cell, true) != null:
+			return false
+	return true
+
+
+func rotate_pending_wall_plan() -> bool:
+	if pending_wall_plan_cells.is_empty():
+		return false
+	var transformed: Array[Vector2i] = []
+	for cell in pending_wall_plan_cells:
+		transformed.append(Vector2i(-cell.y, cell.x))
+	_transform_pending_wall_plan(transformed)
+	return true
+
+
+func mirror_pending_wall_plan() -> bool:
+	if pending_wall_plan_cells.is_empty():
+		return false
+	var transformed: Array[Vector2i] = []
+	for cell in pending_wall_plan_cells:
+		transformed.append(Vector2i(-cell.x, cell.y))
+	_transform_pending_wall_plan(transformed)
+	return true
+
+
+func confirm_pending_wall_plan() -> Array[Node2D]:
+	var added: Array[Node2D] = []
+	if pending_wall_plan_cells.is_empty() or not pending_wall_plan_valid or not can_place_wall_plan(pending_wall_plan_origin):
+		return added
+	for relative_cell in pending_wall_plan_cells:
+		var structure_id := StringName("wall_%d" % next_structure_serial)
+		next_structure_serial += 1
+		var entry := {
+			"id": structure_id,
+			"kind": &"wall",
+			"level": 1,
+			"cell": pending_wall_plan_origin + relative_cell,
+			"footprint": Vector2i.ONE,
+		}
+		var structure: Node2D = _create_structure(entry)
+		structures.append(structure)
+		structures_by_id[structure.structure_id] = structure
+		structure.set_layout_metrics(board_origin, cell_size)
+		added.append(structure)
+	_clear_pending_wall_plan()
+	selected_structure_id = &""
+	selected_wall_row_ids.clear()
+	capture_current_blueprint()
+	structure_topology_changed.emit()
+	selected_structure_changed.emit(null)
+	queue_redraw()
+	return added
+
+
+func _transform_pending_wall_plan(transformed: Array[Vector2i]) -> void:
+	var old_size := _wall_plan_size(pending_wall_plan_cells)
+	var center := Vector2(pending_wall_plan_origin) + Vector2(old_size) * 0.5
+	pending_wall_plan_cells = _normalize_wall_plan_cells(transformed)
+	var new_size := _wall_plan_size(pending_wall_plan_cells)
+	var next_origin := Vector2i(roundi(center.x - new_size.x * 0.5), roundi(center.y - new_size.y * 0.5))
+	preview_wall_plan_at_cell(next_origin)
+
+
+func _normalize_wall_plan_cells(value: Array) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if value.is_empty():
+		return result
+	var minimum := Vector2i(1000000, 1000000)
+	for item in value:
+		var cell := Vector2i(item)
+		minimum.x = mini(minimum.x, cell.x)
+		minimum.y = mini(minimum.y, cell.y)
+	for item in value:
+		var normalized := Vector2i(item) - minimum
+		if not result.has(normalized):
+			result.append(normalized)
+	return result
+
+
+func _wall_plan_size(cells: Array[Vector2i]) -> Vector2i:
+	var maximum := Vector2i.ZERO
+	for cell in cells:
+		maximum.x = maxi(maximum.x, cell.x)
+		maximum.y = maxi(maximum.y, cell.y)
+	return maximum + Vector2i.ONE
+
+
+func _find_nearest_wall_plan_origin(center: Vector2i) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_distance := 1000000
+	var plan_size := _wall_plan_size(pending_wall_plan_cells)
+	for x in ArenaLayoutScript.GRID_SIZE.x:
+		for y in ArenaLayoutScript.GRID_SIZE.y:
+			var candidate := Vector2i(x, y)
+			if not can_place_wall_plan(candidate):
+				continue
+			var plan_center := candidate + Vector2i(plan_size.x / 2, plan_size.y / 2)
+			var distance := plan_center.distance_squared_to(center)
+			if distance < best_distance:
+				best = candidate
+				best_distance = distance
+	return best
+
+
+func _clear_pending_wall_plan() -> void:
+	pending_wall_plan_cells.clear()
+	pending_wall_plan_origin = Vector2i(-1, -1)
+	pending_wall_plan_valid = false
+	wall_plan_preview_changed.emit(false)
 
 
 func confirm_pending_build() -> bool:
@@ -791,6 +965,8 @@ func is_wall_chain_active() -> bool:
 
 func get_wall_extension_cells() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
+	if not wall_extensions_enabled:
+		return result
 	if wall_chain_cells.is_empty() and selected_wall_row_ids.size() > 1:
 		return result
 	var focus := Vector2i(-1, -1)
@@ -873,6 +1049,11 @@ func preview_build_at_cell(cell: Vector2i) -> bool:
 
 
 func get_build_preview_screen_rect() -> Rect2:
+	if not pending_wall_plan_cells.is_empty() and pending_wall_plan_origin.x >= 0:
+		return Rect2(
+			board_origin + Vector2(pending_wall_plan_origin) * cell_size,
+			Vector2(_wall_plan_size(pending_wall_plan_cells)) * cell_size
+		)
 	if pending_build_kind == &"" or pending_build_cell.x < 0:
 		return Rect2()
 	return Rect2(
@@ -990,6 +1171,14 @@ func get_structure_count(kind: StringName) -> int:
 	return result
 
 
+func get_defense_count() -> int:
+	var result := 0
+	for structure in structures:
+		if bool(structure.definition.get("is_defense", false)):
+			result += 1
+	return result
+
+
 func load_blueprint(blueprint: Array[Dictionary], capture := true) -> void:
 	_clear_structures()
 	_reset_structure_drag_state()
@@ -1001,6 +1190,7 @@ func load_blueprint(blueprint: Array[Dictionary], capture := true) -> void:
 	pending_build_valid = false
 	wall_chain_cells.clear()
 	wall_chain_max_new_walls = 0
+	_clear_pending_wall_plan()
 	wall_draw_invalid_cell = Vector2i(-1, -1)
 	_clear_build_preview_structure()
 	_build_structures_from_blueprint(blueprint)
@@ -1329,6 +1519,13 @@ func _draw() -> void:
 		var outline_color := Color("65d66f") if pending_build_valid else Color("e34b47")
 		draw_rect(preview_rect.grow(-1.5), preview_color, true)
 		draw_rect(preview_rect.grow(-1.5), outline_color, false, maxf(cell_size * 0.10, 2.0))
+	if edit_mode and not pending_wall_plan_cells.is_empty() and pending_wall_plan_origin.x >= 0:
+		var plan_fill := COLOR_HOVER if pending_wall_plan_valid else COLOR_INVALID_BUILD
+		var plan_outline := Color("65d66f") if pending_wall_plan_valid else Color("e34b47")
+		for relative_cell in pending_wall_plan_cells:
+			var plan_rect := cell_rect(pending_wall_plan_origin + relative_cell).grow(-1.5)
+			draw_rect(plan_rect, plan_fill, true)
+			draw_rect(plan_rect, plan_outline, false, maxf(cell_size * 0.10, 2.0))
 	if edit_mode and is_wall_chain_active():
 		for index in range(1, wall_chain_cells.size()):
 			var chain_rect := cell_rect(wall_chain_cells[index]).grow(-1.5)

@@ -71,6 +71,17 @@ const FOOTPRINTS := {
 	&"wall": Vector2i.ONE,
 }
 
+# Player-facing Fortress Ranks 1-6 map to the TH2-TH7 balance slice. Towers
+# share one capacity pool; Walls keep their separate Clash quantities.
+const FORTRESS_RANK_DEFENSE_CAPS := {
+	1: 3,
+	2: 4,
+	3: 6,
+	4: 9,
+	5: 12,
+	6: 17,
+}
+
 
 static func get_tier(town_hall: int) -> Dictionary:
 	return Dictionary(TIERS.get(clampi(town_hall, 1, 7), {})).duplicate(true)
@@ -93,6 +104,37 @@ static func get_level_cap(town_hall: int, kind: StringName) -> int:
 
 static func get_count_cap(town_hall: int, kind: StringName) -> int:
 	return int(Dictionary(get_tier(town_hall).get("count_caps", {})).get(kind, 0))
+
+
+static func get_fortress_rank(town_hall: int) -> int:
+	return clampi(town_hall - 1, 1, 6)
+
+
+static func get_defense_capacity(town_hall: int) -> int:
+	return int(FORTRESS_RANK_DEFENSE_CAPS.get(get_fortress_rank(town_hall), 3))
+
+
+static func get_wall_allowance(town_hall: int) -> int:
+	return get_count_cap(town_hall, &"wall")
+
+
+static func is_build_kind_unlocked(town_hall: int, kind: StringName) -> bool:
+	return get_count_cap(town_hall, kind) > 0
+
+
+static func get_unlock_rank(kind: StringName) -> int:
+	for town_hall in range(2, 8):
+		if is_build_kind_unlocked(town_hall, kind):
+			return get_fortress_rank(town_hall)
+	return 6
+
+
+static func get_newly_unlocked_build_kinds(previous_town_hall: int, town_hall: int) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for kind in [&"cannon", &"archer_tower", &"mortar", &"air_defense", &"wizard_tower"]:
+		if not is_build_kind_unlocked(previous_town_hall, kind) and is_build_kind_unlocked(town_hall, kind):
+			result.append(kind)
+	return result
 
 
 static func get_unlocked_build_kinds(town_hall: int) -> Array[StringName]:

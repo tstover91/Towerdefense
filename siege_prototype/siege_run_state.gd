@@ -9,6 +9,7 @@ var town_hall := 2
 var battle_index := 0
 var currency := 16
 var completed := false
+var opening_wall_plan_claimed := false
 var blueprint: Array[Dictionary] = []
 var precombat_blueprint: Array[Dictionary] = []
 
@@ -49,6 +50,14 @@ func get_round_number() -> int:
 
 func get_total_rounds() -> int:
 	return (LAST_TOWN_HALL - FIRST_TOWN_HALL + 1) * BATTLES_PER_TOWN_HALL
+
+
+func get_fortress_rank() -> int:
+	return town_hall - FIRST_TOWN_HALL + 1
+
+
+func get_total_ranks() -> int:
+	return LAST_TOWN_HALL - FIRST_TOWN_HALL + 1
 
 
 func get_battle_letter() -> String:
