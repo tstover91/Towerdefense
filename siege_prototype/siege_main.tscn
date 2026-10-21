@@ -255,7 +255,7 @@ text = "CONTINUE BUILDING"
 
 [node name="WallDraftPanel" type="PanelContainer" parent="HUD"]
 visible = false
-custom_minimum_size = Vector2(960, 338)
+custom_minimum_size = Vector2(960, 270)
 layout_mode = 3
 anchors_preset = 8
 anchor_left = 0.5
@@ -263,9 +263,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -480.0
-offset_top = -169.0
+offset_top = -135.0
 offset_right = 480.0
-offset_bottom = 169.0
+offset_bottom = 135.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -284,14 +284,7 @@ theme_override_constants/separation = 8
 layout_mode = 2
 theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
 theme_override_font_sizes/font_size = 22
-text = "CHOOSE AN OPENING WALL PLAN"
-horizontal_alignment = 1
-
-[node name="Subtitle" type="Label" parent="HUD/WallDraftPanel/Margin/Stack"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
-theme_override_font_sizes/font_size = 13
-text = "Plans use different amounts from your 25-Wall Rank 1 supply. Unused Walls stay available."
+text = "CHOOSE WALL PLAN"
 horizontal_alignment = 1
 
 [node name="Cards" type="HBoxContainer" parent="HUD/WallDraftPanel/Margin/Stack"]
@@ -300,7 +293,7 @@ size_flags_vertical = 3
 theme_override_constants/separation = 12
 
 [node name="Plan1" type="PanelContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(290, 210)
+custom_minimum_size = Vector2(290, 164)
 layout_mode = 2
 size_flags_horizontal = 3
 
@@ -318,22 +311,14 @@ theme_override_constants/separation = 5
 [node name="Name" type="Label" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "SPLIT COMPARTMENTS · 25 WALLS"
+text = "WIDE COMPARTMENT · 24 WALLS"
 horizontal_alignment = 1
 
 [node name="Preview" type="Control" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack"]
-custom_minimum_size = Vector2(240, 82)
+custom_minimum_size = Vector2(240, 92)
 layout_mode = 2
 size_flags_vertical = 3
 script = ExtResource("4_wall_preview")
-
-[node name="Description" type="Label" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
-theme_override_font_sizes/font_size = 12
-text = "Two defense pockets sharing an internal breach wall."
-horizontal_alignment = 1
-autowrap_mode = 2
 
 [node name="ChooseButton" type="Button" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack"]
 custom_minimum_size = Vector2(160, 38)
@@ -341,7 +326,7 @@ layout_mode = 2
 text = "CHOOSE"
 
 [node name="Plan2" type="PanelContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(290, 210)
+custom_minimum_size = Vector2(290, 164)
 layout_mode = 2
 size_flags_horizontal = 3
 
@@ -359,22 +344,14 @@ theme_override_constants/separation = 5
 [node name="Name" type="Label" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "OFFSET COMPARTMENT · 22 WALLS"
+text = "CORE BOX · 20 WALLS"
 horizontal_alignment = 1
 
 [node name="Preview" type="Control" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack"]
-custom_minimum_size = Vector2(240, 82)
+custom_minimum_size = Vector2(240, 92)
 layout_mode = 2
 size_flags_vertical = 3
 script = ExtResource("4_wall_preview")
-
-[node name="Description" type="Label" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
-theme_override_font_sizes/font_size = 12
-text = "A closed pocket with an offset routing wing."
-horizontal_alignment = 1
-autowrap_mode = 2
 
 [node name="ChooseButton" type="Button" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack"]
 custom_minimum_size = Vector2(160, 38)
@@ -382,7 +359,7 @@ layout_mode = 2
 text = "CHOOSE"
 
 [node name="Plan3" type="PanelContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(290, 210)
+custom_minimum_size = Vector2(290, 164)
 layout_mode = 2
 size_flags_horizontal = 3
 
@@ -400,22 +377,14 @@ theme_override_constants/separation = 5
 [node name="Name" type="Label" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "CORE AND SCREEN · 24 WALLS"
+text = "DEFENSE POCKET · 16 WALLS"
 horizontal_alignment = 1
 
 [node name="Preview" type="Control" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack"]
-custom_minimum_size = Vector2(240, 82)
+custom_minimum_size = Vector2(240, 92)
 layout_mode = 2
 size_flags_vertical = 3
 script = ExtResource("4_wall_preview")
-
-[node name="Description" type="Label" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
-theme_override_font_sizes/font_size = 12
-text = "A Core pocket behind a separate approach screen."
-horizontal_alignment = 1
-autowrap_mode = 2
 
 [node name="ChooseButton" type="Button" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack"]
 custom_minimum_size = Vector2(160, 38)

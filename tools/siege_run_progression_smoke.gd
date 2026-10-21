@@ -6,6 +6,7 @@ const TierCatalogScript = preload("res://siege_prototype/siege_town_hall_catalog
 const StructureCatalogScript = preload("res://siege_prototype/siege_structure_catalog.gd")
 const AttackerCatalogScript = preload("res://siege_prototype/siege_attacker_catalog.gd")
 const ArenaLayoutScript = preload("res://siege_prototype/siege_arena_layout.gd")
+const WallPlanCatalogScript = preload("res://siege_prototype/siege_wall_plan_catalog.gd")
 
 var failure_count := 0
 
@@ -38,6 +39,33 @@ func _run() -> void:
 		_assert(TierCatalogScript.get_fortress_rank(fortress_rank + 1) == fortress_rank, "internal Town Hall tier maps to the correct visible Fortress Rank")
 		_assert(TierCatalogScript.get_defense_capacity(fortress_rank + 1) == expected_defense_caps[fortress_rank - 1], "Fortress Rank %d has the intended shared defense capacity" % fortress_rank)
 	_assert(TierCatalogScript.get_wall_allowance(2) == 25, "Walls use a separate allowance from defense capacity")
+	var opening_plans: Array[Dictionary] = WallPlanCatalogScript.get_opening_plans()
+	_assert(opening_plans.size() == 3, "the opening draft offers three Wall plans")
+	for plan in opening_plans:
+		_assert_closed_wall_plan(plan)
+	var expected_wall_plans := {
+		&"sidecar_pocket": [11, 5],
+		&"u_funnel": [18, 0],
+		&"dogleg_channel": [18, 0],
+		&"twin_compartments": [22, 5],
+		&"dead_zone_pair": [32, 0],
+		&"island_cluster": [48, 0],
+		&"ring": [48, 0],
+		&"grid": [45, 0],
+	}
+	for plan_id in expected_wall_plans:
+		var plan: Dictionary = WallPlanCatalogScript.get_plan(plan_id)
+		var counts: Array = expected_wall_plans[plan_id]
+		_assert(not plan.is_empty(), "%s is present in the Wall Plan catalog" % plan_id)
+		_assert(Array(plan.get("cells", [])).size() == counts[0], "%s uses the intended number of new Walls" % plan_id)
+		_assert(Array(plan.get("required_wall_cells", [])).size() == counts[1], "%s declares the intended shared-wall anchors" % plan_id)
+	_assert(WallPlanCatalogScript.get_plan(&"divider").is_empty(), "the excluded Divider is not added")
+	var rank_two_plans: Array[Dictionary] = WallPlanCatalogScript.get_plan_choices(2, 30)
+	_assert(_plan_ids(rank_two_plans) == [&"sidecar_pocket", &"u_funnel", &"dogleg_channel"], "Rank 2 offers Sidecar, U-Funnel, and Dogleg")
+	var rank_six_plans: Array[Dictionary] = WallPlanCatalogScript.get_plan_choices(6, 100)
+	_assert(_plan_ids(rank_six_plans) == [&"ring", &"grid", &"island_cluster"], "Rank 6 offers Ring, Grid, and Island structures")
+	_assert_closed_wall_plan(_plan_with_required_walls(WallPlanCatalogScript.get_plan(&"sidecar_pocket")))
+	_assert_closed_wall_plan(_plan_with_required_walls(WallPlanCatalogScript.get_plan(&"twin_compartments")))
 	_assert(TierCatalogScript.get_unlock_rank(&"mortar") == 2 and TierCatalogScript.get_unlock_rank(&"wizard_tower") == 4, "locked defenses expose Fortress Rank unlocks")
 	var opening_wave: Array[Dictionary] = TierCatalogScript.build_wave(2, 0)
 	_assert(opening_wave.size() == 10, "TH2-A opens with ten attackers")
@@ -98,6 +126,22 @@ func _run() -> void:
 	_assert(board.upgrade_structure(&"cannon_1", 3), "board accepts an explicit structure upgrade")
 	_assert(cannon.level == 3 and is_equal_approx(cannon.max_health, 420.0), "upgrading applies the exact level-three stat line")
 	_assert(int(board.get_blueprint_snapshot()[1]["level"]) == 3, "upgraded level persists in the base blueprint")
+	var sidecar_plan: Dictionary = WallPlanCatalogScript.get_plan(&"sidecar_pocket")
+	var anchor_blueprint: Array[Dictionary] = []
+	for anchor_index in 5:
+		anchor_blueprint.append({
+			"id": StringName("anchor_%d" % anchor_index),
+			"kind": &"wall",
+			"level": 1,
+			"cell": Vector2i(10, 10 + anchor_index),
+			"footprint": Vector2i.ONE,
+		})
+	board.load_blueprint(anchor_blueprint)
+	board.set_edit_mode(true)
+	board.begin_wall_plan(sidecar_plan.get("cells", []), Vector2i(10, 10), sidecar_plan.get("required_wall_cells", []))
+	_assert(board.is_wall_plan_active() and board.get_pending_wall_plan_count() == 11, "the Sidecar previews only its eleven new Walls")
+	_assert(board.pending_wall_plan_valid, "the Sidecar validates when its shared edge overlays five existing Walls")
+	_assert(not board.preview_wall_plan_at_cell(Vector2i(11, 10)), "the Sidecar is invalid when its required shared edge is not anchored")
 	board.queue_free()
 	await process_frame
 
@@ -108,11 +152,14 @@ func _run() -> void:
 	var main_board: Node2D = main.get_node("SiegeBoard")
 	_assert(main.get_node("HUD/TopBar/PhaseBadge").text.begins_with("RANK 1 · A"), "the HUD uses Fortress Rank language instead of Town Hall language")
 	_assert(main.get_node("HUD/WallDraftPanel").visible and not main.get_node("HUD/ScoutPanel").visible, "a new run opens with the three-choice Wall Plan draft")
-	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/Name").text.contains("25 WALLS"), "the split-compartment plan reports its actual Wall use")
-	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack/Name").text.contains("22 WALLS"), "the offset plan can be smaller instead of forcing equal Wall counts")
-	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack/Name").text.contains("24 WALLS"), "the Core-and-screen plan preserves its distinct Wall count")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/Name").text.contains("24 WALLS"), "the wide compartment reports its actual Wall use")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack/Name").text.contains("20 WALLS"), "the Core box preserves leftover Walls")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack/Name").text.contains("16 WALLS"), "the defense pocket preserves the most leftover Walls")
+	_assert(not main.get_node("HUD/WallDraftPanel/Margin/Stack").has_node("Subtitle"), "the Wall draft has no explanatory subtitle")
+	for card_name in ["Plan1", "Plan2", "Plan3"]:
+		_assert(not main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/%s/Margin/Stack" % card_name).has_node("Description"), "Wall choices do not include description copy")
 	main._select_wall_plan(1)
-	_assert(main_board.is_wall_plan_active() and main_board.get_pending_wall_plan_count() == 22, "choosing a plan creates one draggable multi-Wall ghost")
+	_assert(main_board.is_wall_plan_active() and main_board.get_pending_wall_plan_count() == 20, "choosing a plan creates one draggable multi-Wall ghost")
 	_assert(main.get_node("HUD/WallPlanPlacementPanel").visible and not main.get_node("HUD/WallDraftPanel").visible, "a chosen plan receives rotate, mirror, cancel, and confirm controls")
 	var original_plan_size: Vector2i = main_board._wall_plan_size(main_board.pending_wall_plan_cells)
 	_assert(main_board.rotate_pending_wall_plan(), "the complete Wall Plan rotates as one preview")
@@ -121,7 +168,7 @@ func _run() -> void:
 	main._select_wall_plan(1)
 	var drafted_wall_cell: Vector2i = main_board.get_pending_wall_plan_cells()[0]
 	main._confirm_wall_plan()
-	_assert(main.run_state.opening_wall_plan_claimed and main_board.get_structure_count(&"wall") == 22, "confirming builds the selected plan once and consumes only its actual Walls")
+	_assert(main.run_state.has_claimed_wall_plan_for_current_rank() and main_board.get_structure_count(&"wall") == 20, "confirming builds the selected plan once and consumes only its actual Walls")
 	_assert(not main_board.is_wall_plan_active() and main.get_node("HUD/ScoutPanel").visible, "confirmation closes placement and reveals the next-attack scout")
 	main_board.select_structure(main_board.get_structure_at_cell(drafted_wall_cell, true))
 	_assert(main_board.get_wall_extension_cells().is_empty() and main_board.get_selectable_wall_row_count() > 1, "drafted Walls remain row-editable without restoring tedious one-at-a-time extension")
@@ -222,6 +269,11 @@ func _run() -> void:
 	_assert(rank_up_details.contains("Defense capacity: 3 → 4") and rank_up_details.contains("Walls: 25 → 50"), "rank-up rewards show new defense and Wall allowances")
 	_assert(rank_up_details.contains("New defense: Mortar") and rank_up_details.contains("New upgrade caps:"), "rank-up rewards show newly available defenses and upgrade levels")
 	_assert(main.get_node("HUD/BuildTray/Margin/Stack/Cards/MortarCard").visible, "a newly revealed defense appears in the build tray after ranking up")
+	main._close_result_panel()
+	_assert(main.get_node("HUD/WallDraftPanel").visible and not main.get_node("HUD/ScoutPanel").visible, "reaching a new Fortress Rank opens that Rank's Wall Plan draft")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/Name").text.contains("SIDECAR POCKET"), "the Rank 2 draft begins with an attachable Sidecar Pocket")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack/Name").text.contains("U-FUNNEL"), "the Rank 2 draft includes the U-Funnel")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack/Name").text.contains("DOGLEG CHANNEL"), "the Rank 2 draft includes the Dogleg Channel")
 	main.queue_free()
 	_finish("SIEGE_RUN_PROGRESSION_SMOKE_OK")
 
@@ -231,6 +283,40 @@ func _assert(condition: bool, description: String) -> void:
 		return
 	push_error("Siege run progression smoke failed: %s" % description)
 	failure_count += 1
+
+
+func _assert_closed_wall_plan(plan: Dictionary) -> void:
+	var cells: Array = plan.get("cells", [])
+	var occupied := {}
+	var maximum := Vector2i.ZERO
+	for value in cells:
+		var cell := Vector2i(value)
+		occupied[cell] = true
+		maximum.x = maxi(maximum.x, cell.x)
+		maximum.y = maxi(maximum.y, cell.y)
+	var closed := true
+	for x in range(maximum.x + 1):
+		closed = closed and occupied.has(Vector2i(x, 0)) and occupied.has(Vector2i(x, maximum.y))
+	for y in range(maximum.y + 1):
+		closed = closed and occupied.has(Vector2i(0, y)) and occupied.has(Vector2i(maximum.x, y))
+	_assert(closed, "%s has a continuous perimeter with no open corners" % String(plan.get("name", "Wall plan")))
+
+
+func _plan_ids(plans: Array[Dictionary]) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for plan in plans:
+		result.append(StringName(plan.get("id", &"")))
+	return result
+
+
+func _plan_with_required_walls(plan: Dictionary) -> Dictionary:
+	var combined: Array = Array(plan.get("cells", [])).duplicate()
+	for cell in Array(plan.get("required_wall_cells", [])):
+		if not combined.has(cell):
+			combined.append(cell)
+	var result := plan.duplicate(true)
+	result["cells"] = combined
+	return result
 
 
 func _finish(success_message: String) -> void:

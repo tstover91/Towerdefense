@@ -9,7 +9,7 @@ var town_hall := 2
 var battle_index := 0
 var currency := 16
 var completed := false
-var opening_wall_plan_claimed := false
+var wall_plan_claims: Dictionary = {}
 var blueprint: Array[Dictionary] = []
 var precombat_blueprint: Array[Dictionary] = []
 
@@ -62,3 +62,11 @@ func get_total_ranks() -> int:
 
 func get_battle_letter() -> String:
 	return "B" if battle_index == 1 else "A"
+
+
+func has_claimed_wall_plan_for_current_rank() -> bool:
+	return wall_plan_claims.has(get_fortress_rank())
+
+
+func claim_wall_plan(plan_id: StringName) -> void:
+	wall_plan_claims[get_fortress_rank()] = plan_id

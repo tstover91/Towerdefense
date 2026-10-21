@@ -93,6 +93,7 @@ var wall_chain_cells: Array[Vector2i] = []
 var wall_chain_max_new_walls := 0
 var wall_extensions_enabled := true
 var pending_wall_plan_cells: Array[Vector2i] = []
+var pending_wall_plan_required_cells: Array[Vector2i] = []
 var pending_wall_plan_origin := Vector2i(-1, -1)
 var pending_wall_plan_valid := false
 var build_preview_structure: Node2D
@@ -516,7 +517,7 @@ func preview_build_at_screen_position(screen_position: Vector2) -> bool:
 	if not _can_drag_build_preview():
 		return false
 	if not pending_wall_plan_cells.is_empty():
-		var plan_size := _wall_plan_size(pending_wall_plan_cells)
+		var plan_size := _wall_plan_geometry_size()
 		var pointer_cell := screen_to_cell(screen_position)
 		if pointer_cell.x < 0:
 			return false
@@ -764,9 +765,11 @@ func set_wall_extensions_enabled(enabled: bool) -> void:
 	queue_redraw()
 
 
-func begin_wall_plan(cells: Array, preferred_origin := Vector2i(-1, -1)) -> void:
+func begin_wall_plan(cells: Array, preferred_origin := Vector2i(-1, -1), required_wall_cells: Array = []) -> void:
 	cancel_build()
-	pending_wall_plan_cells = _normalize_wall_plan_cells(cells)
+	var geometry: Dictionary = _normalize_wall_plan_geometry(cells, required_wall_cells)
+	pending_wall_plan_cells.assign(geometry.get("cells", []))
+	pending_wall_plan_required_cells.assign(geometry.get("required", []))
 	selected_structure_id = &""
 	selected_wall_row_ids.clear()
 	selected_structure_changed.emit(null)
@@ -808,6 +811,11 @@ func can_place_wall_plan(origin: Vector2i) -> bool:
 		var cell := origin + relative_cell
 		if not arena_layout.is_buildable_cell(cell) or get_structure_at_cell(cell, true) != null:
 			return false
+	for relative_cell in pending_wall_plan_required_cells:
+		var cell := origin + relative_cell
+		var structure: Node2D = get_structure_at_cell(cell, true)
+		if not arena_layout.is_buildable_cell(cell) or structure == null or StringName(structure.kind) != &"wall":
+			return false
 	return true
 
 
@@ -817,7 +825,10 @@ func rotate_pending_wall_plan() -> bool:
 	var transformed: Array[Vector2i] = []
 	for cell in pending_wall_plan_cells:
 		transformed.append(Vector2i(-cell.y, cell.x))
-	_transform_pending_wall_plan(transformed)
+	var transformed_required: Array[Vector2i] = []
+	for cell in pending_wall_plan_required_cells:
+		transformed_required.append(Vector2i(-cell.y, cell.x))
+	_transform_pending_wall_plan(transformed, transformed_required)
 	return true
 
 
@@ -827,7 +838,10 @@ func mirror_pending_wall_plan() -> bool:
 	var transformed: Array[Vector2i] = []
 	for cell in pending_wall_plan_cells:
 		transformed.append(Vector2i(-cell.x, cell.y))
-	_transform_pending_wall_plan(transformed)
+	var transformed_required: Array[Vector2i] = []
+	for cell in pending_wall_plan_required_cells:
+		transformed_required.append(Vector2i(-cell.x, cell.y))
+	_transform_pending_wall_plan(transformed, transformed_required)
 	return true
 
 
@@ -860,29 +874,47 @@ func confirm_pending_wall_plan() -> Array[Node2D]:
 	return added
 
 
-func _transform_pending_wall_plan(transformed: Array[Vector2i]) -> void:
-	var old_size := _wall_plan_size(pending_wall_plan_cells)
+func _transform_pending_wall_plan(transformed: Array[Vector2i], transformed_required: Array[Vector2i]) -> void:
+	var old_size := _wall_plan_geometry_size()
 	var center := Vector2(pending_wall_plan_origin) + Vector2(old_size) * 0.5
-	pending_wall_plan_cells = _normalize_wall_plan_cells(transformed)
-	var new_size := _wall_plan_size(pending_wall_plan_cells)
+	var geometry: Dictionary = _normalize_wall_plan_geometry(transformed, transformed_required)
+	pending_wall_plan_cells.assign(geometry.get("cells", []))
+	pending_wall_plan_required_cells.assign(geometry.get("required", []))
+	var new_size := _wall_plan_geometry_size()
 	var next_origin := Vector2i(roundi(center.x - new_size.x * 0.5), roundi(center.y - new_size.y * 0.5))
 	preview_wall_plan_at_cell(next_origin)
 
 
 func _normalize_wall_plan_cells(value: Array) -> Array[Vector2i]:
+	var geometry: Dictionary = _normalize_wall_plan_geometry(value, [])
 	var result: Array[Vector2i] = []
-	if value.is_empty():
-		return result
+	result.assign(geometry.get("cells", []))
+	return result
+
+
+func _normalize_wall_plan_geometry(cells: Array, required_wall_cells: Array) -> Dictionary:
+	var result: Array[Vector2i] = []
+	var required: Array[Vector2i] = []
+	if cells.is_empty() and required_wall_cells.is_empty():
+		return {"cells": result, "required": required}
 	var minimum := Vector2i(1000000, 1000000)
-	for item in value:
+	for item in cells:
 		var cell := Vector2i(item)
 		minimum.x = mini(minimum.x, cell.x)
 		minimum.y = mini(minimum.y, cell.y)
-	for item in value:
+	for item in required_wall_cells:
+		var cell := Vector2i(item)
+		minimum.x = mini(minimum.x, cell.x)
+		minimum.y = mini(minimum.y, cell.y)
+	for item in cells:
 		var normalized := Vector2i(item) - minimum
 		if not result.has(normalized):
 			result.append(normalized)
-	return result
+	for item in required_wall_cells:
+		var normalized := Vector2i(item) - minimum
+		if not required.has(normalized):
+			required.append(normalized)
+	return {"cells": result, "required": required}
 
 
 func _wall_plan_size(cells: Array[Vector2i]) -> Vector2i:
@@ -893,10 +925,18 @@ func _wall_plan_size(cells: Array[Vector2i]) -> Vector2i:
 	return maximum + Vector2i.ONE
 
 
+func _wall_plan_geometry_size() -> Vector2i:
+	var geometry_cells: Array[Vector2i] = pending_wall_plan_cells.duplicate()
+	for cell in pending_wall_plan_required_cells:
+		if not geometry_cells.has(cell):
+			geometry_cells.append(cell)
+	return _wall_plan_size(geometry_cells)
+
+
 func _find_nearest_wall_plan_origin(center: Vector2i) -> Vector2i:
 	var best := Vector2i(-1, -1)
 	var best_distance := 1000000
-	var plan_size := _wall_plan_size(pending_wall_plan_cells)
+	var plan_size := _wall_plan_geometry_size()
 	for x in ArenaLayoutScript.GRID_SIZE.x:
 		for y in ArenaLayoutScript.GRID_SIZE.y:
 			var candidate := Vector2i(x, y)
@@ -912,6 +952,7 @@ func _find_nearest_wall_plan_origin(center: Vector2i) -> Vector2i:
 
 func _clear_pending_wall_plan() -> void:
 	pending_wall_plan_cells.clear()
+	pending_wall_plan_required_cells.clear()
 	pending_wall_plan_origin = Vector2i(-1, -1)
 	pending_wall_plan_valid = false
 	wall_plan_preview_changed.emit(false)
@@ -1052,7 +1093,7 @@ func get_build_preview_screen_rect() -> Rect2:
 	if not pending_wall_plan_cells.is_empty() and pending_wall_plan_origin.x >= 0:
 		return Rect2(
 			board_origin + Vector2(pending_wall_plan_origin) * cell_size,
-			Vector2(_wall_plan_size(pending_wall_plan_cells)) * cell_size
+			Vector2(_wall_plan_geometry_size()) * cell_size
 		)
 	if pending_build_kind == &"" or pending_build_cell.x < 0:
 		return Rect2()
@@ -1526,6 +1567,10 @@ func _draw() -> void:
 			var plan_rect := cell_rect(pending_wall_plan_origin + relative_cell).grow(-1.5)
 			draw_rect(plan_rect, plan_fill, true)
 			draw_rect(plan_rect, plan_outline, false, maxf(cell_size * 0.10, 2.0))
+		for relative_cell in pending_wall_plan_required_cells:
+			var anchor_rect := cell_rect(pending_wall_plan_origin + relative_cell).grow(-2.5)
+			draw_rect(anchor_rect, Color(0.38, 0.72, 0.92, 0.22), true)
+			draw_rect(anchor_rect, Color(0.62, 0.86, 1.0, 0.88), false, maxf(cell_size * 0.08, 2.0))
 	if edit_mode and is_wall_chain_active():
 		for index in range(1, wall_chain_cells.size()):
 			var chain_rect := cell_rect(wall_chain_cells[index]).grow(-1.5)
