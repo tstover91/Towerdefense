@@ -180,28 +180,58 @@ func _draw_wall(rect: Rect2) -> void:
 func _draw_cannon(rect: Rect2) -> void:
 	var center := rect.get_center()
 	var scale := minf(rect.size.x, rect.size.y)
-	draw_rect(rect.grow(-scale * 0.06), COLOR_CANNON, true)
-	draw_circle(center, scale * 0.24, COLOR_CORE_INSET)
-	draw_line(center, center + Vector2.LEFT * scale * 0.36, COLOR_TEXT, maxf(scale * 0.10, 2.0), true)
+	var body_color := COLOR_CANNON
+	if specialization == &"siege_cannon":
+		body_color = Color("8e4938")
+	elif specialization == &"ricochet_cannon":
+		body_color = Color("d28d38")
+	draw_rect(rect.grow(-scale * 0.06), body_color, true)
+	draw_circle(center, scale * (0.28 if specialization == &"siege_cannon" else 0.24), COLOR_CORE_INSET)
+	if specialization == &"ricochet_cannon":
+		draw_line(center + Vector2(0.0, -scale * 0.07), center + Vector2.LEFT * scale * 0.36, COLOR_TEXT, maxf(scale * 0.07, 2.0), true)
+		draw_line(center + Vector2(0.0, scale * 0.07), center + Vector2.RIGHT * scale * 0.30, COLOR_TEXT, maxf(scale * 0.07, 2.0), true)
+	else:
+		draw_line(center, center + Vector2.LEFT * scale * 0.36, COLOR_TEXT, maxf(scale * (0.14 if specialization == &"siege_cannon" else 0.10), 2.0), true)
 	draw_circle(center, scale * 0.11, COLOR_TEXT)
 
 
 func _draw_mortar(rect: Rect2) -> void:
 	var center := rect.get_center()
 	var scale := minf(rect.size.x, rect.size.y)
-	draw_rect(rect.grow(-scale * 0.06), COLOR_MORTAR, true)
-	draw_circle(center, scale * 0.27, COLOR_OUTLINE)
-	draw_circle(center, scale * 0.15, COLOR_HEALTH_BACK)
+	var body_color := COLOR_MORTAR
+	if specialization == &"scatter_bombard":
+		body_color = Color("6da58b")
+	elif specialization == &"orbital_bombard":
+		body_color = Color("586c9e")
+	draw_rect(rect.grow(-scale * 0.06), body_color, true)
+	if specialization == &"scatter_bombard":
+		for offset in [Vector2(-0.16, 0.0), Vector2(0.0, -0.08), Vector2(0.16, 0.0)]:
+			draw_circle(center + offset * scale, scale * 0.095, COLOR_OUTLINE)
+	else:
+		draw_circle(center, scale * 0.27, COLOR_OUTLINE)
+		draw_circle(center, scale * 0.15, Color("9ddcff") if specialization == &"orbital_bombard" else COLOR_HEALTH_BACK)
 
 
 func _draw_archer_tower(rect: Rect2) -> void:
 	var scale := minf(rect.size.x, rect.size.y)
 	var body := rect.grow(-scale * 0.06)
 	var center := rect.get_center()
-	draw_rect(body, COLOR_ARCHER, true)
+	var body_color := COLOR_ARCHER
+	if specialization == &"pulse_repeater":
+		body_color = Color("4fbea8")
+	elif specialization == &"pulse_sniper":
+		body_color = Color("4e6bb8")
+	draw_rect(body, body_color, true)
 	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 1.0))
-	draw_line(center + Vector2(-scale * 0.20, scale * 0.18), center + Vector2(0.0, -scale * 0.23), COLOR_TEXT, maxf(scale * 0.055, 1.0), true)
-	draw_line(center + Vector2(scale * 0.20, scale * 0.18), center + Vector2(0.0, -scale * 0.23), COLOR_TEXT, maxf(scale * 0.055, 1.0), true)
+	if specialization == &"pulse_repeater":
+		for offset_x in [-0.13, 0.13]:
+			draw_line(center + Vector2(scale * offset_x, scale * 0.23), center + Vector2(scale * offset_x, -scale * 0.25), COLOR_TEXT, maxf(scale * 0.055, 1.0), true)
+	elif specialization == &"pulse_sniper":
+		draw_line(center + Vector2(0.0, scale * 0.27), center + Vector2(0.0, -scale * 0.30), COLOR_TEXT, maxf(scale * 0.07, 1.0), true)
+		draw_circle(center + Vector2(0.0, -scale * 0.10), scale * 0.07, COLOR_OUTLINE)
+	else:
+		draw_line(center + Vector2(-scale * 0.20, scale * 0.18), center + Vector2(0.0, -scale * 0.23), COLOR_TEXT, maxf(scale * 0.055, 1.0), true)
+		draw_line(center + Vector2(scale * 0.20, scale * 0.18), center + Vector2(0.0, -scale * 0.23), COLOR_TEXT, maxf(scale * 0.055, 1.0), true)
 
 
 func _draw_wizard_tower(rect: Rect2) -> void:
@@ -230,10 +260,19 @@ func _draw_air_defense(rect: Rect2) -> void:
 	var center := rect.get_center()
 	var scale := minf(rect.size.x, rect.size.y)
 	var body := rect.grow(-scale * 0.06)
-	draw_rect(body, COLOR_AIR_DEFENSE, true)
+	var body_color := COLOR_AIR_DEFENSE
+	if specialization == &"chain_arc":
+		body_color = Color("6f67cf")
+	elif specialization == &"sky_arc":
+		body_color = Color("399ac4")
+	draw_rect(body, body_color, true)
 	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 1.0))
-	for offset_x in [-0.18, 0.18]:
+	var prong_offsets := [-0.22, 0.0, 0.22] if specialization == &"chain_arc" else [-0.18, 0.18]
+	for offset_x in prong_offsets:
 		draw_line(center + Vector2(scale * offset_x, scale * 0.23), center + Vector2(scale * offset_x, -scale * 0.22), COLOR_TEXT, maxf(scale * 0.075, 1.0), true)
+	if specialization == &"sky_arc":
+		draw_line(center + Vector2(-scale * 0.20, -scale * 0.15), center + Vector2(0.0, -scale * 0.31), Color("9deaff"), maxf(scale * 0.06, 1.0), true)
+		draw_line(center + Vector2(scale * 0.20, -scale * 0.15), center + Vector2(0.0, -scale * 0.31), Color("9deaff"), maxf(scale * 0.06, 1.0), true)
 
 
 func _draw_command_core(rect: Rect2) -> void:

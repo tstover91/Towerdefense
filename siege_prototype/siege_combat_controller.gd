@@ -268,7 +268,8 @@ func _try_nudge_attacker(attacker: Node2D, offset: Vector2, blocked: Array[Vecto
 
 func _apply_tower_damage(tower: Node2D, primary_target: Node2D) -> void:
 	var damage := float(tower.definition.get("attack_damage", 0.0))
-	if StringName(tower.definition.get("attack_mode", &"single")) == &"ramping_beam":
+	var attack_mode := StringName(tower.definition.get("attack_mode", &"single"))
+	if attack_mode == &"ramping_beam":
 		var elapsed := float(tower_ramp_elapsed.get(tower.structure_id, 0.0))
 		var step_interval := maxf(float(tower.definition.get("beam_ramp_step_interval", 0.5)), 0.01)
 		var multiplier := float(tower.definition.get("beam_ramp_start_multiplier", 1.0))
@@ -277,14 +278,55 @@ func _apply_tower_damage(tower: Node2D, primary_target: Node2D) -> void:
 		primary_target.apply_damage(damage * multiplier)
 		tower_ramp_elapsed[tower.structure_id] = elapsed + float(tower.definition.get("attack_interval", 0.2))
 		return
+	if attack_mode == &"ricochet":
+		_apply_ricochet_damage(tower, primary_target, damage)
+		return
 	var splash_radius := float(tower.definition.get("splash_radius_cells", 0.0))
 	if splash_radius <= 0.0:
 		primary_target.apply_damage(damage)
 		return
 	var impact_position: Vector2 = primary_target.grid_position
 	for attacker in attackers.duplicate():
-		if is_instance_valid(attacker) and not attacker.dead and attacker.grid_position.distance_to(impact_position) <= splash_radius:
+		if is_instance_valid(attacker) and not attacker.dead and _tower_can_target_attacker(tower, attacker) and attacker.grid_position.distance_to(impact_position) <= splash_radius:
 			attacker.apply_damage(damage)
+
+
+func _apply_ricochet_damage(tower: Node2D, primary_target: Node2D, damage: float) -> void:
+	var hit_ids: Dictionary = {primary_target.attacker_id: true}
+	var current_target := primary_target
+	var current_damage := damage
+	primary_target.apply_damage(current_damage)
+	var bounce_count := maxi(int(tower.definition.get("bounce_count", 0)), 0)
+	var bounce_range := maxf(float(tower.definition.get("bounce_range_cells", 0.0)), 0.0)
+	var falloff := clampf(float(tower.definition.get("bounce_damage_falloff", 1.0)), 0.0, 1.0)
+	for _bounce in bounce_count:
+		var next_target := _nearest_ricochet_target(tower, current_target.grid_position, hit_ids, bounce_range)
+		if next_target == null:
+			break
+		current_damage *= falloff
+		tracers.append({
+			"from": current_target.position,
+			"to": next_target.position,
+			"life": 0.11,
+		})
+		hit_ids[next_target.attacker_id] = true
+		next_target.apply_damage(current_damage)
+		current_target = next_target
+
+
+func _nearest_ricochet_target(tower: Node2D, origin: Vector2, hit_ids: Dictionary, maximum_distance: float) -> Node2D:
+	var result: Node2D
+	var best_distance := INF
+	for attacker in attackers:
+		if not is_instance_valid(attacker) or attacker.dead or hit_ids.has(attacker.attacker_id):
+			continue
+		if not _tower_can_target_attacker(tower, attacker):
+			continue
+		var distance: float = origin.distance_to(attacker.grid_position)
+		if distance <= maximum_distance and distance < best_distance:
+			best_distance = distance
+			result = attacker
+	return result
 
 
 func _update_tracers(delta: float) -> void:

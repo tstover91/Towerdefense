@@ -41,7 +41,7 @@ const DEFINITIONS := {
 		"target_type": &"ground",
 	},
 	&"archer_tower": {
-		"display_name": "Archer Tower",
+		"display_name": "Pulse Battery",
 		"max_health": 630.0,
 		"integrity_value": 1,
 		"blocks_movement": true,
@@ -58,7 +58,7 @@ const DEFINITIONS := {
 		"target_type": &"ground_air",
 	},
 	&"mortar": {
-		"display_name": "Mortar",
+		"display_name": "Bombard",
 		"max_health": 550.0,
 		"integrity_value": 1,
 		"blocks_movement": true,
@@ -76,7 +76,7 @@ const DEFINITIONS := {
 		"target_type": &"ground",
 	},
 	&"air_defense": {
-		"display_name": "Air Defense",
+		"display_name": "Arc Emitter",
 		"max_health": 950.0,
 		"integrity_value": 1,
 		"blocks_movement": true,
@@ -124,6 +124,86 @@ const DEFINITIONS := {
 # ladder. Their base damage and health continue to come from the purchased Town
 # Hall level, then these behavior modifiers are applied.
 const SPECIALIZATIONS := {
+	&"cannon": {
+		&"siege_cannon": {
+			"display_name": "Siege Cannon",
+			"cost": 8,
+			"attack_mode": &"single",
+			"attack_damage_multiplier": 2.5,
+			"attack_interval": 1.6,
+			"attack_range_cells": 11.0,
+		},
+		&"ricochet_cannon": {
+			"display_name": "Ricochet Cannon",
+			"cost": 8,
+			"attack_mode": &"ricochet",
+			"attack_damage_multiplier": 0.9,
+			"bounce_count": 2,
+			"bounce_range_cells": 5.0,
+			"bounce_damage_falloff": 0.7,
+		},
+	},
+	&"archer_tower": {
+		&"pulse_repeater": {
+			"display_name": "Pulse Repeater",
+			"cost": 9,
+			"attack_mode": &"single",
+			"attack_damage_multiplier": 0.575,
+			"attack_interval": 0.25,
+			"attack_range_cells": 9.0,
+		},
+		&"pulse_sniper": {
+			"display_name": "Pulse Sniper",
+			"cost": 9,
+			"attack_mode": &"single",
+			"attack_damage_multiplier": 4.8,
+			"attack_interval": 2.0,
+			"attack_range_cells": 15.0,
+		},
+	},
+	&"mortar": {
+		&"scatter_bombard": {
+			"display_name": "Scatter Bombard",
+			"cost": 11,
+			"attack_mode": &"splash",
+			"attack_damage_multiplier": 0.8,
+			"attack_interval": 3.5,
+			"attack_range_cells": 10.0,
+			"minimum_range_cells": 3.0,
+			"splash_radius_cells": 2.5,
+		},
+		&"orbital_bombard": {
+			"display_name": "Orbital Bombard",
+			"cost": 11,
+			"attack_mode": &"splash",
+			"attack_damage_multiplier": 1.75,
+			"attack_interval": 7.0,
+			"attack_range_cells": 16.0,
+			"minimum_range_cells": 0.0,
+			"splash_radius_cells": 2.25,
+		},
+	},
+	&"air_defense": {
+		&"chain_arc": {
+			"display_name": "Chain Arc",
+			"cost": 11,
+			"attack_mode": &"ricochet",
+			"attack_damage_multiplier": 0.75,
+			"attack_range_cells": 9.0,
+			"target_type": &"ground_air",
+			"bounce_count": 2,
+			"bounce_range_cells": 4.0,
+			"bounce_damage_falloff": 0.7,
+		},
+		&"sky_arc": {
+			"display_name": "Sky Arc",
+			"cost": 11,
+			"attack_mode": &"single",
+			"attack_damage_multiplier": 1.3,
+			"attack_range_cells": 12.0,
+			"target_type": &"air",
+		},
+	},
 	&"wizard_tower": {
 		&"plasma_caster": {
 			"display_name": "Plasma Caster",

@@ -12,8 +12,27 @@ func _init() -> void:
 
 
 func _run() -> void:
-	var paths: Array[StringName] = StructureCatalogScript.get_specialization_ids(&"wizard_tower")
-	_assert(paths == [&"plasma_caster", &"inferno_beam"], "the Thermal Projector exposes exactly its two intended paths")
+	var expected_paths := {
+		&"cannon": [&"siege_cannon", &"ricochet_cannon"],
+		&"archer_tower": [&"pulse_repeater", &"pulse_sniper"],
+		&"mortar": [&"scatter_bombard", &"orbital_bombard"],
+		&"air_defense": [&"chain_arc", &"sky_arc"],
+		&"wizard_tower": [&"plasma_caster", &"inferno_beam"],
+	}
+	for kind in expected_paths:
+		_assert(StructureCatalogScript.get_specialization_ids(kind) == expected_paths[kind], "%s exposes exactly its two intended paths" % kind)
+	var repeater := StructureCatalogScript.get_definition(&"archer_tower", 6, &"pulse_repeater")
+	var sniper := StructureCatalogScript.get_definition(&"archer_tower", 6, &"pulse_sniper")
+	_assert(float(repeater.get("attack_interval", 1.0)) < 0.5 and float(repeater.get("attack_range_cells", 0.0)) < float(sniper.get("attack_range_cells", 0.0)), "Pulse paths separate rapid close coverage from long-range heavy shots")
+	var siege := StructureCatalogScript.get_definition(&"cannon", 6, &"siege_cannon")
+	var ricochet := StructureCatalogScript.get_definition(&"cannon", 6, &"ricochet_cannon")
+	_assert(float(siege.get("attack_damage", 0.0)) > float(ricochet.get("attack_damage", 0.0)) and StringName(ricochet.get("attack_mode", &"")) == &"ricochet", "Cannon paths separate heavy single hits from automatic ricochets")
+	var scatter := StructureCatalogScript.get_definition(&"mortar", 3, &"scatter_bombard")
+	var orbital := StructureCatalogScript.get_definition(&"mortar", 3, &"orbital_bombard")
+	_assert(float(scatter.get("splash_radius_cells", 0.0)) > float(orbital.get("splash_radius_cells", 0.0)) and is_zero_approx(float(orbital.get("minimum_range_cells", -1.0))), "Bombard paths separate broad scatter coverage from autonomous map-wide strikes")
+	var chain := StructureCatalogScript.get_definition(&"air_defense", 3, &"chain_arc")
+	var sky := StructureCatalogScript.get_definition(&"air_defense", 3, &"sky_arc")
+	_assert(StringName(chain.get("target_type", &"")) == &"ground_air" and StringName(sky.get("target_type", &"")) == &"air", "Arc paths separate flexible chains from dedicated anti-air")
 	var base := StructureCatalogScript.get_definition(&"wizard_tower", 2)
 	var plasma := StructureCatalogScript.get_definition(&"wizard_tower", 2, &"plasma_caster")
 	var inferno := StructureCatalogScript.get_definition(&"wizard_tower", 2, &"inferno_beam")
@@ -36,6 +55,7 @@ func _run() -> void:
 	var blueprint: Array[Dictionary] = [
 		{"id": &"core", "kind": &"command_core", "level": 5, "cell": Vector2i(34, 20), "footprint": Vector2i(4, 4)},
 		{"id": &"thermal", "kind": &"wizard_tower", "level": 2, "cell": Vector2i(24, 20), "footprint": Vector2i(3, 3)},
+		{"id": &"cannon", "kind": &"cannon", "level": 6, "cell": Vector2i(18, 20), "footprint": Vector2i(3, 3)},
 	]
 	board.load_blueprint(blueprint)
 	_assert(board.specialize_structure(&"thermal", &"inferno_beam"), "an unspecialized Thermal Projector accepts one valid path")
@@ -62,6 +82,22 @@ func _run() -> void:
 	var health_before_reset: float = target.health
 	combat._apply_tower_damage(thermal, target)
 	_assert(is_equal_approx(health_before_reset - target.health, hit_damage[0]), "Inferno Beam returns to its opening damage after losing target lock")
+	_assert(board.specialize_structure(&"cannon", &"ricochet_cannon"), "the Cannon accepts its ricochet path")
+	var ricochet_tower: Node2D = board.get_structure(&"cannon")
+	var ricochet_primary: Node2D = combat._spawn_attacker(&"brute", 10, 4)
+	var bounce_one: Node2D = combat._spawn_attacker(&"brute", 10, 4)
+	var bounce_two: Node2D = combat._spawn_attacker(&"brute", 10, 4)
+	var out_of_range: Node2D = combat._spawn_attacker(&"brute", 10, 4)
+	ricochet_primary.grid_position = Vector2(10.0, 10.0)
+	bounce_one.grid_position = Vector2(12.0, 10.0)
+	bounce_two.grid_position = Vector2(14.0, 10.0)
+	out_of_range.grid_position = Vector2(30.0, 30.0)
+	var bounce_one_health: float = bounce_one.health
+	var bounce_two_health: float = bounce_two.health
+	var out_of_range_health: float = out_of_range.health
+	combat._apply_tower_damage(ricochet_tower, ricochet_primary)
+	_assert(bounce_one.health < bounce_one_health and bounce_two.health < bounce_two_health, "Ricochet Cannon automatically reaches two nearby follow-up targets")
+	_assert(is_equal_approx(out_of_range.health, out_of_range_health), "ricochets stop outside their search radius")
 	harness.queue_free()
 	await process_frame
 

@@ -141,10 +141,10 @@ inventories match Clash: 25 / 50 / 75 / 100 / 125 / 175 Walls at TH2-TH7.
 Low-level Clash Town Halls do not attack; the prototype's weak Command Core gun
 is an explicit exception using the exact level-one Cannon weapon values.
 
-The Thermal Projector's unspecialized stat line remains the exact Wizard Tower
-line above. Plasma Caster and Inferno Beam are prototype-specific permanent role
-choices layered on that Town Hall-scaled line; their modifiers and 12-Gold
-choice price are original run-balance values rather than Clash data.
+The five unspecialized defenses retain the exact Clash stat lines above. Their
+two-path alien specializations are prototype-specific permanent role choices
+layered on those Town Hall-scaled lines. All specialization modifiers and Gold
+prices are original run-balance values rather than Clash data.
 
 Early-game sources:
 

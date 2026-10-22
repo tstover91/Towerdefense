@@ -143,13 +143,14 @@ future construction; they also raise shared defense capacity, increase the Wall
 allowance, unlock defenses, and offer that Town Hall's Wall Plan draft. Ordinary
 structures no longer have separate statistical upgrade purchases.
 
-The first permanent tower-role choice is available on the Thermal Projector.
-It can become a Plasma Caster, which keeps and strengthens its ground-and-air
-splash role, or an Inferno Beam, which keeps ground-and-air coverage but trades
-splash for rapid single-target damage that ramps while it holds one enemy. The
-choice is made once from the selected-tower controls. Its health and baseline
-damage continue to rise with purchased Town Hall levels, so specialization does
-not create a second upgrade ladder.
+Every defense now has one permanent two-path role choice: Cannon becomes Siege
+Cannon or Ricochet Cannon; Pulse Battery becomes Pulse Repeater or Pulse Sniper;
+Bombard becomes Scatter Bombard or Orbital Bombard; Arc Emitter becomes Chain
+Arc or Sky Arc; and Thermal Projector becomes Plasma Caster or Inferno Beam.
+All attacks remain automatic. Every base form stays immediately useful, while
+each path trades coverage, cadence, reach, or target count instead of merely
+adding a larger stat number. Health and baseline damage continue to rise with
+purchased Town Hall levels, so specialization does not create another ladder.
 
 Gold is a deliberately condensed prototype economy; Clash prices and timers
 are not used. Wall inventories match Clash at 25/50/75/100/125/175 for TH2-TH7.

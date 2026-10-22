@@ -512,21 +512,21 @@ custom_minimum_size = Vector2(136, 88)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
-text = "ARCHER TOWER\n6 GOLD · BUILT 0 / 1"
+text = "PULSE BATTERY\n6 GOLD · BUILT 0 / 1"
 
 [node name="MortarCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
 custom_minimum_size = Vector2(136, 88)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
-text = "MORTAR\nUNLOCKS TH3"
+text = "BOMBARD\nUNLOCKS TH3"
 
 [node name="AirDefenseCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
 custom_minimum_size = Vector2(136, 88)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
-text = "AIR DEFENSE\nUNLOCKS TH4"
+text = "ARC EMITTER\nUNLOCKS TH4"
 
 [node name="WizardTowerCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
 custom_minimum_size = Vector2(136, 88)
