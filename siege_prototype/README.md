@@ -157,6 +157,11 @@ are not used. Wall inventories match Clash at 25/50/75/100/125/175 for TH2-TH7.
 As a prototype-specific exception, the low-level Command Core fires the exact
 level-one Cannon shot (7 DPS, 0.8-second cadence, 9-tile range).
 
+The run pays 292 Gold in total. Its final attack grants no Gold because build
+controls close when the run ends; that former dead payout is instead folded
+into Rounds 7-11, leaving enough pre-final currency to combine purchased Town
+Hall progression with several new defenses and permanent role choices.
+
 An attack captures a safe precombat snapshot. Holding earns Gold and advances
 one round without changing the Town Hall. Losing earns nothing, loses nothing,
 and reconstructs that snapshot for an immediate retry. Run

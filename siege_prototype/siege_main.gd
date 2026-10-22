@@ -709,13 +709,15 @@ func _refresh_scout_panel() -> void:
 func _show_victory_result(reward: int) -> void:
 	$HUD/ScoutPanel.visible = false
 	$HUD/ResultPanel.visible = true
-	var lines: PackedStringArray = ["+%d GOLD" % reward, "Fortress repaired automatically"]
+	var lines: PackedStringArray = []
 	if run_state.completed:
 		$HUD/ResultPanel/Margin/Stack/Title.text = "RUN COMPLETE"
 		lines.append("All %d attacks survived" % run_state.get_total_rounds())
 		lines.append("%d Gold banked" % run_state.currency)
 	else:
 		$HUD/ResultPanel/Margin/Stack/Title.text = "DEFENSE HELD"
+		lines.append("+%d GOLD" % reward)
+		lines.append("Fortress repaired automatically")
 		lines.append("Round %d ready" % run_state.get_round_number())
 	$HUD/ResultPanel/Margin/Stack/Details.text = "\n".join(lines)
 

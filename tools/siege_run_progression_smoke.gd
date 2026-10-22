@@ -17,9 +17,13 @@ func _init() -> void:
 
 func _run() -> void:
 	var expected_budgets := [10, 15, 20, 22, 28, 40, 44, 52, 67, 85, 80, 88]
+	var expected_rewards := [7, 9, 10, 14, 16, 20, 30, 36, 42, 48, 60, 0]
 	for round_number in range(1, 13):
 		var wave: Array[Dictionary] = TierCatalogScript.build_wave(round_number)
 		_assert(TierCatalogScript.get_wave_housing(wave) == expected_budgets[round_number - 1], "Round %d retains its intended housing budget" % round_number)
+		_assert(TierCatalogScript.get_reward(round_number) == expected_rewards[round_number - 1], "Round %d pays its intended preparation budget" % round_number)
+	_assert(expected_rewards.reduce(func(total: int, reward: int) -> int: return total + reward, 0) == 292, "reward redistribution preserves the full run's 292-Gold total")
+	_assert(16 + expected_rewards.slice(0, 11).reduce(func(total: int, reward: int) -> int: return total + reward, 0) == 308, "all 308 usable Gold is available before the final attack")
 	_assert(TierCatalogScript.get_count_cap(1, &"wall") == 0, "TH1 has no walls")
 	_assert(TierCatalogScript.get_count_cap(2, &"wall") == 25, "TH2 supplies Clash's twenty-five Walls")
 	_assert(TierCatalogScript.get_count_cap(3, &"wall") == 50, "TH3 supplies Clash's fifty Walls")
