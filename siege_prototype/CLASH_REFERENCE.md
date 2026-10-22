@@ -134,8 +134,10 @@ Current early-game troop values used by the run:
 
 The playable run skips TH1. Wave sizes and spawn spacing use custom TD pacing
 and do not change any unit combat statistic. Run rewards and numeric Gold prices
-are intentionally condensed. New Walls are free to place, early Wall upgrades
-and defenses use Gold, and the inventories match Clash: 25 / 50 / 75 / 100 / 125 / 175 Walls at TH2-TH7.
+are intentionally condensed. Town Hall levels are large player-purchased run
+investments; purchasing one moves every existing defense and Wall to that Town
+Hall's listed stat line and applies the same line to future construction. The
+inventories match Clash: 25 / 50 / 75 / 100 / 125 / 175 Walls at TH2-TH7.
 Low-level Clash Town Halls do not attack; the prototype's weak Command Core gun
 is an explicit exception using the exact level-one Cannon weapon values.
 

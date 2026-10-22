@@ -23,6 +23,7 @@ const COLOR_HEALTH_BACK := Color("252522")
 
 var structure_id: StringName
 var kind: StringName
+var wall_formation_id: StringName
 var level := 1
 var grid_cell := Vector2i.ZERO
 var footprint := Vector2i.ONE
@@ -39,6 +40,7 @@ var cell_size := 48.0
 func configure(blueprint_entry: Dictionary, structure_definition: Dictionary) -> void:
 	structure_id = StringName(blueprint_entry.get("id", &""))
 	kind = StringName(blueprint_entry.get("kind", &""))
+	wall_formation_id = StringName(blueprint_entry.get("wall_formation_id", &""))
 	level = int(blueprint_entry.get("level", structure_definition.get("reference_level", 1)))
 	grid_cell = Vector2i(blueprint_entry.get("cell", Vector2i.ZERO))
 	footprint = Vector2i(blueprint_entry.get("footprint", Vector2i.ONE))
@@ -112,13 +114,16 @@ func get_occupied_cells() -> Array[Vector2i]:
 
 
 func get_blueprint_entry() -> Dictionary:
-	return {
+	var entry := {
 		"id": structure_id,
 		"kind": kind,
 		"level": level,
 		"cell": grid_cell,
 		"footprint": footprint,
 	}
+	if wall_formation_id != &"":
+		entry["wall_formation_id"] = wall_formation_id
+	return entry
 
 
 func _draw() -> void:

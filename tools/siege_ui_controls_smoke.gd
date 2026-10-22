@@ -74,36 +74,37 @@ func _run() -> void:
 	board.cancel_build()
 	_assert(board.capture_current_blueprint() == confirmed_blueprint, "cancel discards the whole wall preview without changing the layout")
 
-	var row_blueprint: Array[Dictionary] = []
-	for row_index in 5:
-		row_blueprint.append({
-			"id": StringName("row_wall_%d" % row_index),
+	var formation_blueprint: Array[Dictionary] = []
+	for wall_index in 5:
+		formation_blueprint.append({
+			"id": StringName("formation_wall_%d" % wall_index),
 			"kind": &"wall",
-			"level": row_index % 2 + 1,
-			"cell": Vector2i(18 + row_index, 18),
+			"wall_formation_id": &"formation_test",
+			"level": wall_index % 2 + 1,
+			"cell": Vector2i(18 + wall_index, 18),
 			"footprint": Vector2i.ONE,
 		})
-	board.load_blueprint(row_blueprint)
-	board.select_structure(board.get_structure(&"row_wall_2"))
-	_assert(board.get_selectable_wall_row_count() == 5, "Select Row finds the longest contiguous straight run")
-	_assert(board.select_wall_row() and board.get_selected_wall_row_count() == 5, "Select Row selects every wall in that run")
-	_assert(board.get_wall_extension_cells().is_empty(), "row selection suppresses single-wall extension arrows")
-	var row_drag_start: Vector2 = board.cell_rect(Vector2i(20, 18)).get_center()
-	_assert(board._begin_structure_drag_candidate_at(row_drag_start), "pressing any selected row segment starts a grouped drag")
-	board._update_structure_drag(row_drag_start + Vector2.DOWN * board.cell_size * 2.0)
-	_assert(board.structure_drag_drop_valid, "a clear grouped destination previews as valid")
-	_assert(board.get_structure(&"row_wall_0").grid_cell == Vector2i(18, 18), "row drag does not mutate logical cells before release")
-	board._finish_structure_drag(row_drag_start + Vector2.DOWN * board.cell_size * 2.0)
-	_assert(board.get_structure(&"row_wall_0").grid_cell == Vector2i(18, 20) and board.get_structure(&"row_wall_4").grid_cell == Vector2i(22, 20), "releasing moves the whole selected row together")
-	_assert(board.rotate_selected_wall_row(), "Rotate Row succeeds when every rotated cell is clear")
-	_assert(board.get_structure(&"row_wall_0").grid_cell == Vector2i(20, 18) and board.get_structure(&"row_wall_4").grid_cell == Vector2i(20, 22), "Rotate Row turns the group ninety degrees around the selected wall")
-	_assert(board.get_structure(&"row_wall_1").level == 2, "moving and rotating a row preserves each wall's level")
-	_assert(board.try_add_structure(&"cannon", Vector2i(16, 19), 1), "the collision fixture can be placed beside the vertical row")
-	board.select_structure(board.get_structure(&"row_wall_2"))
-	_assert(board.select_wall_row(), "the moved row remains selectable")
-	var before_blocked_rotation: Array[Dictionary] = board.capture_current_blueprint()
-	_assert(not board.rotate_selected_wall_row(), "Rotate Row rejects a destination occupied by another building")
-	_assert(board.capture_current_blueprint() == before_blocked_rotation, "a rejected rotation leaves every wall unchanged")
+	board.load_blueprint(formation_blueprint)
+	var formation_wall: Node2D = board.get_structure(&"formation_wall_2")
+	board.select_structure(formation_wall)
+	_assert(board.get_wall_formation_size(&"formation_test") == 5, "a selected drafted Wall resolves its complete saved formation")
+	var formation_drag_start: Vector2 = board.cell_rect(Vector2i(20, 18)).get_center()
+	_assert(board._begin_structure_drag_candidate_at(formation_drag_start), "pressing a selected formation member starts one grouped drag")
+	board._update_structure_drag(formation_drag_start + Vector2.DOWN * board.cell_size * 2.0)
+	_assert(board.structure_drag_drop_valid, "a clear formation destination previews as valid")
+	_assert(board.get_structure(&"formation_wall_0").grid_cell == Vector2i(18, 18), "formation dragging does not mutate logical cells before release")
+	board._finish_structure_drag(formation_drag_start + Vector2.DOWN * board.cell_size * 2.0)
+	_assert(board.get_structure(&"formation_wall_0").grid_cell == Vector2i(18, 20) and board.get_structure(&"formation_wall_4").grid_cell == Vector2i(22, 20), "releasing moves the complete formation together")
+	_assert(board.get_structure(&"formation_wall_1").level == 2, "moving a formation preserves each Wall's level")
+	_assert(board.try_add_structure(&"cannon", Vector2i(16, 21), 1), "the collision fixture can be placed beside the moved formation")
+	board.select_structure(board.get_structure(&"formation_wall_2"))
+	var before_blocked_move: Array[Dictionary] = board.capture_current_blueprint()
+	formation_drag_start = board.cell_rect(Vector2i(20, 20)).get_center()
+	_assert(board._begin_structure_drag_candidate_at(formation_drag_start), "the formation remains directly draggable after moving")
+	board._update_structure_drag(formation_drag_start + Vector2.DOWN * board.cell_size)
+	_assert(not board.structure_drag_drop_valid, "a formation move rejects a destination occupied by another building")
+	board._finish_structure_drag(formation_drag_start + Vector2.DOWN * board.cell_size)
+	_assert(board.capture_current_blueprint() == before_blocked_move, "a rejected formation move leaves every Wall unchanged")
 
 	board.clear_selection()
 	_assert(board.get_wall_extension_cells().is_empty(), "deselecting a wall removes its extension controls")

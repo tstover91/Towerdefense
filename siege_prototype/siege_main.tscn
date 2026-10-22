@@ -50,7 +50,7 @@ clip_text = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72549, 0.713726, 0.67451, 1)
 theme_override_font_sizes/font_size = 11
-text = "6-RANK RUN · TWO ATTACKS PER RANK · PAN AND PINCH TO EXPLORE"
+text = "PURCHASE TOWN HALL LEVELS · SURVIVE 12 ATTACKS · PAN AND PINCH TO EXPLORE"
 text_overrun_behavior = 3
 clip_text = true
 
@@ -59,7 +59,7 @@ custom_minimum_size = Vector2(122, 44)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
 theme_override_font_sizes/font_size = 13
-text = "RANK 1 · A\nROUND 1 / 12"
+text = "TOWN HALL 2\nROUND 1 / 12"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -179,7 +179,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
 theme_override_font_sizes/font_size = 16
-text = "NEXT ATTACK · RANK 1-A"
+text = "NEXT ATTACK · ROUND 1"
 vertical_alignment = 1
 
 [node name="CloseButton" type="Button" parent="HUD/ScoutPanel/Margin/Stack/Header"]
@@ -241,7 +241,7 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
 theme_override_font_sizes/font_size = 15
-text = "+7 GOLD\nFortress repaired automatically\nRank 1 · Attack B ready"
+text = "+7 GOLD\nFortress repaired automatically\nRound 2 ready"
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
@@ -615,7 +615,7 @@ theme_override_constants/separation = 6
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94902, 0.937255, 0.894118, 1)
 theme_override_font_sizes/font_size = 18
-text = "CANNON (LEVEL 2)"
+text = "CANNON · TH2 POWER"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -625,22 +625,8 @@ size_flags_vertical = 3
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="SelectRowButton" type="Button" parent="HUD/SelectionPanel/Margin/Stack/Actions"]
-visible = false
-custom_minimum_size = Vector2(112, 58)
-layout_mode = 2
-theme_override_font_sizes/font_size = 15
-text = "SELECT\nROW"
-
-[node name="RotateRowButton" type="Button" parent="HUD/SelectionPanel/Margin/Stack/Actions"]
-visible = false
-custom_minimum_size = Vector2(112, 58)
-layout_mode = 2
-theme_override_font_sizes/font_size = 15
-text = "ROTATE\nROW"
-
 [node name="UpgradeButton" type="Button" parent="HUD/SelectionPanel/Margin/Stack/Actions"]
 custom_minimum_size = Vector2(214, 58)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "UPGRADE\nLEVEL 3 · 4 GOLD"
+text = "UPGRADE TO TH3\n18 GOLD"

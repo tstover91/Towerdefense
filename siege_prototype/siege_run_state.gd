@@ -3,10 +3,10 @@ extends RefCounted
 
 const FIRST_TOWN_HALL := 2
 const LAST_TOWN_HALL := 7
-const BATTLES_PER_TOWN_HALL := 2
+const TOTAL_ROUNDS := 12
 
 var town_hall := 2
-var battle_index := 0
+var round_number := 1
 var currency := 16
 var completed := false
 var wall_plan_claims: Dictionary = {}
@@ -21,15 +21,18 @@ func begin_combat(current_blueprint: Array[Dictionary]) -> void:
 func record_victory(reward: int, current_blueprint: Array[Dictionary]) -> Dictionary:
 	currency += maxi(reward, 0)
 	blueprint = current_blueprint.duplicate(true)
-	var previous_th := town_hall
-	if battle_index == 0:
-		battle_index = 1
-	elif town_hall < LAST_TOWN_HALL:
-		town_hall += 1
-		battle_index = 0
-	else:
+	if round_number >= TOTAL_ROUNDS:
 		completed = true
-	return {"tier_advanced": town_hall != previous_th, "completed": completed}
+	else:
+		round_number += 1
+	return {"completed": completed}
+
+
+func upgrade_town_hall() -> bool:
+	if completed or town_hall >= LAST_TOWN_HALL:
+		return false
+	town_hall += 1
+	return true
 
 
 func record_defeat() -> Array[Dictionary]:
@@ -45,11 +48,11 @@ func spend(amount: int) -> bool:
 
 
 func get_round_number() -> int:
-	return (town_hall - FIRST_TOWN_HALL) * BATTLES_PER_TOWN_HALL + battle_index + 1
+	return round_number
 
 
 func get_total_rounds() -> int:
-	return (LAST_TOWN_HALL - FIRST_TOWN_HALL + 1) * BATTLES_PER_TOWN_HALL
+	return TOTAL_ROUNDS
 
 
 func get_fortress_rank() -> int:
@@ -58,10 +61,6 @@ func get_fortress_rank() -> int:
 
 func get_total_ranks() -> int:
 	return LAST_TOWN_HALL - FIRST_TOWN_HALL + 1
-
-
-func get_battle_letter() -> String:
-	return "B" if battle_index == 1 else "A"
 
 
 func has_claimed_wall_plan_for_current_rank() -> bool:

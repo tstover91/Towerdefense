@@ -81,11 +81,11 @@ var structure_drag_touch_index := -1
 var structure_drag_origin_cell := Vector2i(-1, -1)
 var structure_drag_preview_cell := Vector2i(-1, -1)
 var structure_drag_drop_valid := true
-var wall_row_drag_origin_cells: Dictionary = {}
-var wall_row_drag_preview_delta := Vector2i.ZERO
+var wall_group_drag_origin_cells: Dictionary = {}
+var wall_drag_ids: Array[StringName] = []
+var wall_group_drag_preview_delta := Vector2i.ZERO
 var edit_mode := true
 var selected_structure_id: StringName
-var selected_wall_row_ids: Array[StringName] = []
 var pending_build_kind: StringName
 var pending_build_cell := Vector2i(-1, -1)
 var pending_build_valid := false
@@ -347,11 +347,10 @@ func _begin_structure_drag_candidate_at(screen_position: Vector2) -> bool:
 	var structure := get_structure_at_cell(cell, true)
 	if structure == null or structure.destroyed:
 		return false
-	var moving_selected_row := selected_wall_row_ids.size() > 1 and selected_wall_row_ids.has(structure.structure_id)
 	# Clash-style gesture arbitration: the first tap selects a structure. Only
 	# an already-selected structure captures a drag; dragging across any other
 	# structure remains a camera pan.
-	if structure.structure_id != selected_structure_id and not moving_selected_row:
+	if structure.structure_id != selected_structure_id:
 		return false
 	if pending_build_kind != &"":
 		if pending_build_kind != &"wall" or wall_chain_cells.is_empty():
@@ -373,13 +372,16 @@ func _begin_structure_drag_candidate_at(screen_position: Vector2) -> bool:
 	structure_drag_origin_cell = structure.grid_cell
 	structure_drag_preview_cell = structure.grid_cell
 	structure_drag_drop_valid = true
-	wall_row_drag_origin_cells.clear()
-	wall_row_drag_preview_delta = Vector2i.ZERO
-	if moving_selected_row:
-		for structure_id in selected_wall_row_ids:
+	wall_group_drag_origin_cells.clear()
+	wall_drag_ids.clear()
+	wall_group_drag_preview_delta = Vector2i.ZERO
+	if structure.kind == &"wall" and structure.wall_formation_id != &"":
+		wall_drag_ids = _wall_formation_ids(structure.wall_formation_id)
+	if wall_drag_ids.size() > 1:
+		for structure_id in wall_drag_ids:
 			var row_wall := get_structure(structure_id)
 			if row_wall != null:
-				wall_row_drag_origin_cells[structure_id] = row_wall.grid_cell
+				wall_group_drag_origin_cells[structure_id] = row_wall.grid_cell
 	queue_redraw()
 	return true
 
@@ -402,15 +404,15 @@ func _update_structure_drag(screen_position: Vector2) -> void:
 		roundi(pointer_grid.y - structure_drag_pointer_offset.y)
 	)
 	structure_drag_preview_cell = destination
-	if not wall_row_drag_origin_cells.is_empty():
-		wall_row_drag_preview_delta = destination - structure_drag_origin_cell
-		structure_drag_drop_valid = _can_move_selected_wall_row_by(wall_row_drag_preview_delta)
+	if not wall_group_drag_origin_cells.is_empty():
+		wall_group_drag_preview_delta = destination - structure_drag_origin_cell
+		structure_drag_drop_valid = _can_move_wall_group_by(wall_group_drag_preview_delta)
 		var free_delta := screen_position - structure_drag_press_position
-		for structure_id in selected_wall_row_ids:
+		for structure_id in wall_drag_ids:
 			var row_wall := get_structure(structure_id)
 			if row_wall == null:
 				continue
-			var origin_cell: Vector2i = wall_row_drag_origin_cells.get(structure_id, row_wall.grid_cell)
+			var origin_cell: Vector2i = wall_group_drag_origin_cells.get(structure_id, row_wall.grid_cell)
 			row_wall.position = board_origin + Vector2(origin_cell) * cell_size + free_delta
 		return
 	structure_drag_drop_valid = _can_move_structure_to(structure, destination)
@@ -428,28 +430,29 @@ func _finish_structure_drag(screen_position: Vector2) -> void:
 	var origin_cell := structure_drag_origin_cell
 	var destination := structure_drag_preview_cell
 	var valid_drop := structure_drag_drop_valid
-	var row_drag_origins := wall_row_drag_origin_cells.duplicate()
-	var row_drag_delta := wall_row_drag_preview_delta
-	var moved_row := not row_drag_origins.is_empty()
+	var group_drag_origins := wall_group_drag_origin_cells.duplicate()
+	var dragged_wall_ids: Array[StringName] = wall_drag_ids.duplicate()
+	var group_drag_delta := wall_group_drag_preview_delta
+	var moved_group := not group_drag_origins.is_empty()
 	_reset_structure_drag_state()
 	if structure == null or structure.destroyed:
 		clear_selection()
 		return
 	if was_dragged:
-		if moved_row:
-			for structure_id in selected_wall_row_ids:
+		if moved_group:
+			for structure_id in dragged_wall_ids:
 				var row_wall := get_structure(structure_id)
 				if row_wall == null:
 					continue
-				var row_origin_cell: Vector2i = row_drag_origins.get(structure_id, row_wall.grid_cell)
-				row_wall.grid_cell = row_origin_cell + row_drag_delta if valid_drop else row_origin_cell
+				var group_origin_cell: Vector2i = group_drag_origins.get(structure_id, row_wall.grid_cell)
+				row_wall.grid_cell = group_origin_cell + group_drag_delta if valid_drop else group_origin_cell
 				row_wall.set_layout_metrics(board_origin, cell_size)
 		elif valid_drop and destination.x >= 0:
 			try_move_structure(structure.structure_id, destination, false)
 		else:
 			structure.grid_cell = origin_cell
 			structure.set_layout_metrics(board_origin, cell_size)
-		if valid_drop and ((moved_row and row_drag_delta != Vector2i.ZERO) or (not moved_row and destination != origin_cell)):
+		if valid_drop and ((moved_group and group_drag_delta != Vector2i.ZERO) or (not moved_group and destination != origin_cell)):
 			capture_current_blueprint()
 			structure_topology_changed.emit()
 	selected_structure_id = structure.structure_id
@@ -462,11 +465,11 @@ func _promote_structure_touch_to_pinch() -> void:
 		return
 	var first_index := structure_drag_touch_index
 	var first_position := structure_drag_last_position
-	if not wall_row_drag_origin_cells.is_empty():
-		for structure_id in selected_wall_row_ids:
+	if not wall_group_drag_origin_cells.is_empty():
+		for structure_id in wall_drag_ids:
 			var row_wall := get_structure(structure_id)
-			if row_wall != null and wall_row_drag_origin_cells.has(structure_id):
-				row_wall.grid_cell = wall_row_drag_origin_cells[structure_id]
+			if row_wall != null and wall_group_drag_origin_cells.has(structure_id):
+				row_wall.grid_cell = wall_group_drag_origin_cells[structure_id]
 				row_wall.set_layout_metrics(board_origin, cell_size)
 	else:
 		var structure := get_structure(structure_drag_candidate_id)
@@ -501,8 +504,9 @@ func _reset_structure_drag_state() -> void:
 	structure_drag_origin_cell = Vector2i(-1, -1)
 	structure_drag_preview_cell = Vector2i(-1, -1)
 	structure_drag_drop_valid = true
-	wall_row_drag_origin_cells.clear()
-	wall_row_drag_preview_delta = Vector2i.ZERO
+	wall_group_drag_origin_cells.clear()
+	wall_drag_ids.clear()
+	wall_group_drag_preview_delta = Vector2i.ZERO
 
 
 func _can_drag_build_preview() -> bool:
@@ -621,7 +625,6 @@ func select_structure(structure: Node2D) -> void:
 	if structure == null or structure.destroyed:
 		clear_selection()
 		return
-	selected_wall_row_ids.clear()
 	selected_structure_id = structure.structure_id
 	selected_structure_changed.emit(structure)
 	queue_redraw()
@@ -630,14 +633,9 @@ func select_structure(structure: Node2D) -> void:
 func clear_selection() -> void:
 	var had_selection := selected_structure_id != &""
 	selected_structure_id = &""
-	selected_wall_row_ids.clear()
 	if had_selection:
 		selected_structure_changed.emit(null)
 	queue_redraw()
-
-
-func get_selected_wall_row_count() -> int:
-	return selected_wall_row_ids.size()
 
 
 func get_selected_tower_range_cells() -> Vector2:
@@ -650,83 +648,6 @@ func get_selected_tower_range_cells() -> Vector2:
 	)
 
 
-func get_selectable_wall_row_count() -> int:
-	return _longest_wall_row_ids().size()
-
-
-func select_wall_row() -> bool:
-	var row := _longest_wall_row_ids()
-	if row.size() <= 1:
-		return false
-	selected_wall_row_ids.assign(row)
-	var selected := get_selected_structure()
-	selected_structure_changed.emit(selected)
-	queue_redraw()
-	return true
-
-
-func rotate_selected_wall_row() -> bool:
-	if selected_wall_row_ids.size() <= 1:
-		return false
-	var pivot := get_selected_structure()
-	if pivot == null or pivot.kind != &"wall":
-		return false
-	var destinations: Dictionary = {}
-	for structure_id in selected_wall_row_ids:
-		var wall := get_structure(structure_id)
-		if wall == null or wall.destroyed:
-			return false
-		var relative: Vector2i = wall.grid_cell - pivot.grid_cell
-		destinations[structure_id] = pivot.grid_cell + Vector2i(-relative.y, relative.x)
-	if not _wall_row_destinations_valid(destinations):
-		edit_status_changed.emit("Not enough room to rotate this Wall row")
-		return false
-	for structure_id in selected_wall_row_ids:
-		var wall := get_structure(structure_id)
-		wall.grid_cell = destinations[structure_id]
-		wall.set_layout_metrics(board_origin, cell_size)
-	capture_current_blueprint()
-	structure_topology_changed.emit()
-	selected_structure_changed.emit(pivot)
-	queue_redraw()
-	return true
-
-
-func _longest_wall_row_ids() -> Array[StringName]:
-	var result: Array[StringName] = []
-	var selected := get_selected_structure()
-	if selected == null or selected.kind != &"wall" or selected.destroyed:
-		return result
-	var horizontal := _wall_run_through(selected.grid_cell, Vector2i.RIGHT)
-	var vertical := _wall_run_through(selected.grid_cell, Vector2i.DOWN)
-	return horizontal if horizontal.size() >= vertical.size() else vertical
-
-
-func _wall_run_through(origin: Vector2i, axis: Vector2i) -> Array[StringName]:
-	var cells: Array[Vector2i] = [origin]
-	var cursor := origin - axis
-	while _wall_at_cell(cursor) != null:
-		cells.push_front(cursor)
-		cursor -= axis
-	cursor = origin + axis
-	while _wall_at_cell(cursor) != null:
-		cells.append(cursor)
-		cursor += axis
-	var result: Array[StringName] = []
-	for cell in cells:
-		var wall := _wall_at_cell(cell)
-		if wall != null:
-			result.append(wall.structure_id)
-	return result
-
-
-func _wall_at_cell(cell: Vector2i) -> Node2D:
-	var structure := get_structure_at_cell(cell, true)
-	if structure == null or structure.destroyed or structure.kind != &"wall":
-		return null
-	return structure
-
-
 func begin_build(kind: StringName) -> void:
 	_clear_pending_wall_plan()
 	pending_build_kind = kind
@@ -737,7 +658,6 @@ func begin_build(kind: StringName) -> void:
 	wall_draw_invalid_cell = Vector2i(-1, -1)
 	_create_build_preview_structure(kind)
 	selected_structure_id = &""
-	selected_wall_row_ids.clear()
 	selected_structure_changed.emit(null)
 	var opening_cell := _find_nearest_build_cell(screen_to_cell(get_viewport_rect().get_center()), kind)
 	if opening_cell.x >= 0:
@@ -771,7 +691,6 @@ func begin_wall_plan(cells: Array, preferred_origin := Vector2i(-1, -1), require
 	pending_wall_plan_cells.assign(geometry.get("cells", []))
 	pending_wall_plan_required_cells.assign(geometry.get("required", []))
 	selected_structure_id = &""
-	selected_wall_row_ids.clear()
 	selected_structure_changed.emit(null)
 	var opening_origin: Vector2i = preferred_origin
 	if opening_origin.x < 0 or not can_place_wall_plan(opening_origin):
@@ -858,12 +777,14 @@ func confirm_pending_wall_plan() -> Array[Node2D]:
 	var added: Array[Node2D] = []
 	if pending_wall_plan_cells.is_empty() or not pending_wall_plan_valid or not can_place_wall_plan(pending_wall_plan_origin):
 		return added
+	var formation_id := StringName("wall_formation_%d" % next_structure_serial)
 	for relative_cell in pending_wall_plan_cells:
 		var structure_id := StringName("wall_%d" % next_structure_serial)
 		next_structure_serial += 1
 		var entry := {
 			"id": structure_id,
 			"kind": &"wall",
+			"wall_formation_id": formation_id,
 			"level": 1,
 			"cell": pending_wall_plan_origin + relative_cell,
 			"footprint": Vector2i.ONE,
@@ -875,7 +796,6 @@ func confirm_pending_wall_plan() -> Array[Node2D]:
 		added.append(structure)
 	_clear_pending_wall_plan()
 	selected_structure_id = &""
-	selected_wall_row_ids.clear()
 	capture_current_blueprint()
 	structure_topology_changed.emit()
 	selected_structure_changed.emit(null)
@@ -1024,7 +944,6 @@ func begin_wall_chain(anchor: Vector2i, preserve_selection := false, max_new_wal
 	wall_draw_invalid_cell = Vector2i(-1, -1)
 	if not preserve_selection:
 		selected_structure_id = &""
-		selected_wall_row_ids.clear()
 		selected_structure_changed.emit(null)
 	build_preview_changed.emit(&"wall", pending_build_cell, false)
 	queue_redraw()
@@ -1045,8 +964,6 @@ func is_wall_chain_active() -> bool:
 func get_wall_extension_cells() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if not wall_extensions_enabled:
-		return result
-	if wall_chain_cells.is_empty() and selected_wall_row_ids.size() > 1:
 		return result
 	var focus := Vector2i(-1, -1)
 	if not wall_chain_cells.is_empty():
@@ -1101,7 +1018,6 @@ func confirm_pending_wall_chain() -> Array[Node2D]:
 		structure.set_layout_metrics(board_origin, cell_size)
 		added.append(structure)
 	var last_wall: Node2D = added[-1]
-	selected_wall_row_ids.clear()
 	selected_structure_id = last_wall.structure_id
 	pending_build_kind = &""
 	pending_build_cell = Vector2i(-1, -1)
@@ -1217,7 +1133,6 @@ func try_add_structure(kind: StringName, destination: Vector2i, level := 1) -> b
 	structures.append(structure)
 	structures_by_id[structure.structure_id] = structure
 	structure.set_layout_metrics(board_origin, cell_size)
-	selected_wall_row_ids.clear()
 	selected_structure_id = structure.structure_id
 	capture_current_blueprint()
 	structure_topology_changed.emit()
@@ -1236,6 +1151,18 @@ func upgrade_structure(structure_id: StringName, next_level: int) -> bool:
 	structure_topology_changed.emit()
 	selected_structure_changed.emit(structure)
 	return true
+
+
+func apply_structure_levels(levels_by_kind: Dictionary) -> void:
+	for structure in structures:
+		var next_level := int(levels_by_kind.get(structure.kind, structure.level))
+		if next_level <= 0 or next_level == structure.level:
+			continue
+		structure.upgrade_to(next_level, StructureCatalogScript.get_definition(structure.kind, next_level))
+	capture_current_blueprint()
+	structure_topology_changed.emit()
+	if selected_structure_id != &"":
+		selected_structure_changed.emit(get_selected_structure())
 
 
 func get_selected_structure() -> Node2D:
@@ -1263,7 +1190,6 @@ func load_blueprint(blueprint: Array[Dictionary], capture := true) -> void:
 	_reset_structure_drag_state()
 	structure_drag_touch_index = -1
 	selected_structure_id = &""
-	selected_wall_row_ids.clear()
 	pending_build_kind = &""
 	pending_build_cell = Vector2i(-1, -1)
 	pending_build_valid = false
@@ -1309,18 +1235,18 @@ func _can_move_structure_to(structure: Node2D, destination: Vector2i) -> bool:
 	return true
 
 
-func _can_move_selected_wall_row_by(delta: Vector2i) -> bool:
-	if selected_wall_row_ids.size() <= 1:
+func _can_move_wall_group_by(delta: Vector2i) -> bool:
+	if wall_drag_ids.size() <= 1:
 		return false
 	var destinations: Dictionary = {}
-	for structure_id in selected_wall_row_ids:
-		if not wall_row_drag_origin_cells.has(structure_id):
+	for structure_id in wall_drag_ids:
+		if not wall_group_drag_origin_cells.has(structure_id):
 			return false
-		destinations[structure_id] = Vector2i(wall_row_drag_origin_cells[structure_id]) + delta
-	return _wall_row_destinations_valid(destinations)
+		destinations[structure_id] = Vector2i(wall_group_drag_origin_cells[structure_id]) + delta
+	return _wall_group_destinations_valid(destinations)
 
 
-func _wall_row_destinations_valid(destinations: Dictionary) -> bool:
+func _wall_group_destinations_valid(destinations: Dictionary) -> bool:
 	var destination_cells: Dictionary = {}
 	for structure_id in destinations:
 		var cell: Vector2i = destinations[structure_id]
@@ -1328,9 +1254,27 @@ func _wall_row_destinations_valid(destinations: Dictionary) -> bool:
 			return false
 		destination_cells[cell] = true
 		var occupant := get_structure_at_cell(cell, true)
-		if occupant != null and not selected_wall_row_ids.has(occupant.structure_id):
+		if occupant != null and not destinations.has(occupant.structure_id):
 			return false
 	return true
+
+
+func _wall_formation_ids(formation_id: StringName) -> Array[StringName]:
+	var result: Array[StringName] = []
+	if formation_id == &"":
+		return result
+	for structure in structures:
+		if (
+			structure.kind == &"wall"
+			and not structure.destroyed
+			and structure.wall_formation_id == formation_id
+		):
+			result.append(structure.structure_id)
+	return result
+
+
+func get_wall_formation_size(formation_id: StringName) -> int:
+	return _wall_formation_ids(formation_id).size()
 
 
 func _recalculate_layout() -> void:
@@ -1565,14 +1509,17 @@ func _draw() -> void:
 		if selected != null:
 			var range_cell: Vector2i = structure_drag_preview_cell if structure_dragging else selected.grid_cell
 			_draw_selected_tower_range(selected, range_cell)
-			if selected_wall_row_ids.size() > 1:
-				for structure_id in selected_wall_row_ids:
+			var selected_formation_ids: Array[StringName] = []
+			if selected.kind == &"wall":
+				selected_formation_ids = _wall_formation_ids(selected.wall_formation_id)
+			if selected_formation_ids.size() > 1:
+				for structure_id in selected_formation_ids:
 					var row_wall := get_structure(structure_id)
 					if row_wall == null:
 						continue
 					var selected_cell: Vector2i = row_wall.grid_cell
-					if structure_dragging and wall_row_drag_origin_cells.has(structure_id):
-						selected_cell = Vector2i(wall_row_drag_origin_cells[structure_id]) + wall_row_drag_preview_delta
+					if structure_dragging and wall_group_drag_origin_cells.has(structure_id):
+						selected_cell = Vector2i(wall_group_drag_origin_cells[structure_id]) + wall_group_drag_preview_delta
 					var selection_rect := cell_rect(selected_cell)
 					if structure_dragging:
 						var fill := COLOR_HOVER if structure_drag_drop_valid else COLOR_INVALID_BUILD

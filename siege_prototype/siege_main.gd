@@ -44,8 +44,6 @@ func _ready() -> void:
 	$HUD/BuildTray/Margin/Stack/Cards/WallCard.pressed.connect(func() -> void: _select_build_kind(&"wall"))
 	$HUD/PlacementPanel/Margin/Actions/CancelButton.pressed.connect(_cancel_pending_purchase)
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.pressed.connect(_confirm_build)
-	$HUD/SelectionPanel/Margin/Stack/Actions/SelectRowButton.pressed.connect(_select_wall_row)
-	$HUD/SelectionPanel/Margin/Stack/Actions/RotateRowButton.pressed.connect(_rotate_wall_row)
 	$HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton.pressed.connect(_upgrade_selected)
 	$SiegeCombat.status_changed.connect(_on_status_changed)
 	$SiegeCombat.wave_started.connect(_on_wave_started)
@@ -71,6 +69,7 @@ func _new_run() -> void:
 	$SiegeCombat.reset_fortress()
 	run_state = RunStateScript.new()
 	run_state.blueprint = ArenaLayoutScript.new().get_run_initial_blueprint()
+	_sync_blueprint_levels_to_town_hall(run_state.blueprint)
 	$SiegeBoard.load_blueprint(run_state.blueprint)
 	$SiegeBoard.set_edit_mode(true)
 	$SiegeBoard.set_wall_extensions_enabled(false)
@@ -101,9 +100,9 @@ func _start_attack() -> void:
 	run_state.blueprint = blueprint.duplicate(true)
 	run_state.begin_combat(blueprint)
 	$SiegeBoard.set_edit_mode(false)
-	var wave: Array[Dictionary] = TierCatalogScript.build_wave(run_state.town_hall, run_state.battle_index)
+	var wave: Array[Dictionary] = TierCatalogScript.build_wave(run_state.get_round_number())
 	var budget := TierCatalogScript.get_wave_housing(wave)
-	$SiegeCombat.start_wave(wave, "RANK %d-%s · %d housing" % [run_state.get_fortress_rank(), run_state.get_battle_letter(), budget])
+	$SiegeCombat.start_wave(wave, "ROUND %d · %d housing" % [run_state.get_round_number(), budget])
 
 
 func _toggle_shop() -> void:
@@ -184,6 +183,7 @@ func _on_structure_added(structure: Node) -> void:
 	var placed_kind: StringName = pending_purchase_kind
 	if not run_state.spend(pending_purchase_cost):
 		return
+	_sync_board_levels_to_town_hall()
 	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
 	pending_purchase_kind = &""
 	pending_purchase_cost = 0
@@ -248,6 +248,7 @@ func _finish_wall_batch(wall_count: int) -> void:
 	var total_cost := pending_purchase_cost * wall_count
 	if total_cost > 0 and not run_state.spend(total_cost):
 		return
+	_sync_board_levels_to_town_hall()
 	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
 	pending_purchase_kind = &""
 	pending_purchase_cost = 0
@@ -312,35 +313,27 @@ func _upgrade_selected() -> void:
 	if structure == null:
 		_on_status_changed("Select a defense or wall first")
 		return
-	if structure.kind == &"command_core":
-		_on_status_changed("The Command Core advances after battle B")
+	if structure.kind != &"command_core":
+		_on_status_changed("Defense strength follows the Town Hall level")
 		return
-	var cap := TierCatalogScript.get_level_cap(run_state.town_hall, structure.kind)
-	var next_level: int = structure.level + 1
-	if cap <= 0 or next_level > cap:
-		_on_status_changed("%s is already at its Rank %d cap" % [_display_name(structure.kind), run_state.get_fortress_rank()])
+	var next_town_hall: int = run_state.town_hall + 1
+	var cost := TierCatalogScript.get_town_hall_upgrade_cost(next_town_hall)
+	if cost < 0 or next_town_hall > RunStateScript.LAST_TOWN_HALL:
+		_on_status_changed("Town Hall is at the current maximum")
 		return
-	var cost := StructureCatalogScript.get_upgrade_cost(structure.kind, next_level)
-	if cost < 0 or not run_state.spend(cost):
-		_on_status_changed("Need %d Gold for level %d" % [cost, next_level])
+	if not run_state.spend(cost):
+		_on_status_changed("Need %d Gold for Town Hall %d" % [cost, next_town_hall])
 		return
-	$SiegeBoard.upgrade_structure(structure.structure_id, next_level)
+	if not run_state.upgrade_town_hall():
+		run_state.currency += cost
+		return
+	_sync_board_levels_to_town_hall()
 	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
-	_on_status_changed("%s upgraded to level %d for %d Gold" % [_display_name(structure.kind), next_level, cost])
+	$SiegeBoard.clear_selection()
+	_on_status_changed("Town Hall %d purchased · all defenses strengthened" % run_state.town_hall)
 	_refresh_hud()
-
-
-func _select_wall_row() -> void:
-	if $SiegeCombat.active or run_state.completed:
-		return
-	$SiegeBoard.select_wall_row()
-
-
-func _rotate_wall_row() -> void:
-	if $SiegeCombat.active or run_state.completed:
-		return
-	if $SiegeBoard.rotate_selected_wall_row():
-		run_state.blueprint = $SiegeBoard.capture_current_blueprint()
+	if not run_state.has_claimed_wall_plan_for_current_rank():
+		call_deferred("_open_wall_draft")
 
 
 func _toggle_speed() -> void:
@@ -363,29 +356,20 @@ func _on_selection_changed(structure: Node) -> void:
 		return
 	$HUD/BuildTray.visible = false
 	$HUD/SelectionPanel.visible = true
-	var row_count: int = $SiegeBoard.get_selected_wall_row_count()
-	var row_selected: bool = structure.kind == &"wall" and row_count > 1
-	$HUD/SelectionPanel/Margin/Stack/SelectedLabel.text = "%d WALLS · DRAG TO MOVE" % row_count if row_selected else "%s (LEVEL %d)" % [_display_name(structure.kind).to_upper(), structure.level]
-	var select_row_button: Button = $HUD/SelectionPanel/Margin/Stack/Actions/SelectRowButton
-	var rotate_row_button: Button = $HUD/SelectionPanel/Margin/Stack/Actions/RotateRowButton
+	var formation_size: int = $SiegeBoard.get_wall_formation_size(structure.wall_formation_id) if structure.kind == &"wall" else 0
+	$HUD/SelectionPanel/Margin/Stack/SelectedLabel.text = "%d WALLS · TH%d POWER" % [formation_size, run_state.town_hall] if formation_size > 1 else "%s · TH%d POWER" % [_display_name(structure.kind).to_upper(), run_state.town_hall]
 	var button: Button = $HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton
-	select_row_button.visible = structure.kind == &"wall" and not row_selected
-	select_row_button.disabled = $SiegeBoard.get_selectable_wall_row_count() <= 1
-	rotate_row_button.visible = row_selected
-	rotate_row_button.disabled = false
-	button.visible = not row_selected
-	if structure.kind == &"command_core":
-		button.text = "COMMAND CORE\nADVANCES AFTER B"
-		button.disabled = true
+	button.visible = structure.kind == &"command_core"
+	if structure.kind != &"command_core":
 		return
-	var next_level: int = structure.level + 1
-	var cap := TierCatalogScript.get_level_cap(run_state.town_hall, structure.kind)
-	var cost := StructureCatalogScript.get_upgrade_cost(structure.kind, next_level)
-	if next_level > cap or cost < 0:
-		button.text = "MAX LEVEL\nFOR RANK %d" % run_state.get_fortress_rank()
+	$HUD/SelectionPanel/Margin/Stack/SelectedLabel.text = "TOWN HALL · LEVEL %d" % run_state.town_hall
+	var next_town_hall: int = run_state.town_hall + 1
+	var cost := TierCatalogScript.get_town_hall_upgrade_cost(next_town_hall)
+	if cost < 0 or next_town_hall > RunStateScript.LAST_TOWN_HALL:
+		button.text = "MAX LEVEL"
 		button.disabled = true
 	else:
-		button.text = "UPGRADE\nLEVEL %d · %d GOLD" % [next_level, cost]
+		button.text = "UPGRADE TO TH%d\n%d GOLD" % [next_town_hall, cost]
 		button.disabled = run_state.currency < cost
 
 
@@ -401,17 +385,14 @@ func _on_wave_finished(result: StringName) -> void:
 	$SiegeCombat.clear_attackers()
 	$SiegeBoard.set_edit_mode(true)
 	if result == &"defenders":
-		var previous_town_hall: int = run_state.town_hall
-		var reward := TierCatalogScript.get_reward(run_state.town_hall, run_state.battle_index)
-		var outcome: Dictionary = run_state.record_victory(reward, run_state.precombat_blueprint)
-		if bool(outcome.get("tier_advanced", false)):
-			_upgrade_command_core_in_blueprint(run_state.blueprint, run_state.town_hall)
+		var reward := TierCatalogScript.get_reward(run_state.get_round_number())
+		run_state.record_victory(reward, run_state.precombat_blueprint)
 		$SiegeBoard.load_blueprint(run_state.blueprint)
 		if run_state.completed:
-			_on_status_changed("RUN COMPLETE · all 6 Fortress Ranks survived · %d Gold banked" % run_state.currency)
+			_on_status_changed("RUN COMPLETE · all %d attacks survived · %d Gold banked" % [run_state.get_total_rounds(), run_state.currency])
 		else:
-			_on_status_changed("Defense held · +%d Gold · prepare Rank %d-%s" % [reward, run_state.get_fortress_rank(), run_state.get_battle_letter()])
-		_show_victory_result(reward, outcome, previous_town_hall)
+			_on_status_changed("Defense held · +%d Gold · prepare Round %d" % [reward, run_state.get_round_number()])
+		_show_victory_result(reward)
 	else:
 		$SiegeBoard.load_blueprint(run_state.record_defeat())
 		_on_status_changed("Base destroyed · no Gold lost · layout restored for a safe retry")
@@ -421,11 +402,25 @@ func _on_wave_finished(result: StringName) -> void:
 	_refresh_hud()
 
 
-func _upgrade_command_core_in_blueprint(blueprint: Array[Dictionary], town_hall: int) -> void:
+func _town_hall_structure_levels() -> Dictionary:
+	var result: Dictionary = {}
+	for kind in [&"command_core", &"cannon", &"archer_tower", &"mortar", &"air_defense", &"wizard_tower", &"wall"]:
+		var level := TierCatalogScript.get_level_cap(run_state.town_hall, kind)
+		if level > 0:
+			result[kind] = level
+	return result
+
+
+func _sync_blueprint_levels_to_town_hall(blueprint: Array[Dictionary]) -> void:
+	var levels := _town_hall_structure_levels()
 	for entry in blueprint:
-		if StringName(entry.get("kind", &"")) == &"command_core":
-			entry["level"] = town_hall
-			return
+		var kind := StringName(entry.get("kind", &""))
+		if levels.has(kind):
+			entry["level"] = int(levels[kind])
+
+
+func _sync_board_levels_to_town_hall() -> void:
+	$SiegeBoard.apply_structure_levels(_town_hall_structure_levels())
 
 
 func _cancel_pending_purchase(clear_selected := true) -> void:
@@ -453,9 +448,9 @@ func _set_build_controls_enabled(enabled: bool) -> void:
 
 
 func _refresh_hud() -> void:
-	$HUD/TopBar/PhaseBadge.text = "RANK %d · %s\nROUND %d / %d" % [run_state.get_fortress_rank(), run_state.get_battle_letter(), run_state.get_round_number(), run_state.get_total_rounds()]
+	$HUD/TopBar/PhaseBadge.text = "TOWN HALL %d\nROUND %d / %d" % [run_state.town_hall, run_state.get_round_number(), run_state.get_total_rounds()]
 	$HUD/TopBar/Currency.text = "%d GOLD\nDEFENSES %d / %d" % [run_state.currency, $SiegeBoard.get_defense_count(), TierCatalogScript.get_defense_capacity(run_state.town_hall)]
-	$HUD/BottomBar/AttackButton.text = "ATTACK %s" % run_state.get_battle_letter()
+	$HUD/BottomBar/AttackButton.text = "ATTACK %d" % run_state.get_round_number()
 	_refresh_shop_cards()
 	_refresh_scout_panel()
 	_refresh_fortify_button()
@@ -593,6 +588,7 @@ func _confirm_wall_plan() -> void:
 	if added.is_empty():
 		_on_status_changed("Move the Wall Plan to a clear buildable area")
 		return
+	_sync_board_levels_to_town_hall()
 	run_state.claim_wall_plan(pending_wall_plan_id)
 	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
 	pending_wall_plan_id = &""
@@ -630,16 +626,13 @@ func _close_scout() -> void:
 func _close_result_panel() -> void:
 	$HUD/ResultPanel.visible = false
 	if not run_state.completed:
-		if run_state.has_claimed_wall_plan_for_current_rank():
-			$HUD/ScoutPanel.visible = true
-		else:
-			_open_wall_draft()
+		$HUD/ScoutPanel.visible = true
 
 
 func _refresh_scout_panel() -> void:
 	if run_state == null or run_state.completed:
 		return
-	var wave: Array[Dictionary] = TierCatalogScript.build_wave(run_state.town_hall, run_state.battle_index)
+	var wave: Array[Dictionary] = TierCatalogScript.build_wave(run_state.get_round_number())
 	var counts: Dictionary = {}
 	var order: Array[StringName] = []
 	for entry in wave:
@@ -668,43 +661,22 @@ func _refresh_scout_panel() -> void:
 			traits.append("TARGETS DEFENSES")
 		lines.append("%d× %s · L%d · %s" % [int(counts[kind]), String(definition.get("display_name", kind)), level, " · ".join(traits)])
 	var budget := TierCatalogScript.get_wave_housing(wave)
-	$HUD/ScoutPanel/Margin/Stack/Header/Title.text = "NEXT ATTACK · RANK %d-%s" % [run_state.get_fortress_rank(), run_state.get_battle_letter()]
+	$HUD/ScoutPanel/Margin/Stack/Header/Title.text = "NEXT ATTACK · ROUND %d" % run_state.get_round_number()
 	$HUD/ScoutPanel/Margin/Stack/Summary.text = "%d TROOPS · %d HOUSING" % [wave.size(), budget]
 	$HUD/ScoutPanel/Margin/Stack/Roster.text = "\n".join(lines)
 
 
-func _show_victory_result(reward: int, outcome: Dictionary, previous_town_hall: int) -> void:
+func _show_victory_result(reward: int) -> void:
 	$HUD/ScoutPanel.visible = false
 	$HUD/ResultPanel.visible = true
 	var lines: PackedStringArray = ["+%d GOLD" % reward, "Fortress repaired automatically"]
 	if run_state.completed:
 		$HUD/ResultPanel/Margin/Stack/Title.text = "RUN COMPLETE"
-		lines.append("All 6 Fortress Ranks survived")
+		lines.append("All %d attacks survived" % run_state.get_total_rounds())
 		lines.append("%d Gold banked" % run_state.currency)
-	elif bool(outcome.get("tier_advanced", false)):
-		$HUD/ResultPanel/Margin/Stack/Title.text = "FORTRESS RANK %d REACHED" % run_state.get_fortress_rank()
-		var old_capacity := TierCatalogScript.get_defense_capacity(previous_town_hall)
-		var new_capacity := TierCatalogScript.get_defense_capacity(run_state.town_hall)
-		var old_walls := TierCatalogScript.get_wall_allowance(previous_town_hall)
-		var new_walls := TierCatalogScript.get_wall_allowance(run_state.town_hall)
-		lines.append("Defense capacity: %d → %d" % [old_capacity, new_capacity])
-		lines.append("Walls: %d → %d" % [old_walls, new_walls])
-		var unlock_names: PackedStringArray = []
-		for kind in TierCatalogScript.get_newly_unlocked_build_kinds(previous_town_hall, run_state.town_hall):
-			unlock_names.append(_display_name(kind))
-		if not unlock_names.is_empty():
-			lines.append("New defense: %s" % ", ".join(unlock_names))
-		var level_gains: PackedStringArray = []
-		for kind in [&"cannon", &"archer_tower", &"mortar", &"air_defense", &"wizard_tower", &"wall"]:
-			var old_level := TierCatalogScript.get_level_cap(previous_town_hall, kind)
-			var new_level := TierCatalogScript.get_level_cap(run_state.town_hall, kind)
-			if old_level > 0 and new_level > old_level:
-				level_gains.append("%s L%d" % [_display_name(kind), new_level])
-		if not level_gains.is_empty():
-			lines.append("New upgrade caps: %s" % ", ".join(level_gains))
 	else:
 		$HUD/ResultPanel/Margin/Stack/Title.text = "DEFENSE HELD"
-		lines.append("Rank %d · Attack %s ready" % [run_state.get_fortress_rank(), run_state.get_battle_letter()])
+		lines.append("Round %d ready" % run_state.get_round_number())
 	$HUD/ResultPanel/Margin/Stack/Details.text = "\n".join(lines)
 
 

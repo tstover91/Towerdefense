@@ -16,11 +16,10 @@ func _init() -> void:
 
 
 func _run() -> void:
-	var expected_budgets := [[15, 20], [10, 15], [20, 22], [28, 40], [44, 52], [67, 85], [80, 88]]
-	for town_hall in range(1, 8):
-		for battle in range(2):
-			var wave: Array[Dictionary] = TierCatalogScript.build_wave(town_hall, battle)
-			_assert(TierCatalogScript.get_wave_housing(wave) == expected_budgets[town_hall - 1][battle], "TH%d-%s fills its intended housing budget" % [town_hall, "A" if battle == 0 else "B"])
+	var expected_budgets := [10, 15, 20, 22, 28, 40, 44, 52, 67, 85, 80, 88]
+	for round_number in range(1, 13):
+		var wave: Array[Dictionary] = TierCatalogScript.build_wave(round_number)
+		_assert(TierCatalogScript.get_wave_housing(wave) == expected_budgets[round_number - 1], "Round %d retains its intended housing budget" % round_number)
 	_assert(TierCatalogScript.get_count_cap(1, &"wall") == 0, "TH1 has no walls")
 	_assert(TierCatalogScript.get_count_cap(2, &"wall") == 25, "TH2 supplies Clash's twenty-five Walls")
 	_assert(TierCatalogScript.get_count_cap(3, &"wall") == 50, "TH3 supplies Clash's fifty Walls")
@@ -65,10 +64,11 @@ func _run() -> void:
 	var rank_six_plans: Array[Dictionary] = WallPlanCatalogScript.get_plan_choices(6, 100)
 	_assert(_plan_ids(rank_six_plans) == [&"ring", &"grid", &"island_cluster"], "Rank 6 offers Ring, Grid, and Island structures")
 	_assert(TierCatalogScript.get_unlock_rank(&"mortar") == 2 and TierCatalogScript.get_unlock_rank(&"wizard_tower") == 4, "locked defenses expose Fortress Rank unlocks")
-	var opening_wave: Array[Dictionary] = TierCatalogScript.build_wave(2, 0)
-	_assert(opening_wave.size() == 10, "TH2-A opens with ten attackers")
+	var opening_wave: Array[Dictionary] = TierCatalogScript.build_wave(1)
+	_assert(opening_wave.size() == 10, "Round 1 opens with ten attackers")
 	for attacker in opening_wave:
-		_assert(StringName(attacker.get("kind", &"")) == &"raider" and int(attacker.get("level", 0)) == 1, "every TH2-A attacker is a level-one Barbarian reference")
+		_assert(StringName(attacker.get("kind", &"")) == &"raider" and int(attacker.get("level", 0)) == 1, "every opening attacker is a level-one Barbarian reference")
+	_assert(TierCatalogScript.get_town_hall_upgrade_cost(3) == 18 and TierCatalogScript.get_town_hall_upgrade_cost(7) == 80, "Town Hall upgrades expose their independent large-investment costs")
 	_assert(StructureCatalogScript.get_build_cost(&"wall") == 0, "new level-one Walls are free to place like current Clash")
 	_assert(TierCatalogScript.get_level_cap(3, &"cannon") == 4, "TH3 Cannons cap at Clash level four")
 	_assert(is_equal_approx(StructureCatalogScript.get_max_health(&"command_core", 1), 400.0), "TH1 uses current exact Town Hall HP")
@@ -105,15 +105,17 @@ func _run() -> void:
 	var starting_currency: int = state.currency
 	var defeat_blueprint: Array[Dictionary] = state.record_defeat()
 	_assert(state.currency == starting_currency and defeat_blueprint == blueprint, "defeat safely restores the precombat base without currency loss")
-	_assert(state.town_hall == 2 and state.get_round_number() == 1, "the run skips TH1 and opens at TH2-A")
+	_assert(state.town_hall == 2 and state.get_round_number() == 1, "the run skips TH1 and opens at TH2")
 	_assert(state.get_fortress_rank() == 1 and state.get_total_ranks() == 6, "the player-facing run opens at Fortress Rank 1 of 6")
 	_assert(state.get_total_rounds() == 12, "the TH2-TH7 run contains twelve rounds")
 	for round_index in state.get_total_rounds():
 		state.begin_combat(blueprint)
-		state.record_victory(TierCatalogScript.get_reward(state.town_hall, state.battle_index), blueprint)
+		state.record_victory(TierCatalogScript.get_reward(state.get_round_number()), blueprint)
 		if round_index < state.get_total_rounds() - 1:
 			_assert(state.get_round_number() == round_index + 2, "victory advances exactly one round")
-	_assert(state.completed and state.town_hall == 7 and state.battle_index == 1, "twelve victories complete the TH2-TH7 run")
+	_assert(state.completed and state.town_hall == 2, "twelve victories complete the run without purchasing Town Hall levels")
+	var upgrade_state: RefCounted = RunStateScript.new()
+	_assert(upgrade_state.upgrade_town_hall() and upgrade_state.town_hall == 3 and upgrade_state.get_round_number() == 1, "purchasing Town Hall progress does not advance the enemy round")
 
 	var board: Node2D = BoardScript.new()
 	get_root().add_child(board)
@@ -121,9 +123,9 @@ func _run() -> void:
 	board.load_blueprint(blueprint)
 	var cannon: Node2D = board.get_structure(&"cannon_1")
 	_assert(cannon.level == 2 and is_equal_approx(cannon.max_health, 360.0), "TH2 begins with the carried-over level-two Cannon")
-	_assert(board.upgrade_structure(&"cannon_1", 3), "board accepts an explicit structure upgrade")
-	_assert(cannon.level == 3 and is_equal_approx(cannon.max_health, 420.0), "upgrading applies the exact level-three stat line")
-	_assert(int(board.get_blueprint_snapshot()[1]["level"]) == 3, "upgraded level persists in the base blueprint")
+	board.apply_structure_levels({&"command_core": 2, &"cannon": 3})
+	_assert(cannon.level == 3 and is_equal_approx(cannon.max_health, 420.0), "Town Hall synchronization applies the exact level-three Cannon stat line")
+	_assert(int(board.get_blueprint_snapshot()[1]["level"]) == 3, "globally synchronized levels persist in the base blueprint")
 	var sidecar_plan: Dictionary = WallPlanCatalogScript.get_plan(&"sidecar_pocket")
 	var empty_blueprint: Array[Dictionary] = []
 	board.load_blueprint(empty_blueprint)
@@ -140,7 +142,7 @@ func _run() -> void:
 	get_root().add_child(main)
 	await process_frame
 	var main_board: Node2D = main.get_node("SiegeBoard")
-	_assert(main.get_node("HUD/TopBar/PhaseBadge").text.begins_with("RANK 1 · A"), "the HUD uses Fortress Rank language instead of Town Hall language")
+	_assert(main.get_node("HUD/TopBar/PhaseBadge").text.begins_with("TOWN HALL 2"), "the HUD shows independently purchased Town Hall progression")
 	_assert(main.get_node("HUD/WallDraftPanel").visible and not main.get_node("HUD/ScoutPanel").visible, "a new run opens with the three-choice Wall Plan draft")
 	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/Name").text.contains("24 WALLS"), "the wide compartment reports its actual Wall use")
 	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack/Name").text.contains("20 WALLS"), "the Core box preserves leftover Walls")
@@ -160,15 +162,34 @@ func _run() -> void:
 	main._confirm_wall_plan()
 	_assert(main.run_state.has_claimed_wall_plan_for_current_rank() and main_board.get_structure_count(&"wall") == 20, "confirming builds the selected plan once and consumes only its actual Walls")
 	_assert(not main_board.is_wall_plan_active() and main.get_node("HUD/ScoutPanel").visible, "confirmation closes placement and reveals the next-attack scout")
-	main_board.select_structure(main_board.get_structure_at_cell(drafted_wall_cell, true))
-	_assert(main_board.get_wall_extension_cells().is_empty() and main_board.get_selectable_wall_row_count() > 1, "drafted Walls remain row-editable without restoring tedious one-at-a-time extension")
+	var drafted_wall: Node2D = main_board.get_structure_at_cell(drafted_wall_cell, true)
+	main_board.select_structure(drafted_wall)
+	_assert(drafted_wall.wall_formation_id != &"" and main_board.get_wall_formation_size(drafted_wall.wall_formation_id) == 20, "every drafted Wall remembers its complete original formation")
+	var drafted_wall_id: StringName = drafted_wall.structure_id
+	var drafted_formation_id: StringName = drafted_wall.wall_formation_id
+	_assert(not main.has_node("HUD/SelectionPanel/Margin/Stack/Actions/SelectRowButton") and not main.has_node("HUD/SelectionPanel/Margin/Stack/Actions/RotateRowButton"), "obsolete Wall row controls are removed")
+	var formation_origins: Dictionary = {}
+	for structure_id in main_board._wall_formation_ids(drafted_wall.wall_formation_id):
+		formation_origins[structure_id] = main_board.get_structure(structure_id).grid_cell
+	var formation_drag_start: Vector2 = main_board.cell_rect(drafted_wall.grid_cell).get_center()
+	_assert(main_board._begin_structure_drag_candidate_at(formation_drag_start), "pressing a selected drafted Wall starts its formation drag")
+	main_board._update_structure_drag(formation_drag_start + Vector2.DOWN * main_board.cell_size * 8.0)
+	_assert(main_board.structure_drag_drop_valid, "the complete Wall formation previews a clear destination as valid")
+	main_board._finish_structure_drag(formation_drag_start + Vector2.DOWN * main_board.cell_size * 8.0)
+	for structure_id in formation_origins:
+		_assert(main_board.get_structure(structure_id).grid_cell == Vector2i(formation_origins[structure_id]) + Vector2i.DOWN * 8, "dragging one drafted Wall moves every member by the same offset")
+	var moved_formation_blueprint: Array[Dictionary] = main_board.capture_current_blueprint()
+	main_board.load_blueprint(moved_formation_blueprint)
+	_assert(main_board.get_structure(drafted_wall_id).wall_formation_id == drafted_formation_id, "formation identity survives blueprint rebuilds between rounds")
 	main_board.clear_selection()
 	_assert(main.get_node("HUD/ScoutPanel/Margin/Stack/Roster").text.contains("10× Raider · L1 · GROUND"), "the scout reports enemy count, type, level, and movement trait")
 	_assert(main_board.get_defense_count() == 1 and TierCatalogScript.get_defense_capacity(2) == 3, "the opening Cannon uses one of three shared defense slots while the Core is excluded")
+	_assert(main_board.get_structure(&"cannon_1").level == 3, "the opening Cannon automatically uses the TH2 stat level")
 	main_board.selected_structure_id = &"cannon_1"
+	var currency_before_tower_upgrade_attempt: int = main.run_state.currency
 	main._upgrade_selected()
-	_assert(main.run_state.currency == 12, "the HUD upgrade action spends condensed Gold")
-	_assert(main_board.get_structure(&"cannon_1").level == 3, "the HUD upgrade action applies the TH2 level cap")
+	_assert(main.run_state.currency == currency_before_tower_upgrade_attempt, "individual defenses no longer spend Gold on statistical levels")
+	_assert(main_board.get_structure(&"cannon_1").level == 3, "an individual upgrade attempt leaves the TH-scaled Cannon unchanged")
 	main._toggle_shop()
 	_assert(main.get_node("HUD/BuildTray").visible, "the Shop button opens the Clash-style building tray")
 	_assert(main.has_node("HUD/BuildTray/Margin/Stack/Cards/AirDefenseCard") and main.has_node("HUD/BuildTray/Margin/Stack/Cards/WizardTowerCard"), "the build tray exposes the TH4 and TH5 defense unlocks")
@@ -187,13 +208,14 @@ func _run() -> void:
 	_assert(main_board.pending_build_cell == Vector2i(20, 20) and main_board.build_preview_structure.grid_cell == Vector2i(20, 20), "the ghost follows the dragged footprint before confirmation")
 	_assert(main_board.confirm_pending_build(), "the offered Cannon can be confirmed on an empty footprint")
 	_assert(not is_instance_valid(main_board.build_preview_structure), "confirmation removes the temporary building ghost")
-	_assert(main.run_state.currency == 7, "placing the Cannon deducts its five-Gold prototype price once")
+	_assert(main.run_state.currency == 11, "placing the Cannon deducts its five-Gold prototype price once")
+	_assert(main_board.get_structure_at_cell(Vector2i(20, 20), true).level == 3, "a newly built Cannon immediately receives the current Town Hall stat level")
 	_assert(main_board.get_structure_count(&"cannon") == 2, "the TH2 base now contains both allowed Cannons")
 	main._refresh_shop_cards()
 	_assert(not main.get_node("HUD/BuildTray/Margin/Stack/Cards/CannonCard").disabled, "the old per-type Cannon limit no longer blocks a free shared defense slot")
 	_assert(main.get_node("HUD/BuildTray/Margin/Stack/Cards/CannonCard").text.contains("DEFENSES 2 / 3"), "tower cards show the shared defense capacity")
 	_assert(not main.get_node("HUD/BuildTray/Margin/Stack/Cards/WallCard").visible, "individual new-Wall construction is removed from the normal Shop")
-	_assert(main.get_node("HUD/SelectionPanel").visible, "a built defense receives its contextual Upgrade panel")
+	_assert(main.get_node("HUD/SelectionPanel").visible, "a built defense receives its contextual panel")
 	await process_frame
 	var selection_panel: Control = main.get_node("HUD/SelectionPanel")
 	var selection_center_x := selection_panel.get_global_rect().get_center().x
@@ -202,7 +224,7 @@ func _run() -> void:
 	_assert(selection_panel.get_global_rect().end.y <= get_root().get_visible_rect().size.y - 60.0, "the centered action menu stays above the persistent bottom controls")
 	var selected_label: Control = main.get_node("HUD/SelectionPanel/Margin/Stack/SelectedLabel")
 	var upgrade_button: Control = main.get_node("HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton")
-	_assert(selected_label.get_global_rect().end.y <= upgrade_button.get_global_rect().position.y, "the structure name sits above the centered action button like Clash")
+	_assert(selected_label.text.contains("TH2 POWER") and not upgrade_button.visible, "ordinary defenses show Town Hall-derived power without an individual stat-upgrade action")
 	var built_cannon: Node2D = main_board.get_structure_at_cell(Vector2i(20, 20), true)
 	var cannon_drag_start: Vector2 = main_board.board_origin + (Vector2(built_cannon.grid_cell) + Vector2(built_cannon.footprint) * 0.5) * main_board.cell_size
 	_assert(main_board._begin_structure_drag_candidate_at(cannon_drag_start), "pressing an existing defense starts a direct-drag candidate")
@@ -224,7 +246,7 @@ func _run() -> void:
 	main._select_build_kind(&"archer_tower")
 	_assert(is_instance_valid(main_board.build_preview_structure), "another building can enter draggable preview mode")
 	main._cancel_pending_purchase()
-	_assert(main_board.get_structure_count(&"archer_tower") == 0 and main.run_state.currency == 7, "cancel removes the ghost without building or spending Gold")
+	_assert(main_board.get_structure_count(&"archer_tower") == 0 and main.run_state.currency == 11, "cancel removes the ghost without building or spending Gold")
 	var capped_blueprint: Array[Dictionary] = []
 	for entry in main_board.capture_current_blueprint():
 		if StringName(entry.get("kind", &"")) != &"wall":
@@ -246,24 +268,29 @@ func _run() -> void:
 	main._on_structure_added(final_wall)
 	_assert(main_board.get_selected_structure() == null and not main_board.is_wall_chain_active(), "building the final available Wall leaves no stale selection or extension mode")
 	_assert(not main.get_node("HUD/SelectionPanel").visible, "the final Wall does not fall back to the old tap-to-move panel state")
+	main_board.selected_structure_id = &"command_core"
+	main.run_state.currency = 18
+	main._on_selection_changed(main_board.get_structure(&"command_core"))
+	_assert(main.get_node("HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton").text.contains("UPGRADE TO TH3"), "selecting the Town Hall offers its purchased next level")
+	main._upgrade_selected()
+	await process_frame
+	_assert(main.run_state.town_hall == 3 and main.run_state.currency == 0 and main.run_state.get_round_number() == 1, "buying TH3 spends Gold without advancing the round")
+	_assert(main_board.get_structure(&"command_core").level == 3 and main_board.get_structure(&"cannon_1").level == 4, "the Town Hall purchase refreshes the Core and every existing defense")
+	_assert(main_board.get_structure(&"cap_wall_0").level == 3, "the Town Hall purchase also refreshes existing Wall health")
+	_assert(main.get_node("HUD/BuildTray/Margin/Stack/Cards/MortarCard").visible, "purchasing TH3 immediately unlocks the Mortar")
+	_assert(main.get_node("HUD/WallDraftPanel").visible, "purchasing a Town Hall level offers that level's Wall Plan")
+	main._close_wall_draft()
 	main.run_state.begin_combat(main_board.capture_current_blueprint())
 	main._on_wave_finished(&"defenders")
 	_assert(main.get_node("HUD/ResultPanel").visible, "a victory opens a clear reward summary")
 	_assert(main.get_node("HUD/ResultPanel/Margin/Stack/Details").text.contains("+7 GOLD"), "the reward summary reports earned Gold")
-	_assert(not main.get_node("HUD/ResultPanel/Margin/Stack/Details").text.contains("Mortar"), "Attack A does not preview the next Rank's unlocks")
+	_assert(main.run_state.get_round_number() == 2 and main.run_state.town_hall == 3, "winning advances the enemy round without changing the purchased Town Hall")
 	main.run_state.begin_combat(main_board.capture_current_blueprint())
 	main._on_wave_finished(&"defenders")
-	_assert(main.run_state.town_hall == 3 and main.run_state.battle_index == 0, "two HUD victories advance from TH2 to TH3-A")
-	_assert(main.get_node("HUD/ResultPanel/Margin/Stack/Title").text == "FORTRESS RANK 2 REACHED", "the second victory clearly presents the new Fortress Rank")
-	var rank_up_details: String = main.get_node("HUD/ResultPanel/Margin/Stack/Details").text
-	_assert(rank_up_details.contains("Defense capacity: 3 → 4") and rank_up_details.contains("Walls: 25 → 50"), "rank-up rewards show new defense and Wall allowances")
-	_assert(rank_up_details.contains("New defense: Mortar") and rank_up_details.contains("New upgrade caps:"), "rank-up rewards show newly available defenses and upgrade levels")
-	_assert(main.get_node("HUD/BuildTray/Margin/Stack/Cards/MortarCard").visible, "a newly revealed defense appears in the build tray after ranking up")
+	_assert(main.run_state.town_hall == 3 and main.run_state.get_round_number() == 3, "multiple victories continue to leave Town Hall progression under player control")
+	_assert(main.get_node("HUD/ResultPanel/Margin/Stack/Title").text == "DEFENSE HELD", "victories no longer present automatic Town Hall rank-ups")
 	main._close_result_panel()
-	_assert(main.get_node("HUD/WallDraftPanel").visible and not main.get_node("HUD/ScoutPanel").visible, "reaching a new Fortress Rank opens that Rank's Wall Plan draft")
-	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/Name").text.contains("SIDECAR POCKET"), "the Rank 2 draft begins with an attachable Sidecar Pocket")
-	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack/Name").text.contains("U-FUNNEL"), "the Rank 2 draft includes the U-Funnel")
-	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack/Name").text.contains("DOGLEG CHANNEL"), "the Rank 2 draft includes the Dogleg Channel")
+	_assert(main.get_node("HUD/ScoutPanel").visible and not main.get_node("HUD/WallDraftPanel").visible, "ordinary victories return directly to the next-round scout")
 	main.queue_free()
 	_finish("SIEGE_RUN_PROGRESSION_SMOKE_OK")
 

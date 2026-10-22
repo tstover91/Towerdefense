@@ -98,11 +98,10 @@ until one confirmation commits it, while cancel leaves the blueprint unchanged.
 The placement panel reports both the number drawn and the current Town Hall's
 remaining Wall allowance.
 
-A selected Wall also offers **Select Row**, which follows Clash's longest
-contiguous straight-run rule. Every highlighted segment can then be dragged as
-one snapped group or rotated 90 degrees around the originally selected segment.
-Blocked or out-of-bounds row transformations are rejected without changing the
-saved layout.
+Walls placed by a drafted Wall Plan retain that formation as part of the saved
+blueprint. Selecting any piece highlights the formation, and dragging that piece
+moves the complete formation without changing its shape. Blocked or
+out-of-bounds moves return the formation to its previous position.
 
 Selecting any armed structure, including the weakly armed Command Core, draws
 its true firing radius over the board. Towers with a blind spot, such as the
@@ -128,27 +127,30 @@ damage, health, range, or speed modifiers were introduced.
 
 ## Phase 7 twelve-round run
 
-The Siege Lab now runs from TH2 through TH7 rather than dropping directly into
-the TH6 benchmark. Each Town Hall has an A and B battle, for twelve rounds total.
-TH4 introduces flying Bombers and Air Defense; TH5 introduces splash-damage
-Mages and the Wizard Tower; TH6 adds Healers; TH7 adds Dragons, Minions, and
-wall-jumping Hog Riders. Wave sizes are tuned for the condensed TD economy. The wave roster,
-unit level, building unlocks, building level caps, health, damage, cadence,
-range, footprints, and movement speed all use the current Clash values recorded
-in `CLASH_REFERENCE.md`.
+The Siege Lab has twelve attacks whose enemy compositions advance independently
+from the player's Town Hall. The current sequence still introduces flying
+Bombers, splash-damage Mages, Healers, Dragons, Minions, and wall-jumping Hog
+Riders in the established order, but victories no longer grant an automatic
+Town Hall level. Wave sizes are tuned for the condensed TD economy. The wave
+roster, unit levels, health, damage, cadence, range, footprints, and movement
+speed use the current Clash values recorded in `CLASH_REFERENCE.md`.
 
 Between attacks the player may reposition the whole base, buy an unlocked
-defense or wall, and upgrade a selected structure to the current Town Hall cap.
+defense, or make the large strategic investment in the next Town Hall level.
+Town Hall upgrades are immediate and available whenever the player can afford
+them. They strengthen the Core, every existing defense, every Wall, and all
+future construction; they also raise shared defense capacity, increase the Wall
+allowance, unlock defenses, and offer that Town Hall's Wall Plan draft. Ordinary
+structures no longer have separate statistical upgrade purchases.
+
 Gold is a deliberately condensed prototype economy; Clash prices and timers
-are not used. New level-one Walls are free, matching current Clash, while their
-upgrades and all defense construction/upgrades use Gold. Wall inventories now
-match Clash at 25/50/75/100/125/175 for TH2-TH7. The Command Core advances for free after
-each B battle, but every defense and wall keeps the level the player purchased.
+are not used. Wall inventories match Clash at 25/50/75/100/125/175 for TH2-TH7.
 As a prototype-specific exception, the low-level Command Core fires the exact
 level-one Cannon shot (7 DPS, 0.8-second cadence, 9-tile range).
 
 An attack captures a safe precombat snapshot. Holding earns Gold and advances
-one battle. Losing earns nothing, loses nothing, and reconstructs that snapshot
-for an immediate retry. Run `res://tools/siege_run_progression_smoke.gd` to
-validate round progression, rollback, housing budgets, level caps, and exact
-early-game stat resolution.
+one round without changing the Town Hall. Losing earns nothing, loses nothing,
+and reconstructs that snapshot for an immediate retry. Run
+`res://tools/siege_run_progression_smoke.gd` to validate independent round and
+Town Hall progression, rollback, housing budgets, unlocks, global stat refresh,
+and exact early-game stat resolution.

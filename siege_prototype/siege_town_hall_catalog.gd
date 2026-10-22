@@ -82,20 +82,34 @@ const FORTRESS_RANK_DEFENSE_CAPS := {
 	6: 17,
 }
 
+# Town Hall progression is the run's large strategic investment. Rounds advance
+# independently, so these costs compete directly with adding defenses now.
+const TOWN_HALL_UPGRADE_COSTS := {
+	3: 18,
+	4: 28,
+	5: 42,
+	6: 60,
+	7: 80,
+}
+
 
 static func get_tier(town_hall: int) -> Dictionary:
 	return Dictionary(TIERS.get(clampi(town_hall, 1, 7), {})).duplicate(true)
 
 
-static func get_army_budget(town_hall: int, battle_index: int) -> int:
+static func get_army_budget(round_number: int) -> int:
 	# Show the force actually deployed. Clash army capacity remains reference
 	# data, but filling it every round overwhelms this condensed TD economy.
-	return get_wave_housing(build_wave(town_hall, battle_index))
+	return get_wave_housing(build_wave(round_number))
 
 
-static func get_reward(town_hall: int, battle_index: int) -> int:
-	var tier := get_tier(town_hall)
-	return int(tier.get("reward_b" if battle_index >= 1 else "reward_a", 0))
+static func get_reward(round_number: int) -> int:
+	var tier := get_tier(_get_wave_town_hall(round_number))
+	return int(tier.get("reward_b" if _get_wave_variant(round_number) >= 1 else "reward_a", 0))
+
+
+static func get_town_hall_upgrade_cost(next_town_hall: int) -> int:
+	return int(TOWN_HALL_UPGRADE_COSTS.get(next_town_hall, -1))
 
 
 static func get_level_cap(town_hall: int, kind: StringName) -> int:
@@ -149,7 +163,9 @@ static func get_footprint(kind: StringName) -> Vector2i:
 	return Vector2i(FOOTPRINTS.get(kind, Vector2i.ONE))
 
 
-static func build_wave(town_hall: int, battle_index: int) -> Array[Dictionary]:
+static func build_wave(round_number: int) -> Array[Dictionary]:
+	var town_hall := _get_wave_town_hall(round_number)
+	var battle_index := _get_wave_variant(round_number)
 	var composition: Array[Dictionary] = []
 	match town_hall:
 		1:
@@ -193,6 +209,14 @@ static func build_wave(town_hall: int, battle_index: int) -> Array[Dictionary]:
 		composition[index]["row"] = 12 + index % 20
 		composition[index]["next_delay"] = spawn_delay
 	return composition
+
+
+static func _get_wave_town_hall(round_number: int) -> int:
+	return clampi(2 + floori(float(clampi(round_number, 1, 12) - 1) / 2.0), 2, 7)
+
+
+static func _get_wave_variant(round_number: int) -> int:
+	return (clampi(round_number, 1, 12) - 1) % 2
 
 
 static func get_wave_housing(wave: Array[Dictionary]) -> int:
