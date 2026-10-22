@@ -10,6 +10,7 @@ const AttackerScript = preload("res://siege_prototype/siege_attacker.gd")
 const ArenaLayoutScript = preload("res://siege_prototype/siege_arena_layout.gd")
 
 const DEMO_ATTACKER_COUNT := 48
+const MAX_TOPOLOGY_REPLANS_PER_STEP := 3
 
 var board: Node2D
 var attackers: Array[Node2D] = []
@@ -26,6 +27,8 @@ var combat_speed := 1.0
 var active := false
 var result: StringName = &"idle"
 var elapsed_time := 0.0
+var pending_topology_replans: Array[int] = []
+var pending_topology_replan_ids: Dictionary = {}
 
 
 func _ready() -> void:
@@ -52,6 +55,8 @@ func start_wave(wave: Array[Dictionary], wave_label := "Run attack") -> void:
 	tower_targets.clear()
 	tower_ramp_target_ids.clear()
 	tower_ramp_elapsed.clear()
+	pending_topology_replans.clear()
+	pending_topology_replan_ids.clear()
 	tracers.clear()
 	spawn_cooldown = 0.0
 	elapsed_time = 0.0
@@ -69,6 +74,8 @@ func reset_fortress() -> void:
 	tower_targets.clear()
 	tower_ramp_target_ids.clear()
 	tower_ramp_elapsed.clear()
+	pending_topology_replans.clear()
+	pending_topology_replan_ids.clear()
 	tracers.clear()
 	active = false
 	result = &"idle"
@@ -88,6 +95,8 @@ func clear_attackers() -> void:
 	tower_targets.clear()
 	tower_ramp_target_ids.clear()
 	tower_ramp_elapsed.clear()
+	pending_topology_replans.clear()
+	pending_topology_replan_ids.clear()
 
 
 func _build_demo_wave() -> Array[Dictionary]:
@@ -119,6 +128,7 @@ func simulate_step(delta: float) -> void:
 		return
 	elapsed_time += delta
 	_update_spawning(delta)
+	_process_topology_replans()
 	for attacker in attackers.duplicate():
 		if is_instance_valid(attacker) and not attacker.dead:
 			attacker.simulate(delta)
@@ -369,6 +379,7 @@ func _finish_wave(winner: StringName) -> void:
 
 
 func _on_attacker_died(attacker: Node2D) -> void:
+	pending_topology_replan_ids.erase(attacker.attacker_id)
 	for tower_id in tower_targets.keys():
 		if int(tower_targets.get(tower_id, -1)) == attacker.attacker_id:
 			tower_targets.erase(tower_id)
@@ -394,8 +405,26 @@ func _on_structure_hit(attacker: Node2D, structure: Node2D, _damage: float) -> v
 
 func _on_structure_topology_changed() -> void:
 	for attacker in attackers:
-		if is_instance_valid(attacker):
-			attacker.mark_plan_dirty()
+		if not is_instance_valid(attacker) or attacker.dead or attacker.is_support:
+			continue
+		attacker.defer_topology_replan()
+		if pending_topology_replan_ids.has(attacker.attacker_id):
+			continue
+		pending_topology_replan_ids[attacker.attacker_id] = true
+		pending_topology_replans.append(attacker.attacker_id)
+
+
+func _process_topology_replans() -> void:
+	var processed := 0
+	while processed < MAX_TOPOLOGY_REPLANS_PER_STEP and not pending_topology_replans.is_empty():
+		var attacker_id: int = pending_topology_replans.pop_front()
+		if not pending_topology_replan_ids.erase(attacker_id):
+			continue
+		var attacker := _get_living_attacker(attacker_id)
+		if attacker == null:
+			continue
+		attacker.refresh_deferred_plan()
+		processed += 1
 
 
 func _update_attacker_layout() -> void:

@@ -53,6 +53,7 @@ var active_target_id: StringName
 var path: Array[Vector2i] = []
 var path_index := 0
 var plan_dirty := true
+var topology_replan_deferred := false
 var cell_size := 48.0
 
 
@@ -98,6 +99,11 @@ func simulate(delta: float) -> void:
 	if is_support:
 		_simulate_support(delta)
 		return
+	# Structure deaths can invalidate dozens of paths at once. The combat
+	# controller refreshes those plans in small batches so a single destroyed
+	# tower never stalls an entire frame.
+	if topology_replan_deferred:
+		return
 	var active_target: Node2D = board.get_structure(active_target_id) if active_target_id != &"" else null
 	var intended_target: Node2D = board.get_structure(intended_target_id) if intended_target_id != &"" else null
 	if intended_target == null or intended_target.destroyed:
@@ -116,6 +122,21 @@ func simulate(delta: float) -> void:
 
 func mark_plan_dirty() -> void:
 	plan_dirty = true
+
+
+func defer_topology_replan() -> void:
+	topology_replan_deferred = true
+	plan_dirty = true
+	path.clear()
+	path_index = 0
+
+
+func refresh_deferred_plan() -> void:
+	if not topology_replan_deferred or dead:
+		return
+	topology_replan_deferred = false
+	var intended_target: Node2D = board.get_structure(intended_target_id) if intended_target_id != &"" else null
+	_refresh_plan(intended_target == null or intended_target.destroyed)
 
 
 func apply_damage(amount: float) -> float:

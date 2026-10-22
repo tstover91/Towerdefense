@@ -62,6 +62,7 @@ var blueprint_snapshot: Array[Dictionary] = []
 var mouse_dragging := false
 var build_mouse_dragging := false
 var build_drag_last_position := Vector2.ZERO
+var build_drag_grab_offset := Vector2i.ZERO
 var mouse_press_position := Vector2.ZERO
 var mouse_moved := false
 var touch_points: Dictionary = {}
@@ -128,7 +129,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					return
 				if _can_drag_build_preview_at(event.position):
 					build_mouse_dragging = true
-					preview_build_at_screen_position(event.position)
+					_begin_build_preview_drag(event.position)
 					get_viewport().set_input_as_handled()
 					return
 				if _begin_structure_drag_candidate_at(event.position):
@@ -145,7 +146,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					return
 				if build_mouse_dragging:
 					build_mouse_dragging = false
-					preview_build_at_screen_position(event.position)
+					_update_build_preview_drag(event.position)
+					build_drag_grab_offset = Vector2i.ZERO
 					get_viewport().set_input_as_handled()
 					return
 				if structure_drag_candidate_id != &"":
@@ -161,7 +163,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_wall_draw(event.position)
 			get_viewport().set_input_as_handled()
 		elif build_mouse_dragging:
-			preview_build_at_screen_position(event.position)
+			_update_build_preview_drag(event.position)
 			get_viewport().set_input_as_handled()
 		elif structure_drag_candidate_id != &"":
 			_update_structure_drag(event.position)
@@ -187,7 +189,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if touch_points.is_empty() and _can_drag_build_preview_at(event.position):
 				build_drag_touch_index = event.index
 				build_drag_last_position = event.position
-				preview_build_at_screen_position(event.position)
+				_begin_build_preview_drag(event.position)
 				get_viewport().set_input_as_handled()
 				return
 			if structure_drag_touch_index >= 0:
@@ -210,7 +212,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.index == build_drag_touch_index:
 				build_drag_touch_index = -1
 				build_drag_last_position = Vector2.ZERO
-				preview_build_at_screen_position(event.position)
+				_update_build_preview_drag(event.position)
+				build_drag_grab_offset = Vector2i.ZERO
 				get_viewport().set_input_as_handled()
 				return
 			if event.index == structure_drag_touch_index:
@@ -231,7 +234,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_wall_draw(event.position)
 		elif event.index == build_drag_touch_index:
 			build_drag_last_position = event.position
-			preview_build_at_screen_position(event.position)
+			_update_build_preview_drag(event.position)
 		elif event.index == structure_drag_touch_index:
 			structure_drag_last_position = event.position
 			_update_structure_drag(event.position)
@@ -351,7 +354,20 @@ func _begin_structure_drag_candidate_at(screen_position: Vector2) -> bool:
 	# an already-selected structure captures a drag; dragging across any other
 	# structure remains a camera pan.
 	if structure.structure_id != selected_structure_id:
-		return false
+		var selected := get_selected_structure()
+		var shares_selected_formation: bool = (
+			selected != null
+			and selected.kind == &"wall"
+			and structure.kind == &"wall"
+			and selected.wall_formation_id != &""
+			and selected.wall_formation_id == structure.wall_formation_id
+		)
+		if not shares_selected_formation:
+			return false
+		# Any piece of the highlighted formation is a valid grab handle. Keeping
+		# only one exact segment draggable made large plans unnecessarily fiddly.
+		selected_structure_id = structure.structure_id
+		selected_structure_changed.emit(structure)
 	if pending_build_kind != &"":
 		if pending_build_kind != &"wall" or wall_chain_cells.is_empty():
 			return false
@@ -490,6 +506,7 @@ func _promote_build_touch_to_pinch() -> void:
 	var first_position := build_drag_last_position
 	build_drag_touch_index = -1
 	build_drag_last_position = Vector2.ZERO
+	build_drag_grab_offset = Vector2i.ZERO
 	touch_points[first_index] = first_position
 	touch_start_positions[first_index] = first_position
 	touch_moved[first_index] = true
@@ -531,6 +548,27 @@ func preview_build_at_screen_position(screen_position: Vector2) -> bool:
 	if pointer_cell.x < 0:
 		return false
 	var destination := pointer_cell - Vector2i(footprint.x / 2, footprint.y / 2)
+	return preview_build_at_cell(destination)
+
+
+func _begin_build_preview_drag(screen_position: Vector2) -> void:
+	var pointer_cell := screen_to_cell(screen_position)
+	if pointer_cell.x < 0:
+		build_drag_grab_offset = Vector2i.ZERO
+		return
+	if not pending_wall_plan_cells.is_empty():
+		build_drag_grab_offset = pointer_cell - pending_wall_plan_origin
+	else:
+		build_drag_grab_offset = pointer_cell - pending_build_cell
+
+
+func _update_build_preview_drag(screen_position: Vector2) -> bool:
+	var pointer_cell := screen_to_cell(screen_position)
+	if pointer_cell.x < 0:
+		return false
+	var destination := pointer_cell - build_drag_grab_offset
+	if not pending_wall_plan_cells.is_empty():
+		return preview_wall_plan_at_cell(destination)
 	return preview_build_at_cell(destination)
 
 
@@ -1291,6 +1329,65 @@ func _wall_formation_ids(formation_id: StringName) -> Array[StringName]:
 
 func get_wall_formation_size(formation_id: StringName) -> int:
 	return _wall_formation_ids(formation_id).size()
+
+
+func rotate_wall_formation(formation_id: StringName) -> bool:
+	return _transform_wall_formation(formation_id, true)
+
+
+func mirror_wall_formation(formation_id: StringName) -> bool:
+	return _transform_wall_formation(formation_id, false)
+
+
+func _transform_wall_formation(formation_id: StringName, rotate_clockwise: bool) -> bool:
+	if not edit_mode:
+		return false
+	var formation_ids := _wall_formation_ids(formation_id)
+	if formation_ids.size() <= 1:
+		return false
+	var minimum := Vector2i(1000000, 1000000)
+	var maximum := Vector2i(-1000000, -1000000)
+	for structure_id in formation_ids:
+		var wall := get_structure(structure_id)
+		if wall == null or wall.destroyed:
+			return false
+		minimum.x = mini(minimum.x, wall.grid_cell.x)
+		minimum.y = mini(minimum.y, wall.grid_cell.y)
+		maximum.x = maxi(maximum.x, wall.grid_cell.x)
+		maximum.y = maxi(maximum.y, wall.grid_cell.y)
+	var old_size := maximum - minimum + Vector2i.ONE
+	var center := Vector2(minimum) + Vector2(old_size) * 0.5
+	var transformed_by_id: Dictionary = {}
+	var transformed_minimum := Vector2i(1000000, 1000000)
+	var transformed_maximum := Vector2i(-1000000, -1000000)
+	for structure_id in formation_ids:
+		var wall := get_structure(structure_id)
+		var relative: Vector2i = wall.grid_cell - minimum
+		var transformed := Vector2i(-relative.y, relative.x) if rotate_clockwise else Vector2i(-relative.x, relative.y)
+		transformed_by_id[structure_id] = transformed
+		transformed_minimum.x = mini(transformed_minimum.x, transformed.x)
+		transformed_minimum.y = mini(transformed_minimum.y, transformed.y)
+		transformed_maximum.x = maxi(transformed_maximum.x, transformed.x)
+		transformed_maximum.y = maxi(transformed_maximum.y, transformed.y)
+	var new_size := transformed_maximum - transformed_minimum + Vector2i.ONE
+	var new_origin := Vector2i(roundi(center.x - new_size.x * 0.5), roundi(center.y - new_size.y * 0.5))
+	var destinations: Dictionary = {}
+	for structure_id in formation_ids:
+		var normalized: Vector2i = Vector2i(transformed_by_id[structure_id]) - transformed_minimum
+		destinations[structure_id] = new_origin + normalized
+	if not _wall_group_destinations_valid(destinations):
+		return false
+	for structure_id in formation_ids:
+		var wall := get_structure(structure_id)
+		wall.grid_cell = Vector2i(destinations[structure_id])
+		wall.set_layout_metrics(board_origin, cell_size)
+	capture_current_blueprint()
+	structure_topology_changed.emit()
+	var selected := get_selected_structure()
+	if selected != null:
+		selected_structure_changed.emit(selected)
+	queue_redraw()
+	return true
 
 
 func _recalculate_layout() -> void:

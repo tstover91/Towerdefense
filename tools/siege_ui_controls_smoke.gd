@@ -106,6 +106,27 @@ func _run() -> void:
 	board._finish_structure_drag(formation_drag_start + Vector2.DOWN * board.cell_size)
 	_assert(board.capture_current_blueprint() == before_blocked_move, "a rejected formation move leaves every Wall unchanged")
 
+	var asymmetric_blueprint: Array[Dictionary] = []
+	var asymmetric_cells := [Vector2i(24, 18), Vector2i(25, 18), Vector2i(26, 18), Vector2i(26, 19), Vector2i(26, 20)]
+	for wall_index in asymmetric_cells.size():
+		asymmetric_blueprint.append({
+			"id": StringName("asymmetric_wall_%d" % wall_index),
+			"kind": &"wall",
+			"wall_formation_id": &"asymmetric_test",
+			"level": 1,
+			"cell": asymmetric_cells[wall_index],
+			"footprint": Vector2i.ONE,
+		})
+	board.load_blueprint(asymmetric_blueprint)
+	board.select_structure(board.get_structure(&"asymmetric_wall_0"))
+	var alternate_grab: Vector2 = board.cell_rect(Vector2i(26, 20)).get_center()
+	_assert(board._begin_structure_drag_candidate_at(alternate_grab), "any highlighted Wall in a formation can act as its drag handle")
+	board._finish_structure_drag(alternate_grab)
+	_assert(board.rotate_wall_formation(&"asymmetric_test"), "a placed Wall formation can rotate after confirmation")
+	_assert(_formation_cells(board, &"asymmetric_test") == [Vector2i(26, 18), Vector2i(26, 19), Vector2i(26, 20), Vector2i(25, 20), Vector2i(24, 20)], "rotation preserves the complete formation around its center")
+	_assert(board.mirror_wall_formation(&"asymmetric_test"), "a placed Wall formation can mirror after confirmation")
+	_assert(_formation_cells(board, &"asymmetric_test") == [Vector2i(24, 18), Vector2i(24, 19), Vector2i(24, 20), Vector2i(25, 20), Vector2i(26, 20)], "mirroring flips the formation without splitting it")
+
 	board.clear_selection()
 	_assert(board.get_wall_extension_cells().is_empty(), "deselecting a wall removes its extension controls")
 
@@ -122,3 +143,10 @@ func _assert(condition: bool, description: String) -> void:
 		return
 	push_error("Siege UI controls smoke failed: %s" % description)
 	failure_count += 1
+
+
+func _formation_cells(board: Node2D, formation_id: StringName) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for structure_id in board._wall_formation_ids(formation_id):
+		result.append(board.get_structure(structure_id).grid_cell)
+	return result

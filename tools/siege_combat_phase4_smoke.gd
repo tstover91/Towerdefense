@@ -94,6 +94,10 @@ func _run() -> void:
 	first_attacker.mark_plan_dirty()
 	first_attacker.simulate(0.01)
 	_assert(first_attacker.intended_target_id == committed_target_id, "attackers stay committed while their intended target survives")
+	combat._on_structure_topology_changed()
+	_assert(first_attacker.topology_replan_deferred and combat.pending_topology_replans.size() == 1, "a structure loss queues path work instead of recalculating it inside the destruction frame")
+	combat._process_topology_replans()
+	_assert(not first_attacker.topology_replan_deferred and combat.pending_topology_replans.is_empty(), "the bounded replan queue resumes attackers on a later simulation step")
 	_assert(first_attacker._get_protective_wall_cells().size() == 68, "connected wall groups qualify as Wall Breaker protection")
 
 	var ranger: Node2D = combat._spawn_attacker(&"ranger", 20)

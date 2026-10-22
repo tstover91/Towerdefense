@@ -47,6 +47,8 @@ func _ready() -> void:
 	$HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton.pressed.connect(_upgrade_selected)
 	$HUD/SelectionPanel/Margin/Stack/Actions/PathAButton.pressed.connect(func() -> void: _specialize_selected(0))
 	$HUD/SelectionPanel/Margin/Stack/Actions/PathBButton.pressed.connect(func() -> void: _specialize_selected(1))
+	$HUD/SelectionPanel/Margin/Stack/Actions/RotateWallButton.pressed.connect(_rotate_selected_wall_formation)
+	$HUD/SelectionPanel/Margin/Stack/Actions/MirrorWallButton.pressed.connect(_mirror_selected_wall_formation)
 	$SiegeCombat.status_changed.connect(_on_status_changed)
 	$SiegeCombat.wave_started.connect(_on_wave_started)
 	$SiegeCombat.wave_finished.connect(_on_wave_finished)
@@ -385,9 +387,17 @@ func _on_selection_changed(structure: Node) -> void:
 	var button: Button = $HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton
 	var path_a: Button = $HUD/SelectionPanel/Margin/Stack/Actions/PathAButton
 	var path_b: Button = $HUD/SelectionPanel/Margin/Stack/Actions/PathBButton
+	var rotate_wall: Button = $HUD/SelectionPanel/Margin/Stack/Actions/RotateWallButton
+	var mirror_wall: Button = $HUD/SelectionPanel/Margin/Stack/Actions/MirrorWallButton
 	button.visible = false
 	path_a.visible = false
 	path_b.visible = false
+	rotate_wall.visible = formation_size > 1
+	mirror_wall.visible = formation_size > 1
+	rotate_wall.disabled = false
+	mirror_wall.disabled = false
+	if formation_size > 1:
+		return
 	if structure.specialization == &"":
 		var paths: Array[StringName] = StructureCatalogScript.get_specialization_ids(structure.kind)
 		var path_buttons: Array[Button] = [path_a, path_b]
@@ -485,6 +495,30 @@ func _set_build_controls_enabled(enabled: bool) -> void:
 	$HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton.disabled = not enabled
 	$HUD/SelectionPanel/Margin/Stack/Actions/PathAButton.disabled = not enabled
 	$HUD/SelectionPanel/Margin/Stack/Actions/PathBButton.disabled = not enabled
+	$HUD/SelectionPanel/Margin/Stack/Actions/RotateWallButton.disabled = not enabled
+	$HUD/SelectionPanel/Margin/Stack/Actions/MirrorWallButton.disabled = not enabled
+
+
+func _rotate_selected_wall_formation() -> void:
+	var selected: Node = $SiegeBoard.get_selected_structure()
+	if selected == null or selected.kind != &"wall":
+		return
+	if not $SiegeBoard.rotate_wall_formation(selected.wall_formation_id):
+		_on_status_changed("No clear room to rotate this Wall Plan")
+		return
+	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
+	_on_status_changed("")
+
+
+func _mirror_selected_wall_formation() -> void:
+	var selected: Node = $SiegeBoard.get_selected_structure()
+	if selected == null or selected.kind != &"wall":
+		return
+	if not $SiegeBoard.mirror_wall_formation(selected.wall_formation_id):
+		_on_status_changed("No clear room to mirror this Wall Plan")
+		return
+	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
+	_on_status_changed("")
 
 
 func _refresh_hud() -> void:
