@@ -533,7 +533,7 @@ custom_minimum_size = Vector2(136, 88)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
-text = "WIZARD TOWER\nUNLOCKS TH5"
+text = "THERMAL PROJECTOR\nUNLOCKS TH5"
 
 [node name="WallCard" type="Button" parent="HUD/BuildTray/Margin/Stack/Cards"]
 custom_minimum_size = Vector2(136, 88)
@@ -630,3 +630,17 @@ custom_minimum_size = Vector2(214, 58)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "UPGRADE TO TH3\n18 GOLD"
+
+[node name="PathAButton" type="Button" parent="HUD/SelectionPanel/Margin/Stack/Actions"]
+visible = false
+custom_minimum_size = Vector2(156, 58)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "PLASMA CASTER\n12 GOLD"
+
+[node name="PathBButton" type="Button" parent="HUD/SelectionPanel/Margin/Stack/Actions"]
+visible = false
+custom_minimum_size = Vector2(156, 58)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "INFERNO BEAM\n12 GOLD"

@@ -45,6 +45,8 @@ func _ready() -> void:
 	$HUD/PlacementPanel/Margin/Actions/CancelButton.pressed.connect(_cancel_pending_purchase)
 	$HUD/PlacementPanel/Margin/Actions/ConfirmButton.pressed.connect(_confirm_build)
 	$HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton.pressed.connect(_upgrade_selected)
+	$HUD/SelectionPanel/Margin/Stack/Actions/PathAButton.pressed.connect(func() -> void: _specialize_selected(0))
+	$HUD/SelectionPanel/Margin/Stack/Actions/PathBButton.pressed.connect(func() -> void: _specialize_selected(1))
 	$SiegeCombat.status_changed.connect(_on_status_changed)
 	$SiegeCombat.wave_started.connect(_on_wave_started)
 	$SiegeCombat.wave_finished.connect(_on_wave_finished)
@@ -336,6 +338,28 @@ func _upgrade_selected() -> void:
 		call_deferred("_open_wall_draft")
 
 
+func _specialize_selected(path_index: int) -> void:
+	if $SiegeCombat.active or run_state.completed:
+		return
+	var structure: Node = $SiegeBoard.get_selected_structure()
+	if structure == null or structure.specialization != &"":
+		return
+	var paths: Array[StringName] = StructureCatalogScript.get_specialization_ids(structure.kind)
+	if path_index < 0 or path_index >= paths.size():
+		return
+	var specialization := paths[path_index]
+	var cost := StructureCatalogScript.get_specialization_cost(structure.kind, specialization)
+	if cost < 0 or not run_state.spend(cost):
+		_on_status_changed("Need %d Gold" % maxi(cost, 0))
+		return
+	if not $SiegeBoard.specialize_structure(structure.structure_id, specialization):
+		run_state.currency += cost
+		return
+	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
+	_on_status_changed("%s ready" % StructureCatalogScript.get_specialization_display_name(structure.kind, specialization))
+	_refresh_hud()
+
+
 func _toggle_speed() -> void:
 	var next_speed := 2.0 if is_equal_approx($SiegeCombat.combat_speed, 1.0) else 1.0
 	$SiegeCombat.set_combat_speed(next_speed)
@@ -357,11 +381,25 @@ func _on_selection_changed(structure: Node) -> void:
 	$HUD/BuildTray.visible = false
 	$HUD/SelectionPanel.visible = true
 	var formation_size: int = $SiegeBoard.get_wall_formation_size(structure.wall_formation_id) if structure.kind == &"wall" else 0
-	$HUD/SelectionPanel/Margin/Stack/SelectedLabel.text = "%d WALLS · TH%d POWER" % [formation_size, run_state.town_hall] if formation_size > 1 else "%s · TH%d POWER" % [_display_name(structure.kind).to_upper(), run_state.town_hall]
+	$HUD/SelectionPanel/Margin/Stack/SelectedLabel.text = "%d WALLS · TH%d POWER" % [formation_size, run_state.town_hall] if formation_size > 1 else "%s · TH%d POWER" % [_structure_display_name(structure).to_upper(), run_state.town_hall]
 	var button: Button = $HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton
-	button.visible = structure.kind == &"command_core"
+	var path_a: Button = $HUD/SelectionPanel/Margin/Stack/Actions/PathAButton
+	var path_b: Button = $HUD/SelectionPanel/Margin/Stack/Actions/PathBButton
+	button.visible = false
+	path_a.visible = false
+	path_b.visible = false
+	if structure.specialization == &"":
+		var paths: Array[StringName] = StructureCatalogScript.get_specialization_ids(structure.kind)
+		var path_buttons: Array[Button] = [path_a, path_b]
+		for index in mini(paths.size(), path_buttons.size()):
+			var specialization := paths[index]
+			var cost := StructureCatalogScript.get_specialization_cost(structure.kind, specialization)
+			path_buttons[index].visible = true
+			path_buttons[index].text = "%s\n%d GOLD" % [StructureCatalogScript.get_specialization_display_name(structure.kind, specialization).to_upper(), cost]
+			path_buttons[index].disabled = run_state.currency < cost
 	if structure.kind != &"command_core":
 		return
+	button.visible = true
 	$HUD/SelectionPanel/Margin/Stack/SelectedLabel.text = "TOWN HALL · LEVEL %d" % run_state.town_hall
 	var next_town_hall: int = run_state.town_hall + 1
 	var cost := TierCatalogScript.get_town_hall_upgrade_cost(next_town_hall)
@@ -445,6 +483,8 @@ func _set_build_controls_enabled(enabled: bool) -> void:
 	$HUD/BottomBar/ScoutButton.disabled = not enabled
 	$HUD/BottomBar/FortifyButton.disabled = not enabled or (run_state != null and run_state.has_claimed_wall_plan_for_current_rank())
 	$HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton.disabled = not enabled
+	$HUD/SelectionPanel/Margin/Stack/Actions/PathAButton.disabled = not enabled
+	$HUD/SelectionPanel/Margin/Stack/Actions/PathBButton.disabled = not enabled
 
 
 func _refresh_hud() -> void:
@@ -682,3 +722,9 @@ func _show_victory_result(reward: int) -> void:
 
 func _display_name(kind: StringName) -> String:
 	return String(StructureCatalogScript.get_definition(kind, 1).get("display_name", kind))
+
+
+func _structure_display_name(structure: Node) -> String:
+	if structure.specialization != &"":
+		return StructureCatalogScript.get_specialization_display_name(structure.kind, structure.specialization)
+	return _display_name(structure.kind)

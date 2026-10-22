@@ -143,6 +143,14 @@ future construction; they also raise shared defense capacity, increase the Wall
 allowance, unlock defenses, and offer that Town Hall's Wall Plan draft. Ordinary
 structures no longer have separate statistical upgrade purchases.
 
+The first permanent tower-role choice is available on the Thermal Projector.
+It can become a Plasma Caster, which keeps and strengthens its ground-and-air
+splash role, or an Inferno Beam, which keeps ground-and-air coverage but trades
+splash for rapid single-target damage that ramps while it holds one enemy. The
+choice is made once from the selected-tower controls. Its health and baseline
+damage continue to rise with purchased Town Hall levels, so specialization does
+not create a second upgrade ladder.
+
 Gold is a deliberately condensed prototype economy; Clash prices and timers
 are not used. Wall inventories match Clash at 25/50/75/100/125/175 for TH2-TH7.
 As a prototype-specific exception, the low-level Command Core fires the exact
@@ -154,3 +162,5 @@ and reconstructs that snapshot for an immediate retry. Run
 `res://tools/siege_run_progression_smoke.gd` to validate independent round and
 Town Hall progression, rollback, housing budgets, unlocks, global stat refresh,
 and exact early-game stat resolution.
+Run `res://tools/siege_specialization_smoke.gd` to validate specialization
+choice, spending, combat behavior, Town Hall scaling, and blueprint persistence.

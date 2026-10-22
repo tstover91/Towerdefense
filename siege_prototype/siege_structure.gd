@@ -23,6 +23,7 @@ const COLOR_HEALTH_BACK := Color("252522")
 
 var structure_id: StringName
 var kind: StringName
+var specialization: StringName
 var wall_formation_id: StringName
 var level := 1
 var grid_cell := Vector2i.ZERO
@@ -40,6 +41,7 @@ var cell_size := 48.0
 func configure(blueprint_entry: Dictionary, structure_definition: Dictionary) -> void:
 	structure_id = StringName(blueprint_entry.get("id", &""))
 	kind = StringName(blueprint_entry.get("kind", &""))
+	specialization = StringName(blueprint_entry.get("specialization", &""))
 	wall_formation_id = StringName(blueprint_entry.get("wall_formation_id", &""))
 	level = int(blueprint_entry.get("level", structure_definition.get("reference_level", 1)))
 	grid_cell = Vector2i(blueprint_entry.get("cell", Vector2i.ZERO))
@@ -57,6 +59,15 @@ func configure(blueprint_entry: Dictionary, structure_definition: Dictionary) ->
 
 func upgrade_to(next_level: int, structure_definition: Dictionary) -> void:
 	level = maxi(next_level, 1)
+	definition = structure_definition.duplicate(true)
+	max_health = maxf(float(definition.get("max_health", 1.0)), 1.0)
+	health = max_health
+	destroyed = false
+	queue_redraw()
+
+
+func specialize_to(next_specialization: StringName, structure_definition: Dictionary) -> void:
+	specialization = next_specialization
 	definition = structure_definition.duplicate(true)
 	max_health = maxf(float(definition.get("max_health", 1.0)), 1.0)
 	health = max_health
@@ -121,6 +132,8 @@ func get_blueprint_entry() -> Dictionary:
 		"cell": grid_cell,
 		"footprint": footprint,
 	}
+	if specialization != &"":
+		entry["specialization"] = specialization
 	if wall_formation_id != &"":
 		entry["wall_formation_id"] = wall_formation_id
 	return entry
@@ -195,10 +208,22 @@ func _draw_wizard_tower(rect: Rect2) -> void:
 	var scale := minf(rect.size.x, rect.size.y)
 	var body := rect.grow(-scale * 0.06)
 	var center := rect.get_center()
-	draw_rect(body, COLOR_WIZARD, true)
+	var body_color := COLOR_WIZARD
+	if specialization == &"plasma_caster":
+		body_color = Color("4f91d8")
+	elif specialization == &"inferno_beam":
+		body_color = Color("d85a3f")
+	draw_rect(body, body_color, true)
 	draw_rect(body, COLOR_OUTLINE, false, maxf(scale * 0.04, 1.0))
-	draw_circle(center, scale * 0.18, COLOR_TEXT)
-	draw_circle(center, scale * 0.09, COLOR_WIZARD.darkened(0.35))
+	if specialization == &"inferno_beam":
+		draw_circle(center, scale * 0.19, COLOR_OUTLINE)
+		draw_line(center + Vector2(0.0, scale * 0.18), center + Vector2(0.0, -scale * 0.20), Color("ffd36a"), maxf(scale * 0.09, 2.0), true)
+	else:
+		draw_circle(center, scale * 0.18, COLOR_TEXT)
+		draw_circle(center, scale * 0.09, body_color.darkened(0.35))
+		if specialization == &"plasma_caster":
+			for offset in [Vector2.LEFT, Vector2.RIGHT]:
+				draw_circle(center + offset * scale * 0.23, scale * 0.045, Color("8fe8ff"))
 
 
 func _draw_air_defense(rect: Rect2) -> void:

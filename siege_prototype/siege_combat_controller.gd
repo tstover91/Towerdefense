@@ -16,6 +16,8 @@ var attackers: Array[Node2D] = []
 var pending_wave: Array[Dictionary] = []
 var tower_cooldowns: Dictionary = {}
 var tower_targets: Dictionary = {}
+var tower_ramp_target_ids: Dictionary = {}
+var tower_ramp_elapsed: Dictionary = {}
 var tracers: Array[Dictionary] = []
 var next_attacker_id := 1
 var spawn_cooldown := 0.0
@@ -48,6 +50,8 @@ func start_wave(wave: Array[Dictionary], wave_label := "Run attack") -> void:
 	pending_wave = wave.duplicate(true)
 	tower_cooldowns.clear()
 	tower_targets.clear()
+	tower_ramp_target_ids.clear()
+	tower_ramp_elapsed.clear()
 	tracers.clear()
 	spawn_cooldown = 0.0
 	elapsed_time = 0.0
@@ -63,6 +67,8 @@ func reset_fortress() -> void:
 	pending_wave.clear()
 	tower_cooldowns.clear()
 	tower_targets.clear()
+	tower_ramp_target_ids.clear()
+	tower_ramp_elapsed.clear()
 	tracers.clear()
 	active = false
 	result = &"idle"
@@ -80,6 +86,8 @@ func clear_attackers() -> void:
 			attacker.queue_free()
 	attackers.clear()
 	tower_targets.clear()
+	tower_ramp_target_ids.clear()
+	tower_ramp_elapsed.clear()
 
 
 func _build_demo_wave() -> Array[Dictionary]:
@@ -163,7 +171,15 @@ func _update_towers(delta: float) -> void:
 				tower_targets[structure.structure_id] = target.attacker_id
 		if target == null:
 			tower_cooldowns[structure.structure_id] = 0.0
+			_reset_tower_ramp(structure.structure_id)
 			continue
+		if StringName(structure.definition.get("attack_mode", &"single")) == &"ramping_beam":
+			var prior_target_id := int(tower_ramp_target_ids.get(structure.structure_id, -1))
+			if prior_target_id != target.attacker_id:
+				tower_ramp_target_ids[structure.structure_id] = target.attacker_id
+				tower_ramp_elapsed[structure.structure_id] = 0.0
+		else:
+			_reset_tower_ramp(structure.structure_id)
 		_apply_tower_damage(structure, target)
 		tower_cooldowns[structure.structure_id] = float(structure.definition.get("attack_interval", 1.0))
 		tracers.append({
@@ -252,6 +268,15 @@ func _try_nudge_attacker(attacker: Node2D, offset: Vector2, blocked: Array[Vecto
 
 func _apply_tower_damage(tower: Node2D, primary_target: Node2D) -> void:
 	var damage := float(tower.definition.get("attack_damage", 0.0))
+	if StringName(tower.definition.get("attack_mode", &"single")) == &"ramping_beam":
+		var elapsed := float(tower_ramp_elapsed.get(tower.structure_id, 0.0))
+		var step_interval := maxf(float(tower.definition.get("beam_ramp_step_interval", 0.5)), 0.01)
+		var multiplier := float(tower.definition.get("beam_ramp_start_multiplier", 1.0))
+		multiplier += floorf(elapsed / step_interval) * float(tower.definition.get("beam_ramp_step_multiplier", 0.0))
+		multiplier = minf(multiplier, float(tower.definition.get("beam_ramp_max_multiplier", multiplier)))
+		primary_target.apply_damage(damage * multiplier)
+		tower_ramp_elapsed[tower.structure_id] = elapsed + float(tower.definition.get("attack_interval", 0.2))
+		return
 	var splash_radius := float(tower.definition.get("splash_radius_cells", 0.0))
 	if splash_radius <= 0.0:
 		primary_target.apply_damage(damage)
@@ -305,9 +330,15 @@ func _on_attacker_died(attacker: Node2D) -> void:
 	for tower_id in tower_targets.keys():
 		if int(tower_targets.get(tower_id, -1)) == attacker.attacker_id:
 			tower_targets.erase(tower_id)
+			_reset_tower_ramp(StringName(tower_id))
 	attackers.erase(attacker)
 	if is_instance_valid(attacker):
 		attacker.queue_free()
+
+
+func _reset_tower_ramp(tower_id: StringName) -> void:
+	tower_ramp_target_ids.erase(tower_id)
+	tower_ramp_elapsed.erase(tower_id)
 
 
 func _on_structure_hit(attacker: Node2D, structure: Node2D, _damage: float) -> void:

@@ -1146,7 +1146,7 @@ func upgrade_structure(structure_id: StringName, next_level: int) -> bool:
 	var structure := get_structure(structure_id)
 	if structure == null or structure.destroyed or next_level <= structure.level:
 		return false
-	structure.upgrade_to(next_level, StructureCatalogScript.get_definition(structure.kind, next_level))
+	structure.upgrade_to(next_level, StructureCatalogScript.get_definition(structure.kind, next_level, structure.specialization))
 	capture_current_blueprint()
 	structure_topology_changed.emit()
 	selected_structure_changed.emit(structure)
@@ -1158,11 +1158,27 @@ func apply_structure_levels(levels_by_kind: Dictionary) -> void:
 		var next_level := int(levels_by_kind.get(structure.kind, structure.level))
 		if next_level <= 0 or next_level == structure.level:
 			continue
-		structure.upgrade_to(next_level, StructureCatalogScript.get_definition(structure.kind, next_level))
+		structure.upgrade_to(next_level, StructureCatalogScript.get_definition(structure.kind, next_level, structure.specialization))
 	capture_current_blueprint()
 	structure_topology_changed.emit()
 	if selected_structure_id != &"":
 		selected_structure_changed.emit(get_selected_structure())
+
+
+func specialize_structure(structure_id: StringName, specialization: StringName) -> bool:
+	var structure := get_structure(structure_id)
+	if structure == null or structure.destroyed or structure.specialization != &"":
+		return false
+	if not StructureCatalogScript.has_specialization(structure.kind, specialization):
+		return false
+	structure.specialize_to(
+		specialization,
+		StructureCatalogScript.get_definition(structure.kind, structure.level, specialization)
+	)
+	capture_current_blueprint()
+	structure_topology_changed.emit()
+	selected_structure_changed.emit(structure)
+	return true
 
 
 func get_selected_structure() -> Node2D:
@@ -1374,8 +1390,9 @@ func _create_structure(entry: Dictionary) -> Node2D:
 	var kind := StringName(entry.get("kind", &""))
 	assert(StructureCatalogScript.has_kind(kind), "Missing siege structure definition for %s" % kind)
 	var level := int(entry.get("level", -1))
+	var specialization := StringName(entry.get("specialization", &""))
 	var structure: Node2D = StructureScript.new()
-	structure.configure(entry, StructureCatalogScript.get_definition(kind, level))
+	structure.configure(entry, StructureCatalogScript.get_definition(kind, level, specialization))
 	structure.structure_destroyed.connect(_on_structure_destroyed)
 	structure.structure_restored.connect(_on_structure_restored)
 	add_child(structure)

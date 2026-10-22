@@ -93,7 +93,7 @@ const DEFINITIONS := {
 		"target_type": &"air",
 	},
 	&"wizard_tower": {
-		"display_name": "Wizard Tower",
+		"display_name": "Thermal Projector",
 		"max_health": 680.0,
 		"integrity_value": 1,
 		"blocks_movement": true,
@@ -117,6 +117,35 @@ const DEFINITIONS := {
 		"counts_for_objective": false,
 		"reference_level": 6,
 		"reference_health": 1800.0,
+	},
+}
+
+# Specializations change one tower's combat role without owning a separate stat
+# ladder. Their base damage and health continue to come from the purchased Town
+# Hall level, then these behavior modifiers are applied.
+const SPECIALIZATIONS := {
+	&"wizard_tower": {
+		&"plasma_caster": {
+			"display_name": "Plasma Caster",
+			"cost": 12,
+			"attack_mode": &"splash",
+			"attack_damage_multiplier": 1.25,
+			"attack_range_cells": 8.0,
+			"splash_radius_cells": 1.4,
+		},
+		&"inferno_beam": {
+			"display_name": "Inferno Beam",
+			"cost": 12,
+			"attack_mode": &"ramping_beam",
+			"attack_interval": 0.2,
+			"attack_range_cells": 8.0,
+			"splash_radius_cells": 0.0,
+			"target_type": &"ground_air",
+			"beam_ramp_start_multiplier": 0.75,
+			"beam_ramp_step_multiplier": 0.25,
+			"beam_ramp_step_interval": 0.5,
+			"beam_ramp_max_multiplier": 2.5,
+		},
 	},
 }
 
@@ -207,7 +236,7 @@ static func has_kind(kind: StringName) -> bool:
 	return DEFINITIONS.has(kind)
 
 
-static func get_definition(kind: StringName, level := -1) -> Dictionary:
+static func get_definition(kind: StringName, level := -1, specialization: StringName = &"") -> Dictionary:
 	var result := Dictionary(DEFINITIONS.get(kind, {})).duplicate(true)
 	if result.is_empty():
 		return result
@@ -217,10 +246,59 @@ static func get_definition(kind: StringName, level := -1) -> Dictionary:
 	var levels: Dictionary = LEVEL_STATS.get(kind, {})
 	if levels.has(resolved_level):
 		result.merge(Dictionary(levels[resolved_level]), true)
+	if specialization != &"":
+		_apply_specialization(result, kind, specialization)
 	result["level"] = resolved_level
+	result["specialization"] = specialization
 	result["reference_level"] = resolved_level
 	result["reference_health"] = float(result.get("max_health", 0.0))
 	return result
+
+
+static func _apply_specialization(result: Dictionary, kind: StringName, specialization: StringName) -> void:
+	var specialization_definition := get_specialization_definition(kind, specialization)
+	if specialization_definition.is_empty():
+		return
+	var base_reference_dps := float(result.get("reference_dps", 0.0))
+	if base_reference_dps <= 0.0:
+		var base_interval := maxf(float(result.get("attack_interval", 1.0)), 0.01)
+		base_reference_dps = float(result.get("attack_damage", 0.0)) / base_interval
+	var damage_multiplier := float(specialization_definition.get("attack_damage_multiplier", 1.0))
+	for key in specialization_definition:
+		if key in ["cost", "attack_damage_multiplier"]:
+			continue
+		result[key] = specialization_definition[key]
+	var attack_mode := StringName(result.get("attack_mode", &"single"))
+	if attack_mode == &"ramping_beam":
+		result["attack_damage"] = base_reference_dps * float(result.get("attack_interval", 0.2))
+		result["reference_dps"] = base_reference_dps
+		result["maximum_reference_dps"] = base_reference_dps * float(result.get("beam_ramp_max_multiplier", 1.0))
+	else:
+		result["attack_damage"] = float(result.get("attack_damage", 0.0)) * damage_multiplier
+		result["reference_dps"] = float(result.get("attack_damage", 0.0)) / maxf(float(result.get("attack_interval", 1.0)), 0.01)
+
+
+static func get_specialization_ids(kind: StringName) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for specialization in Dictionary(SPECIALIZATIONS.get(kind, {})).keys():
+		result.append(StringName(specialization))
+	return result
+
+
+static func has_specialization(kind: StringName, specialization: StringName) -> bool:
+	return Dictionary(SPECIALIZATIONS.get(kind, {})).has(specialization)
+
+
+static func get_specialization_definition(kind: StringName, specialization: StringName) -> Dictionary:
+	return Dictionary(Dictionary(SPECIALIZATIONS.get(kind, {})).get(specialization, {})).duplicate(true)
+
+
+static func get_specialization_cost(kind: StringName, specialization: StringName) -> int:
+	return int(get_specialization_definition(kind, specialization).get("cost", -1))
+
+
+static func get_specialization_display_name(kind: StringName, specialization: StringName) -> String:
+	return String(get_specialization_definition(kind, specialization).get("display_name", specialization))
 
 
 static func get_max_health(kind: StringName, level := -1) -> float:
