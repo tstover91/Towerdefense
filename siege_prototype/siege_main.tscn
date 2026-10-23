@@ -255,17 +255,17 @@ text = "CONTINUE BUILDING"
 
 [node name="WallDraftPanel" type="PanelContainer" parent="HUD"]
 visible = false
-custom_minimum_size = Vector2(960, 270)
+custom_minimum_size = Vector2(1100, 250)
 layout_mode = 3
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -480.0
-offset_top = -135.0
-offset_right = 480.0
-offset_bottom = 135.0
+offset_left = -550.0
+offset_top = -125.0
+offset_right = 550.0
+offset_bottom = 125.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -284,7 +284,7 @@ theme_override_constants/separation = 8
 layout_mode = 2
 theme_override_colors/font_color = Color(0.937255, 0.721569, 0.239216, 1)
 theme_override_font_sizes/font_size = 22
-text = "CHOOSE WALL PLAN"
+text = "CHOOSE STARTING WALLS · 25 AVAILABLE"
 horizontal_alignment = 1
 
 [node name="Cards" type="HBoxContainer" parent="HUD/WallDraftPanel/Margin/Stack"]
@@ -293,7 +293,7 @@ size_flags_vertical = 3
 theme_override_constants/separation = 12
 
 [node name="Plan1" type="PanelContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(290, 164)
+custom_minimum_size = Vector2(196, 150)
 layout_mode = 2
 size_flags_horizontal = 3
 
@@ -315,7 +315,7 @@ text = "WIDE COMPARTMENT · 24 WALLS"
 horizontal_alignment = 1
 
 [node name="Preview" type="Control" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack"]
-custom_minimum_size = Vector2(240, 92)
+custom_minimum_size = Vector2(166, 78)
 layout_mode = 2
 size_flags_vertical = 3
 script = ExtResource("4_wall_preview")
@@ -326,7 +326,7 @@ layout_mode = 2
 text = "CHOOSE"
 
 [node name="Plan2" type="PanelContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(290, 164)
+custom_minimum_size = Vector2(196, 150)
 layout_mode = 2
 size_flags_horizontal = 3
 
@@ -348,7 +348,7 @@ text = "CORE BOX · 20 WALLS"
 horizontal_alignment = 1
 
 [node name="Preview" type="Control" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack"]
-custom_minimum_size = Vector2(240, 92)
+custom_minimum_size = Vector2(166, 78)
 layout_mode = 2
 size_flags_vertical = 3
 script = ExtResource("4_wall_preview")
@@ -359,7 +359,7 @@ layout_mode = 2
 text = "CHOOSE"
 
 [node name="Plan3" type="PanelContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards"]
-custom_minimum_size = Vector2(290, 164)
+custom_minimum_size = Vector2(196, 150)
 layout_mode = 2
 size_flags_horizontal = 3
 
@@ -381,7 +381,7 @@ text = "DEFENSE POCKET · 16 WALLS"
 horizontal_alignment = 1
 
 [node name="Preview" type="Control" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack"]
-custom_minimum_size = Vector2(240, 92)
+custom_minimum_size = Vector2(166, 78)
 layout_mode = 2
 size_flags_vertical = 3
 script = ExtResource("4_wall_preview")
@@ -390,6 +390,74 @@ script = ExtResource("4_wall_preview")
 custom_minimum_size = Vector2(160, 38)
 layout_mode = 2
 text = "CHOOSE"
+
+[node name="Plan4" type="PanelContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards"]
+visible = false
+custom_minimum_size = Vector2(196, 150)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan4"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="Stack" type="VBoxContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan4/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Name" type="Label" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan4/Margin/Stack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "SIDECAR · 11 WALLS"
+horizontal_alignment = 1
+
+[node name="Preview" type="Control" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan4/Margin/Stack"]
+custom_minimum_size = Vector2(166, 78)
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("4_wall_preview")
+
+[node name="ChooseButton" type="Button" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan4/Margin/Stack"]
+custom_minimum_size = Vector2(160, 38)
+layout_mode = 2
+text = "BUILD"
+
+[node name="Plan5" type="PanelContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards"]
+visible = false
+custom_minimum_size = Vector2(196, 150)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan5"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="Stack" type="VBoxContainer" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan5/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Name" type="Label" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan5/Margin/Stack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "COMPARTMENT · 12 WALLS"
+horizontal_alignment = 1
+
+[node name="Preview" type="Control" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan5/Margin/Stack"]
+custom_minimum_size = Vector2(166, 78)
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("4_wall_preview")
+
+[node name="ChooseButton" type="Button" parent="HUD/WallDraftPanel/Margin/Stack/Cards/Plan5/Margin/Stack"]
+custom_minimum_size = Vector2(160, 38)
+layout_mode = 2
+text = "BUILD"
 
 [node name="NotNowButton" type="Button" parent="HUD/WallDraftPanel/Margin/Stack"]
 custom_minimum_size = Vector2(150, 36)

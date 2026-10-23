@@ -105,7 +105,7 @@ func _run() -> void:
 	var main: Node = main_scene.instantiate()
 	get_root().add_child(main)
 	await process_frame
-	main._close_wall_draft()
+	main._close_wall_menu()
 	var main_board: Node2D = main.get_node("SiegeBoard")
 	main.run_state.town_hall = 5
 	main.run_state.currency = 20

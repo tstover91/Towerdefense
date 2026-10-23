@@ -13,7 +13,9 @@ var run_state: RefCounted
 var pending_purchase_kind: StringName
 var pending_purchase_cost := 0
 var pending_wall_plan_id: StringName
-var wall_draft_plans: Array[Dictionary] = []
+var pending_wall_plan_cost := 0
+var wall_menu_mode: StringName = &"opening"
+var wall_menu_plans: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -23,13 +25,15 @@ func _ready() -> void:
 	$HUD/BottomBar/SpeedButton.pressed.connect(_toggle_speed)
 	$HUD/BottomBar/ViewButton.pressed.connect(_reset_view)
 	$HUD/BottomBar/ScoutButton.pressed.connect(_toggle_scout)
-	$HUD/BottomBar/FortifyButton.pressed.connect(_open_wall_draft)
+	$HUD/BottomBar/FortifyButton.pressed.connect(_open_wall_catalog)
 	$HUD/ScoutPanel/Margin/Stack/Header/CloseButton.pressed.connect(_close_scout)
 	$HUD/ResultPanel/Margin/Stack/ContinueButton.pressed.connect(_close_result_panel)
 	$HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/ChooseButton.pressed.connect(func() -> void: _select_wall_plan(0))
 	$HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack/ChooseButton.pressed.connect(func() -> void: _select_wall_plan(1))
 	$HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack/ChooseButton.pressed.connect(func() -> void: _select_wall_plan(2))
-	$HUD/WallDraftPanel/Margin/Stack/NotNowButton.pressed.connect(_close_wall_draft)
+	$HUD/WallDraftPanel/Margin/Stack/Cards/Plan4/Margin/Stack/ChooseButton.pressed.connect(func() -> void: _select_wall_plan(3))
+	$HUD/WallDraftPanel/Margin/Stack/Cards/Plan5/Margin/Stack/ChooseButton.pressed.connect(func() -> void: _select_wall_plan(4))
+	$HUD/WallDraftPanel/Margin/Stack/NotNowButton.pressed.connect(_close_wall_menu)
 	$HUD/WallPlanPlacementPanel/Margin/Actions/CancelButton.pressed.connect(_cancel_wall_plan_placement)
 	$HUD/WallPlanPlacementPanel/Margin/Actions/RotateButton.pressed.connect(_rotate_wall_plan)
 	$HUD/WallPlanPlacementPanel/Margin/Actions/MirrorButton.pressed.connect(_mirror_wall_plan)
@@ -80,13 +84,13 @@ func _new_run() -> void:
 	pending_purchase_kind = &""
 	pending_purchase_cost = 0
 	pending_wall_plan_id = &""
+	pending_wall_plan_cost = 0
 	_hide_context_panels()
 	$HUD/ResultPanel.visible = false
 	$HUD/BottomBar/AttackButton.disabled = false
 	_set_build_controls_enabled(true)
 	_on_status_changed("")
 	_refresh_hud()
-	_refresh_wall_draft_cards()
 	_open_wall_draft()
 
 
@@ -334,10 +338,8 @@ func _upgrade_selected() -> void:
 	_sync_board_levels_to_town_hall()
 	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
 	$SiegeBoard.clear_selection()
-	_on_status_changed("Town Hall %d purchased · all defenses strengthened" % run_state.town_hall)
+	_on_status_changed("Town Hall %d purchased · +%d Walls · all defenses strengthened" % [run_state.town_hall, RunStateScript.WALLS_PER_TOWN_HALL])
 	_refresh_hud()
-	if not run_state.has_claimed_wall_plan_for_current_rank():
-		call_deferred("_open_wall_draft")
 
 
 func _specialize_selected(path_index: int) -> void:
@@ -434,13 +436,14 @@ func _on_wave_finished(result: StringName) -> void:
 	$SiegeBoard.set_edit_mode(true)
 	if result == &"defenders":
 		var reward := TierCatalogScript.get_reward(run_state.get_round_number())
-		run_state.record_victory(reward, run_state.precombat_blueprint)
+		var victory_result: Dictionary = run_state.record_victory(reward, run_state.precombat_blueprint)
+		var wall_reward := int(victory_result.get("wall_reward", 0))
 		$SiegeBoard.load_blueprint(run_state.blueprint)
 		if run_state.completed:
 			_on_status_changed("RUN COMPLETE · all %d attacks survived · %d Gold banked" % [run_state.get_total_rounds(), run_state.currency])
 		else:
 			_on_status_changed("Defense held · +%d Gold · prepare Round %d" % [reward, run_state.get_round_number()])
-		_show_victory_result(reward)
+		_show_victory_result(reward, wall_reward)
 	else:
 		$SiegeBoard.load_blueprint(run_state.record_defeat())
 		_on_status_changed("Base destroyed · no Gold lost · layout restored for a safe retry")
@@ -491,7 +494,7 @@ func _hide_context_panels() -> void:
 func _set_build_controls_enabled(enabled: bool) -> void:
 	$HUD/ShopButton.disabled = not enabled
 	$HUD/BottomBar/ScoutButton.disabled = not enabled
-	$HUD/BottomBar/FortifyButton.disabled = not enabled or (run_state != null and run_state.has_claimed_wall_plan_for_current_rank())
+	$HUD/BottomBar/FortifyButton.disabled = not enabled or (run_state != null and run_state.wall_reserve < WallPlanCatalogScript.get_minimum_reinforcement_cost() and run_state.opening_wall_plan_placed)
 	$HUD/SelectionPanel/Margin/Stack/Actions/UpgradeButton.disabled = not enabled
 	$HUD/SelectionPanel/Margin/Stack/Actions/PathAButton.disabled = not enabled
 	$HUD/SelectionPanel/Margin/Stack/Actions/PathBButton.disabled = not enabled
@@ -572,8 +575,23 @@ func _card_for_kind(kind: StringName) -> Button:
 
 
 func _open_wall_draft() -> void:
-	if run_state == null or run_state.completed or run_state.has_claimed_wall_plan_for_current_rank() or $SiegeCombat.active:
+	if run_state == null or run_state.completed or run_state.opening_wall_plan_placed or $SiegeCombat.active:
 		return
+	wall_menu_mode = &"opening"
+	_open_wall_menu(WallPlanCatalogScript.get_opening_plans())
+
+
+func _open_wall_catalog() -> void:
+	if run_state == null or run_state.completed or $SiegeCombat.active:
+		return
+	if not run_state.opening_wall_plan_placed:
+		_open_wall_draft()
+		return
+	wall_menu_mode = &"catalog"
+	_open_wall_menu(WallPlanCatalogScript.get_reinforcement_plans())
+
+
+func _open_wall_menu(plans: Array[Dictionary]) -> void:
 	_cancel_pending_purchase()
 	_close_shop()
 	$HUD/SelectionPanel.visible = false
@@ -581,51 +599,57 @@ func _open_wall_draft() -> void:
 	$HUD/ResultPanel.visible = false
 	$HUD/WallPlanPlacementPanel.visible = false
 	pending_wall_plan_id = &""
-	_refresh_wall_draft_cards()
+	pending_wall_plan_cost = 0
+	wall_menu_plans = plans.duplicate(true)
+	_refresh_wall_menu_cards()
 	$HUD/WallDraftPanel.visible = true
 
 
-func _close_wall_draft() -> void:
+func _close_wall_menu() -> void:
 	$HUD/WallDraftPanel.visible = false
 	if not $SiegeCombat.active:
 		$HUD/ScoutPanel.visible = true
-	_on_status_changed("Wall Plan saved for later")
+	_on_status_changed("")
 
 
-func _refresh_wall_draft_cards() -> void:
+func _refresh_wall_menu_cards() -> void:
 	if run_state == null:
 		return
-	var available: int = maxi(TierCatalogScript.get_wall_allowance(run_state.town_hall) - $SiegeBoard.get_structure_count(&"wall"), 0)
-	wall_draft_plans = WallPlanCatalogScript.get_plan_choices(run_state.get_fortress_rank(), available)
-	for index in 3:
+	var available: int = run_state.wall_reserve
+	$HUD/WallDraftPanel/Margin/Stack/Title.text = "CHOOSE STARTING WALLS · %d AVAILABLE" % available if wall_menu_mode == &"opening" else "BUILD WALLS · %d AVAILABLE" % available
+	for index in 5:
 		var card: Control = _wall_plan_card(index)
-		card.visible = index < wall_draft_plans.size()
+		card.visible = index < wall_menu_plans.size()
 		if not card.visible:
 			continue
-		var plan: Dictionary = wall_draft_plans[index]
+		var plan: Dictionary = wall_menu_plans[index]
 		var cells: Array = plan.get("cells", [])
 		card.get_node("Margin/Stack/Name").text = "%s · %d WALLS" % [String(plan.get("name", "WALL PLAN")), cells.size()]
 		card.get_node("Margin/Stack/Preview").set_plan(cells, plan.get("required_wall_cells", []))
 		card.get_node("Margin/Stack/ChooseButton").disabled = cells.size() > available
+		card.get_node("Margin/Stack/ChooseButton").text = "CHOOSE" if wall_menu_mode == &"opening" else "BUILD"
 
 
 func _wall_plan_card(index: int) -> Control:
 	match index:
 		1: return $HUD/WallDraftPanel/Margin/Stack/Cards/Plan2
 		2: return $HUD/WallDraftPanel/Margin/Stack/Cards/Plan3
+		3: return $HUD/WallDraftPanel/Margin/Stack/Cards/Plan4
+		4: return $HUD/WallDraftPanel/Margin/Stack/Cards/Plan5
 		_: return $HUD/WallDraftPanel/Margin/Stack/Cards/Plan1
 
 
 func _select_wall_plan(index: int) -> void:
-	if index < 0 or index >= wall_draft_plans.size():
+	if index < 0 or index >= wall_menu_plans.size():
 		return
-	var plan: Dictionary = wall_draft_plans[index]
+	var plan: Dictionary = wall_menu_plans[index]
 	var cells: Array = plan.get("cells", [])
-	var available := maxi(TierCatalogScript.get_wall_allowance(run_state.town_hall) - $SiegeBoard.get_structure_count(&"wall"), 0)
+	var available: int = run_state.wall_reserve
 	if cells.size() > available:
 		_on_status_changed("This plan needs %d Walls · %d available" % [cells.size(), available])
 		return
 	pending_wall_plan_id = StringName(plan.get("id", &""))
+	pending_wall_plan_cost = cells.size()
 	$HUD/WallDraftPanel.visible = false
 	$HUD/WallPlanPlacementPanel.visible = true
 	$HUD/WallPlanPlacementPanel/Margin/Actions/PlanLabel.text = "%s\n%d OF %d WALLS" % [String(plan.get("name", "WALL PLAN")), cells.size(), available]
@@ -636,10 +660,11 @@ func _select_wall_plan(index: int) -> void:
 func _cancel_wall_plan_placement(reopen_draft := true) -> void:
 	var was_active: bool = pending_wall_plan_id != &"" or $SiegeBoard.is_wall_plan_active()
 	pending_wall_plan_id = &""
+	pending_wall_plan_cost = 0
 	$SiegeBoard.cancel_build()
 	$HUD/WallPlanPlacementPanel.visible = false
-	if was_active and reopen_draft and not $SiegeCombat.active and not run_state.has_claimed_wall_plan_for_current_rank():
-		_refresh_wall_draft_cards()
+	if was_active and reopen_draft and not $SiegeCombat.active:
+		_refresh_wall_menu_cards()
 		$HUD/WallDraftPanel.visible = true
 
 
@@ -656,16 +681,20 @@ func _on_wall_plan_preview_changed(can_confirm: bool) -> void:
 
 
 func _confirm_wall_plan() -> void:
-	if pending_wall_plan_id == &"":
+	if pending_wall_plan_id == &"" or not run_state.can_spend_walls(pending_wall_plan_cost):
 		return
 	var added: Array[Node2D] = $SiegeBoard.confirm_pending_wall_plan()
 	if added.is_empty():
 		_on_status_changed("Move the Wall Plan to a clear buildable area")
 		return
+	if not run_state.spend_walls(pending_wall_plan_cost):
+		return
 	_sync_board_levels_to_town_hall()
-	run_state.claim_wall_plan(pending_wall_plan_id)
+	if wall_menu_mode == &"opening":
+		run_state.mark_opening_wall_plan_placed()
 	run_state.blueprint = $SiegeBoard.capture_current_blueprint()
 	pending_wall_plan_id = &""
+	pending_wall_plan_cost = 0
 	$HUD/WallPlanPlacementPanel.visible = false
 	$HUD/WallDraftPanel.visible = false
 	$HUD/ScoutPanel.visible = true
@@ -676,13 +705,9 @@ func _confirm_wall_plan() -> void:
 func _refresh_fortify_button() -> void:
 	if run_state == null:
 		return
-	var available := maxi(TierCatalogScript.get_wall_allowance(run_state.town_hall) - $SiegeBoard.get_structure_count(&"wall"), 0)
-	if run_state.has_claimed_wall_plan_for_current_rank():
-		$HUD/BottomBar/FortifyButton.text = "WALL PLAN\nPLACED"
-		$HUD/BottomBar/FortifyButton.disabled = true
-	else:
-		$HUD/BottomBar/FortifyButton.text = "WALL PLAN\n%d AVAILABLE" % available
-		$HUD/BottomBar/FortifyButton.disabled = $SiegeCombat.active or run_state.completed
+	$HUD/BottomBar/FortifyButton.text = "FORTIFY\n%d WALLS" % run_state.wall_reserve
+	var cannot_afford_shape: bool = run_state.opening_wall_plan_placed and run_state.wall_reserve < WallPlanCatalogScript.get_minimum_reinforcement_cost()
+	$HUD/BottomBar/FortifyButton.disabled = $SiegeCombat.active or run_state.completed or cannot_afford_shape
 
 
 func _toggle_scout() -> void:
@@ -740,7 +765,7 @@ func _refresh_scout_panel() -> void:
 	$HUD/ScoutPanel/Margin/Stack/Roster.text = "\n".join(lines)
 
 
-func _show_victory_result(reward: int) -> void:
+func _show_victory_result(reward: int, wall_reward: int) -> void:
 	$HUD/ScoutPanel.visible = false
 	$HUD/ResultPanel.visible = true
 	var lines: PackedStringArray = []
@@ -751,6 +776,8 @@ func _show_victory_result(reward: int) -> void:
 	else:
 		$HUD/ResultPanel/Margin/Stack/Title.text = "DEFENSE HELD"
 		lines.append("+%d GOLD" % reward)
+		if wall_reward > 0:
+			lines.append("+%d WALLS" % wall_reward)
 		lines.append("Fortress repaired automatically")
 		lines.append("Round %d ready" % run_state.get_round_number())
 	$HUD/ResultPanel/Margin/Stack/Details.text = "\n".join(lines)

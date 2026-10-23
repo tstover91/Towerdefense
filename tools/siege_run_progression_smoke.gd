@@ -63,6 +63,10 @@ func _run() -> void:
 		_assert(Array(plan.get("cells", [])).size() == counts[0], "%s uses the intended number of new Walls" % plan_id)
 		_assert(Array(plan.get("required_wall_cells", [])).size() == counts[1], "%s declares the intended shared-wall anchors" % plan_id)
 	_assert(WallPlanCatalogScript.get_plan(&"divider").is_empty(), "the excluded Divider is not added")
+	var reinforcement_plans: Array[Dictionary] = WallPlanCatalogScript.get_reinforcement_plans()
+	_assert(_plan_ids(reinforcement_plans) == [&"short_line", &"long_line", &"corner", &"sidecar_pocket", &"small_compartment"], "Fortify exposes the same five reusable formation tools every round")
+	_assert(Array(reinforcement_plans[0]["cells"]).size() == 4 and Array(reinforcement_plans[4]["cells"]).size() == 12, "reinforcement shapes spend their actual Wall counts")
+	_assert(WallPlanCatalogScript.get_minimum_reinforcement_cost() == 4, "four reserved Walls can always build the smallest complete shape")
 	var rank_two_plans: Array[Dictionary] = WallPlanCatalogScript.get_plan_choices(2, 30)
 	_assert(_plan_ids(rank_two_plans) == [&"sidecar_pocket", &"u_funnel", &"dogleg_channel"], "Rank 2 offers Sidecar, U-Funnel, and Dogleg")
 	var rank_six_plans: Array[Dictionary] = WallPlanCatalogScript.get_plan_choices(6, 100)
@@ -110,6 +114,7 @@ func _run() -> void:
 	var defeat_blueprint: Array[Dictionary] = state.record_defeat()
 	_assert(state.currency == starting_currency and defeat_blueprint == blueprint, "defeat safely restores the precombat base without currency loss")
 	_assert(state.town_hall == 2 and state.get_round_number() == 1, "the run skips TH1 and opens at TH2")
+	_assert(state.wall_reserve == 25 and not state.opening_wall_plan_placed, "a run begins with twenty-five reserved Walls and one foundation choice")
 	_assert(state.get_fortress_rank() == 1 and state.get_total_ranks() == 6, "the player-facing run opens at Fortress Rank 1 of 6")
 	_assert(state.get_total_rounds() == 12, "the TH2-TH7 run contains twelve rounds")
 	for round_index in state.get_total_rounds():
@@ -118,8 +123,10 @@ func _run() -> void:
 		if round_index < state.get_total_rounds() - 1:
 			_assert(state.get_round_number() == round_index + 2, "victory advances exactly one round")
 	_assert(state.completed and state.town_hall == 2, "twelve victories complete the run without purchasing Town Hall levels")
+	_assert(state.wall_reserve == 91, "each non-final victory automatically banks six more Walls without opening a draft")
 	var upgrade_state: RefCounted = RunStateScript.new()
 	_assert(upgrade_state.upgrade_town_hall() and upgrade_state.town_hall == 3 and upgrade_state.get_round_number() == 1, "purchasing Town Hall progress does not advance the enemy round")
+	_assert(upgrade_state.wall_reserve == 35, "a Town Hall purchase adds ten Walls directly to the reserve")
 
 	var board: Node2D = BoardScript.new()
 	get_root().add_child(board)
@@ -148,6 +155,8 @@ func _run() -> void:
 	var main_board: Node2D = main.get_node("SiegeBoard")
 	_assert(main.get_node("HUD/TopBar/PhaseBadge").text.begins_with("TOWN HALL 2"), "the HUD shows independently purchased Town Hall progression")
 	_assert(main.get_node("HUD/WallDraftPanel").visible and not main.get_node("HUD/ScoutPanel").visible, "a new run opens with the three-choice Wall Plan draft")
+	var wall_menu_rect: Rect2 = main.get_node("HUD/WallDraftPanel").get_global_rect()
+	_assert(wall_menu_rect.position.x >= 0.0 and wall_menu_rect.end.x <= get_root().get_visible_rect().size.x, "the five-slot Fortify catalog fits inside the landscape viewport")
 	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/Name").text.contains("24 WALLS"), "the wide compartment reports its actual Wall use")
 	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack/Name").text.contains("20 WALLS"), "the Core box preserves leftover Walls")
 	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan3/Margin/Stack/Name").text.contains("16 WALLS"), "the defense pocket preserves the most leftover Walls")
@@ -164,8 +173,17 @@ func _run() -> void:
 	main._select_wall_plan(1)
 	var drafted_wall_cell: Vector2i = main_board.get_pending_wall_plan_cells()[0]
 	main._confirm_wall_plan()
-	_assert(main.run_state.has_claimed_wall_plan_for_current_rank() and main_board.get_structure_count(&"wall") == 20, "confirming builds the selected plan once and consumes only its actual Walls")
+	_assert(main.run_state.opening_wall_plan_placed and main.run_state.wall_reserve == 5 and main_board.get_structure_count(&"wall") == 20, "confirming the foundation spends only its actual Walls and preserves the remainder")
 	_assert(not main_board.is_wall_plan_active() and main.get_node("HUD/ScoutPanel").visible, "confirmation closes placement and reveals the next-attack scout")
+	main._open_wall_catalog()
+	_assert(main.get_node("HUD/WallDraftPanel").visible and main.wall_menu_plans.size() == 5, "Fortify opens a permanent five-shape catalog instead of another random draft")
+	_assert(main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/ChooseButton").text == "BUILD", "reinforcement cards are direct construction tools")
+	_assert(not main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan1/Margin/Stack/ChooseButton").disabled and main.get_node("HUD/WallDraftPanel/Margin/Stack/Cards/Plan2/Margin/Stack/ChooseButton").disabled, "the catalog enables only complete shapes affordable from the reserve")
+	main._select_wall_plan(0)
+	_assert(main_board.get_pending_wall_plan_count() == 4, "the smallest catalog tool previews a complete four-Wall line")
+	_assert(main_board.preview_wall_plan_at_cell(Vector2i(8, 4)), "a reinforcement shape remains freely placeable anywhere on clear buildable ground")
+	main._confirm_wall_plan()
+	_assert(main.run_state.wall_reserve == 1 and main_board.get_structure_count(&"wall") == 24, "catalog construction subtracts its exact cost and carries the leftover reserve forward")
 	var drafted_wall: Node2D = main_board.get_structure_at_cell(drafted_wall_cell, true)
 	main_board.select_structure(drafted_wall)
 	_assert(drafted_wall.wall_formation_id != &"" and main_board.get_wall_formation_size(drafted_wall.wall_formation_id) == 20, "every drafted Wall remembers its complete original formation")
@@ -251,27 +269,6 @@ func _run() -> void:
 	_assert(is_instance_valid(main_board.build_preview_structure), "another building can enter draggable preview mode")
 	main._cancel_pending_purchase()
 	_assert(main_board.get_structure_count(&"archer_tower") == 0 and main.run_state.currency == 11, "cancel removes the ghost without building or spending Gold")
-	var capped_blueprint: Array[Dictionary] = []
-	for entry in main_board.capture_current_blueprint():
-		if StringName(entry.get("kind", &"")) != &"wall":
-			capped_blueprint.append(entry)
-	for wall_index in 25:
-		capped_blueprint.append({
-			"id": StringName("cap_wall_%d" % wall_index),
-			"kind": &"wall",
-			"level": 1,
-			"cell": Vector2i(3 + wall_index, 5),
-			"footprint": Vector2i.ONE,
-		})
-	main_board.load_blueprint(capped_blueprint)
-	main.run_state.blueprint = capped_blueprint.duplicate(true)
-	main.pending_purchase_kind = &"wall"
-	main.pending_purchase_cost = 0
-	var final_wall: Node2D = main_board.get_structure(&"cap_wall_24")
-	main_board.selected_structure_id = final_wall.structure_id
-	main._on_structure_added(final_wall)
-	_assert(main_board.get_selected_structure() == null and not main_board.is_wall_chain_active(), "building the final available Wall leaves no stale selection or extension mode")
-	_assert(not main.get_node("HUD/SelectionPanel").visible, "the final Wall does not fall back to the old tap-to-move panel state")
 	main_board.selected_structure_id = &"command_core"
 	main.run_state.currency = 18
 	main._on_selection_changed(main_board.get_structure(&"command_core"))
@@ -279,15 +276,16 @@ func _run() -> void:
 	main._upgrade_selected()
 	await process_frame
 	_assert(main.run_state.town_hall == 3 and main.run_state.currency == 0 and main.run_state.get_round_number() == 1, "buying TH3 spends Gold without advancing the round")
+	_assert(main.run_state.wall_reserve == 11, "buying TH3 adds ten Walls without forcing a placement screen")
 	_assert(main_board.get_structure(&"command_core").level == 3 and main_board.get_structure(&"cannon_1").level == 4, "the Town Hall purchase refreshes the Core and every existing defense")
-	_assert(main_board.get_structure(&"cap_wall_0").level == 3, "the Town Hall purchase also refreshes existing Wall health")
+	_assert(main_board.get_structure(drafted_wall_id).level == 3, "the Town Hall purchase also refreshes existing Wall health")
 	_assert(main.get_node("HUD/BuildTray/Margin/Stack/Cards/MortarCard").visible, "purchasing TH3 immediately unlocks the Mortar")
-	_assert(main.get_node("HUD/WallDraftPanel").visible, "purchasing a Town Hall level offers that level's Wall Plan")
-	main._close_wall_draft()
+	_assert(not main.get_node("HUD/WallDraftPanel").visible, "Town Hall wall rewards go straight into reserve without interrupting preparation")
 	main.run_state.begin_combat(main_board.capture_current_blueprint())
 	main._on_wave_finished(&"defenders")
 	_assert(main.get_node("HUD/ResultPanel").visible, "a victory opens a clear reward summary")
 	_assert(main.get_node("HUD/ResultPanel/Margin/Stack/Details").text.contains("+7 GOLD"), "the reward summary reports earned Gold")
+	_assert(main.get_node("HUD/ResultPanel/Margin/Stack/Details").text.contains("+6 WALLS") and main.run_state.wall_reserve == 17, "every non-final victory visibly adds six Walls to the carry-over reserve")
 	_assert(main.run_state.get_round_number() == 2 and main.run_state.town_hall == 3, "winning advances the enemy round without changing the purchased Town Hall")
 	main.run_state.begin_combat(main_board.capture_current_blueprint())
 	main._on_wave_finished(&"defenders")

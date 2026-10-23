@@ -6,6 +6,48 @@ static func get_opening_plans() -> Array[Dictionary]:
 	return get_plan_choices(1, 25)
 
 
+static func get_reinforcement_plans() -> Array[Dictionary]:
+	return [
+		{
+			"id": &"short_line",
+			"name": "SHORT LINE",
+			"cells": _line(4),
+			"preferred_origin": Vector2i(-1, -1),
+		},
+		{
+			"id": &"long_line",
+			"name": "LONG LINE",
+			"cells": _line(7),
+			"preferred_origin": Vector2i(-1, -1),
+		},
+		{
+			"id": &"corner",
+			"name": "CORNER",
+			"cells": _corner(4),
+			"preferred_origin": Vector2i(-1, -1),
+		},
+		{
+			"id": &"sidecar_pocket",
+			"name": "SIDECAR",
+			"cells": _sidecar_pocket(),
+			"preferred_origin": Vector2i(-1, -1),
+		},
+		{
+			"id": &"small_compartment",
+			"name": "COMPARTMENT",
+			"cells": _rectangle_perimeter(4, 4),
+			"preferred_origin": Vector2i(-1, -1),
+		},
+	]
+
+
+static func get_minimum_reinforcement_cost() -> int:
+	var minimum := 1000000
+	for plan in get_reinforcement_plans():
+		minimum = mini(minimum, Array(plan.get("cells", [])).size())
+	return minimum
+
+
 static func get_plan_choices(fortress_rank: int, available_walls: int) -> Array[Dictionary]:
 	var preferences: Dictionary = {
 		1: [&"wide_compartment", &"core_box", &"defense_pocket"],
@@ -138,6 +180,20 @@ static func _add_choice_if_available(
 
 static func _rectangle_perimeter(width: int, height: int) -> Array[Vector2i]:
 	return _rectangle_perimeter_at(Vector2i.ZERO, width, height)
+
+
+static func _line(length: int) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for x in length:
+		cells.append(Vector2i(x, 0))
+	return cells
+
+
+static func _corner(arm_length: int) -> Array[Vector2i]:
+	var cells := _line(arm_length)
+	for y in range(1, arm_length):
+		cells.append(Vector2i(0, y))
+	return cells
 
 
 static func _rectangle_perimeter_at(origin: Vector2i, width: int, height: int) -> Array[Vector2i]:
